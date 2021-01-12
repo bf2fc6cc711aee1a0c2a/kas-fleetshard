@@ -5,7 +5,7 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import jdk.jfr.Name;
 import org.bf2.operator.api.v1alpha1.ManagedKafka;
 
-@Controller(crdName = "managedkafkas.managedkafka.bf2.org")
+@Controller(crdName = "managedkafkas.managedkafka.bf2.org", name = "ManagedKafkaController")
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     @Override
