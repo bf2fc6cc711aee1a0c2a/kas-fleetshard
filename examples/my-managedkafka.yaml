@@ -1,0 +1,7 @@
+apiVersion: "managedkafka.bf2.org/v1alpha1"
+kind: ManagedKafka
+metadata:
+  name: my-managedkafka
+spec:
+  kafkaInstance:
+    version: 2.7.0
