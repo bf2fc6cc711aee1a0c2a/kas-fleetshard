@@ -19,6 +19,7 @@
     <quarkus-plugin.version>1.10.5.Final</quarkus-plugin.version>
     <compiler-plugin.version>3.8.1</compiler-plugin.version>
     <dekorate.version>0.15.0</dekorate.version>
+    <strimzi.version>0.20.1</strimzi.version>
     <quarkus.operator.extension>1.6.2</quarkus.operator.extension>
     <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
   </properties>
@@ -53,6 +54,11 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-arc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.strimzi</groupId>
+      <artifactId>api</artifactId>
+      <version>${strimzi.version}</version>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>

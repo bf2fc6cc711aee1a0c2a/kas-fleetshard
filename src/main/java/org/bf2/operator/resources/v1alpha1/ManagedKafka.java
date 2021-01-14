@@ -1,4 +1,4 @@
-package org.bf2.operator.api.v1alpha1;
+package org.bf2.operator.resources.v1alpha1;
 
 import io.fabric8.kubernetes.client.CustomResource;
 
