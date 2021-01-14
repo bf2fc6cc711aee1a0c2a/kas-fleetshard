@@ -6,12 +6,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
-import io.quarkus.runtime.annotations.QuarkusMain;
 import org.bf2.operator.controllers.ManagedKafkaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@QuarkusMain
 public class AgentOperator implements QuarkusApplication {
 
     private static final Logger log = LoggerFactory.getLogger(AgentOperator.class);
