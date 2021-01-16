@@ -20,4 +20,4 @@ jobs:
       with:
         java-version: 11.0.2
     - name: Build and run Unit tests
-      run: mvn -B package --file pom.xml
+      run: mvn -B package --file pom.xml --no-transfer-progress
