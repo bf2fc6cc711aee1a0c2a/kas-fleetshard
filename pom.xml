@@ -25,6 +25,7 @@
         <quarkus.operator.extension>1.6.2</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
+        <log4j2.version>2.13.3</log4j2.version>
     </properties>
 
     <modules>
