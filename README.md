@@ -12,9 +12,10 @@ The first step is to package the operator allowing the `dekorate` plugin to gene
 mvn package
 ```
 
-After that, apply the generated CRD to the Kubernetes/OpenShift cluster by running the following command.
+After that, apply the generated CRD to the Kubernetes/OpenShift cluster by running the following commands.
 
 ```shell
+cd agent-operator
 kubectl apply -f target/classes/META-INF/dekorate/kubernetes.yml
 ```
 
