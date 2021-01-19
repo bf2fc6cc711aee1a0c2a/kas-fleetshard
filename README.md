@@ -1,6 +1,7 @@
 # mk-agent
 
 ![Build](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Build%20and%20Unit%20tests/badge.svg?branch=main)
+[![Build Status](https://dev.azure.com/jstejska/ci-demo/_apis/build/status/build?branchName=main)](https://dev.azure.com/jstejska/ci-demo/_build/latest?definitionId=10&branchName=main)
 
 ## Running
 
