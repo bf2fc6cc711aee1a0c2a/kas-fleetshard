@@ -13,10 +13,9 @@
     <dependencies>
         <dependency>
             <groupId>org.bf2</groupId>
-            <artifactId>agent-model</artifactId>
+            <artifactId>agent-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>${quarkus.platform.group-id}</groupId>
             <artifactId>${quarkus.platform.artifact-id}</artifactId>
