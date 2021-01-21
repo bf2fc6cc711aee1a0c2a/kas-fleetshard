@@ -30,7 +30,7 @@
     </properties>
 
     <modules>
-        <module>agent-model</module>
+        <module>agent-api</module>
         <module>agent-operator</module>
         <module>systemtest</module>
     </modules>
