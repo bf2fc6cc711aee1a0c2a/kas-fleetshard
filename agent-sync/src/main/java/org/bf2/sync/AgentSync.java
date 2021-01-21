@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.sync;
 
 import javax.inject.Inject;
 
