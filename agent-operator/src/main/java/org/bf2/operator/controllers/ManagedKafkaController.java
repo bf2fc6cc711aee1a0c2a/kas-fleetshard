@@ -14,7 +14,6 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.DoneableKafka;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.Condition;
 import org.bf2.operator.KafkaEvent;
@@ -35,7 +34,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
-@Controller(crdName = "managedkafkas.managedkafka.bf2.org", name = "ManagedKafkaController")
+//crdName = "managedkafkas.managedkafka.bf2.org"
+@Controller(name = "ManagedKafkaController")
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
@@ -43,7 +43,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Inject
     private KubernetesClient client;
 
-    private MixedOperation<Kafka, KafkaList, DoneableKafka, Resource<Kafka, DoneableKafka>> kafkaClient;
+    private MixedOperation<Kafka, KafkaList, Resource<Kafka>> kafkaClient;
 
     private KafkaEventSource kafkaEventSource;
 
@@ -130,7 +130,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         CustomResourceDefinition kafkaCrd = Crds.kafka();
         CustomResourceDefinitionContext kafkaCrdContext = CustomResourceDefinitionContext.fromCrd(kafkaCrd);
-        kafkaClient = client.customResources(kafkaCrdContext, Kafka.class, KafkaList.class, DoneableKafka.class);
+        kafkaClient = client.customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         kafkaEventSource = KafkaEventSource.createAndRegisterWatch(kafkaClient);
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);

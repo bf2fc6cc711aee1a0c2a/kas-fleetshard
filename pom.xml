@@ -5,37 +5,46 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.bf2</groupId>
-    <artifactId>mk-agent</artifactId>
+   <artifactId>mk-agent</artifactId>
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
 
     <properties>
         <surefire-plugin.version>3.0.0-M5</surefire-plugin.version>
         <maven.compiler.target>11</maven.compiler.target>
-        <quarkus.platform.version>1.10.5.Final</quarkus.platform.version>
+        <quarkus.platform.version>1.11.0.Final</quarkus.platform.version>
         <maven.compiler.source>11</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.parameters>true</maven.compiler.parameters>
-        <quarkus-plugin.version>1.10.5.Final</quarkus-plugin.version>
+        <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <dekorate.version>0.15.0</dekorate.version>
+        <dekorate.version>2.0.0.beta1</dekorate.version>
         <strimzi.version>0.20.1</strimzi.version>
-        <quarkus.operator.extension>1.6.2</quarkus.operator.extension>
+        <quarkus.operator.extension>1.7.0</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
-        <sundrio.version>0.22.1</sundrio.version>
+        <sundrio.version>0.24.1</sundrio.version>
     </properties>
 
     <modules>
+        <module>agent-model</module>
         <module>agent-operator</module>
         <module>systemtest</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <!-- <dependency> -->
+            <!--     <groupId>io.dekorate</groupId> -->
+            <!--     <artifactId>dekorate-bom</artifactId> -->
+            <!--     <version>${dekorate.version}</version> -->
+            <!--     <type>pom</type> -->
+            <!--     <scope>import</scope> -->
+            <!-- </dependency> -->
+            
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>

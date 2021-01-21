@@ -4,10 +4,9 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.kubernetes.client.EmptyDefaultKubernetesMockServerTestResource;
-import io.quarkus.test.kubernetes.client.MockServer;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
@@ -18,13 +17,21 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@QuarkusTestResource(EmptyDefaultKubernetesMockServerTestResource.class)
-@QuarkusTest
 public class ManagedKafkaCrdTest {
     private final String ROOT_PATH = System.getProperty("user.dir");
 
-    @MockServer
-    KubernetesMockServer server;
+    private static KubernetesMockServer server = new KubernetesMockServer();
+
+    @BeforeAll
+    public static void setup() {
+      server.init();
+    }
+
+    @AfterAll
+    public static void tearDown() {
+      server.destroy();
+    }
+    
 
     @Test
     void testRegisterCrds() throws IOException {
