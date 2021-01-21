@@ -21,7 +21,7 @@
         <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
         <dekorate.version>2.0.0.beta1</dekorate.version>
-        <strimzi.version>0.20.1</strimzi.version>
+        <strimzi.version>0.22.0-SNAPSHOT</strimzi.version>
         <quarkus.operator.extension>1.7.0</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
@@ -37,14 +37,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- <dependency> -->
-            <!--     <groupId>io.dekorate</groupId> -->
-            <!--     <artifactId>dekorate-bom</artifactId> -->
-            <!--     <version>${dekorate.version}</version> -->
-            <!--     <type>pom</type> -->
-            <!--     <scope>import</scope> -->
-            <!-- </dependency> -->
-            
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -161,5 +153,15 @@
             </plugin>
         </plugins>
     </build>
+   <repositories>
+    <repository>
+      <id>oss-sonatype</id>
+      <name>oss-sonatype</name>
+      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
 </project>
