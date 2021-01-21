@@ -14,18 +14,16 @@
         <dependency>
             <groupId>io.dekorate</groupId>
             <artifactId>crd-annotations</artifactId>
-            <optional>true</optional>
+            <optional>true</optional> <!-- we need to keep this optional to avoid conflicts with quarkus-kubernetes -->
         </dependency>
         <dependency>
             <groupId>io.sundr</groupId>
             <artifactId>builder-annotations</artifactId>
-            <optional>true</optional>
         </dependency>
 
         <dependency>
           <groupId>io.fabric8</groupId>
           <artifactId>kubernetes-server-mock</artifactId>
-          <version>5.0.0</version>
           <scope>test</scope>
         </dependency>
     </dependencies>

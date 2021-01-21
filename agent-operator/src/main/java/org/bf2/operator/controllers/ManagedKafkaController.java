@@ -1,18 +1,15 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
-import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.Condition;
@@ -31,11 +28,9 @@ import javax.inject.Inject;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Optional;
 
-//crdName = "managedkafkas.managedkafka.bf2.org"
-@Controller(name = "ManagedKafkaController")
+@Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
@@ -128,10 +123,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     public void init(EventSourceManager eventSourceManager) {
         log.info("init");
 
-        CustomResourceDefinition kafkaCrd = Crds.kafka();
-        CustomResourceDefinitionContext kafkaCrdContext = CustomResourceDefinitionContext.fromCrd(kafkaCrd);
-        kafkaClient = client.customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
-
+        kafkaClient = client.customResources(Kafka.class, KafkaList.class);
         kafkaEventSource = KafkaEventSource.createAndRegisterWatch(kafkaClient);
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
     }
