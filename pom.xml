@@ -31,6 +31,7 @@
 
     <modules>
         <module>agent-operator</module>
+        <module>agent-sync</module>
         <module>systemtest</module>
     </modules>
 
@@ -56,6 +57,11 @@
             <dependency>
                 <groupId>io.dekorate</groupId>
                 <artifactId>crd-annotations</artifactId>
+                <version>${dekorate.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.dekorate</groupId>
+                <artifactId>kubernetes-annotations</artifactId>
                 <version>${dekorate.version}</version>
             </dependency>
             <dependency>

@@ -8,7 +8,7 @@
         <artifactId>mk-agent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>agent-operator</artifactId>
+    <artifactId>agent-sync</artifactId>
 
     <dependencies>
         <dependency>
@@ -28,10 +28,6 @@
         <dependency>
             <groupId>io.dekorate</groupId>
             <artifactId>crd-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.dekorate</groupId>
-            <artifactId>kubernetes-annotations</artifactId>
         </dependency>
         <dependency>
             <groupId>io.sundr</groupId>
