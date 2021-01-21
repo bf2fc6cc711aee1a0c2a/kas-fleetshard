@@ -1,5 +1,7 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
@@ -8,6 +10,7 @@ import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,6 +54,16 @@ public class KafkaFactory {
                 .endZookeeper()
                 .endSpec()
                 .build();
+
+        // setting the ManagedKafka has owner of the Kafka resource is needed
+        // by the operator sdk to handle events on the Kafka resource properly
+        OwnerReference ownerReference = new OwnerReferenceBuilder()
+                .withApiVersion(managedKafka.getApiVersion())
+                .withKind(managedKafka.getKind())
+                .withName(managedKafka.getMetadata().getName())
+                .withUid(managedKafka.getMetadata().getUid())
+                .build();
+        kafka.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
 
         return kafka;
     }

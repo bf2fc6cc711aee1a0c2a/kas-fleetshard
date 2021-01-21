@@ -26,6 +26,7 @@
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
+        <sundrio.version>0.22.1</sundrio.version>
     </properties>
 
     <modules>
@@ -56,6 +57,11 @@
                 <groupId>io.dekorate</groupId>
                 <artifactId>crd-annotations</artifactId>
                 <version>${dekorate.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.sundr</groupId>
+                <artifactId>builder-annotations</artifactId>
+                <version>${sundrio.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>
