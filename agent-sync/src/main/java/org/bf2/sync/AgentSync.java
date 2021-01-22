@@ -41,26 +41,32 @@ public class AgentSync implements QuarkusApplication {
         		.withPlural("managedkafkas")
         		.withName("managedkafkas.managedkafka.bf2.org").build();
         		
-        SharedIndexInformer<ManagedKafka> managedKafkaInformer = localClient.informers()
-        		.sharedIndexInformerForCustomResource(managedKafkaCrdContext, ManagedKafka.class, ManagedKafkaList.class, 1000);
+        int resyncPeriodInMillis = 60000;
+		SharedIndexInformer<ManagedKafka> managedKafkaInformer = localClient.informers()
+        		.sharedIndexInformerForCustomResource(managedKafkaCrdContext, ManagedKafka.class, ManagedKafkaList.class, resyncPeriodInMillis);
         
         managedKafkaInformer.addEventHandler(new ResourceEventHandler<ManagedKafka>() {
 			
 			@Override
 			public void onUpdate(ManagedKafka oldObj, ManagedKafka newObj) {
-				System.out.print("update " + oldObj);
+				//an update will also be generated for each resyncPeriodInMillis
+				System.out.println("update " + oldObj);
+				System.out.println(newObj.getStatus());
 			}
 			
 			@Override
 			public void onDelete(ManagedKafka obj, boolean deletedFinalStateUnknown) {
-				System.out.print("delete " + obj);
+				System.out.println("delete " + obj);
 			}
 			
 			@Override
 			public void onAdd(ManagedKafka obj) {
-				System.out.print("add " + obj);
+				//on a restart we'll hit add again for each resource
+				System.out.println("add " + obj);
 			}
 		});
+        
+        managedKafkaInformer.run();
         
         //monitor the agent to supply "kafka units"
         
