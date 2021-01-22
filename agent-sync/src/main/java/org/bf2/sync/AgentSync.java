@@ -20,7 +20,7 @@ public class AgentSync implements QuarkusApplication {
     private static final Logger log = LoggerFactory.getLogger(AgentSync.class);
 
     @Inject
-    private KubernetesClient localClient;
+    KubernetesClient localClient;
 
     //http connection to poll for ManagedKafkas and post updates
     
