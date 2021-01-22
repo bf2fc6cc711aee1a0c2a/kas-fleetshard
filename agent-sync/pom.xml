@@ -18,6 +18,10 @@
             <type>pom</type>
         </dependency>
         <dependency>
+            <groupId>org.bf2</groupId>
+        	<artifactId>agent-operator</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-quarkus-extension</artifactId>
         </dependency>
