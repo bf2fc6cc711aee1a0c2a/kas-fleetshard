@@ -40,6 +40,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     private MixedOperation<Kafka, KafkaList, Resource<Kafka>> kafkaClient;
 
+    @Inject
     private KafkaEventSource kafkaEventSource;
 
     @Override
@@ -124,7 +125,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         log.info("init");
 
         kafkaClient = client.customResources(Kafka.class, KafkaList.class);
-        kafkaEventSource = KafkaEventSource.createAndRegisterWatch(kafkaClient);
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
     }
 
