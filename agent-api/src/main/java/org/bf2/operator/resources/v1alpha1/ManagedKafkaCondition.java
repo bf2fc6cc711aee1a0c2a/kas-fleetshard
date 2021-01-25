@@ -1,5 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 
 @Buildable
@@ -19,6 +20,7 @@ public class ManagedKafkaCondition {
         this.type = type;
     }
 
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getReason() {
         return reason;
     }
@@ -27,6 +29,7 @@ public class ManagedKafkaCondition {
         this.reason = reason;
     }
 
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getMessage() {
         return message;
     }
