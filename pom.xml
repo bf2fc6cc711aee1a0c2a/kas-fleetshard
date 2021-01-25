@@ -40,7 +40,7 @@
         <dependencies>
             <dependency>
                 <groupId>org.bf2</groupId>
-        	    <artifactId>agent-operator</artifactId>
+        	    <artifactId>agent-api</artifactId>
         	    <version>${project.version}</version>
             </dependency>
             <dependency>

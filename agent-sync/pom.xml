@@ -19,11 +19,11 @@
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
-        	<artifactId>agent-operator</artifactId>
+        	<artifactId>agent-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.javaoperatorsdk</groupId>
-            <artifactId>operator-framework-quarkus-extension</artifactId>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
