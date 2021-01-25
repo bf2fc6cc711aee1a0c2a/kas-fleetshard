@@ -12,24 +12,25 @@
     <properties>
         <surefire-plugin.version>3.0.0-M5</surefire-plugin.version>
         <maven.compiler.target>11</maven.compiler.target>
-        <quarkus.platform.version>1.10.5.Final</quarkus.platform.version>
+        <quarkus.platform.version>1.11.0.Final</quarkus.platform.version>
         <maven.compiler.source>11</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.parameters>true</maven.compiler.parameters>
-        <quarkus-plugin.version>1.10.5.Final</quarkus-plugin.version>
+        <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <dekorate.version>0.15.0</dekorate.version>
-        <strimzi.version>0.20.1</strimzi.version>
-        <quarkus.operator.extension>1.6.2</quarkus.operator.extension>
+        <dekorate.version>2.0.0.beta1</dekorate.version>
+        <strimzi.version>0.22.0-SNAPSHOT</strimzi.version>
+        <quarkus.operator.extension>1.7.0</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
-        <sundrio.version>0.22.1</sundrio.version>
+        <sundrio.version>0.24.1</sundrio.version>
     </properties>
 
     <modules>
+        <module>agent-api</module>
         <module>agent-operator</module>
         <module>agent-sync</module>
         <module>systemtest</module>
@@ -57,6 +58,11 @@
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-kubernetes-client</artifactId>
+                <version>${quarkus.platform.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-openshift-client</artifactId>
                 <version>${quarkus.platform.version}</version>
             </dependency>
             <dependency>
@@ -112,7 +118,6 @@
                 <version>${surefire-plugin.version}</version>
                 <configuration>
                     <systemPropertyVariables>
-                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
                 </configuration>
@@ -163,5 +168,15 @@
             </plugin>
         </plugins>
     </build>
+   <repositories>
+    <repository>
+      <id>oss-sonatype</id>
+      <name>oss-sonatype</name>
+      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
 </project>

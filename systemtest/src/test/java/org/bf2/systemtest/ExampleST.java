@@ -4,7 +4,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.executor.ExecBuilder;
 import org.bf2.systemtest.executor.ExecResult;
-import org.bf2.systemtest.k8s.KubeClient;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,10 +19,10 @@ public class ExampleST extends AbstractST {
     void testExample() {
         ExecResult r = new ExecBuilder().withCommand("ls").exec();
         assertTrue(r.exitStatus());
-        KubeClient.getInstance().client().namespaces().list().getItems().forEach(namespace ->
+        kube.client().namespaces().list().getItems().forEach(namespace ->
                 LOGGER.info("Namespace: {}", namespace.getMetadata().getName()));
-        KubeClient.getInstance().client().pods().inAnyNamespace().list().getItems().forEach(namespace ->
+        kube.client().pods().inAnyNamespace().list().getItems().forEach(namespace ->
                 LOGGER.info("Pod: {}", namespace.getMetadata().getName()));
-
+        kube.cmdClient().exec("get", "namespaces");
     }
 }
