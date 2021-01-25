@@ -4,10 +4,10 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.kubernetes.client.EmptyDefaultKubernetesMockServerTestResource;
 import io.quarkus.test.kubernetes.client.MockServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests for verifying that test suite is not broken and basic functionality is working properly
  */
 @QuarkusTest
-@QuarkusTestResource(EmptyDefaultKubernetesMockServerTestResource.class)
+@QuarkusTestResource(MockKubeServer.class)
 @DisplayNameGeneration(IndicativeSentences.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class SuiteUnitTest {
@@ -59,6 +59,12 @@ public class SuiteUnitTest {
         List<Pod> pods = KubeClient.getInstance().client().pods().inNamespace("default").list().getItems();
         pods.forEach(pod -> LOGGER.info("Found pod with name {}", pod.getMetadata().getName()));
         assertTrue(pods.size() > 0);
+    }
+
+    @Test
+    void testKubeRequestFail() {
+        assertThrows(KubernetesClientException.class, () ->
+                KubeClient.getInstance().client().serviceAccounts().list());
     }
 
     @Test
