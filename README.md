@@ -1,6 +1,7 @@
 # mk-agent
 
-![Build](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Build%20and%20Unit%20tests/badge.svg?branch=main)
+![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Build%20and%20Unit%20tests/badge.svg)
+![Integration tests](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Integration%20tests/badge.svg)
 
 ## Running
 
