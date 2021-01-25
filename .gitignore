@@ -1,5 +1,6 @@
 # Maven build targets
 **/target/*
+target/
 
 # Eclipse specific
 **/.project

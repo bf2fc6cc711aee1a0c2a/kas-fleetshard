@@ -1,0 +1,26 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: agent-operator
+rules:
+- apiGroups:
+  - kafka.strimzi.io
+  resources:
+   - kafkas
+   - kafka
+  verbs: [get, list, create, update, delete, deletecollection, watch]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: agent-operator
+subjects:
+- kind: ServiceAccount
+  name: agent-operator
+  namespace: _NAMESPACE_
+roleRef:
+  kind: ClusterRole
+  name: agent-operator
+  apiGroup: rbac.authorization.k8s.io
+---
