@@ -1,5 +1,7 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.dekorate.crd.annotation.Crd;
 import io.dekorate.crd.annotation.Status;
 import io.fabric8.kubernetes.api.model.Namespaced;
@@ -31,4 +33,9 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public void setStatus(ManagedKafkaStatus status) {
         this.status = status;
     }
+    
+    @JsonIgnore
+    public String getKafkaClusterId() {
+		return this.getMetadata().getAnnotations().get("kas.redhat.com/kafka-id");
+	}
 }

@@ -2,6 +2,7 @@ package org.bf2.sync;
 
 import java.util.List;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -16,10 +17,11 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
+@ApplicationScoped
 @Path("/api/managed-services-api/v1/")
 @RegisterRestClient
 public interface ControlPlaneRestClient {
-
+	
 	@PUT
 	@Path("/agent-clusters/{id}")
 	@Consumes(MediaType.APPLICATION_JSON)
