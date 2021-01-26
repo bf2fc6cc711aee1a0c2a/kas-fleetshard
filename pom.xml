@@ -20,7 +20,7 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <dekorate.version>2.0.0.beta1</dekorate.version>
+        <dekorate.version>2.0.0.beta3</dekorate.version>
         <strimzi.version>0.22.0-SNAPSHOT</strimzi.version>
         <quarkus.operator.extension>1.7.0</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
@@ -112,6 +112,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
+                    <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
                     <systemPropertyVariables>
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
@@ -129,6 +130,7 @@
                         </goals>
                         <configuration>
                             <forkCount>0</forkCount>
+                            <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
                             <includes>
                                 <include>**/IT*.java</include>
                                 <include>**/*IT.java</include>
