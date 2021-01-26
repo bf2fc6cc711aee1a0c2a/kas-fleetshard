@@ -29,20 +29,10 @@ or you can run it from the command line by running the following command (with Q
 
 > NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
 
-## Running on OpenShift
 
-If you want run the operator on a OpenShift instance please follow below steps. If you do not have access to a Openshift instance, you can install (Code Ready Container) CRC locally.
+If you want to deploy the container image that is built to Kubernetes/Openshift, execute the following maven command, 
+this will build, push the image and then deploy to the the Kubernetes instance you are locally logging into.
 
-Once OpenShift instance is available, then using `oc` login into OpenShift and create project (namespace) then
-
-- Install the crd
-
-```
-cd agent-operator
-oc apply -f target/classes/META-INF/dekorate/kubernetes.yml
-```
-
-Then run 
 
 ```
 mvn package -DskipTests -Dquarkus.kubernetes.deploy=true \
@@ -53,10 +43,8 @@ mvn package -DskipTests -Dquarkus.kubernetes.deploy=true \
 ```
 
 replace above `xxx` with your `docker` or `quay.io` credentials. If the Strimzi Operator is installed in the cluster 
-scope then also run
+scope then also run the following script as this will grant the cluster scoped grants watch Strimzi resources. (BTW, this below script for development purposes only, once the OLM is used install this can be script will be weaved into that process)
 
 ```
 ./cluster-scope.sh
 ```
-
-this should create permissions such that Agent will be able to watch Strimzi resources at cluster level.
