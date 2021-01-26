@@ -7,7 +7,6 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.scheduler.Scheduled;
@@ -16,9 +15,6 @@ public class AgentSync implements QuarkusApplication {
 
     private static final Logger log = LoggerFactory.getLogger(AgentSync.class);
 
-    @Inject
-    KubernetesClient client;
-    
     //TODO: where should this be coming from
     @ConfigProperty(name = "cluster.id") 
     String id;
@@ -26,9 +22,6 @@ public class AgentSync implements QuarkusApplication {
     @Inject
     @RestClient
     ControlPlaneRestClient controlPlane;
-    
-    @Inject
-    InformerManager informerManager;
     
     @Inject
     ManagedKafkaSync managedKafkaSync;
