@@ -39,6 +39,8 @@ public class AgentSync implements QuarkusApplication {
     
     @Scheduled(every="{poll.interval}")     
     void pollKafkaClusters() {
+    	//TODO: this is based upon a full poll - eventually this could be
+    	//based upon a delta revision / timestmap to get a smaller list
     	managedKafkaSync.syncKafkaClusters(controlPlane.getKafkaClusters(id));
     }
     
