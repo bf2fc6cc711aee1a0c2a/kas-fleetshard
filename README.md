@@ -42,8 +42,7 @@ mvn package -DskipTests -Dquarkus.kubernetes.deploy=true \
 -Dquarkus.container-image.password=xxxx
 ```
 
-replace above `xxx` with your `docker` or `quay.io` credentials. If the Strimzi Operator is installed in the cluster 
-scope then also run the following script as this will grant the cluster scoped grants watch Strimzi resources. (BTW, this below script for development purposes only, once the OLM is used install this can be script will be weaved into that process)
+replace above `xxx` with your `docker` registry credentials. Similarly to use the `quay.io` as the repository, change the `registry` property to `quay.io` along with `username` and `password` properties. If the Strimzi Operator is installed in the cluster scope then also run the following script as this will grant the cluster scoped grants watch Strimzi resources. (BTW, this below script for development purposes only, once the OLM is used install this can be script will be weaved into that process)
 
 ```
 ./cluster-scope.sh
