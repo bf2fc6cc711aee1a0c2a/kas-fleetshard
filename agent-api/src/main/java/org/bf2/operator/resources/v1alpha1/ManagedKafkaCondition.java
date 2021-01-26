@@ -6,6 +6,10 @@ import io.sundr.builder.annotations.Buildable;
 @Buildable
 public class ManagedKafkaCondition {
 
+    public static final String INSTALLING = "Installing";
+    public static final String READY = "Ready";
+    public static final String ERROR = "Error";
+
     private String type;
     private String reason;
     private String message;

@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
@@ -7,6 +7,8 @@ import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
+import io.strimzi.api.kafka.model.status.Condition;
+import io.strimzi.api.kafka.model.status.KafkaStatus;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
@@ -14,7 +16,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class KafkaFactory {
+/**
+ * Provides same functionalities to get a Kafka resource from a ManagedKafka one
+ * and checking the corresponding status
+ */
+public class KafkaCluster {
 
     public static Kafka getKafka(ManagedKafka managedKafka) {
 
@@ -32,7 +38,7 @@ public class KafkaFactory {
                 .endMetadata()
                 .withNewSpec()
                 .withNewKafka()
-                .withVersion(managedKafka.getSpec().getKafkaInstance().getVersion())
+                .withVersion(managedKafka.getSpec().getVersions().getKafka())
                 .withReplicas(3)
                 .withListeners(
                         new ArrayOrObjectKafkaListenersBuilder()
@@ -66,6 +72,25 @@ public class KafkaFactory {
         kafka.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
 
         return kafka;
+    }
+
+    public static boolean isInstalling(KafkaStatus status) {
+        Condition kafkaCondition = status.getConditions().get(0);
+        return kafkaCondition.getType().equals("NotReady")
+                && kafkaCondition.getStatus().equals("True")
+                && kafkaCondition.getReason().equals("Creating");
+    }
+
+    public static boolean isReady(KafkaStatus status) {
+        Condition kafkaCondition = status.getConditions().get(0);
+        return kafkaCondition.getType().equals("Ready") && kafkaCondition.getStatus().equals("True");
+    }
+
+    public static boolean isError(KafkaStatus status) {
+        Condition kafkaCondition = status.getConditions().get(0);
+        return kafkaCondition.getType().equals("NotReady")
+                && kafkaCondition.getStatus().equals("True")
+                && !kafkaCondition.getReason().equals("Creating");
     }
 
 }

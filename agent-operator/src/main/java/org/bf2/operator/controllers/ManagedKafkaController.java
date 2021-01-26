@@ -12,22 +12,17 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
-import io.strimzi.api.kafka.model.status.Condition;
 import org.bf2.operator.KafkaEvent;
 import org.bf2.operator.KafkaEventSource;
-import org.bf2.operator.KafkaFactory;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.ConditionUtils;
+import org.bf2.operator.operands.KafkaInstance;
+import org.bf2.operator.resources.v1alpha1.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Controller
@@ -42,6 +37,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     private KafkaEventSource kafkaEventSource;
+
+    private KafkaInstance kafkaInstance;
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
@@ -62,9 +59,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(CustomResourceEvent.class);
 
         if (latestManagedKafkaEvent.isPresent()) {
+            // add status if not already available on the ManagedKafka resource
+            if (managedKafka.getStatus() == null) {
+                managedKafka.setStatus(
+                        new ManagedKafkaStatusBuilder()
+                                .withConditions(Collections.emptyList())
+                                .build());
+            }
             // Kafka resource doesn't exist, has to be created
             if (kafkaClient.withName(managedKafka.getMetadata().getName()).get() == null) {
-                Kafka kafka = KafkaFactory.getKafka(managedKafka);
+                kafkaInstance = KafkaInstance.create(managedKafka);
+                Kafka kafka = kafkaInstance.getKafka();
                 log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
                 try {
                     kafkaClient.create(kafka);
@@ -73,26 +78,28 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                     return UpdateControl.noUpdate();
                 }
 
-                // TODO: factoring out a better mapping of statuses
-                ManagedKafkaStatus status = managedKafka.getStatus();
-                if (status == null) {
-                    ManagedKafkaCondition condition = new ManagedKafkaConditionBuilder()
-                            .withReason("KafkaResourceCreated")
-                            .withMessage("Kafka resource created")
-                            .withType("Ready")
-                            .withStatus("True")
-                            .withLastTransitionTime(iso8601Now())
-                            .build();
-                    status = new ManagedKafkaStatusBuilder()
-                            .withConditions(condition)
-                            .build();
-                    managedKafka.setStatus(status);
-                }
+                // TODO: applying logic for getting Canary and deploying it
+                // Deployment canary = kafkaInstance.getCanary();
+                // client.apps().deployments().create(canary);
+
+                // TODO: applying logic for getting AdminServer and deploying it
+                // Deployment adminServer = kafkaInstance.getAdminServer();
+                // client.apps().deployments().create(adminServer);
+
                 return UpdateControl.updateCustomResourceAndStatus(managedKafka);
             // Kafka resource already exists, has to be updated
             } else {
-                log.info("Updating Kafka instance {}", managedKafka.getSpec().getKafkaInstance().getVersion());
-                // TODO: updating Kafka instance
+                log.info("Updating Kafka instance {}", managedKafka.getSpec().getVersions().getKafka());
+                kafkaInstance.update(managedKafka);
+                // TODO: patching the Kafka resource
+                // kafkaClient.withName(kafkaInstance.getKafka().getMetadata().getName()).patch(kafkaInstance.getKafka());
+
+                // TODO: patching the Canary deployment
+                // client.apps().deployments().withName(kafkaInstance.getCanary().getMetadata().getName()).patch(kafkaInstance.getCanary());
+
+                // TODO: patching the AdminServer deployment
+                // client.apps().deployments().withName(kafkaInstance.getAdminServer().getMetadata().getName()).patch(kafkaInstance.getAdminServer());
+
                 return UpdateControl.noUpdate();
             }
 
@@ -102,17 +109,12 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
+            kafkaInstance.setKafka(kafka);
+
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             if (kafka.getStatus() != null) {
                 log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
-                Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
-                // TODO: doing a better mapping, right now it's just reflecting the Kafka resource status
-                ManagedKafkaCondition managedKafkaCondition = managedKafka.getStatus().getConditions().get(0);
-                managedKafkaCondition.setReason(kafkaCondition.getReason());
-                managedKafkaCondition.setMessage(kafkaCondition.getMessage());
-                managedKafkaCondition.setType(kafkaCondition.getType());
-                managedKafkaCondition.setStatus(kafkaCondition.getStatus());
-                managedKafkaCondition.setLastTransitionTime(iso8601Now());
+                toManagedKafkaConditions(managedKafka.getStatus().getConditions());
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
@@ -129,10 +131,61 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     }
 
     /**
-     * Returns the current timestamp in ISO 8601 format, for example "2019-07-23T09:08:12.356Z".
-     * @return the current timestamp in ISO 8601 format, for example "2019-07-23T09:08:12.356Z".
+     * Extract from the current KafkaInstance overall status (Kafka, Canary and AdminServer)
+     * a corresponding list of ManagedKafkaCondition(s) to set on the ManagedKafka status
+     *
+     * @param managedKafkaConditions list of ManagedKafkaCondition(s) to set on the ManagedKafka status
      */
-    public static String iso8601Now() {
-        return ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
+    private void toManagedKafkaConditions(List<ManagedKafkaCondition> managedKafkaConditions) {
+        Optional<ManagedKafkaCondition> optInstalling =
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.INSTALLING);
+        Optional<ManagedKafkaCondition> optReady =
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.READY);
+        Optional<ManagedKafkaCondition> optError =
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.ERROR);
+
+        if (kafkaInstance.isInstalling()) {
+            if (optInstalling.isPresent()) {
+                ConditionUtils.updateConditionStatus(optInstalling.get(), "True");
+            } else {
+                ManagedKafkaCondition installing = ConditionUtils.buildCondition(ManagedKafkaCondition.INSTALLING, "True");
+                managedKafkaConditions.add(installing);
+            }
+            // TODO: should we really have even Ready and Error condition type as "False" while installing, so creating them if not exist?
+            if (optReady.isPresent()) {
+                ConditionUtils.updateConditionStatus(optReady.get(), "False");
+            }
+            if (optError.isPresent()) {
+                ConditionUtils.updateConditionStatus(optError.get(), "False");
+            }
+        } else if (kafkaInstance.isReady()) {
+            if (optInstalling.isPresent()) {
+                ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
+            }
+            if (optReady.isPresent()) {
+                ConditionUtils.updateConditionStatus(optReady.get(), "True");
+            } else {
+                ManagedKafkaCondition ready = ConditionUtils.buildCondition(ManagedKafkaCondition.READY, "True");
+                managedKafkaConditions.add(ready);
+            }
+            if (optError.isPresent()) {
+                ConditionUtils.updateConditionStatus(optError.get(), "False");
+            }
+        } else if (kafkaInstance.isError()) {
+            if (optInstalling.isPresent()) {
+                ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
+            }
+            if (optReady.isPresent()) {
+                ConditionUtils.updateConditionStatus(optReady.get(), "False");
+            }
+            if (optError.isPresent()) {
+                ConditionUtils.updateConditionStatus(optError.get(), "True");
+            } else {
+                ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.ERROR, "True");
+                managedKafkaConditions.add(error);
+            }
+        } else {
+            throw new IllegalArgumentException("Unknown Kafka instance condition");
+        }
     }
 }
