@@ -7,7 +7,6 @@ import javax.inject.Inject;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
@@ -30,13 +29,6 @@ public class InformerManager implements LocalLookup {
 
 	void onStart(@Observes StartupEvent ev) {
 		sharedInformerFactory = client.informers();
-
-		CustomResourceDefinition managedKafkaCrd = client.apiextensions().v1().customResourceDefinitions()
-				.withName("managedkafkas.managedkafka.bf2.org").get();
-
-		if (managedKafkaCrd == null) {
-			return; //running in a test, no need to create informers
-		}
 
 		// TODO: should be configurable
 		int resyncPeriodInMillis = 60000;
