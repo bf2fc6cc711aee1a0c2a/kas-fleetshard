@@ -22,7 +22,7 @@ import java.util.Map;
  */
 public class KafkaCluster {
 
-    public static Kafka getKafka(ManagedKafka managedKafka) {
+    public static Kafka create(ManagedKafka managedKafka) {
 
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);

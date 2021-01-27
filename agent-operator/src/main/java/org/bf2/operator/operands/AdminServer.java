@@ -11,7 +11,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
  */
 public class AdminServer {
 
-    public static Deployment getDeployment(ManagedKafka managedKafka) {
+    public static Deployment create(ManagedKafka managedKafka) {
         // TODO: generate the admin server deployment
         return new DeploymentBuilder().build();
     }

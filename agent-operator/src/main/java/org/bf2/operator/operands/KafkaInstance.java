@@ -5,7 +5,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 /**
- * Represents an overall Kafka instance made by Kafka, Canary and AdminServer
+ * Represents an overall Kafka instance made by Kafka, Canary and AdminServer resources
  */
 public class KafkaInstance {
 
@@ -27,9 +27,9 @@ public class KafkaInstance {
      * @return a KafkaInstance holding Kafka resource and Canary and AdminServer deployments
      */
     public static KafkaInstance create(ManagedKafka managedKafka) {
-        Kafka kafka = KafkaCluster.getKafka(managedKafka);
-        Deployment canary = Canary.getDeployment(managedKafka);
-        Deployment adminServer = AdminServer.getDeployment(managedKafka);
+        Kafka kafka = KafkaCluster.create(managedKafka);
+        Deployment canary = Canary.create(managedKafka);
+        Deployment adminServer = AdminServer.create(managedKafka);
         return new KafkaInstance(kafka, canary, adminServer);
     }
 
