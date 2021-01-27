@@ -1,12 +1,7 @@
-package org.bf2.operator;
+package org.bf2.operator.events;
 
-import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.WatcherException;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

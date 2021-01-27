@@ -7,6 +7,7 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.events.KafkaEventSource;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
