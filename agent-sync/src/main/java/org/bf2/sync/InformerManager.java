@@ -1,11 +1,14 @@
 package org.bf2.sync;
 
+import java.time.Duration;
+
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
@@ -16,6 +19,9 @@ import io.quarkus.runtime.StartupEvent;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
+
+    @ConfigProperty(name = "resync.interval")
+    Duration resync;
 
     @Inject
     KubernetesClient client;
@@ -30,11 +36,8 @@ public class InformerManager implements LocalLookup {
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = client.informers();
 
-        // TODO: should be configurable
-        int resyncPeriodInMillis = 60000;
-
         managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
-                resyncPeriodInMillis);
+                resync.toMillis());
 
         managedKafkaInformer.addEventHandler(managedKafkaHandler);
 

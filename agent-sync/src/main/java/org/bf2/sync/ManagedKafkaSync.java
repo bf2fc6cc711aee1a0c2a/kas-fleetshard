@@ -1,5 +1,6 @@
 package org.bf2.sync;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -7,8 +8,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -33,6 +36,9 @@ public class ManagedKafkaSync {
 
     @Inject
     LocalLookup lookup;
+
+    @Inject
+    ScopedControlPlanRestClient controlPlane;
 
     public void syncKafkaClusters(List<ManagedKafka> remoteManagedKafkas, Executor executor) {
         CustomResourceDefinitionContext crdContext = CustomResourceDefinitionContext
@@ -79,7 +85,11 @@ public class ManagedKafkaSync {
                     // we need to send another status update to let them know
 
                     executor.execute(() -> {
-                        throw new AssertionError("TODO: implement me");
+                        ManagedKafkaStatus status = new ManagedKafkaStatus();
+                        ManagedKafkaCondition managedKafkaCondition = new ManagedKafkaCondition();
+                        managedKafkaCondition.setType("InstanceDeletionComplete");
+                        status.setConditions(Arrays.asList(managedKafkaCondition));
+                        controlPlane.updateKafkaClusterStatus(status, remoteManagedKafka.getKafkaClusterId());
                     });
                 }
             } else if (remoteSpec.isDeleted() && !existing.getSpec().isDeleted()) {

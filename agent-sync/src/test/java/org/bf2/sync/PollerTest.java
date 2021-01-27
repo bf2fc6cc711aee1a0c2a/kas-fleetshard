@@ -16,14 +16,19 @@ import javax.inject.Singleton;
 import org.bf2.operator.resources.v1alpha1.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -80,16 +85,21 @@ public class PollerTest {
     @Inject
     ManagedKafkaSync managedKafkaSync;
 
+    @InjectMock
+    ScopedControlPlanRestClient controlPlane;
+
     @Test
     public void testAddDelete() {
         ManagedKafka managedKafka = exampleManagedKafka();
 
-        List<ManagedKafka> items = client.customResources(ManagedKafka.class).list().getItems();
+        MixedOperation<ManagedKafka, KubernetesResourceList<ManagedKafka>, Resource<ManagedKafka>> managedKafkas = client
+                .customResources(ManagedKafka.class);
+        List<ManagedKafka> items = managedKafkas.list().getItems();
         assertEquals(0, items.size());
 
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
 
-        items = client.customResources(ManagedKafka.class).list().getItems();
+        items = managedKafkas.list().getItems();
         assertEquals(1, items.size());
         assertFalse(items.get(0).getSpec().isDeleted());
 
@@ -99,13 +109,24 @@ public class PollerTest {
 
         // should do nothing
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-        items = client.customResources(ManagedKafka.class).list().getItems();
+        items = managedKafkas.list().getItems();
         assertEquals(1, items.size());
 
         managedKafka.getSpec().setDeleted(true);
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-        items = client.customResources(ManagedKafka.class).list().getItems();
+        items = managedKafkas.list().getItems();
         assertTrue(items.get(0).getSpec().isDeleted());
+
+        // need to inform the control plan delete is still needed
+        managedKafkas.delete();
+        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(null);
+        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+
+        // expect there to be a status about the deletion
+        ArgumentCaptor<ManagedKafkaStatus> statusCaptor = ArgumentCaptor.forClass(ManagedKafkaStatus.class);
+        Mockito.verify(controlPlane).updateKafkaClusterStatus(statusCaptor.capture(), Mockito.eq("mycluster"));
+        ManagedKafkaStatus status = statusCaptor.getValue();
+        assertEquals(1, status.getConditions().size());
     }
 
     private ManagedKafka exampleManagedKafka() {
@@ -113,6 +134,7 @@ public class PollerTest {
         managedKafka.setKind("ManagedKafka");
         managedKafka.getMetadata().setNamespace("test");
         managedKafka.getMetadata().setName("name");
+        managedKafka.setKafkaClusterId("mycluster");
         ManagedKafkaSpec spec = new ManagedKafkaSpec();
         KafkaInstance kafkaInstance = new KafkaInstance();
         kafkaInstance.setVersion("2.2.2");

@@ -1,11 +1,10 @@
 package org.bf2.sync;
 
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,16 +16,13 @@ public class AgentSync implements QuarkusApplication {
 
     private static final Logger log = LoggerFactory.getLogger(AgentSync.class);
 
-    // TODO: where should this be coming from
-    @ConfigProperty(name = "cluster.id")
-    String id;
-
     @Inject
-    @RestClient
-    ControlPlaneRestClient controlPlane;
+    ScopedControlPlanRestClient controlPlane;
 
     @Inject
     ManagedKafkaSync managedKafkaSync;
+
+    ExecutorService pollExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     public int run(String... args) throws Exception {
@@ -43,7 +39,7 @@ public class AgentSync implements QuarkusApplication {
     void pollKafkaClusters() {
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list
-        managedKafkaSync.syncKafkaClusters(controlPlane.getKafkaClusters(id), ForkJoinPool.commonPool());
+        managedKafkaSync.syncKafkaClusters(controlPlane.getKafkaClusters(), pollExecutor);
     }
 
 }
