@@ -18,8 +18,9 @@ public class ConditionUtils {
      * @param type condition type to search for in the list
      * @return condition found if any
      */
-    public static Optional<ManagedKafkaCondition> findManagedKafkaCondition(List<ManagedKafkaCondition> conditions, String type) {
-        return conditions.stream().filter(c -> c.getType().equals(type)).findFirst();
+    public static Optional<ManagedKafkaCondition> findManagedKafkaCondition(List<ManagedKafkaCondition> conditions,
+                                                                            ManagedKafkaCondition.Type type) {
+        return conditions.stream().filter(c -> c.getType().equals(type.name())).findFirst();
     }
 
     /**
@@ -33,7 +34,7 @@ public class ConditionUtils {
     public static void setManagedKafkaCondition(List<ManagedKafkaCondition> conditions, ManagedKafkaCondition newCondition) {
         if (conditions == null)
             return;
-        Optional<ManagedKafkaCondition> optCurrentCondition = findManagedKafkaCondition(conditions, newCondition.getType());
+        Optional<ManagedKafkaCondition> optCurrentCondition = findManagedKafkaCondition(conditions, ManagedKafkaCondition.Type.from(newCondition.getType()));
         if (optCurrentCondition.isEmpty()) {
             if (newCondition.getLastTransitionTime() == null) {
                 newCondition.setLastTransitionTime(iso8601Now());
@@ -42,7 +43,7 @@ public class ConditionUtils {
             return;
         }
         ManagedKafkaCondition currentCondition = optCurrentCondition.get();
-        if (currentCondition.getStatus() != newCondition.getStatus()) {
+        if (!currentCondition.getStatus().equals(newCondition.getStatus())) {
             currentCondition.setStatus(newCondition.getStatus());
             if (newCondition.getLastTransitionTime() == null) {
                 currentCondition.setLastTransitionTime(iso8601Now());
@@ -61,9 +62,9 @@ public class ConditionUtils {
      * @param status condition status
      * @return created ManagedKafkaCondition
      */
-    public static ManagedKafkaCondition buildCondition(String type, String status) {
+    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type, String status) {
         return new ManagedKafkaConditionBuilder()
-                .withType(type)
+                .withType(type.name())
                 .withStatus(status)
                 .withLastTransitionTime(ConditionUtils.iso8601Now())
                 .build();

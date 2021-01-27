@@ -93,17 +93,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      */
     private void toManagedKafkaConditions(List<ManagedKafkaCondition> managedKafkaConditions) {
         Optional<ManagedKafkaCondition> optInstalling =
-                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.INSTALLING);
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);
         Optional<ManagedKafkaCondition> optReady =
-                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.READY);
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Ready);
         Optional<ManagedKafkaCondition> optError =
-                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.ERROR);
+                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Error);
 
         if (kafkaInstance.isInstalling()) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "True");
             } else {
-                ManagedKafkaCondition installing = ConditionUtils.buildCondition(ManagedKafkaCondition.INSTALLING, "True");
+                ManagedKafkaCondition installing = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Installing, "True");
                 managedKafkaConditions.add(installing);
             }
             // TODO: should we really have even Ready and Error condition type as "False" while installing, so creating them if not exist?
@@ -120,7 +120,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (optReady.isPresent()) {
                 ConditionUtils.updateConditionStatus(optReady.get(), "True");
             } else {
-                ManagedKafkaCondition ready = ConditionUtils.buildCondition(ManagedKafkaCondition.READY, "True");
+                ManagedKafkaCondition ready = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, "True");
                 managedKafkaConditions.add(ready);
             }
             if (optError.isPresent()) {
@@ -136,7 +136,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (optError.isPresent()) {
                 ConditionUtils.updateConditionStatus(optError.get(), "True");
             } else {
-                ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.ERROR, "True");
+                ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Error, "True");
                 managedKafkaConditions.add(error);
             }
         } else {
