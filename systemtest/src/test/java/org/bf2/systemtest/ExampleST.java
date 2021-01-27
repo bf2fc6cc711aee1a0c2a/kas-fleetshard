@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 
 public class ExampleST extends AbstractST {
-    private static final Logger LOGGER = LogManager.getLogger(Environment.class);
+    private static final Logger LOGGER = LogManager.getLogger(ExampleST.class);
 
     @Test
     void testExample() {

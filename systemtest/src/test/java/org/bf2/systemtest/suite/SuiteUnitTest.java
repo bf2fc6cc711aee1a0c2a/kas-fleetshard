@@ -11,16 +11,13 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.MockServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.AbstractST;
 import org.bf2.systemtest.executor.Exec;
 import org.bf2.systemtest.executor.ExecBuilder;
 import org.bf2.systemtest.executor.ExecResult;
-import org.bf2.systemtest.framework.IndicativeSentences;
-import org.bf2.systemtest.k8s.KubeClient;
 import org.bf2.systemtest.k8s.KubeClusterException;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 
 import java.net.HttpURLConnection;
 import java.util.List;
@@ -34,9 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @QuarkusTest
 @QuarkusTestResource(MockKubeServer.class)
-@DisplayNameGeneration(IndicativeSentences.class)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class SuiteUnitTest {
+public class SuiteUnitTest extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
 
     @MockServer
@@ -56,7 +51,7 @@ public class SuiteUnitTest {
 
     @Test
     void testKubeConnection() {
-        List<Pod> pods = KubeClient.getInstance().client().pods().inNamespace("default").list().getItems();
+        List<Pod> pods = kube.client().pods().inNamespace("default").list().getItems();
         pods.forEach(pod -> LOGGER.info("Found pod with name {}", pod.getMetadata().getName()));
         assertTrue(pods.size() > 0);
     }
@@ -64,7 +59,7 @@ public class SuiteUnitTest {
     @Test
     void testKubeRequestFail() {
         assertThrows(KubernetesClientException.class, () ->
-                KubeClient.getInstance().client().serviceAccounts().list());
+                kube.client().serviceAccounts().list());
     }
 
     @Test
