@@ -6,9 +6,12 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,13 +21,40 @@ import java.util.Map;
  * Provides same functionalities to get a Canary deployment from a ManagedKafka one
  * and checking the corresponding status
  */
+@ApplicationScoped
 public class Canary {
 
-    public static Deployment create(ManagedKafka managedKafka) {
+    @Inject
+    private KubernetesClient kubernetesClient;
+
+    private Deployment deployment;
+
+    public void createOrUpdate(ManagedKafka managedKafka) {
+        String canaryName = managedKafka.getMetadata().getName() + "-canary";
+
+        // Canary deployment resource doesn't exist, has to be created
+        if (kubernetesClient.apps().deployments().withName(canaryName).get() == null) {
+            deployment = deploymentFrom(managedKafka);
+            kubernetesClient.apps().deployments().create(deployment);
+        // Canary deployment resource already exists, has to be updated
+        } else {
+            // TODO: updating the Canary deployment
+        }
+    }
+
+    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        kubernetesClient.apps()
+                .deployments()
+                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .withName(managedKafka.getMetadata().getName() + "-canary")
+                .delete();
+    }
+
+    private Deployment deploymentFrom(ManagedKafka managedKafka) {
 
         String canaryName = managedKafka.getMetadata().getName() + "-canary";
 
-        Deployment canary = new DeploymentBuilder()
+        Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
                     .withName(canaryName)
                 .endMetadata()
@@ -48,7 +78,7 @@ public class Canary {
                 .endSpec()
                 .build();
 
-        return canary;
+        return deployment;
     }
 
     private static Map<String, String> getLabels(String canaryName) {
@@ -67,18 +97,26 @@ public class Canary {
         return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
     }
 
-    public static boolean isInstalling(DeploymentStatus status) {
+    public boolean isInstalling() {
         // TODO: logic for check if it's installing
         return false;
     }
 
-    public static boolean isReady(DeploymentStatus status) {
+    public boolean isReady() {
         // TODO: logic for check if it's ready
         return true;
     }
 
-    public static boolean isError(DeploymentStatus status) {
+    public boolean isError() {
         // TODO: logic for check if it's error
         return false;
+    }
+
+    public Deployment getDeployment() {
+        return deployment;
+    }
+
+    public void setDeployment(Deployment deployment) {
+        this.deployment = deployment;
     }
 }

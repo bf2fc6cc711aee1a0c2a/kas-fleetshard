@@ -1,40 +1,34 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.strimzi.api.kafka.model.Kafka;
+import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 /**
  * Represents an overall Kafka instance made by Kafka, Canary and AdminServer resources
  */
+@ApplicationScoped
 public class KafkaInstance {
 
-    private Kafka kafka;
-    private Deployment canary;
-    private Deployment adminServer;
+    @Inject
+    private KafkaCluster kafkaCluster;
+    @Inject
+    private Canary canary;
+    @Inject
+    private AdminServer adminServer;
 
-    private KafkaInstance(Kafka kafka, Deployment canary, Deployment adminServer) {
-        this.kafka = kafka;
-        this.canary = canary;
-        this.adminServer = adminServer;
+    public void createOrUpdate(ManagedKafka managedKafka) {
+        kafkaCluster.createOrUpdate(managedKafka);
+        canary.createOrUpdate(managedKafka);
+        adminServer.createOrUpdate(managedKafka);
     }
 
-    /**
-     * Create a KafkaInstance from a ManagedKafka resource getting a Kafka resource
-     * and Canary and AdminServer deployments from the corresponding classes
-     *
-     * @param managedKafka ManagedKafka resource from which create a KafkaInstance
-     * @return a KafkaInstance holding Kafka resource and Canary and AdminServer deployments
-     */
-    public static KafkaInstance create(ManagedKafka managedKafka) {
-        Kafka kafka = KafkaCluster.create(managedKafka);
-        Deployment canary = Canary.create(managedKafka);
-        Deployment adminServer = AdminServer.create(managedKafka);
-        return new KafkaInstance(kafka, canary, adminServer);
-    }
-
-    public void update(ManagedKafka managedKafka) {
-        // TODO: logic to update the underlying Kafka, Canary and AdminServer
+    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        kafkaCluster.delete(managedKafka, context);
+        canary.delete(managedKafka, context);
+        adminServer.delete(managedKafka, context);
     }
 
     /**
@@ -43,9 +37,9 @@ public class KafkaInstance {
     public boolean isInstalling() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is installing we don't mind to check the others
-        return KafkaCluster.isInstalling(kafka.getStatus()) ||
-                Canary.isInstalling(canary.getStatus()) ||
-                AdminServer.isInstalling(adminServer.getStatus());
+        return kafkaCluster.isInstalling() ||
+                canary.isInstalling() ||
+                adminServer.isInstalling();
     }
 
     /**
@@ -53,14 +47,14 @@ public class KafkaInstance {
      */
     public boolean isReady() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
-        // if the current one is installing we don't mind to check the others
-        if (!KafkaCluster.isReady(kafka.getStatus())) {
+        // if the current one is not ready we don't mind to check the others
+        if (!kafkaCluster.isReady()) {
             return false;
         }
-        if (!Canary.isReady(canary.getStatus())) {
+        if (!canary.isReady()) {
             return false;
         }
-        if (!AdminServer.isReady(adminServer.getStatus())) {
+        if (!adminServer.isReady()) {
             return false;
         }
         return true;
@@ -71,40 +65,28 @@ public class KafkaInstance {
      */
     public boolean isError() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
-        // if the current one is installing we don't mind to check the others
-        if (!KafkaCluster.isError(kafka.getStatus())) {
-            return false;
+        // if the current one is in error we don't mind to check the others
+        if (kafkaCluster.isError()) {
+            return true;
         }
-        if (!Canary.isError(canary.getStatus())) {
-            return false;
+        if (canary.isError()) {
+            return true;
         }
-        if (!AdminServer.isError(adminServer.getStatus())) {
-            return false;
+        if (adminServer.isError()) {
+            return true;
         }
-        return true;
+        return false;
     }
 
-    public Kafka getKafka() {
-        return kafka;
+    public KafkaCluster getKafkaCluster() {
+        return kafkaCluster;
     }
 
-    public void setKafka(Kafka kafka) {
-        this.kafka = kafka;
-    }
-
-    public Deployment getCanary() {
+    public Canary getCanary() {
         return canary;
     }
 
-    public void setCanary(Deployment canary) {
-        this.canary = canary;
-    }
-
-    public Deployment getAdminServer() {
+    public AdminServer getAdminServer() {
         return adminServer;
-    }
-
-    public void setAdminServer(Deployment adminServer) {
-        this.adminServer = adminServer;
     }
 }

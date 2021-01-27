@@ -1,7 +1,5 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -10,7 +8,6 @@ import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
@@ -30,28 +27,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
-    private KubernetesClient kubernetesClient;
-
-    @Inject
-    private KafkaResourceClient kafkaResourceClient;
-
-    @Inject
     private KafkaEventSource kafkaEventSource;
 
+    @Inject
     private KafkaInstance kafkaInstance;
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         log.info("Deleting Kafka instance {}", managedKafka.getMetadata().getName());
-
-        kafkaResourceClient.delete(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-
-        kubernetesClient.apps()
-                .deployments()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(managedKafka.getMetadata().getName() + "-canary")
-                .delete();
-
+        kafkaInstance.delete(managedKafka, context);
         return DeleteControl.DEFAULT_DELETE;
     }
 
@@ -69,48 +53,20 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                                 .withConditions(Collections.emptyList())
                                 .build());
             }
-            // Kafka resource doesn't exist, has to be created
-            if (kafkaResourceClient.getByName(managedKafka.getMetadata().getName()) == null) {
-                kafkaInstance = KafkaInstance.create(managedKafka);
-                Kafka kafka = kafkaInstance.getKafka();
-                log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
-                try {
-                    kafkaResourceClient.create(kafka);
-
-                    Deployment canary = kafkaInstance.getCanary();
-                    kubernetesClient.apps().deployments().create(canary);
-
-                    // TODO: applying logic for getting AdminServer and deploying it
-                    // Deployment adminServer = kafkaInstance.getAdminServer();
-                    // client.apps().deployments().create(adminServer);
-                } catch (Exception e) {
-                    log.error("Error creating the Kafka instance", e);
-                    return UpdateControl.noUpdate();
-                }
-                return UpdateControl.updateCustomResourceAndStatus(managedKafka);
-            // Kafka resource already exists, has to be updated
-            } else {
-                log.info("Updating Kafka instance {}", managedKafka.getSpec().getVersions().getKafka());
-                kafkaInstance.update(managedKafka);
-                // TODO: patching the Kafka resource
-                // kafkaClient.withName(kafkaInstance.getKafka().getMetadata().getName()).patch(kafkaInstance.getKafka());
-
-                // TODO: patching the Canary deployment
-                // client.apps().deployments().withName(kafkaInstance.getCanary().getMetadata().getName()).patch(kafkaInstance.getCanary());
-
-                // TODO: patching the AdminServer deployment
-                // client.apps().deployments().withName(kafkaInstance.getAdminServer().getMetadata().getName()).patch(kafkaInstance.getAdminServer());
-
+            try {
+                kafkaInstance.createOrUpdate(managedKafka);
+            } catch (Exception ex) {
+                log.error("Error reconciling {}", managedKafka.getMetadata().getName());
                 return UpdateControl.noUpdate();
             }
-
+            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
 
         Optional<KafkaEvent> latestKafkaEvent =
                 context.getEvents().getLatestOfType(KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
-            kafkaInstance.setKafka(kafka);
+            kafkaInstance.getKafkaCluster().setKafka(kafka);
 
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             if (kafka.getStatus() != null) {
