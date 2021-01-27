@@ -2,13 +2,13 @@ package org.bf2.operator.resources.v1alpha1;
 
 public class ManagedKafkaSpec {
 
-    private KafkaInstance kafkaInstance;
+    private Versions versions;
 
-    public KafkaInstance getKafkaInstance() {
-        return kafkaInstance;
+    public Versions getVersions() {
+        return versions;
     }
 
-    public void setKafkaInstance(KafkaInstance kafkaInstance) {
-        this.kafkaInstance = kafkaInstance;
+    public void setVersions(Versions versions) {
+        this.versions = versions;
     }
 }

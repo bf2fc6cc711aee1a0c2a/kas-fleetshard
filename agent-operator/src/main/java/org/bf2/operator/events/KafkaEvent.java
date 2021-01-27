@@ -1,6 +1,5 @@
-package org.bf2.operator;
+package org.bf2.operator.events;
 
-import io.fabric8.kubernetes.client.Watcher;
 import io.javaoperatorsdk.operator.processing.event.AbstractEvent;
 import io.strimzi.api.kafka.model.Kafka;
 

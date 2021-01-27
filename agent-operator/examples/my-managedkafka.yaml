@@ -3,5 +3,5 @@ kind: ManagedKafka
 metadata:
   name: my-managedkafka
 spec:
-  kafkaInstance:
-    version: 2.6.0
+  versions:
+    kafka: 2.6.0
