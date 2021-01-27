@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @QuarkusTestResource(MockKubeServer.class)
 public class SuiteUnitTest extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
+    private static final String TEST_NS = "default";
 
     @MockServer
     KubernetesMockServer server;
@@ -40,9 +41,9 @@ public class SuiteUnitTest extends AbstractST {
     @BeforeAll
     void setupMockServer() {
         PodList expectedPodList = new PodListBuilder().withItems(
-                new PodBuilder().withNewMetadata().withName("pod1").withNamespace("default").endMetadata()
+                new PodBuilder().withNewMetadata().withName("pod1").withNamespace(TEST_NS).endMetadata()
                         .build(),
-                new PodBuilder().withNewMetadata().withName("pod2").withNamespace("default").endMetadata()
+                new PodBuilder().withNewMetadata().withName("pod2").withNamespace(TEST_NS).endMetadata()
                         .build()).build();
         server.expect().get().withPath("/api/v1/namespaces/default/pods")
                 .andReturn(HttpURLConnection.HTTP_OK, expectedPodList)
@@ -51,7 +52,7 @@ public class SuiteUnitTest extends AbstractST {
 
     @Test
     void testKubeConnection() {
-        List<Pod> pods = kube.client().pods().inNamespace("default").list().getItems();
+        List<Pod> pods = kube.client().pods().inNamespace(TEST_NS).list().getItems();
         pods.forEach(pod -> LOGGER.info("Found pod with name {}", pod.getMetadata().getName()));
         assertTrue(pods.size() > 0);
     }
