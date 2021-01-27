@@ -2,8 +2,6 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -11,8 +9,8 @@ import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
@@ -32,9 +30,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
-    private KubernetesClient client;
+    private KubernetesClient kubernetesClient;
 
-    private MixedOperation<Kafka, KafkaList, Resource<Kafka>> kafkaClient;
+    @Inject
+    private KafkaResourceClient kafkaResourceClient;
 
     @Inject
     private KafkaEventSource kafkaEventSource;
@@ -45,12 +44,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         log.info("Deleting Kafka instance {}", managedKafka.getMetadata().getName());
 
-        kafkaClient
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(managedKafka.getMetadata().getName())
-                .delete();
+        kafkaResourceClient.delete(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
 
-        client.apps()
+        kubernetesClient.apps()
                 .deployments()
                 .inNamespace(managedKafka.getMetadata().getNamespace())
                 .withName(managedKafka.getMetadata().getName() + "-canary")
@@ -74,15 +70,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                                 .build());
             }
             // Kafka resource doesn't exist, has to be created
-            if (kafkaClient.withName(managedKafka.getMetadata().getName()).get() == null) {
+            if (kafkaResourceClient.getByName(managedKafka.getMetadata().getName()) == null) {
                 kafkaInstance = KafkaInstance.create(managedKafka);
                 Kafka kafka = kafkaInstance.getKafka();
                 log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
                 try {
-                    kafkaClient.create(kafka);
+                    kafkaResourceClient.create(kafka);
 
                     Deployment canary = kafkaInstance.getCanary();
-                    client.apps().deployments().create(canary);
+                    kubernetesClient.apps().deployments().create(canary);
 
                     // TODO: applying logic for getting AdminServer and deploying it
                     // Deployment adminServer = kafkaInstance.getAdminServer();
@@ -130,8 +126,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Override
     public void init(EventSourceManager eventSourceManager) {
         log.info("init");
-
-        kafkaClient = client.customResources(Kafka.class, KafkaList.class);
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
     }
 
