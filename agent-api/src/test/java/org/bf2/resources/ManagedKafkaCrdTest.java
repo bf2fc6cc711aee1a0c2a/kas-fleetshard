@@ -6,8 +6,7 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-
+import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -23,30 +22,30 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ManagedKafkaCrdTest {
     private final String ROOT_PATH = System.getProperty("user.dir");
 
-    private static KubernetesMockServer server = new KubernetesMockServer(false);
+    private static KubernetesServer server = new KubernetesServer(false, true);
     private static KubernetesClient client = null;
 
     @BeforeAll
     public static void setup() {
-      server.init();
-      System.setProperty(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
-      System.setProperty(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
-         
-      Config config = new ConfigBuilder()
-        .withTrustCerts(true)
-        .withNamespace("test")
-        .withHttp2Disable(true)
-        .withMasterUrl(server.createClient().getMasterUrl().toString())
-        .build();
+        server.before();
+        System.setProperty(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
+        System.setProperty(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
 
-      client = new DefaultKubernetesClient(config);
+        Config config = new ConfigBuilder()
+                .withTrustCerts(true)
+                .withNamespace("test")
+                .withHttp2Disable(true)
+                .withMasterUrl(server.getClient().getMasterUrl().toString())
+                .build();
+
+        client = new DefaultKubernetesClient(config);
     }
 
     @AfterAll
     public static void tearDown() {
-      server.destroy();
+        server.after();
     }
-    
+
 
     @Test
     void testRegisterCrds() throws IOException {
@@ -54,7 +53,6 @@ public class ManagedKafkaCrdTest {
         List<HasMetadata> crdList = client.load(new FileInputStream(Paths.get(ROOT_PATH, "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get();
 
         for (HasMetadata crd : crdList) {
-            server.expect().post().withPath("/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions").andReturn(200, crd).once();
             CustomResourceDefinition created = client.apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
             assertNotNull(created);
             assertEquals(crd.getMetadata().getName(), created.getMetadata().getName());
