@@ -1,8 +1,11 @@
 package org.bf2.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.List;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -33,14 +36,14 @@ import io.quarkus.test.junit.mockito.InjectMock;
 @Singleton
 class KubernetesClientProducer {
 
-	private KubernetesServer server = new KubernetesServer(false, true);
+	private static KubernetesServer server = new KubernetesServer(false, true);
 	private KubernetesClient client;
 
 	@Produces
 	public KubernetesClient kubernetesClient() {
 		return client;
 	}
-	
+
 	@PostConstruct
 	void onStart() {
 		server.before();
@@ -78,7 +81,33 @@ public class PollerTest {
 	ManagedKafkaSync managedKafkaSync;
 
 	@Test
-	public void testAdd() {
+	public void testAddDelete() {
+		ManagedKafka managedKafka = exampleManagedKafka();
+
+		List<ManagedKafka> items = client.customResources(ManagedKafka.class).list().getItems();
+		assertEquals(0, items.size());
+
+		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+
+		items = client.customResources(ManagedKafka.class).list().getItems();
+		assertEquals(1, items.size());
+		assertFalse(items.get(0).getSpec().isDeleted());
+
+		//so we don't have to wait for the informer to be updated, we'll just mock to a new instance
+		Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(exampleManagedKafka());
+
+		//should do nothing
+		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+		items = client.customResources(ManagedKafka.class).list().getItems();
+		assertEquals(1, items.size());
+
+		managedKafka.getSpec().setDeleted(true);
+		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+		items = client.customResources(ManagedKafka.class).list().getItems();
+		assertTrue(items.get(0).getSpec().isDeleted());
+	}
+
+	private ManagedKafka exampleManagedKafka() {
 		ManagedKafka managedKafka = new ManagedKafka();
 		managedKafka.setKind("ManagedKafka");
 		managedKafka.getMetadata().setNamespace("test");
@@ -88,14 +117,7 @@ public class PollerTest {
 		kafkaInstance.setVersion("2.2.2");
 		spec.setKafkaInstance(kafkaInstance);
 		managedKafka.setSpec(spec);
-
-		Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(null);
-
-		assertEquals(0, client.customResources(ManagedKafka.class).list().getItems().size());
-
-		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka));
-
-		assertEquals(1, client.customResources(ManagedKafka.class).list().getItems().size());
+		return managedKafka;
 	}
 
 }

@@ -29,13 +29,15 @@ final class ManagedKafkaResourceEventHandler implements ResourceEventHandler<Man
 
 	@Override
 	public void onDelete(ManagedKafka obj, boolean deletedFinalStateUnknown) {
-		//TODO: ensure the delete status is set
-		controlPlane.updateKafkaClusterStatus(obj.getStatus(), id, obj.getKafkaClusterId());
+		//TODO: this will depend upon the delete strategy chosen
+		//Assuming that delete is managed by a status update, there is nothing to do here
 	}
 
 	@Override
 	public void onAdd(ManagedKafka obj) {
 		//TODO: on a restart we'll hit add again for each resource - that could be filtered
-		controlPlane.updateKafkaClusterStatus(obj.getStatus(), id, obj.getKafkaClusterId());
+		if (obj.getStatus() != null) {
+			controlPlane.updateKafkaClusterStatus(obj.getStatus(), id, obj.getKafkaClusterId());	
+		}
 	}
 }

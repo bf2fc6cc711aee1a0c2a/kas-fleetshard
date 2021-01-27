@@ -1,5 +1,7 @@
 package org.bf2.sync;
 
+import java.util.concurrent.ForkJoinPool;
+
 import javax.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -41,7 +43,7 @@ public class AgentSync implements QuarkusApplication {
     void pollKafkaClusters() {
     	//TODO: this is based upon a full poll - eventually this could be
     	//based upon a delta revision / timestmap to get a smaller list
-    	managedKafkaSync.syncKafkaClusters(controlPlane.getKafkaClusters(id));
+    	managedKafkaSync.syncKafkaClusters(controlPlane.getKafkaClusters(id), ForkJoinPool.commonPool());
     }
     
 }
