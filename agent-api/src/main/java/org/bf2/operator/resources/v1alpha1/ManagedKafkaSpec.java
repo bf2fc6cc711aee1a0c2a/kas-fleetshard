@@ -12,12 +12,12 @@ public class ManagedKafkaSpec {
     public void setKafkaInstance(KafkaInstance kafkaInstance) {
         this.kafkaInstance = kafkaInstance;
     }
-    
+
     public boolean isDeleted() {
-		return deleted;
-	}
-    
+        return deleted;
+    }
+
     public void setDeleted(boolean deleted) {
-		this.deleted = deleted;
-	}
+        this.deleted = deleted;
+    }
 }

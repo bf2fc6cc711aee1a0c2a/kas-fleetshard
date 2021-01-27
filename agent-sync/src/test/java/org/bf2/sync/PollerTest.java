@@ -30,40 +30,40 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 
 /**
- * KubernetesMockServerTestResource is not useful for crud tests,
- * so we need to inject a different client / server
+ * KubernetesMockServerTestResource is not useful for crud tests, so we need to
+ * inject a different client / server
  */
 @Singleton
 class KubernetesClientProducer {
 
-	private static KubernetesServer server = new KubernetesServer(false, true);
-	private KubernetesClient client;
+    private static KubernetesServer server = new KubernetesServer(false, true);
+    private KubernetesClient client;
 
-	@Produces
-	public KubernetesClient kubernetesClient() {
-		return client;
-	}
+    @Produces
+    public KubernetesClient kubernetesClient() {
+        return client;
+    }
 
-	@PostConstruct
-	void onStart() {
-		server.before();
-		System.setProperty(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
-		System.setProperty(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
-		Config config = new ConfigBuilder().withTrustCerts(true).withNamespace("test").withHttp2Disable(true)
-				.withMasterUrl(server.getClient().getMasterUrl().toString()).build();
+    @PostConstruct
+    void onStart() {
+        server.before();
+        System.setProperty(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
+        System.setProperty(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
+        Config config = new ConfigBuilder().withTrustCerts(true).withNamespace("test").withHttp2Disable(true)
+                .withMasterUrl(server.getClient().getMasterUrl().toString()).build();
 
-		client = new DefaultKubernetesClient(config);
-		// initialize with the crd
-		client.load(PollerTest.class.getResourceAsStream("/META-INF/dekorate/kubernetes.yml")).get().forEach(crd -> {
-			client.apiextensions().v1beta1().customResourceDefinitions()
-					.createOrReplace((CustomResourceDefinition) crd);
-		});
-	}
+        client = new DefaultKubernetesClient(config);
+        // initialize with the crd
+        client.load(PollerTest.class.getResourceAsStream("/META-INF/dekorate/kubernetes.yml")).get().forEach(crd -> {
+            client.apiextensions().v1beta1().customResourceDefinitions()
+                    .createOrReplace((CustomResourceDefinition) crd);
+        });
+    }
 
-	@PreDestroy
-	void onStop() {
-		server.after();
-	}
+    @PreDestroy
+    void onStop() {
+        server.after();
+    }
 
 }
 
@@ -71,53 +71,54 @@ class KubernetesClientProducer {
 @TestProfile(MockSyncProfile.class)
 public class PollerTest {
 
-	@Inject
-	KubernetesClient client;
+    @Inject
+    KubernetesClient client;
 
-	@InjectMock
-	LocalLookup localLookup;
+    @InjectMock
+    LocalLookup localLookup;
 
-	@Inject
-	ManagedKafkaSync managedKafkaSync;
+    @Inject
+    ManagedKafkaSync managedKafkaSync;
 
-	@Test
-	public void testAddDelete() {
-		ManagedKafka managedKafka = exampleManagedKafka();
+    @Test
+    public void testAddDelete() {
+        ManagedKafka managedKafka = exampleManagedKafka();
 
-		List<ManagedKafka> items = client.customResources(ManagedKafka.class).list().getItems();
-		assertEquals(0, items.size());
+        List<ManagedKafka> items = client.customResources(ManagedKafka.class).list().getItems();
+        assertEquals(0, items.size());
 
-		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
 
-		items = client.customResources(ManagedKafka.class).list().getItems();
-		assertEquals(1, items.size());
-		assertFalse(items.get(0).getSpec().isDeleted());
+        items = client.customResources(ManagedKafka.class).list().getItems();
+        assertEquals(1, items.size());
+        assertFalse(items.get(0).getSpec().isDeleted());
 
-		//so we don't have to wait for the informer to be updated, we'll just mock to a new instance
-		Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(exampleManagedKafka());
+        // so we don't have to wait for the informer to be updated, we'll just mock to a
+        // new instance
+        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(exampleManagedKafka());
 
-		//should do nothing
-		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-		items = client.customResources(ManagedKafka.class).list().getItems();
-		assertEquals(1, items.size());
+        // should do nothing
+        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+        items = client.customResources(ManagedKafka.class).list().getItems();
+        assertEquals(1, items.size());
 
-		managedKafka.getSpec().setDeleted(true);
-		managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-		items = client.customResources(ManagedKafka.class).list().getItems();
-		assertTrue(items.get(0).getSpec().isDeleted());
-	}
+        managedKafka.getSpec().setDeleted(true);
+        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+        items = client.customResources(ManagedKafka.class).list().getItems();
+        assertTrue(items.get(0).getSpec().isDeleted());
+    }
 
-	private ManagedKafka exampleManagedKafka() {
-		ManagedKafka managedKafka = new ManagedKafka();
-		managedKafka.setKind("ManagedKafka");
-		managedKafka.getMetadata().setNamespace("test");
-		managedKafka.getMetadata().setName("name");
-		ManagedKafkaSpec spec = new ManagedKafkaSpec();
-		KafkaInstance kafkaInstance = new KafkaInstance();
-		kafkaInstance.setVersion("2.2.2");
-		spec.setKafkaInstance(kafkaInstance);
-		managedKafka.setSpec(spec);
-		return managedKafka;
-	}
+    private ManagedKafka exampleManagedKafka() {
+        ManagedKafka managedKafka = new ManagedKafka();
+        managedKafka.setKind("ManagedKafka");
+        managedKafka.getMetadata().setNamespace("test");
+        managedKafka.getMetadata().setName("name");
+        ManagedKafkaSpec spec = new ManagedKafkaSpec();
+        KafkaInstance kafkaInstance = new KafkaInstance();
+        kafkaInstance.setVersion("2.2.2");
+        spec.setKafkaInstance(kafkaInstance);
+        managedKafka.setSpec(spec);
+        return managedKafka;
+    }
 
 }

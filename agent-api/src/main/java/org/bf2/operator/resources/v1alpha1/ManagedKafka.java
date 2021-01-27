@@ -37,9 +37,9 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public void setStatus(ManagedKafkaStatus status) {
         this.status = status;
     }
-    
+
     @JsonIgnore
     public String getKafkaClusterId() {
-		return this.getMetadata().getAnnotations().get("kas.redhat.com/kafka-id");
-	}
+        return this.getMetadata().getAnnotations().get("kas.redhat.com/kafka-id");
+    }
 }

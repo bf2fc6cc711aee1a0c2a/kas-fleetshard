@@ -19,7 +19,7 @@
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
-        	<artifactId>agent-api</artifactId>
+            <artifactId>agent-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -42,17 +42,17 @@
             <artifactId>quarkus-arc</artifactId>
         </dependency>
         <dependency>
-		    <groupId>io.quarkus</groupId>
-		    <artifactId>quarkus-rest-client</artifactId>
-		</dependency>
-		<dependency>
-		    <groupId>io.quarkus</groupId>
-		    <artifactId>quarkus-resteasy-jackson</artifactId>
-		</dependency>
-		<dependency>
-		    <groupId>io.quarkus</groupId>
-		    <artifactId>quarkus-scheduler</artifactId>
-		</dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-resteasy-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
         <!-- test -->
         <dependency>
             <groupId>io.quarkus</groupId>

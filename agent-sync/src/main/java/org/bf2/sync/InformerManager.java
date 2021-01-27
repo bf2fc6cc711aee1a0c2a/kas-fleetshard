@@ -17,35 +17,36 @@ import io.quarkus.runtime.StartupEvent;
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
 
-	@Inject
-	KubernetesClient client;
+    @Inject
+    KubernetesClient client;
 
-	@Inject
-	ManagedKafkaResourceEventHandler managedKafkaHandler;
+    @Inject
+    ManagedKafkaResourceEventHandler managedKafkaHandler;
 
-	private SharedInformerFactory sharedInformerFactory;
+    private SharedInformerFactory sharedInformerFactory;
 
-	private SharedIndexInformer<ManagedKafka> managedKafkaInformer;
+    private SharedIndexInformer<ManagedKafka> managedKafkaInformer;
 
-	void onStart(@Observes StartupEvent ev) {
-		sharedInformerFactory = client.informers();
+    void onStart(@Observes StartupEvent ev) {
+        sharedInformerFactory = client.informers();
 
-		// TODO: should be configurable
-		int resyncPeriodInMillis = 60000;
+        // TODO: should be configurable
+        int resyncPeriodInMillis = 60000;
 
-		managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
-				resyncPeriodInMillis);
+        managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
+                resyncPeriodInMillis);
 
-		managedKafkaInformer.addEventHandler(managedKafkaHandler);
+        managedKafkaInformer.addEventHandler(managedKafkaHandler);
 
-		managedKafkaInformer.run();
-	}
+        managedKafkaInformer.run();
+    }
 
-	void onStop(@Observes ShutdownEvent ev) {
-		sharedInformerFactory.stopAllRegisteredInformers();
-	}
+    void onStop(@Observes ShutdownEvent ev) {
+        sharedInformerFactory.stopAllRegisteredInformers();
+    }
 
-	public ManagedKafka getLocalManagedKafka(ManagedKafka remote) {
-		return managedKafkaInformer.getIndexer().getByKey(Cache.metaNamespaceKeyFunc(remote));
-	}
+    @Override
+    public ManagedKafka getLocalManagedKafka(ManagedKafka remote) {
+        return managedKafkaInformer.getIndexer().getByKey(Cache.metaNamespaceKeyFunc(remote));
+    }
 }

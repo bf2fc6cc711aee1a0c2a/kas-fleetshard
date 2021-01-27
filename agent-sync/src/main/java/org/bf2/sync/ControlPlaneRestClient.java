@@ -21,20 +21,21 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 @Path("/api/managed-services-api/v1/")
 @RegisterRestClient
 public interface ControlPlaneRestClient {
-	
-	@PUT
-	@Path("/agent-clusters/{id}")
-	@Consumes(MediaType.APPLICATION_JSON)
-	void updateStatus(ManagedKafkaAgentStatus status, @PathParam("id") String id);
-	
-	@GET
-	@Path("/agent-clusters/{id}/kafkas")
-	@Produces(MediaType.APPLICATION_JSON)
-	List<ManagedKafka> getKafkaClusters(@PathParam("id") String id);
-	
-	@PATCH
-	@Path("/agent-clusters/{id}/kafkas/{cluster-id}")
-	@Consumes(MediaType.APPLICATION_JSON)
-	void updateKafkaClusterStatus(ManagedKafkaStatus status, @PathParam("id") String id, @PathParam("cluster-id") String clusterId);
-	
+
+    @PUT
+    @Path("/agent-clusters/{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    void updateStatus(ManagedKafkaAgentStatus status, @PathParam("id") String id);
+
+    @GET
+    @Path("/agent-clusters/{id}/kafkas")
+    @Produces(MediaType.APPLICATION_JSON)
+    List<ManagedKafka> getKafkaClusters(@PathParam("id") String id);
+
+    @PATCH
+    @Path("/agent-clusters/{id}/kafkas/{cluster-id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    void updateKafkaClusterStatus(ManagedKafkaStatus status, @PathParam("id") String id,
+            @PathParam("cluster-id") String clusterId);
+
 }
