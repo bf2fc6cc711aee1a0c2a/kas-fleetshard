@@ -16,7 +16,7 @@ import javax.inject.Inject;
  * and checking the corresponding status
  */
 @ApplicationScoped
-public class AdminServer {
+public class AdminServer implements Operand<ManagedKafka> {
 
     @Inject
     private KubernetesClient kubernetesClient;
@@ -24,10 +24,12 @@ public class AdminServer {
     private Deployment deployment;
     private Service service;
 
+    @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         // TODO: createOrUpdate the AdminServer resources
     }
 
+    @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         // TODO: delete the AdminServer resources
     }
@@ -42,16 +44,19 @@ public class AdminServer {
         return new ServiceBuilder().build();
     }
 
+    @Override
     public boolean isInstalling() {
         // TODO: logic for check if it's installing
         return false;
     }
 
+    @Override
     public boolean isReady() {
         // TODO: logic for check if it's ready
         return true;
     }
 
+    @Override
     public boolean isError() {
         // TODO: logic for check if it's error
         return false;

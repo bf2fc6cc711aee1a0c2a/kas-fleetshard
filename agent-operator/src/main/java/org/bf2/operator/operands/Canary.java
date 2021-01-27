@@ -22,13 +22,14 @@ import java.util.Map;
  * and checking the corresponding status
  */
 @ApplicationScoped
-public class Canary {
+public class Canary implements Operand<ManagedKafka> {
 
     @Inject
     private KubernetesClient kubernetesClient;
 
     private Deployment deployment;
 
+    @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         String canaryName = managedKafka.getMetadata().getName() + "-canary";
 
@@ -42,6 +43,7 @@ public class Canary {
         }
     }
 
+    @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kubernetesClient.apps()
                 .deployments()
@@ -97,16 +99,19 @@ public class Canary {
         return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
     }
 
+    @Override
     public boolean isInstalling() {
         // TODO: logic for check if it's installing
         return false;
     }
 
+    @Override
     public boolean isReady() {
         // TODO: logic for check if it's ready
         return true;
     }
 
+    @Override
     public boolean isError() {
         // TODO: logic for check if it's error
         return false;

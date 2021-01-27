@@ -26,7 +26,7 @@ import java.util.Map;
  * and checking the corresponding status
  */
 @ApplicationScoped
-public class KafkaCluster {
+public class KafkaCluster implements Operand<ManagedKafka> {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaCluster.class);
 
@@ -35,6 +35,7 @@ public class KafkaCluster {
     @Inject
     private KafkaResourceClient kafkaResourceClient;
 
+    @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         // Kafka resource doesn't exist, has to be created
         if (kafkaResourceClient.getByName(managedKafka.getMetadata().getName()) == null) {
@@ -49,6 +50,7 @@ public class KafkaCluster {
         }
     }
 
+    @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kafkaResourceClient.delete(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
     }
@@ -105,6 +107,7 @@ public class KafkaCluster {
         return kafka;
     }
 
+    @Override
     public boolean isInstalling() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         return kafkaCondition.getType().equals("NotReady")
@@ -112,11 +115,13 @@ public class KafkaCluster {
                 && kafkaCondition.getReason().equals("Creating");
     }
 
+    @Override
     public boolean isReady() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         return kafkaCondition.getType().equals("Ready") && kafkaCondition.getStatus().equals("True");
     }
 
+    @Override
     public boolean isError() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         return kafkaCondition.getType().equals("NotReady")

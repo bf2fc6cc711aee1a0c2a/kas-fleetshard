@@ -10,7 +10,7 @@ import javax.inject.Inject;
  * Represents an overall Kafka instance made by Kafka, Canary and AdminServer resources
  */
 @ApplicationScoped
-public class KafkaInstance {
+public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Inject
     private KafkaCluster kafkaCluster;
@@ -19,21 +19,21 @@ public class KafkaInstance {
     @Inject
     private AdminServer adminServer;
 
+    @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         kafkaCluster.createOrUpdate(managedKafka);
         canary.createOrUpdate(managedKafka);
         adminServer.createOrUpdate(managedKafka);
     }
 
+    @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kafkaCluster.delete(managedKafka, context);
         canary.delete(managedKafka, context);
         adminServer.delete(managedKafka, context);
     }
 
-    /**
-     * @return if the Kafka instance is still installling
-     */
+    @Override
     public boolean isInstalling() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is installing we don't mind to check the others
@@ -42,9 +42,7 @@ public class KafkaInstance {
                 adminServer.isInstalling();
     }
 
-    /**
-     * @return @return if the Kafka instance is ready to be used
-     */
+    @Override
     public boolean isReady() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is not ready we don't mind to check the others
@@ -60,9 +58,7 @@ public class KafkaInstance {
         return true;
     }
 
-    /**
-     * @return @return if the Kafka instance is in an error state
-     */
+    @Override
     public boolean isError() {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is in error we don't mind to check the others
