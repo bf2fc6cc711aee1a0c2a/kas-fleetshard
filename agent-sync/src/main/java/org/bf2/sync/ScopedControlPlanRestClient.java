@@ -1,6 +1,7 @@
 package org.bf2.sync;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -13,7 +14,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
  * Just a simple wrapper to encapsulate the cluster claim id
- * TODO: wire this up properly and consider async methods in the rest client
+ * TODO: wire this up properly
  */
 @ApplicationScoped
 public class ScopedControlPlanRestClient {
@@ -25,15 +26,15 @@ public class ScopedControlPlanRestClient {
     @RestClient
     ControlPlaneRestClient controlPlane;
 
-    public void updateStatus(ManagedKafkaAgentStatus status) {
-        controlPlane.updateStatus(status, id);
+    public CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status) {
+        return controlPlane.updateStatus(status, id);
     }
 
     public List<ManagedKafka> getKafkaClusters() {
         return controlPlane.getKafkaClusters(id);
     }
 
-    public void updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
-        controlPlane.updateKafkaClusterStatus(status, id, clusterId);
+    public CompletableFuture<Void> updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
+        return controlPlane.updateKafkaClusterStatus(status, id, clusterId);
     }
 }

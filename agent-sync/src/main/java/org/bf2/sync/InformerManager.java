@@ -27,7 +27,7 @@ public class InformerManager implements LocalLookup {
     KubernetesClient client;
 
     @Inject
-    ManagedKafkaResourceEventHandler managedKafkaHandler;
+    ScopedControlPlanRestClient controlPlane;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -39,9 +39,14 @@ public class InformerManager implements LocalLookup {
         managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
                 resync.toMillis());
 
-        managedKafkaInformer.addEventHandler(managedKafkaHandler);
+        managedKafkaInformer.addEventHandler(new CustomResourceEventHandler<ManagedKafka>(this::updateKafkaClusterStatus));
 
         managedKafkaInformer.run();
+    }
+
+    void updateKafkaClusterStatus(ManagedKafka managedKafka) {
+        //fire and forget
+        controlPlane.updateKafkaClusterStatus(managedKafka.getStatus(), managedKafka.getKafkaClusterId());
     }
 
     void onStop(@Observes ShutdownEvent ev) {

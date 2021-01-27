@@ -1,6 +1,7 @@
 package org.bf2.sync;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.ws.rs.Consumes;
@@ -25,7 +26,7 @@ public interface ControlPlaneRestClient {
     @PUT
     @Path("/agent-clusters/{id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    void updateStatus(ManagedKafkaAgentStatus status, @PathParam("id") String id);
+    CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status, @PathParam("id") String id);
 
     @GET
     @Path("/agent-clusters/{id}/kafkas")
@@ -35,7 +36,7 @@ public interface ControlPlaneRestClient {
     @PATCH
     @Path("/agent-clusters/{id}/kafkas/{cluster-id}")
     @Consumes(MediaType.APPLICATION_JSON)
-    void updateKafkaClusterStatus(ManagedKafkaStatus status, @PathParam("id") String id,
+    CompletableFuture<Void> updateKafkaClusterStatus(ManagedKafkaStatus status, @PathParam("id") String id,
             @PathParam("cluster-id") String clusterId);
 
 }
