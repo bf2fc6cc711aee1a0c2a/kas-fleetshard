@@ -1,5 +1,6 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -49,6 +50,12 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 .withName(managedKafka.getMetadata().getName())
                 .delete();
 
+        client.apps()
+                .deployments()
+                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .withName(managedKafka.getMetadata().getName() + "-canary")
+                .delete();
+
         return DeleteControl.DEFAULT_DELETE;
     }
 
@@ -73,19 +80,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
                 try {
                     kafkaClient.create(kafka);
+
+                    Deployment canary = kafkaInstance.getCanary();
+                    client.apps().deployments().create(canary);
+
+                    // TODO: applying logic for getting AdminServer and deploying it
+                    // Deployment adminServer = kafkaInstance.getAdminServer();
+                    // client.apps().deployments().create(adminServer);
                 } catch (Exception e) {
                     log.error("Error creating the Kafka instance", e);
                     return UpdateControl.noUpdate();
                 }
-
-                // TODO: applying logic for getting Canary and deploying it
-                // Deployment canary = kafkaInstance.getCanary();
-                // client.apps().deployments().create(canary);
-
-                // TODO: applying logic for getting AdminServer and deploying it
-                // Deployment adminServer = kafkaInstance.getAdminServer();
-                // client.apps().deployments().create(adminServer);
-
                 return UpdateControl.updateCustomResourceAndStatus(managedKafka);
             // Kafka resource already exists, has to be updated
             } else {

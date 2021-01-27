@@ -28,36 +28,36 @@ public class KafkaCluster {
         config.put("offsets.topic.replication.factor", 3);
         config.put("transaction.state.log.replication.factor", 3);
         config.put("transaction.state.log.min.isr", 2);
-        config.put("log.message.format.version", "2.6");
-        config.put("inter.broker.protocol.version", "2.6");
+        config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
+        config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
 
         Kafka kafka = new KafkaBuilder()
                 .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA1)
                 .withNewMetadata()
-                .withName(managedKafka.getMetadata().getName())
+                    .withName(managedKafka.getMetadata().getName())
                 .endMetadata()
                 .withNewSpec()
-                .withNewKafka()
-                .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                .withReplicas(3)
-                .withListeners(
-                        new ArrayOrObjectKafkaListenersBuilder()
-                                .withGenericKafkaListeners(
-                                        new GenericKafkaListenerBuilder()
-                                                .withName("plain")
-                                                .withPort(9092)
-                                                .withType(KafkaListenerType.INTERNAL)
-                                                .withTls(false)
-                                                .build()
-                                ).build()
-                )
-                .withStorage(new EphemeralStorageBuilder().build())
-                .withConfig(config)
-                .endKafka()
-                .withNewZookeeper()
-                .withReplicas(3)
-                .withStorage(new EphemeralStorageBuilder().build())
-                .endZookeeper()
+                    .withNewKafka()
+                        .withVersion(managedKafka.getSpec().getVersions().getKafka())
+                        .withReplicas(3)
+                        .withListeners(
+                                new ArrayOrObjectKafkaListenersBuilder()
+                                        .withGenericKafkaListeners(
+                                                new GenericKafkaListenerBuilder()
+                                                        .withName("plain")
+                                                        .withPort(9092)
+                                                        .withType(KafkaListenerType.INTERNAL)
+                                                        .withTls(false)
+                                                        .build()
+                                        ).build()
+                        )
+                        .withStorage(new EphemeralStorageBuilder().build())
+                        .withConfig(config)
+                    .endKafka()
+                    .withNewZookeeper()
+                        .withReplicas(3)
+                        .withStorage(new EphemeralStorageBuilder().build())
+                    .endZookeeper()
                 .endSpec()
                 .build();
 
