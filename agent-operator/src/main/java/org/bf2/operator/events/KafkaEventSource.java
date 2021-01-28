@@ -15,19 +15,19 @@ public class KafkaEventSource extends AbstractEventSource implements ResourceEve
 
     @Override
     public void onAdd(Kafka kafka) {
-        log.info("Add event receiving for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+        log.info("Add event received for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
         handleEvent(kafka);
     }
 
     @Override
     public void onUpdate(Kafka oldKafka, Kafka newKafka) {
-        log.info("Update event receiving for Kafka {}/{}", oldKafka.getMetadata().getNamespace(), oldKafka.getMetadata().getName());
+        log.info("Update event received for Kafka {}/{}", oldKafka.getMetadata().getNamespace(), oldKafka.getMetadata().getName());
         handleEvent(newKafka);
     }
 
     @Override
     public void onDelete(Kafka kafka, boolean deletedFinalStateUnknown) {
-        log.info("Delete event receiving for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+        log.info("Delete event received for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
         handleEvent(kafka);
     }
 
