@@ -46,6 +46,10 @@
             <groupId>io.strimzi</groupId>
             <artifactId>api</artifactId>
         </dependency>
+		<dependency>
+		    <groupId>io.quarkus</groupId>
+		    <artifactId>quarkus-scheduler</artifactId>
+		</dependency>        
         <!-- test -->
         <dependency>
             <groupId>io.quarkus</groupId>
