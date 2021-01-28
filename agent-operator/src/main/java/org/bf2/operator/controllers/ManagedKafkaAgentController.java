@@ -66,7 +66,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 // this does not manage any other resources, so nothing to create
                 // calculate the node metrics and update
                 resource.setStatus(buildStatus(resource));
-                return UpdateControl.updateCustomResource(resource);
+                return UpdateControl.updateCustomResourceAndStatus(resource);
             } else {
                 log.infof("Updating Kafka agent Status %s in namespace %s", resource.getMetadata().getName(),
                         this.namespace);
