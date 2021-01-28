@@ -13,13 +13,13 @@ public class ManagedKafkaAgentStatus {
 
     @JsonProperty(value = "total")
     private ClusterCapacity totalCapacity;
-    
+
     @JsonProperty(value = "remaining")
     private ClusterCapacity remainingCapacity;
-    
+
     @JsonProperty(value = "nodeInfo")
     private NodeCounts requiredNodeSizes;
-    
+
     @JsonProperty(value = "resizeInfo")
     private ClusterResizeInfo resizeInfo;
 
@@ -31,35 +31,35 @@ public class ManagedKafkaAgentStatus {
         this.conditions = conditions;
     }
 
-	public ClusterCapacity getTotalCapacity() {
-		return totalCapacity;
-	}
+    public ClusterCapacity getTotalCapacity() {
+        return totalCapacity;
+    }
 
-	public void setTotalCapacity(ClusterCapacity totalCapacity) {
-		this.totalCapacity = totalCapacity;
-	}
+    public void setTotalCapacity(ClusterCapacity totalCapacity) {
+        this.totalCapacity = totalCapacity;
+    }
 
-	public ClusterCapacity getRemainingCapacity() {
-		return remainingCapacity;
-	}
+    public ClusterCapacity getRemainingCapacity() {
+        return remainingCapacity;
+    }
 
-	public void setRemainingCapacity(ClusterCapacity remainingCapacity) {
-		this.remainingCapacity = remainingCapacity;
-	}
+    public void setRemainingCapacity(ClusterCapacity remainingCapacity) {
+        this.remainingCapacity = remainingCapacity;
+    }
 
-	public NodeCounts getRequiredNodeSizes() {
-		return requiredNodeSizes;
-	}
+    public NodeCounts getRequiredNodeSizes() {
+        return requiredNodeSizes;
+    }
 
-	public void setRequiredNodeSizes(NodeCounts requiredNodeSizes) {
-		this.requiredNodeSizes = requiredNodeSizes;
-	}
+    public void setRequiredNodeSizes(NodeCounts requiredNodeSizes) {
+        this.requiredNodeSizes = requiredNodeSizes;
+    }
 
-	public ClusterResizeInfo getResizeInfo() {
-		return resizeInfo;
-	}
+    public ClusterResizeInfo getResizeInfo() {
+        return resizeInfo;
+    }
 
-	public void setResizeInfo(ClusterResizeInfo resizeInfo) {
-		this.resizeInfo = resizeInfo;
-	}
+    public void setResizeInfo(ClusterResizeInfo resizeInfo) {
+        this.resizeInfo = resizeInfo;
+    }
 }
