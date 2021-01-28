@@ -11,26 +11,30 @@ import io.fabric8.kubernetes.model.annotation.Version;
 @Version("v1alpha1")
 @Crd(group = "managedkafka.bf2.org", version = "v1alpha1")
 public class ManagedKafkaAgent extends CustomResource<ManagedKafkaAgentSpec, ManagedKafkaAgentStatus>
-		implements Namespaced {
-	private static final long serialVersionUID = 1L;
-		
-	private ManagedKafkaAgentSpec spec;
-	@Status
-	private ManagedKafkaAgentStatus status;
-	
-	public ManagedKafkaAgentSpec getSpec() {
-		return spec;
-	}
-	
-	public void setSpec(ManagedKafkaAgentSpec spec) {
-		this.spec = spec;
-	}
-	
-	public ManagedKafkaAgentStatus getStatus() {
-		return status;
-	}
-	
-	public void setStatus(ManagedKafkaAgentStatus status) {
-		this.status = status;
-	}
+        implements Namespaced {
+    private static final long serialVersionUID = 1L;
+
+    private ManagedKafkaAgentSpec spec;
+    @Status
+    private ManagedKafkaAgentStatus status;
+
+    @Override
+    public ManagedKafkaAgentSpec getSpec() {
+        return spec;
+    }
+
+    @Override
+    public void setSpec(ManagedKafkaAgentSpec spec) {
+        this.spec = spec;
+    }
+
+    @Override
+    public ManagedKafkaAgentStatus getStatus() {
+        return status;
+    }
+
+    @Override
+    public void setStatus(ManagedKafkaAgentStatus status) {
+        this.status = status;
+    }
 }
