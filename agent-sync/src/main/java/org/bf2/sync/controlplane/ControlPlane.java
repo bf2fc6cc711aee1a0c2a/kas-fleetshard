@@ -16,7 +16,6 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 @ApplicationScoped
 public class ControlPlane {
 
-    // TODO: where should this be coming from
     @ConfigProperty(name = "cluster.id")
     String id;
 
@@ -63,6 +62,10 @@ public class ControlPlane {
     /**
      * Update the control plane with the status of this ManagedKafka, but
      * only if it's different than what the control plane already knows.
+     *
+     * TODO: on a restart we'll hit add/update again for each resource
+     * - that will be filtered only if a remote poll has been completed
+     *
      * @param managedKafka
      */
     public void updateKafkaClusterStatus(ManagedKafka managedKafka) {

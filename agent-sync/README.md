@@ -2,7 +2,13 @@
 
 Responsible for communications between the agent and the control plane.
 
-See https://issues.redhat.com/browse/MGDSTRM-1279
+There are two main processing activities:
+
+- Poll the control plane and sync to the remote state, currently in ManagedKafkaSync TODO: something for Agent as well
+
+- Process local events and push those updates to the control plane, currently in the Informer package.
+
+## Notes
 
 - the agent-operator is added as a sidecar in the agent-operator application.properties.  There may need to be a different file/profile for deployment of the operator without the sidecar.
 

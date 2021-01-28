@@ -18,7 +18,6 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
 
     @Override
     public void onAdd(T obj) {
-        // TODO: on a restart we'll hit add again for each resource - that could be filtered
         if (obj.getStatus() != null) {
             consumer.accept(obj);
         }
@@ -35,7 +34,6 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         // an update will also be generated for each resyncPeriodInMillis
         // which is a way to ensure the consumer has an up-to-date state
         // even if something is missed
-        // TODO: validate the period
         if (newObj.getStatus() != null) {
             consumer.accept(newObj);
         }

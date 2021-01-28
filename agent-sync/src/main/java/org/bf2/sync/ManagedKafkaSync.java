@@ -1,7 +1,9 @@
 package org.bf2.sync;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 import javax.annotation.PostConstruct;
@@ -23,6 +25,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -62,7 +65,10 @@ public class ManagedKafkaSync {
     }
 
     public void syncKafkaClusters(List<ManagedKafka> remoteManagedKafkas, Executor executor) {
+        Map<String, ManagedKafka> remotes = new HashMap<>();
+
         for (ManagedKafka remoteManagedKafka : remoteManagedKafkas) {
+            remotes.put(remoteManagedKafka.getKafkaClusterId(), remoteManagedKafka);
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
 
@@ -82,6 +88,7 @@ public class ManagedKafkaSync {
                     controlPlane.addManagedKafka(remoteManagedKafka);
 
                     executor.execute(() -> {
+                        log.debug("Creating ManagedKafka {}", Cache.metaNamespaceKeyFunc(remoteManagedKafka));
                         // TODO: create namespace when needed
 
                         managedKafkaResources.create(remoteManagedKafka);
@@ -111,6 +118,23 @@ public class ManagedKafkaSync {
             } else if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
                 // TODO: seems like a problem / resurrection
             }
+        }
+
+        // process final removals
+        for (ManagedKafka local : lookup.getLocalManagedKafkas()) {
+            if (remotes.get(local.getKafkaClusterId()) != null) {
+                continue;
+            }
+
+            // TODO: confirm full deletion
+            // also check for condition
+            if (!local.getSpec().isDeleted()) {
+                // TODO: seems bad
+            }
+
+            log.debug("Deleting ManagedKafka {}", Cache.metaNamespaceKeyFunc(local));
+            managedKafkaResources.inNamespace(local.getMetadata().getNamespace())
+                    .withName(local.getMetadata().getName()).delete();
         }
     }
 

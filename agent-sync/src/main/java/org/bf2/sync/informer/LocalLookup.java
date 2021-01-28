@@ -1,5 +1,7 @@
 package org.bf2.sync.informer;
 
+import java.util.List;
+
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 /**
@@ -8,6 +10,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 public interface LocalLookup {
 
     ManagedKafka getLocalManagedKafka(ManagedKafka remote);
+
+    List<ManagedKafka> getLocalManagedKafkas();
 
     // getLocalManagedKafkaAgent
 }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
@@ -129,6 +130,11 @@ public class PollerTest {
         Mockito.verify(controlPlane).updateKafkaClusterStatus(statusCaptor.capture(), Mockito.eq("mycluster"));
         ManagedKafkaStatus status = statusCaptor.getValue();
         assertEquals(1, status.getConditions().size());
+
+        //final removal
+        managedKafkaSync.syncKafkaClusters(Collections.emptyList(), Runnable::run);
+        items = managedKafkas.list().getItems();
+        assertEquals(0, items.size());
     }
 
     private ManagedKafka exampleManagedKafka() {

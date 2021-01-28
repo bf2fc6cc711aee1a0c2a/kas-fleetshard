@@ -1,6 +1,7 @@
 package org.bf2.sync.informer;
 
 import java.time.Duration;
+import java.util.List;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -52,5 +53,10 @@ public class InformerManager implements LocalLookup {
     @Override
     public ManagedKafka getLocalManagedKafka(ManagedKafka remote) {
         return managedKafkaInformer.getIndexer().getByKey(Cache.metaNamespaceKeyFunc(remote));
+    }
+
+    @Override
+    public List<ManagedKafka> getLocalManagedKafkas() {
+        return managedKafkaInformer.getIndexer().list();
     }
 }
