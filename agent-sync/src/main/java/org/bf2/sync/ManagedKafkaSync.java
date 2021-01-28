@@ -1,6 +1,5 @@
 package org.bf2.sync;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,10 +10,9 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
@@ -98,11 +96,9 @@ public class ManagedKafkaSync {
                     // we need to send another status update to let them know
 
                     // doesn't need to be async as the control plane call is async
-                    ManagedKafkaStatus status = new ManagedKafkaStatus();
-                    ManagedKafkaCondition managedKafkaCondition = new ManagedKafkaCondition();
-                    managedKafkaCondition.setType("InstanceDeletionComplete");
-                    status.setConditions(Arrays.asList(managedKafkaCondition));
-                    controlPlane.updateKafkaClusterStatus(status, remoteManagedKafka.getKafkaClusterId());
+                    ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
+                    statusBuilder.addNewCondition().withType("InstanceDeletionComplete").endCondition();
+                    controlPlane.updateKafkaClusterStatus(statusBuilder.build(), remoteManagedKafka.getKafkaClusterId());
                 }
             } else if (remoteSpec.isDeleted() && !existing.getSpec().isDeleted()) {
                 controlPlane.removeManagedKafka(existing);
