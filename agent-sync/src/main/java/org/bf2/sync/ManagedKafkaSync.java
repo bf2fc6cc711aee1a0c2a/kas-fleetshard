@@ -15,11 +15,15 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
+import org.eclipse.microprofile.context.ManagedExecutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.quarkus.scheduler.Scheduled;
 
 /**
  * Has the responsibility of processing the remote list of ManagedKafka from the
@@ -33,6 +37,8 @@ import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 @ApplicationScoped
 public class ManagedKafkaSync {
 
+    private static final Logger log = LoggerFactory.getLogger(ManagedKafkaSync.class);
+
     @Inject
     KubernetesClient client;
 
@@ -41,6 +47,9 @@ public class ManagedKafkaSync {
 
     @Inject
     ControlPlane controlPlane;
+
+    @javax.annotation.Resource
+    ManagedExecutor pollExecutor;
 
     private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> managedKafkaResources;
 
@@ -70,9 +79,6 @@ public class ManagedKafkaSync {
             // component versions etc. later
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
-                    // control plane should not have provided status
-                    assert remoteManagedKafka.getStatus() == null;
-                    // now that the namespace is set, start tracking
                     controlPlane.addManagedKafka(remoteManagedKafka);
 
                     executor.execute(() -> {
@@ -84,14 +90,12 @@ public class ManagedKafkaSync {
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
 
-                    // probably no longer needs to be async since the control plane call is async
-                    executor.execute(() -> {
-                        ManagedKafkaStatus status = new ManagedKafkaStatus();
-                        ManagedKafkaCondition managedKafkaCondition = new ManagedKafkaCondition();
-                        managedKafkaCondition.setType("InstanceDeletionComplete");
-                        status.setConditions(Arrays.asList(managedKafkaCondition));
-                        controlPlane.updateKafkaClusterStatus(status, remoteManagedKafka.getKafkaClusterId());
-                    });
+                    // doesn't need to be async as the control plane call is async
+                    ManagedKafkaStatus status = new ManagedKafkaStatus();
+                    ManagedKafkaCondition managedKafkaCondition = new ManagedKafkaCondition();
+                    managedKafkaCondition.setType("InstanceDeletionComplete");
+                    status.setConditions(Arrays.asList(managedKafkaCondition));
+                    controlPlane.updateKafkaClusterStatus(status, remoteManagedKafka.getKafkaClusterId());
                 }
             } else if (remoteSpec.isDeleted() && !existing.getSpec().isDeleted()) {
                 controlPlane.removeManagedKafka(existing);
@@ -108,6 +112,14 @@ public class ManagedKafkaSync {
                 // TODO: seems like a problem / resurrection
             }
         }
+    }
+
+    @Scheduled(every = "{poll.interval}")
+    void pollKafkaClusters() {
+        log.debug("Polling for control plane managed kafkas");
+        // TODO: this is based upon a full poll - eventually this could be
+        // based upon a delta revision / timestmap to get a smaller list
+        syncKafkaClusters(controlPlane.getKafkaClusters(), pollExecutor);
     }
 
 }

@@ -13,8 +13,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
-import io.fabric8.kubernetes.client.informers.cache.Cache;
-
 @ApplicationScoped
 public class ControlPlane {
 
@@ -34,15 +32,15 @@ public class ControlPlane {
     private ConcurrentHashMap<String, ManagedKafka> managedKafkas = new ConcurrentHashMap<>();
 
     public void addManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.put(Cache.metaNamespaceKeyFunc(remoteManagedKafka), remoteManagedKafka);
+        managedKafkas.put(remoteManagedKafka.getKafkaClusterId(), remoteManagedKafka);
     }
 
     public void removeManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.remove(Cache.metaNamespaceKeyFunc(remoteManagedKafka));
+        managedKafkas.remove(remoteManagedKafka.getKafkaClusterId());
     }
 
     public ManagedKafka getManagedKafka(ManagedKafka localManagedKafka) {
-        return managedKafkas.get(Cache.metaNamespaceKeyFunc(localManagedKafka));
+        return managedKafkas.get(localManagedKafka.getKafkaClusterId());
     }
 
     public CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status) {
