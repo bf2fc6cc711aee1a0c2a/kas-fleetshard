@@ -15,19 +15,19 @@ public class DeploymentEventSource extends AbstractEventSource implements Resour
 
     @Override
     public void onAdd(Deployment deployment) {
-        log.info("Add event receiving for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+        log.info("Add event received for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
         handleEvent(deployment);
     }
 
     @Override
     public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
-        log.info("Update event receiving for Deployment {}/{}", oldDeployment.getMetadata().getNamespace(), oldDeployment.getMetadata().getName());
+        log.info("Update event received for Deployment {}/{}", oldDeployment.getMetadata().getNamespace(), oldDeployment.getMetadata().getName());
         handleEvent(newDeployment);
     }
 
     @Override
     public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
-        log.info("Delete event receiving for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+        log.info("Delete event received for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
         handleEvent(deployment);
     }
 
