@@ -5,6 +5,7 @@ import java.util.concurrent.Executors;
 
 import javax.inject.Inject;
 
+import org.bf2.sync.controlplane.ControlPlane;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +18,7 @@ public class AgentSync implements QuarkusApplication {
     private static final Logger log = LoggerFactory.getLogger(AgentSync.class);
 
     @Inject
-    ScopedControlPlanRestClient controlPlane;
+    ControlPlane controlPlane;
 
     @Inject
     ManagedKafkaSync managedKafkaSync;

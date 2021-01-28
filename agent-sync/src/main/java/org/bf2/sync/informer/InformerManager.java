@@ -1,4 +1,4 @@
-package org.bf2.sync;
+package org.bf2.sync.informer;
 
 import java.time.Duration;
 
@@ -8,6 +8,7 @@ import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
+import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -27,7 +28,7 @@ public class InformerManager implements LocalLookup {
     KubernetesClient client;
 
     @Inject
-    ScopedControlPlanRestClient controlPlane;
+    ControlPlane controlPlane;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -39,14 +40,9 @@ public class InformerManager implements LocalLookup {
         managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
                 resync.toMillis());
 
-        managedKafkaInformer.addEventHandler(new CustomResourceEventHandler<ManagedKafka>(this::updateKafkaClusterStatus));
+        managedKafkaInformer.addEventHandler(new CustomResourceEventHandler<ManagedKafka>(controlPlane::updateKafkaClusterStatus));
 
         managedKafkaInformer.run();
-    }
-
-    void updateKafkaClusterStatus(ManagedKafka managedKafka) {
-        //fire and forget
-        controlPlane.updateKafkaClusterStatus(managedKafka.getStatus(), managedKafka.getKafkaClusterId());
     }
 
     void onStop(@Observes ShutdownEvent ev) {

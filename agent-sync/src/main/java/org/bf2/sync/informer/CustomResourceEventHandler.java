@@ -1,4 +1,4 @@
-package org.bf2.sync;
+package org.bf2.sync.informer;
 
 import java.util.function.Consumer;
 

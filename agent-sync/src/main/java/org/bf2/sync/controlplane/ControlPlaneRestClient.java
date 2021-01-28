@@ -1,4 +1,4 @@
-package org.bf2.sync;
+package org.bf2.sync.controlplane;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;

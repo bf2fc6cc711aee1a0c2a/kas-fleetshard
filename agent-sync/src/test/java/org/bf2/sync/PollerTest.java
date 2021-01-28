@@ -17,6 +17,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.Versions;
+import org.bf2.sync.controlplane.ControlPlane;
+import org.bf2.sync.informer.LocalLookup;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -86,7 +88,7 @@ public class PollerTest {
     ManagedKafkaSync managedKafkaSync;
 
     @InjectMock
-    ScopedControlPlanRestClient controlPlane;
+    ControlPlane controlPlane;
 
     @Test
     public void testAddDelete() {
@@ -117,7 +119,7 @@ public class PollerTest {
         items = managedKafkas.list().getItems();
         assertTrue(items.get(0).getSpec().isDeleted());
 
-        // need to inform the control plan delete is still needed
+        // need to inform the control plane delete is still needed
         managedKafkas.delete();
         Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(null);
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
