@@ -34,7 +34,7 @@ public class ConditionUtils {
     public static void setManagedKafkaCondition(List<ManagedKafkaCondition> conditions, ManagedKafkaCondition newCondition) {
         if (conditions == null)
             return;
-        Optional<ManagedKafkaCondition> optCurrentCondition = findManagedKafkaCondition(conditions, ManagedKafkaCondition.Type.from(newCondition.getType()));
+        Optional<ManagedKafkaCondition> optCurrentCondition = findManagedKafkaCondition(conditions, ManagedKafkaCondition.Type.valueOf(newCondition.getType()));
         if (optCurrentCondition.isEmpty()) {
             if (newCondition.getLastTransitionTime() == null) {
                 newCondition.setLastTransitionTime(iso8601Now());
