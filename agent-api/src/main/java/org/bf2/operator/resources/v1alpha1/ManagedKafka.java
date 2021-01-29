@@ -23,22 +23,18 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     @Status
     private ManagedKafkaStatus status;
 
-    @Override
     public ManagedKafkaSpec getSpec() {
         return spec;
     }
 
-    @Override
     public void setSpec(ManagedKafkaSpec spec) {
         this.spec = spec;
     }
 
-    @Override
     public ManagedKafkaStatus getStatus() {
         return status;
     }
 
-    @Override
     public void setStatus(ManagedKafkaStatus status) {
         this.status = status;
     }
