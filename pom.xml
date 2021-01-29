@@ -32,11 +32,17 @@
     <modules>
         <module>agent-api</module>
         <module>agent-operator</module>
+        <module>agent-sync</module>
         <module>systemtest</module>
     </modules>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.bf2</groupId>
+        	    <artifactId>agent-api</artifactId>
+        	    <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
