@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-@Controller
+@Controller(namespaces = "ALL_NAMESPACES")
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
