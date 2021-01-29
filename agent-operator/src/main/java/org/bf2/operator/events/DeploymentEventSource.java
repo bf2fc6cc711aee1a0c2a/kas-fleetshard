@@ -32,6 +32,9 @@ public class DeploymentEventSource extends AbstractEventSource implements Resour
     }
 
     private void handleEvent(Deployment deployment) {
+        if (eventHandler == null) {
+            return;
+        }
         eventHandler.handleEvent(new DeploymentEvent(deployment, this));
     }
 }

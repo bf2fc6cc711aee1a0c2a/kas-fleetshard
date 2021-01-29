@@ -8,11 +8,15 @@ public class DeploymentEvent extends AbstractEvent {
     private Deployment deployment;
 
     public DeploymentEvent(Deployment deployment, DeploymentEventSource deploymentEventSource) {
-        super(deployment.getMetadata().getOwnerReferences().get(0).getUid(), deploymentEventSource);
+        super(getOwnerUidOrNull(deployment), deploymentEventSource);
         this.deployment = deployment;
     }
 
     public Deployment getDeployment() {
         return deployment;
+    }
+
+    private static String getOwnerUidOrNull(Deployment deployment) {
+        return deployment.getMetadata().getOwnerReferences() == null && deployment.getMetadata().getOwnerReferences().isEmpty() ? deployment.getMetadata().getOwnerReferences().get(0).getUid() : null;
     }
 }
