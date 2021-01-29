@@ -4,6 +4,8 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -79,6 +81,16 @@ public class Canary implements Operand<ManagedKafka> {
                     .endTemplate()
                 .endSpec()
                 .build();
+
+        // setting the ManagedKafka has owner of the Canary deployment resource is needed
+        // by the operator sdk to handle events on the Deployment resource properly
+        OwnerReference ownerReference = new OwnerReferenceBuilder()
+                .withApiVersion(managedKafka.getApiVersion())
+                .withKind(managedKafka.getKind())
+                .withName(managedKafka.getMetadata().getName())
+                .withUid(managedKafka.getMetadata().getUid())
+                .build();
+        deployment.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
 
         return deployment;
     }

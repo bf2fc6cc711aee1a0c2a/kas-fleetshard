@@ -1,5 +1,6 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -8,6 +9,7 @@ import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.events.DeploymentEvent;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
@@ -74,6 +76,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 toManagedKafkaConditions(managedKafka.getStatus().getConditions());
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+        }
+
+        Optional<DeploymentEvent> latestDeploymentEvent =
+                context.getEvents().getLatestOfType(DeploymentEvent.class);
+        if (latestDeploymentEvent.isPresent()) {
+            Deployment deployment = latestDeploymentEvent.get().getDeployment();
+            log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+
+            // TODO: discriminate between Canary and Admin Server and get status
         }
 
         return UpdateControl.noUpdate();
