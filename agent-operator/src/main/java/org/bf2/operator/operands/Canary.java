@@ -16,6 +16,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +63,7 @@ public class Canary implements Operand<ManagedKafka> {
                 .withNewMetadata()
                     .withName(canaryName)
                     .withNamespace(managedKafka.getMetadata().getNamespace())
+                    .withLabels(getLabels(canaryName))
                 .endMetadata()
                 .withNewSpec()
                     .withNewSelector()
@@ -98,7 +100,10 @@ public class Canary implements Operand<ManagedKafka> {
 
     private static Map<String, String> getLabels(String canaryName) {
         // TODO: adding label about observability
-        return Collections.singletonMap("app", canaryName);
+        Map<String, String> labels = new HashMap<>(2);
+        labels.put("app", canaryName);
+        labels.put("managed-by", "agent-operator");
+        return labels;
     }
 
     private static List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
