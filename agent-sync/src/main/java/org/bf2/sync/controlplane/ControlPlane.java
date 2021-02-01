@@ -1,6 +1,7 @@
 package org.bf2.sync.controlplane;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -43,7 +44,7 @@ public class ControlPlane {
     }
 
     public CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status) {
-        return controlPlaneClient.updateStatus(status, id);
+        return controlPlaneClient.updateStatus(id, status);
     }
 
     /**
@@ -56,7 +57,7 @@ public class ControlPlane {
     }
 
     public CompletableFuture<Void> updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
-        return controlPlaneClient.updateKafkaClusterStatus(status, id, clusterId);
+        return controlPlaneClient.updateKafkaClustersStatus(id, Map.of(clusterId, status));
     }
 
     /**
@@ -72,7 +73,7 @@ public class ControlPlane {
         ManagedKafka remote = getManagedKafka(managedKafka);
         if (remote == null || isStatusDifferent(remote, managedKafka)) {
             //fire and forget
-            controlPlaneClient.updateKafkaClusterStatus(managedKafka.getStatus(), id, managedKafka.getKafkaClusterId());
+            updateKafkaClusterStatus(managedKafka.getStatus(), id);
             //on the next poll the remote should be updated, if not we'll update again at the resync
         }
     }

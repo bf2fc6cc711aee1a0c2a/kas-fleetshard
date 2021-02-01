@@ -14,6 +14,8 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
  * inject a different client / server
  *
  * Adapted from KubernetesMockServerTestResource
+ *
+ * Logged https://github.com/quarkusio/quarkus/issues/14744 just in case it's of interest more broadly.
  */
 public class KubernetesServerTestResource implements QuarkusTestResourceLifecycleManager {
 
