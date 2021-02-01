@@ -10,6 +10,7 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.events.DeploymentEvent;
+import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
@@ -30,6 +31,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     private KafkaEventSource kafkaEventSource;
+
+    @Inject
+    private DeploymentEventSource deploymentEventSource;
 
     @Inject
     private KafkaInstance kafkaInstance;
@@ -94,6 +98,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     public void init(EventSourceManager eventSourceManager) {
         log.info("init");
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
+        eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
     }
 
     /**

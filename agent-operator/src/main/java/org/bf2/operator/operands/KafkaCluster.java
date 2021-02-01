@@ -69,6 +69,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .withNewMetadata()
                     .withName(managedKafka.getMetadata().getName())
                     .withNamespace(managedKafka.getMetadata().getNamespace())
+                    .withLabels(getLabels())
                 .endMetadata()
                 .withNewSpec()
                     .withNewKafka()
@@ -106,6 +107,12 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         kafka.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
 
         return kafka;
+    }
+
+    private static Map<String, String> getLabels() {
+        Map<String, String> labels = new HashMap<>(1);
+        labels.put("app.kubernetes.io/managed-by", "agent-operator");
+        return labels;
     }
 
     @Override
