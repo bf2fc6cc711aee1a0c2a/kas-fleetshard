@@ -6,12 +6,12 @@ import java.util.Optional;
 import javax.inject.Inject;
 
 import org.bf2.operator.ConditionUtils;
+import org.bf2.operator.clients.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -21,9 +21,6 @@ import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -40,12 +37,10 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     Logger log;
 
     @Inject
-    private KubernetesClient client;
+    private AgentResourceClient agentClient;
 
     @ConfigProperty(name = "KUBERNETES_NAMESPACE")
     private String namespace;
-
-    private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
 
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
@@ -80,16 +75,16 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Override
     public void init(EventSourceManager eventSourceManager) {
         log.info("Managed Kafka Agent started");
-        this.agentClient = client.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
+
     }
 
     @Scheduled(every = "{agent.calcuateClusterCapacityEvery}")
     void statusUpdateLoop() {
         if (this.agentClient != null) {
             try {
-                this.agentClient.inNamespace(this.namespace).list().getItems().forEach(r -> {
+                this.agentClient.list(this.namespace).forEach(r -> {
                     r.getSpec().setVersion(r.getSpec().getVersion()+1);
-                    agentClient.createOrReplace(r);
+                    agentClient.create(r);
                 });
             } catch(RuntimeException e) {
                 log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
@@ -103,7 +98,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
      */
     private ManagedKafkaAgentStatus buildStatus(ManagedKafkaAgent resource) {
         ManagedKafkaCondition readyCondition = new ManagedKafkaConditionBuilder()
-                .withType("Ready")
+                .withType(ManagedKafkaCondition.Type.Ready.name())
                 .withStatus("True")
                 .withLastTransitionTime(ConditionUtils.iso8601Now())
                 .build();
