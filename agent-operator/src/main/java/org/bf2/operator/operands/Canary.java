@@ -102,7 +102,7 @@ public class Canary implements Operand<ManagedKafka> {
         // TODO: adding label about observability
         Map<String, String> labels = new HashMap<>(2);
         labels.put("app", canaryName);
-        labels.put("managed-by", "agent-operator");
+        labels.put("app.kubernetes.io/managed-by", "agent-operator");
         return labels;
     }
 
