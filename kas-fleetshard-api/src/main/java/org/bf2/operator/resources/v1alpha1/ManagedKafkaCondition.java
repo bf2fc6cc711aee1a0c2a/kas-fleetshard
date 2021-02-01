@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.sundr.builder.annotations.Buildable;
 
-@Buildable
+/**
+ * Defines a condition related to the ManagedKafka instance status
+ */
+@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class ManagedKafkaCondition {
 
     public enum Type {
