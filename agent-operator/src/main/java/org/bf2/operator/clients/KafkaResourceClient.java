@@ -33,11 +33,13 @@ public class KafkaResourceClient {
                 .delete();
     }
 
-    public Kafka getByName(String name) {
-        return kafkaResourceClient.withName(name).get();
+    public Kafka getByName(String namespace, String name) {
+        return kafkaResourceClient
+                .inNamespace(namespace)
+                .withName(name).get();
     }
 
     public Kafka create(Kafka kafka) {
-        return kafkaResourceClient.createOrReplace(kafka);
+        return kafkaResourceClient.inNamespace(kafka.getMetadata().getNamespace()).createOrReplace(kafka);
     }
 }

@@ -36,9 +36,9 @@ public class Canary implements Operand<ManagedKafka> {
         String canaryName = managedKafka.getMetadata().getName() + "-canary";
 
         // Canary deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments().withName(canaryName).get() == null) {
+        if (kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).withName(canaryName).get() == null) {
             deployment = deploymentFrom(managedKafka);
-            kubernetesClient.apps().deployments().create(deployment);
+            kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).create(deployment);
         // Canary deployment resource already exists, has to be updated
         } else {
             // TODO: updating the Canary deployment
@@ -61,6 +61,7 @@ public class Canary implements Operand<ManagedKafka> {
         Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
                     .withName(canaryName)
+                    .withNamespace(managedKafka.getMetadata().getNamespace())
                 .endMetadata()
                 .withNewSpec()
                     .withNewSelector()
