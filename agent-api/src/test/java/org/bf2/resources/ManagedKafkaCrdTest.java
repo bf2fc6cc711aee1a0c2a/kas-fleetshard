@@ -16,7 +16,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@EnableKubernetesMockClient(crud = true)
+@EnableKubernetesMockClient(https = false, crud = true)
 public class ManagedKafkaCrdTest {
     private final String ROOT_PATH = System.getProperty("user.dir");
 
