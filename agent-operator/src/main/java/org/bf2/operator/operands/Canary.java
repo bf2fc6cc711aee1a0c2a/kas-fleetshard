@@ -123,9 +123,7 @@ public class Canary implements Operand<ManagedKafka> {
 
     @Override
     public boolean isInstalling() {
-        // TODO: check replicas are not available because of an error
-        boolean isInstalling = deployment.getStatus() == null ||
-                (deployment.getStatus().getUnavailableReplicas() != null && deployment.getStatus().getUnavailableReplicas().equals(deployment.getSpec().getReplicas()));
+        boolean isInstalling = deployment.getStatus() == null;
         log.info("Canary isInstalling = {}", isInstalling);
         return isInstalling;
     }

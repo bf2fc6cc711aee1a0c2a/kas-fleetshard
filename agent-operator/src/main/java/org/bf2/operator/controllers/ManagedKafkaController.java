@@ -164,8 +164,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Error, "True");
                 managedKafkaConditions.add(error);
             }
-        } else {
-            throw new IllegalArgumentException("Unknown Kafka instance condition");
         }
     }
 }
