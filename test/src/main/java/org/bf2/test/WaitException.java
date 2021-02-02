@@ -1,4 +1,4 @@
-package org.bf2.systemtest;
+package org.bf2.test;
 
 public class WaitException extends RuntimeException {
     public WaitException(String message) {

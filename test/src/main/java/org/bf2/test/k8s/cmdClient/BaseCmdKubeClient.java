@@ -2,16 +2,16 @@
  * Copyright Strimzi authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package org.bf2.systemtest.k8s.cmdClient;
+package org.bf2.test.k8s.cmdClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.TestUtils;
-import org.bf2.systemtest.executor.Exec;
-import org.bf2.systemtest.executor.ExecResult;
-import org.bf2.systemtest.k8s.KubeClusterException;
+import org.bf2.test.TestUtils;
+import org.bf2.test.executor.Exec;
+import org.bf2.test.executor.ExecResult;
+import org.bf2.test.k8s.KubeClusterException;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,7 +19,6 @@ import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

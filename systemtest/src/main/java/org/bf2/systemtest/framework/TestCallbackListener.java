@@ -1,7 +1,7 @@
 package org.bf2.systemtest.framework;
 
 
-import org.bf2.systemtest.TestUtils;
+import org.bf2.test.TestUtils;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;

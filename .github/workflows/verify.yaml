@@ -28,4 +28,4 @@ jobs:
         run: minikube addons enable registry
 
       - name: Run integration test
-        run: mvn verify -pl systemtest --no-transfer-progress
+        run: mvn verify -pl systemtest --no-transfer-progress -am

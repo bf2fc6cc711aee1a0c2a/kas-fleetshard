@@ -1,4 +1,4 @@
-package org.bf2.systemtest.executor;
+package org.bf2.test.executor;
 
 import java.io.Serializable;
 
