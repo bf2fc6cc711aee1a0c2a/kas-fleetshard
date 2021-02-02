@@ -36,13 +36,13 @@ public class Canary implements Operand<ManagedKafka> {
     public void createOrUpdate(ManagedKafka managedKafka) {
         String canaryName = managedKafka.getMetadata().getName() + "-canary";
 
+        deployment = deploymentFrom(managedKafka);
         // Canary deployment resource doesn't exist, has to be created
         if (kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).withName(canaryName).get() == null) {
-            deployment = deploymentFrom(managedKafka);
             kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).create(deployment);
         // Canary deployment resource already exists, has to be updated
         } else {
-            // TODO: updating the Canary deployment
+            kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).createOrReplace(deployment);
         }
     }
 

@@ -37,16 +37,15 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        kafka = kafkaFrom(managedKafka);
         // Kafka resource doesn't exist, has to be created
         if (kafkaResourceClient.getByName(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName()) == null) {
-            kafka = kafkaFrom(managedKafka);
             log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
         // Kafka resource already exists, has to be updated
         } else {
             log.info("Updating Kafka instance {}", managedKafka.getSpec().getVersions().getKafka());
-            // TODO: patching the Kafka resource
-            // kafkaClient.withName(kafkaInstance.getKafka().getMetadata().getName()).patch(kafkaInstance.getKafka());
+            kafkaResourceClient.createOrReplace(kafka);
         }
     }
 

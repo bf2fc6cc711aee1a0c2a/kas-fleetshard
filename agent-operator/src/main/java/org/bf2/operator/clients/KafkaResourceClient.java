@@ -40,6 +40,10 @@ public class KafkaResourceClient {
     }
 
     public Kafka create(Kafka kafka) {
+        return kafkaResourceClient.inNamespace(kafka.getMetadata().getNamespace()).create(kafka);
+    }
+
+    public Kafka createOrReplace(Kafka kafka) {
         return kafkaResourceClient.inNamespace(kafka.getMetadata().getNamespace()).createOrReplace(kafka);
     }
 }
