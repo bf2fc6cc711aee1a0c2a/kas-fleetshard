@@ -1,7 +1,0 @@
-apiVersion: managedkafka.bf2.org/v1alpha1
-kind: ManagedKafkaAgent
-metadata:
-  name: managed-agent
-spec:
-  clusterId: testing
-  

@@ -12,6 +12,7 @@ import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -43,6 +44,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @ConfigProperty(name = "KUBERNETES_NAMESPACE")
     private String namespace;
+
+    // TODO: this needs to be populated later from properties
+    private String clusterId = "testing";
 
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
@@ -80,7 +84,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     }
 
-    @Scheduled(every = "{agent.calcuateClusterCapacityEvery}")
+    @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         if (this.agentClient != null) {
             try {
@@ -89,6 +93,12 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                     log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
                     resource.setStatus(buildStatus(resource));
                     this.agentClient.updateStatus(resource);
+                } else {
+                    resource = new ManagedKafkaAgent();
+                    resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
+                    resource.getMetadata().setName(RESOURCE_NAME);
+                    resource.getMetadata().setNamespace(this.namespace);
+                    this.agentClient.createOrReplace(resource);
                 }
             } catch(RuntimeException e) {
                 log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
