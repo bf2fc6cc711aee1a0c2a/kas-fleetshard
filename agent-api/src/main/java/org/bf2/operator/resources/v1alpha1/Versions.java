@@ -1,5 +1,8 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import io.sundr.builder.annotations.Buildable;
+
+@Buildable
 public class Versions {
 
     private String kafka;
