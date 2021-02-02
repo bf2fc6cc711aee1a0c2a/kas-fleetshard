@@ -30,10 +30,6 @@
             <artifactId>quarkus-kubernetes-client</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.dekorate</groupId>
-            <artifactId>crd-annotations</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.sundr</groupId>
             <artifactId>builder-annotations</artifactId>
         </dependency>
@@ -53,6 +49,10 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>
         </dependency>
+		<dependency>
+		    <groupId>io.quarkus</groupId>
+		    <artifactId>quarkus-smallrye-health</artifactId>
+		</dependency>        
         <!-- test -->
         <dependency>
             <groupId>io.quarkus</groupId>
