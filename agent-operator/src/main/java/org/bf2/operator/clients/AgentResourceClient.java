@@ -37,6 +37,13 @@ public class AgentResourceClient {
         return agentClient.inNamespace(resource.getMetadata().getNamespace()).createOrReplace(resource);
     }
 
+    public ManagedKafkaAgent updateStatus(ManagedKafkaAgent resource) {
+    	if (!isReady()) {
+    		throw new IllegalStateException("client not initialized yet..");
+    	}
+        return agentClient.inNamespace(resource.getMetadata().getNamespace()).updateStatus(resource);
+    }
+
     public List<ManagedKafkaAgent> list(String namespace) {
     	if (isReady()) {
     		return agentClient.inNamespace(namespace).list().getItems();
