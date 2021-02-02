@@ -33,7 +33,7 @@ import io.quarkus.scheduler.Scheduled;
 @Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
-	private static final String RESOURCE_NAME = "managed-agent";
+    private static final String RESOURCE_NAME = "managed-agent";
 
     @Inject
     Logger log;
@@ -84,12 +84,12 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     void statusUpdateLoop() {
         if (this.agentClient != null) {
             try {
-            	ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
-            	if (resource != null) {
-            		log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
-            		resource.setStatus(buildStatus(resource));
-            		this.agentClient.updateStatus(resource);
-            	}
+                ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
+                if (resource != null) {
+                    log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
+                    resource.setStatus(buildStatus(resource));
+                    this.agentClient.updateStatus(resource);
+                }
             } catch(RuntimeException e) {
                 log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
             }

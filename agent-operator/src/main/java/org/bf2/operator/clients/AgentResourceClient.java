@@ -18,47 +18,47 @@ import io.quarkus.runtime.StartupEvent;
 @ApplicationScoped
 public class AgentResourceClient {
 
-	@Inject
+    @Inject
     private KubernetesClient kubernetesClient;
 
-	private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
+    private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
 
-	private boolean ready = false;
+    private boolean ready = false;
 
     void onStart(@Observes StartupEvent ev) {
-    	this.agentClient = kubernetesClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
-    	this.ready = true;
+        this.agentClient = kubernetesClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
+        this.ready = true;
     }
 
     public ManagedKafkaAgent createOrReplace(ManagedKafkaAgent resource) {
-    	if (!isReady()) {
-    		throw new IllegalStateException("client not initialized yet..");
-    	}
+        if (!isReady()) {
+            throw new IllegalStateException("client not initialized yet..");
+        }
         return agentClient.inNamespace(resource.getMetadata().getNamespace()).createOrReplace(resource);
     }
 
     public ManagedKafkaAgent updateStatus(ManagedKafkaAgent resource) {
-    	if (!isReady()) {
-    		throw new IllegalStateException("client not initialized yet..");
-    	}
+        if (!isReady()) {
+            throw new IllegalStateException("client not initialized yet..");
+        }
         return agentClient.inNamespace(resource.getMetadata().getNamespace()).updateStatus(resource);
     }
 
     public List<ManagedKafkaAgent> list(String namespace) {
-    	if (isReady()) {
-    		return agentClient.inNamespace(namespace).list().getItems();
-    	}
-    	return Collections.emptyList();
+        if (isReady()) {
+            return agentClient.inNamespace(namespace).list().getItems();
+        }
+        return Collections.emptyList();
     }
 
     public ManagedKafkaAgent get(String namespace, String name) {
-    	if (isReady()) {
-    		return agentClient.inNamespace(namespace).withName(name).get();
-    	}
-    	return null;
+        if (isReady()) {
+            return agentClient.inNamespace(namespace).withName(name).get();
+        }
+        return null;
     }
 
     private boolean isReady() {
-    	return ready;
+        return ready;
     }
 }
