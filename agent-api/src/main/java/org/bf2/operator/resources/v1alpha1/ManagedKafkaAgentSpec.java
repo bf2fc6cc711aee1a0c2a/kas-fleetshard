@@ -1,16 +1,16 @@
 package org.bf2.operator.resources.v1alpha1;
 
 public class ManagedKafkaAgentSpec {
+	/**
+	 * Cluster ID given by the control plane
+	 */
+    String clusterId;
 
-    // to use to kick off a status of cluster
-    long version;
+	public String getClusterId() {
+		return clusterId;
+	}
 
-    public long getVersion() {
-        return version;
-    }
-
-    public void setVersion(long version) {
-        this.version = version;
-    }
-
+	public void setClusterId(String clusterId) {
+		this.clusterId = clusterId;
+	}
 }

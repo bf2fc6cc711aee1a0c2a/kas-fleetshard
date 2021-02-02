@@ -30,7 +30,7 @@ public class AgentResourceClient {
     	this.ready = true;
     }
 
-    public ManagedKafkaAgent create(ManagedKafkaAgent resource) {
+    public ManagedKafkaAgent createOrReplace(ManagedKafkaAgent resource) {
     	if (!isReady()) {
     		throw new IllegalStateException("client not initialized yet..");
     	}
@@ -42,6 +42,13 @@ public class AgentResourceClient {
     		return agentClient.inNamespace(namespace).list().getItems();
     	}
     	return Collections.emptyList();
+    }
+
+    public ManagedKafkaAgent get(String namespace, String name) {
+    	if (isReady()) {
+    		return agentClient.inNamespace(namespace).withName(name).get();
+    	}
+    	return null;
     }
 
     private boolean isReady() {
