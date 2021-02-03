@@ -5,24 +5,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
@@ -42,7 +37,7 @@ public class ManagedKafkaSync {
     Logger log;
 
     @Inject
-    KubernetesClient client;
+    ManagedKafkaResourceClient client;
 
     @Inject
     LocalLookup lookup;
@@ -52,16 +47,6 @@ public class ManagedKafkaSync {
 
     @javax.annotation.Resource
     ManagedExecutor pollExecutor;
-
-    private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> managedKafkaResources;
-
-    @PostConstruct
-    void init() {
-        CustomResourceDefinitionContext crdContext = CustomResourceDefinitionContext
-                .fromCustomResourceType(ManagedKafka.class);
-
-        managedKafkaResources = client.customResources(crdContext, ManagedKafka.class, ManagedKafkaList.class);
-    }
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -160,18 +145,16 @@ public class ManagedKafkaSync {
         } else if (remote == null) {
             log.debugf("Deleting ManagedKafka %s %s", local.getId(), Cache.metaNamespaceKeyFunc(local));
 
-            managedKafkaResources.inNamespace(local.getMetadata().getNamespace())
-                    .withName(local.getMetadata().getName()).delete();
+            client.delete(local.getMetadata().getNamespace(), local.getMetadata().getName());
 
             controlPlane.removeManagedKafka(local);
         } else if (remote.getSpec().isDeleted() && !local.getSpec().isDeleted()) {
             log.debugf("Initiating Delete of ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
             // mark the local as deleted
-            managedKafkaResources.inNamespace(local.getMetadata().getNamespace())
-                    .withName(local.getMetadata().getName()).edit(mk -> {
-                        mk.getSpec().setDeleted(true);
-                        return mk;
-                    });
+            client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
+                    mk.getSpec().setDeleted(true);
+                    return mk;
+                });
             // the operator will handle the deletion from here
         }
     }
@@ -185,7 +168,7 @@ public class ManagedKafkaSync {
         log.debugf("Creating ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
 
         // TODO: there may be additional cleansing, setting of defaults, etc. on the remote instance before creation
-        managedKafkaResources.create(remote);
+        client.create(remote);
     }
 
     @Scheduled(every = "{poll.interval}")
