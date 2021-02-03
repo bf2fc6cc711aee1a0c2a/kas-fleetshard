@@ -1,93 +1,79 @@
 package org.bf2.test.mock;
 
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
-import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
-import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+import io.fabric8.mockwebserver.Context;
+import okhttp3.mockwebserver.MockWebServer;
 import org.bf2.test.Environment;
+import org.junit.jupiter.api.extension.AfterAllCallback;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.net.InetAddress;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 
-/**
- * Mock kubernetes CRUD server for quarkus test resource
- */
-public class KubeMockServer implements QuarkusTestResourceLifecycleManager {
+public class KubeMockServer implements AfterEachCallback, AfterAllCallback, BeforeEachCallback, BeforeAllCallback {
+    private KubernetesMockServer mock;
+    private NamespacedKubernetesClient client;
 
-    private KubernetesServer server;
+    public KubeMockServer() {
+    }
 
-    @Override
-    public Map<String, String> start() {
-        final Map<String, String> systemProps = new HashMap<>();
-        systemProps.put(Config.KUBERNETES_TRUST_CERT_SYSTEM_PROPERTY, "true");
-        systemProps.put(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
-        systemProps.put(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
-        systemProps.put(Config.KUBERNETES_HTTP2_DISABLE, "true");
-
-        server = createServer();
-        server.before();
-        try (NamespacedKubernetesClient client = server.getClient()) {
-            systemProps.put(Config.KUBERNETES_MASTER_SYSTEM_PROPERTY, client.getConfiguration().getMasterUrl());
+    public void afterEach(ExtensionContext context) throws Exception {
+        Optional<Class<?>> optClass = context.getTestClass();
+        if (optClass.isPresent()) {
+            Class<?> testClass = (Class) optClass.get();
+            if (this.findField(testClass, true) == null) {
+                this.destroy();
+            }
         }
 
-        try {
-            configureServer(server);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        return systemProps;
     }
 
-    protected KubernetesServer createServer() {
-        return new KubernetesServer(useHttps(), true);
+    public void afterAll(ExtensionContext context) throws Exception {
+        this.destroy();
     }
 
-    /**
-     * Can be used by subclasses of {@code KubernetesServerTestResource} in order to
-     * setup the mock server before the Quarkus application starts
-     */
-    public void configureServer(KubernetesServer mockServer) throws FileNotFoundException {
-        // initialize with the crd
-        server.getClient().load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "agent-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
-                server.getClient().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
+    public void beforeEach(ExtensionContext context) throws Exception {
+        this.setKubernetesClientField(context, false);
     }
 
-    @Override
-    public void stop() {
-        if (server != null) {
-            server.after();
-        }
+    public void beforeAll(ExtensionContext context) throws Exception {
+        this.setKubernetesClientField(context, true);
     }
 
-    /**
-     * Find annotation @KubernetesMockServer and pass mock server into annotated property
-     * @param testInstance
-     */
-    public void inject(Object testInstance) {
-        for (Class c = testInstance.getClass(); c != Object.class; c = c.getSuperclass()) {
-            Field[] var3 = c.getDeclaredFields();
-            int var4 = var3.length;
+    private void setKubernetesClientField(ExtensionContext context, boolean isStatic) throws IllegalAccessException, FileNotFoundException {
+        Optional<Class<?>> optClass = context.getTestClass();
+        if (optClass.isPresent()) {
+            Class<?> testClass = (Class) optClass.get();
+            Field[] fields = testClass.getDeclaredFields();
+            Field[] var6 = fields;
+            int var7 = fields.length;
 
-            for (int var5 = 0; var5 < var4; ++var5) {
-                Field f = var3[var5];
-                if (f.getAnnotation(KubernetesMockServer.class) != null) {
-                    if (!KubernetesServer.class.isAssignableFrom(f.getType())) {
-                        throw new RuntimeException("@KubernetesMockServer can only be used on fields of type KubernetesServer");
-                    }
-
+            for (int var8 = 0; var8 < var7; ++var8) {
+                Field f = var6[var8];
+                if (f.getType() == KubernetesClient.class && Modifier.isStatic(f.getModifiers()) == isStatic) {
+                    this.createKubernetesClient(testClass);
                     f.setAccessible(true);
-
-                    try {
-                        f.set(testInstance, this.server);
-                        return;
-                    } catch (Exception var8) {
-                        throw new RuntimeException(var8);
+                    if (isStatic) {
+                        f.set((Object) null, this.client);
+                    } else {
+                        Optional<Object> optTestInstance = context.getTestInstance();
+                        if (optTestInstance.isPresent()) {
+                            f.set(optTestInstance.get(), this.client);
+                        }
                     }
                 }
             }
@@ -95,7 +81,33 @@ public class KubeMockServer implements QuarkusTestResourceLifecycleManager {
 
     }
 
-    protected boolean useHttps() {
-        return Boolean.getBoolean("quarkus.kubernetes-client.test.https");
+    private void createKubernetesClient(Class<?> testClass) throws FileNotFoundException {
+        UseKubeMockServer a = testClass.getAnnotation(UseKubeMockServer.class);
+        this.mock = a.crud() ? new KubernetesMockServer(new Context(), new MockWebServer(), new HashMap(), new KubernetesCrudDispatcher(Collections.emptyList()), a.https()) : new KubernetesMockServer(a.https());
+        this.mock.init(InetAddress.getLoopbackAddress(), a.port());
+        this.client = this.mock.createClient();
+
+        client.load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "agent-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
+                client.apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
+    }
+
+    private void destroy() {
+        this.mock.destroy();
+        this.client.close();
+    }
+
+    private Field findField(Class<?> testClass, boolean isStatic) {
+        Field[] fields = testClass.getDeclaredFields();
+        Field[] var4 = fields;
+        int var5 = fields.length;
+
+        for (int var6 = 0; var6 < var5; ++var6) {
+            Field f = var4[var6];
+            if (f.getType() == KubernetesClient.class && Modifier.isStatic(f.getModifiers()) == isStatic) {
+                return f;
+            }
+        }
+
+        return null;
     }
 }

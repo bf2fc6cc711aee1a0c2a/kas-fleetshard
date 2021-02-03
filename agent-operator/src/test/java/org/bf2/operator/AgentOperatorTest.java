@@ -1,49 +1,66 @@
 package org.bf2.operator;
 
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
-import org.bf2.operator.resources.v1alpha1.Versions;
-import org.bf2.test.mock.KubeMockServer;
-import org.bf2.test.mock.KubernetesMockServer;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkus.test.QuarkusProdModeTest;
+import org.bf2.operator.clients.KafkaResourceClient;
+import org.bf2.operator.controllers.ManagedKafkaController;
+import org.bf2.operator.events.DeploymentEvent;
+import org.bf2.operator.events.DeploymentEventSource;
+import org.bf2.operator.events.KafkaEvent;
+import org.bf2.operator.events.KafkaEventSource;
+import org.bf2.operator.operands.AdminServer;
+import org.bf2.operator.operands.Canary;
+import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.operands.KafkaInstance;
+import org.bf2.operator.operands.Operand;
+import org.bf2.test.mock.UseKubeMockServer;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
-@QuarkusTestResource(KubeMockServer.class)
-@QuarkusTest
+@UseKubeMockServer(https = false, crud = true, port = 56565)
 public class AgentOperatorTest {
 
-    @KubernetesMockServer
-    KubernetesServer server;
+    static KubernetesClient client;
+
+    @RegisterExtension
+    static final QuarkusProdModeTest config =
+            new QuarkusProdModeTest()
+                    .setArchiveProducer(
+                            () ->
+                                    ShrinkWrap.create(JavaArchive.class)
+                                            .addClasses(
+                                                    KafkaResourceClient.class,
+                                                    ManagedKafkaController.class,
+                                                    DeploymentEvent.class,
+                                                    DeploymentEventSource.class,
+                                                    KafkaEvent.class,
+                                                    KafkaEventSource.class,
+                                                    AdminServer.class,
+                                                    Canary.class,
+                                                    KafkaCluster.class,
+                                                    KafkaInstance.class,
+                                                    Operand.class,
+                                                    AgentOperator.class,
+                                                    ConditionUtils.class,
+                                                    InformerManager.class,
+                                                    Main.class))
+                    .setApplicationName("agent-operator")
+                    .setApplicationVersion("0.1-SNAPSHOT")
+                    .setRuntimeProperties(Map.of(
+                            "quarkus.kubernetes-client.master-url", "http://localhost:56565",
+                            "quarkus.kubernetes-client.trust-certs", "true"))
+                    .setRun(true);
 
     @Test
     void testConnectOperatorToCluster() throws InterruptedException {
-        var managedKafkas = server.getClient().customResources(ManagedKafka.class);
-        server.getClient().namespaces().create(new NamespaceBuilder().withNewMetadata().withName("test").endMetadata().build());
-        managedKafkas.inNamespace("test").create(exampleManagedKafka());
-
-        Thread.sleep(20_000);
-
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
-        assertEquals(1, kafkaCli.inNamespace("test").list().getItems().size());
-    }
-
-    private ManagedKafka exampleManagedKafka() {
-        ManagedKafka managedKafka = new ManagedKafka();
-        managedKafka.getMetadata().setNamespace("test");
-        managedKafka.getMetadata().setName("name");
-        ManagedKafkaSpec spec = new ManagedKafkaSpec();
-        Versions versions = new Versions();
-        versions.setKafka("2.7");
-        spec.setVersions(versions);
-        managedKafka.setSpec(spec);
-        return managedKafka;
+        Thread.sleep(5_000);
+        assertFalse(config.getStartupConsoleOutput().contains("ERROR"));
     }
 }

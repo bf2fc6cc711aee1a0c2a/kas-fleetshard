@@ -15,8 +15,8 @@ import org.bf2.test.executor.Exec;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.executor.ExecResult;
 import org.bf2.test.k8s.KubeClusterException;
-import org.bf2.test.mock.KubeMockServer;
-import org.bf2.test.mock.KubernetesMockServer;
+import org.bf2.test.mock.QuarkusKubeMockServer;
+import org.bf2.test.mock.QuarkusKubernetesMockServer;
 import org.bf2.test.mock.MockSyncProfile;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,13 +32,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests for verifying that test suite is not broken and basic functionality is working properly
  */
 @QuarkusTest
-@QuarkusTestResource(KubeMockServer.class)
+@QuarkusTestResource(QuarkusKubeMockServer.class)
 @TestProfile(MockSyncProfile.class)
 public class SuiteUnitTest extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
     private static final String TEST_NS = "default";
 
-    @KubernetesMockServer
+    @QuarkusKubernetesMockServer
     KubernetesServer server;
 
     @BeforeAll
