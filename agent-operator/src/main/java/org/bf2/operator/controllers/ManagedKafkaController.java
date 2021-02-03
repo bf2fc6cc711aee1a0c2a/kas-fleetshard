@@ -14,6 +14,7 @@ import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
+import org.bf2.operator.operands.Canary;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.*;
 import org.slf4j.Logger;
@@ -88,7 +89,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             Deployment deployment = latestDeploymentEvent.get().getDeployment();
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
 
-            // TODO: discriminate between Canary and Admin Server and get status
+            // check if the Deployment is related to Canary or Admin Server
+            if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka))) {
+                kafkaInstance.getCanary().setDeployment(deployment);
+                if (deployment.getStatus() != null) {
+                    log.info("Canary Deployment conditions = {}", deployment.getStatus().getConditions());
+                    toManagedKafkaConditions(managedKafka.getStatus().getConditions());
+                }
+            }
+            // TODO: add condition about Admin Server
         }
 
         return UpdateControl.noUpdate();
@@ -155,8 +164,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Error, "True");
                 managedKafkaConditions.add(error);
             }
-        } else {
-            throw new IllegalArgumentException("Unknown Kafka instance condition");
         }
     }
 }

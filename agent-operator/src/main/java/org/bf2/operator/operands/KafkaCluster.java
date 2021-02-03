@@ -117,23 +117,31 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     @Override
     public boolean isInstalling() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
-        return kafkaCondition.getType().equals("NotReady")
+        boolean isInstalling =
+                kafkaCondition.getType().equals("NotReady")
                 && kafkaCondition.getStatus().equals("True")
                 && kafkaCondition.getReason().equals("Creating");
+        log.info("KafkaCluster isInstalling = {}", isInstalling);
+        return isInstalling;
     }
 
     @Override
     public boolean isReady() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
-        return kafkaCondition.getType().equals("Ready") && kafkaCondition.getStatus().equals("True");
+        boolean isReady = kafkaCondition.getType().equals("Ready") && kafkaCondition.getStatus().equals("True");
+        log.info("KafkaCluster isReady = {}", isReady);
+        return isReady;
     }
 
     @Override
     public boolean isError() {
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
-        return kafkaCondition.getType().equals("NotReady")
+        boolean isError =
+                kafkaCondition.getType().equals("NotReady")
                 && kafkaCondition.getStatus().equals("True")
                 && !kafkaCondition.getReason().equals("Creating");
+        log.info("KafkaCluster isError = {}", isError);
+        return isError;
     }
 
     public Kafka getKafka() {

@@ -11,6 +11,8 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -27,6 +29,8 @@ import java.util.Map;
 @ApplicationScoped
 public class Canary implements Operand<ManagedKafka> {
 
+    private static final Logger log = LoggerFactory.getLogger(Canary.class);
+
     @Inject
     private KubernetesClient kubernetesClient;
 
@@ -34,7 +38,7 @@ public class Canary implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        String canaryName = managedKafka.getMetadata().getName() + "-canary";
+        String canaryName = canaryName(managedKafka);
 
         deployment = deploymentFrom(managedKafka);
         // Canary deployment resource doesn't exist, has to be created
@@ -51,13 +55,13 @@ public class Canary implements Operand<ManagedKafka> {
         kubernetesClient.apps()
                 .deployments()
                 .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(managedKafka.getMetadata().getName() + "-canary")
+                .withName(canaryName(managedKafka))
                 .delete();
     }
 
     private Deployment deploymentFrom(ManagedKafka managedKafka) {
 
-        String canaryName = managedKafka.getMetadata().getName() + "-canary";
+        String canaryName = canaryName(managedKafka);
 
         Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
@@ -119,14 +123,17 @@ public class Canary implements Operand<ManagedKafka> {
 
     @Override
     public boolean isInstalling() {
-        // TODO: logic for check if it's installing
-        return false;
+        boolean isInstalling = deployment.getStatus() == null;
+        log.info("Canary isInstalling = {}", isInstalling);
+        return isInstalling;
     }
 
     @Override
     public boolean isReady() {
-        // TODO: logic for check if it's ready
-        return true;
+        boolean isReady = deployment.getStatus() == null ||
+                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas()));
+        log.info("Canary isReady = {}", isReady);
+        return isReady;
     }
 
     @Override
@@ -141,5 +148,9 @@ public class Canary implements Operand<ManagedKafka> {
 
     public void setDeployment(Deployment deployment) {
         this.deployment = deployment;
+    }
+
+    public static String canaryName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-canary";
     }
 }
