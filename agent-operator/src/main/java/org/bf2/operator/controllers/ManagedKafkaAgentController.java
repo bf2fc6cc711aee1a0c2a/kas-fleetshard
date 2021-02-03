@@ -45,8 +45,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @ConfigProperty(name = "KUBERNETES_NAMESPACE")
     private String namespace;
 
-    // TODO: this needs to be populated later from properties
-    private String clusterId = "testing";
+    @ConfigProperty(name = "CLUSTER_ID", defaultValue = "testing")
+    private String clusterId;
 
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
@@ -86,23 +86,21 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
-        if (this.agentClient != null) {
-            try {
-                ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
-                if (resource != null) {
-                    log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
-                    resource.setStatus(buildStatus(resource));
-                    this.agentClient.updateStatus(resource);
-                } else {
-                    resource = new ManagedKafkaAgent();
-                    resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
-                    resource.getMetadata().setName(RESOURCE_NAME);
-                    resource.getMetadata().setNamespace(this.namespace);
-                    this.agentClient.createOrReplace(resource);
-                }
-            } catch(RuntimeException e) {
-                log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
+        try {
+            ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
+            if (resource != null) {
+                log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
+                resource.setStatus(buildStatus(resource));
+                this.agentClient.updateStatus(resource);
+            } else {
+                resource = new ManagedKafkaAgent();
+                resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
+                resource.getMetadata().setName(RESOURCE_NAME);
+                resource.getMetadata().setNamespace(this.namespace);
+                this.agentClient.createOrReplace(resource);
             }
+        } catch(RuntimeException e) {
+            log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
         }
     }
 

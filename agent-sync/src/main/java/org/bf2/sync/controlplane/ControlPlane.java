@@ -9,7 +9,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -43,8 +43,8 @@ public class ControlPlane {
         return managedKafkas.get(localManagedKafka.getKafkaClusterId());
     }
 
-    public CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status) {
-        return controlPlaneClient.updateStatus(id, status);
+    public CompletableFuture<Void> updateStatus(ManagedKafkaAgent agent) {
+        return controlPlaneClient.updateStatus(id, agent.getStatus());
     }
 
     /**

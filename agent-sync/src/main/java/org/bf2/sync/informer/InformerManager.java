@@ -8,6 +8,8 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -34,6 +36,7 @@ public class InformerManager implements LocalLookup {
     private SharedInformerFactory sharedInformerFactory;
 
     private SharedIndexInformer<ManagedKafka> managedKafkaInformer;
+    private SharedIndexInformer<ManagedKafkaAgent> managedAgentInformer;
 
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = client.informers();
@@ -44,6 +47,12 @@ public class InformerManager implements LocalLookup {
         managedKafkaInformer.addEventHandler(new CustomResourceEventHandler<ManagedKafka>(controlPlane::updateKafkaClusterStatus));
 
         managedKafkaInformer.run();
+
+        // for the Agent
+        managedAgentInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,
+                resync.toMillis());
+        managedAgentInformer.addEventHandler(new CustomResourceEventHandler<ManagedKafkaAgent>(controlPlane::updateStatus));
+        managedAgentInformer.run();
     }
 
     void onStop(@Observes ShutdownEvent ev) {
