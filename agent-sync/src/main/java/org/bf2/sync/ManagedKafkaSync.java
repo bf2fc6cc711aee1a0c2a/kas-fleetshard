@@ -75,6 +75,8 @@ public class ManagedKafkaSync {
             remotes.put(remoteManagedKafka.getId(), remoteManagedKafka);
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
+            // this is now the latest to track
+            controlPlane.addManagedKafka(remoteManagedKafka);
 
             // TODO this requires the namespace is already set - this will change
             // see also the create method
@@ -84,10 +86,9 @@ public class ManagedKafkaSync {
             // this is really just seeing if an instance needs created and the delete flag
             // there are no other fields to reconcile - but you could envision updating
             // component versions etc. later
+
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
-                    controlPlane.addManagedKafka(remoteManagedKafka);
-
                     executor.execute(() -> {
                         reconcile(remoteManagedKafka.getId(), Cache.metaNamespaceKeyFunc(remoteManagedKafka));
                     });
@@ -160,6 +161,8 @@ public class ManagedKafkaSync {
 
             managedKafkaResources.inNamespace(local.getMetadata().getNamespace())
                     .withName(local.getMetadata().getName()).delete();
+
+            controlPlane.removeManagedKafka(local);
         } else if (remote.getSpec().isDeleted() && !local.getSpec().isDeleted()) {
             log.debugf("Initiating Delete of ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
             // mark the local as deleted
@@ -168,7 +171,6 @@ public class ManagedKafkaSync {
                         mk.getSpec().setDeleted(true);
                         return mk;
                     });
-            controlPlane.removeManagedKafka(local);
             // the operator will handle the deletion from here
         }
     }
