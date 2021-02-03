@@ -34,41 +34,41 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isInstalling() {
+    public boolean isInstalling(ManagedKafka managedKafka) {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is installing we don't mind to check the others
-        return kafkaCluster.isInstalling() ||
-                canary.isInstalling() ||
-                adminServer.isInstalling();
+        return kafkaCluster.isInstalling(managedKafka) ||
+                canary.isInstalling(managedKafka) ||
+                adminServer.isInstalling(managedKafka);
     }
 
     @Override
-    public boolean isReady() {
+    public boolean isReady(ManagedKafka managedKafka) {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is not ready we don't mind to check the others
-        if (!kafkaCluster.isReady()) {
+        if (!kafkaCluster.isReady(managedKafka)) {
             return false;
         }
-        if (!canary.isReady()) {
+        if (!canary.isReady(managedKafka)) {
             return false;
         }
-        if (!adminServer.isReady()) {
+        if (!adminServer.isReady(managedKafka)) {
             return false;
         }
         return true;
     }
 
     @Override
-    public boolean isError() {
+    public boolean isError(ManagedKafka managedKafka) {
         // the check is done in a kind of priority: 1. Kafka, 2. Canary 3. Admin Server
         // if the current one is in error we don't mind to check the others
-        if (kafkaCluster.isError()) {
+        if (kafkaCluster.isError(managedKafka)) {
             return true;
         }
-        if (canary.isError()) {
+        if (canary.isError(managedKafka)) {
             return true;
         }
-        if (adminServer.isError()) {
+        if (adminServer.isError(managedKafka)) {
             return true;
         }
         return false;

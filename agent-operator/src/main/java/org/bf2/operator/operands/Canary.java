@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,19 +35,20 @@ public class Canary implements Operand<ManagedKafka> {
     @Inject
     private KubernetesClient kubernetesClient;
 
-    private Deployment deployment;
+    @Inject
+    private InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        String canaryName = canaryName(managedKafka);
-
-        deployment = deploymentFrom(managedKafka);
+        Deployment deployment = deploymentFrom(managedKafka);
         // Canary deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).withName(canaryName).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).create(deployment);
+        if (kubernetesClient.apps().deployments()
+                .inNamespace(deployment.getMetadata().getNamespace())
+                .withName(deployment.getMetadata().getName()).get() == null) {
+            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
         // Canary deployment resource already exists, has to be updated
         } else {
-            kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).createOrReplace(deployment);
+            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).createOrReplace(deployment);
         }
     }
 
@@ -54,7 +56,7 @@ public class Canary implements Operand<ManagedKafka> {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kubernetesClient.apps()
                 .deployments()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .inNamespace(canaryNamespace(managedKafka))
                 .withName(canaryName(managedKafka))
                 .delete();
     }
@@ -66,7 +68,7 @@ public class Canary implements Operand<ManagedKafka> {
         Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
                     .withName(canaryName)
-                    .withNamespace(managedKafka.getMetadata().getNamespace())
+                    .withNamespace(canaryNamespace(managedKafka))
                     .withLabels(getLabels(canaryName))
                 .endMetadata()
                 .withNewSpec()
@@ -122,14 +124,16 @@ public class Canary implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isInstalling() {
+    public boolean isInstalling(ManagedKafka managedKafka) {
+        Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
         boolean isInstalling = deployment.getStatus() == null;
         log.info("Canary isInstalling = {}", isInstalling);
         return isInstalling;
     }
 
     @Override
-    public boolean isReady() {
+    public boolean isReady(ManagedKafka managedKafka) {
+        Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
         boolean isReady = deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas()));
         log.info("Canary isReady = {}", isReady);
@@ -137,20 +141,16 @@ public class Canary implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isError() {
+    public boolean isError(ManagedKafka managedKafka) {
         // TODO: logic for check if it's error
         return false;
     }
 
-    public Deployment getDeployment() {
-        return deployment;
-    }
-
-    public void setDeployment(Deployment deployment) {
-        this.deployment = deployment;
-    }
-
     public static String canaryName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-canary";
+    }
+
+    public static String canaryNamespace(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getNamespace();
     }
 }

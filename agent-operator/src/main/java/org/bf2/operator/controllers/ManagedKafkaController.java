@@ -14,6 +14,7 @@ import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
+import org.bf2.operator.operands.AdminServer;
 import org.bf2.operator.operands.Canary;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.*;
@@ -73,12 +74,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
-            kafkaInstance.getKafkaCluster().setKafka(kafka);
-
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             if (kafka.getStatus() != null) {
                 log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
-                toManagedKafkaConditions(managedKafka.getStatus().getConditions());
+                updateManagedKafkaStatus(managedKafka);
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
@@ -90,14 +89,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
 
             // check if the Deployment is related to Canary or Admin Server
-            if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka))) {
-                kafkaInstance.getCanary().setDeployment(deployment);
+            // NOTE: the informer already filter only these Deployments, just checking for safety
+            if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka)) ||
+                deployment.getMetadata().getName().equals(AdminServer.adminServerName(managedKafka))) {
                 if (deployment.getStatus() != null) {
-                    log.info("Canary Deployment conditions = {}", deployment.getStatus().getConditions());
-                    toManagedKafkaConditions(managedKafka.getStatus().getConditions());
+                    log.info("Deployment conditions = {}", deployment.getStatus().getConditions());
+                    updateManagedKafkaStatus(managedKafka);
                 }
             }
-            // TODO: add condition about Admin Server
+            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
 
         return UpdateControl.noUpdate();
@@ -114,9 +114,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * Extract from the current KafkaInstance overall status (Kafka, Canary and AdminServer)
      * a corresponding list of ManagedKafkaCondition(s) to set on the ManagedKafka status
      *
-     * @param managedKafkaConditions list of ManagedKafkaCondition(s) to set on the ManagedKafka status
+     * @param managedKafka ManagedKafka instance
      */
-    private void toManagedKafkaConditions(List<ManagedKafkaCondition> managedKafkaConditions) {
+    private void updateManagedKafkaStatus(ManagedKafka managedKafka) {
+        List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
         Optional<ManagedKafkaCondition> optInstalling =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);
         Optional<ManagedKafkaCondition> optReady =
@@ -124,7 +125,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         Optional<ManagedKafkaCondition> optError =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Error);
 
-        if (kafkaInstance.isInstalling()) {
+        if (kafkaInstance.isInstalling(managedKafka)) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "True");
             } else {
@@ -138,7 +139,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (optError.isPresent()) {
                 ConditionUtils.updateConditionStatus(optError.get(), "False");
             }
-        } else if (kafkaInstance.isReady()) {
+        } else if (kafkaInstance.isReady(managedKafka)) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
             }
@@ -151,7 +152,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (optError.isPresent()) {
                 ConditionUtils.updateConditionStatus(optError.get(), "False");
             }
-        } else if (kafkaInstance.isError()) {
+        } else if (kafkaInstance.isError(managedKafka)) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
             }
