@@ -12,6 +12,7 @@ import javax.inject.Inject;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
@@ -189,6 +190,8 @@ public class ManagedKafkaSync {
 
     @Scheduled(every = "{poll.interval}")
     void pollKafkaClusters() {
+        controlPlane.updateKafkaClusterStatus(new ManagedKafkaStatus(), "xyz");
+
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list

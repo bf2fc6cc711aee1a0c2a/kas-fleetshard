@@ -2,6 +2,7 @@ package org.bf2.sync.controlplane;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -13,8 +14,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
-
-import io.smallrye.mutiny.Uni;
 
 @ApplicationScoped
 public class ControlPlane {
@@ -51,9 +50,10 @@ public class ControlPlane {
     /**
      * Make an async call to update the status.  A default failure handler is already added.
      */
-    public Uni<Void> updateStatus(ManagedKafkaAgentStatus status) {
-        return controlPlaneClient.updateStatus(id, status).onFailure().invoke((t)->{
-            log.info("Could not update status for ManagedKafkaAgent", t);
+    public CompletableFuture<Void> updateStatus(ManagedKafkaAgentStatus status) {
+        return controlPlaneClient.updateStatus(id, status).subscribeAsCompletionStage().exceptionally((t) -> {
+            log.debugf(t, "Could not update status for ManagedKafkaAgent");
+            return null;
         });
     }
 
@@ -69,10 +69,12 @@ public class ControlPlane {
     /**
      * Make an async call to update the status.  A default failure handler is already added.
      */
-    public Uni<Void> updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
-        return controlPlaneClient.updateKafkaClustersStatus(id, Map.of(clusterId, status)).onFailure().invoke((t)->{
-            log.debugf(t, "Could not update status for %s", clusterId);
-        });
+    public CompletableFuture<Void> updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
+        return controlPlaneClient.updateKafkaClustersStatus(id, Map.of(clusterId, status)).subscribeAsCompletionStage()
+                .exceptionally((t) -> {
+                    log.debugf(t, "Could not update status for %s", clusterId);
+                    return null;
+                });
     }
 
     /**
@@ -87,14 +89,15 @@ public class ControlPlane {
     public void updateKafkaClusterStatus(ManagedKafka managedKafka) {
         ManagedKafka remote = getManagedKafka(managedKafka.getId());
         if (remote == null || isStatusDifferent(remote, managedKafka)) {
-            //fire and forget
+            // fire and forget
             updateKafkaClusterStatus(managedKafka.getStatus(), id);
-            //on the next poll the remote should be updated, if not we'll update again at the resync
+            // on the next poll the remote should be updated, if not we'll update again at
+            // the resync
         }
     }
 
     public boolean isStatusDifferent(ManagedKafka remote, ManagedKafka local) {
-        //TODO: implement me
+        // TODO: implement me
         return true;
     }
 
