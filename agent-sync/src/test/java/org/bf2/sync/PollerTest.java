@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -14,8 +15,9 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.Versions;
-import org.bf2.sync.controlplane.ControlPlane;
+import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.bf2.sync.informer.LocalLookup;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -44,7 +46,8 @@ public class PollerTest {
     ManagedKafkaSync managedKafkaSync;
 
     @InjectMock
-    ControlPlane controlPlane;
+    @RestClient
+    ControlPlaneRestClient controlPlane;
 
     @Test
     public void testAddDelete() {
@@ -63,7 +66,7 @@ public class PollerTest {
 
         // so we don't have to wait for the informer to be updated, we'll just mock to a
         // new instance
-        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(exampleManagedKafka());
+        Mockito.when(localLookup.getLocalManagedKafka("test/name")).thenReturn(exampleManagedKafka());
 
         // should do nothing
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
@@ -77,14 +80,15 @@ public class PollerTest {
 
         // need to inform the control plane delete is still needed
         managedKafkas.delete();
-        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(null);
+        Mockito.when(localLookup.getLocalManagedKafka("test/name")).thenReturn(null);
         managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
 
         // expect there to be a status about the deletion
-        ArgumentCaptor<ManagedKafkaStatus> statusCaptor = ArgumentCaptor.forClass(ManagedKafkaStatus.class);
-        Mockito.verify(controlPlane).updateKafkaClusterStatus(statusCaptor.capture(), Mockito.eq("mycluster"));
-        ManagedKafkaStatus status = statusCaptor.getValue();
-        assertEquals(1, status.getConditions().size());
+        ArgumentCaptor<Map<String, ManagedKafkaStatus>> statusCaptor = ArgumentCaptor.forClass(Map.class);
+        Mockito.verify(controlPlane).updateKafkaClustersStatus(Mockito.eq("007"), statusCaptor.capture());
+        Map<String, ManagedKafkaStatus> status = statusCaptor.getValue();
+        assertEquals(1, status.size());
+        assertEquals(1, status.get("mycluster").getConditions().size());
 
         //final removal
         managedKafkaSync.syncKafkaClusters(Collections.emptyList(), Runnable::run);
@@ -97,7 +101,7 @@ public class PollerTest {
         managedKafka.setKind("ManagedKafka");
         managedKafka.getMetadata().setNamespace("test");
         managedKafka.getMetadata().setName("name");
-        managedKafka.setKafkaClusterId("mycluster");
+        managedKafka.setId("mycluster");
         ManagedKafkaSpec spec = new ManagedKafkaSpec();
         Versions versions = new Versions();
         versions.setKafka("2.2.2");

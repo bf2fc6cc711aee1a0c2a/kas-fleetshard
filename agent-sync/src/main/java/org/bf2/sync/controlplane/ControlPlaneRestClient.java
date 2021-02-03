@@ -2,7 +2,6 @@ package org.bf2.sync.controlplane;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.ws.rs.Consumes;
@@ -18,6 +17,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
+import io.smallrye.mutiny.Uni;
+
 @ApplicationScoped
 @Path("/api/managed-services-api/v1/agent-clusters/")
 @RegisterRestClient
@@ -26,7 +27,7 @@ public interface ControlPlaneRestClient {
     @PUT
     @Path("/{id}/status")
     @Consumes(MediaType.APPLICATION_JSON)
-    CompletableFuture<Void> updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status);
+    Uni<Void> updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status);
 
     @GET
     @Path("/{id}/kafkas")
@@ -36,6 +37,6 @@ public interface ControlPlaneRestClient {
     @PUT
     @Path("/{id}/kafkas/status")
     @Consumes(MediaType.APPLICATION_JSON)
-    CompletableFuture<Void> updateKafkaClustersStatus(@PathParam("id") String id, Map<String, ManagedKafkaStatus> status);
+    Uni<Void> updateKafkaClustersStatus(@PathParam("id") String id, Map<String, ManagedKafkaStatus> status);
 
 }
