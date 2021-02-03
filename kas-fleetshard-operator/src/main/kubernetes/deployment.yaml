@@ -15,7 +15,7 @@ spec:
       serviceAccountName: kas-fleetshard-operator
       containers:
         - name: kas-fleetshard-operator
-          image: quay.io/ppatierno/agent-operator:0.0.1
+          image: ##IMAGE##
           imagePullPolicy: Always
           env:
             # needed just for OpenShift

@@ -4,6 +4,7 @@ import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 
@@ -22,6 +23,9 @@ public class LogCollector {
      * @throws Throwable
      */
     public static void saveKubernetesState(ExtensionContext extensionContext, Throwable throwable) throws Throwable {
+        KubeClient.getInstance().client().pods().inAnyNamespace().list().getItems().forEach(p ->
+                LOGGER.info("Pod: {} in ns: {}", p.getMetadata().getName(), p.getMetadata().getNamespace()));
+
         Path logPath = TestUtils.getLogPath(Environment.LOG_DIR.resolve("failedTest").toString(), extensionContext);
         Files.createDirectories(logPath);
         LOGGER.info("Storing cluster info into {}", logPath.toString());

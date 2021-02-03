@@ -30,7 +30,6 @@ public class ConditionUtilsTest {
     }
 
     @Test
-    @Disabled("due to issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/60")
     void testFindManagedKafkaCondition() {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
