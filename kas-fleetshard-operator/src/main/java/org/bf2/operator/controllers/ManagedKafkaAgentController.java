@@ -30,6 +30,14 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.quarkus.scheduler.Scheduled;
 
+/**
+ * The controller for {@link ManagedKafkaAgent}.  However there is currently
+ * nothing for this to control.  There is just a scheduled job to update the status
+ * which will create the singleton resource if needed.
+ *
+ * An alternative to this approach would be to have the ManagedKafkaControl make status
+ * updates directly based upon the changes it sees in the ManagedKafka instances.
+ */
 @Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
@@ -72,17 +80,16 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     void statusUpdateLoop() {
         try {
             ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
-            if (resource != null) {
-                log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
-                resource.setStatus(buildStatus(resource));
-                this.agentClient.updateStatus(resource);
-            } else {
+            if (resource == null) {
                 resource = new ManagedKafkaAgent();
                 resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
                 resource.getMetadata().setName(RESOURCE_NAME);
                 resource.getMetadata().setNamespace(this.namespace);
                 this.agentClient.createOrReplace(resource);
             }
+            log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
+            resource.setStatus(buildStatus(resource));
+            this.agentClient.updateStatus(resource);
         } catch(RuntimeException e) {
             log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
         }
