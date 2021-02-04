@@ -1,7 +1,10 @@
 package org.bf2.operator;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.quarkus.test.QuarkusProdModeTest;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import java.util.Map;
+
+import org.bf2.operator.clients.AbstractCustomResourceClient;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.controllers.ManagedKafkaController;
 import org.bf2.operator.events.DeploymentEvent;
@@ -19,9 +22,8 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.quarkus.test.QuarkusProdModeTest;
 
 
 @UseKubeMockServer(https = false, crud = true, port = 56565)
@@ -39,6 +41,7 @@ public class KasFleetShardOperatorTest {
                             () ->
                                     ShrinkWrap.create(JavaArchive.class)
                                             .addClasses(
+                                                    AbstractCustomResourceClient.class,
                                                     KafkaResourceClient.class,
                                                     ManagedKafkaController.class,
                                                     DeploymentEvent.class,
