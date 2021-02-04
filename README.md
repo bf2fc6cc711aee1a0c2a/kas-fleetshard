@@ -1,11 +1,11 @@
 # kas-fleetshard
 
-![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Build%20and%20Unit%20tests/badge.svg)
-![Integration tests](https://github.com/bf2fc6cc711aee1a0c2a/mk-agent/workflows/Integration%20tests/badge.svg)
+![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/workflows/Build%20and%20Unit%20tests/badge.svg)
+![Integration tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/workflows/Integration%20tests/badge.svg)
 
 ## Running
 
-> **WARNING** : currently the agent operator needs a Strimzi operator already running on your Kubernetes/OpenShift cluster.
+> **WARNING** : currently the fleetshard operator needs a Strimzi operator already running on your Kubernetes/OpenShift cluster.
 
 ```shell
 kubectl create namespace kafka
