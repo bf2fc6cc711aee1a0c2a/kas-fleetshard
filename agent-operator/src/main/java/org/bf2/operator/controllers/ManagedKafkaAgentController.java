@@ -42,10 +42,10 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     private AgentResourceClient agentClient;
 
-    @ConfigProperty(name = "KUBERNETES_NAMESPACE")
+    @ConfigProperty(name = "kubernetes.namespace")
     private String namespace;
 
-    @ConfigProperty(name = "CLUSTER_ID", defaultValue = "testing")
+    @ConfigProperty(name = "cluster.id", defaultValue = "testing")
     private String clusterId;
 
     @Override
