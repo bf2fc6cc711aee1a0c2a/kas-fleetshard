@@ -1,5 +1,6 @@
 package org.bf2.sync;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -7,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -15,81 +17,93 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.sync.controlplane.ControlPlane;
-import org.bf2.sync.informer.LocalLookup;
+import org.bf2.sync.controlplane.ControlPlaneRestClient;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
+import io.smallrye.mutiny.Uni;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 @TestProfile(MockSyncProfile.class)
 public class PollerTest {
 
+    private static final String PLACEMENT_ID = "pid";
+    private static final String CLUSTER_ID = "007";
+
     @Inject
     KubernetesClient client;
-
-    @InjectMock
-    LocalLookup localLookup;
 
     @Inject
     ManagedKafkaSync managedKafkaSync;
 
     @InjectMock
+    @RestClient
+    ControlPlaneRestClient controlPlaneRestClient;
+
+    @Inject
     ControlPlane controlPlane;
+
+    @Inject
+    DirectLocalLookup lookup;
 
     @Test
     public void testAddDelete() {
         ManagedKafka managedKafka = exampleManagedKafka();
 
-        MixedOperation<ManagedKafka, KubernetesResourceList<ManagedKafka>, Resource<ManagedKafka>> managedKafkas = client
-                .customResources(ManagedKafka.class);
-        List<ManagedKafka> items = managedKafkas.list().getItems();
+        List<ManagedKafka> items = lookup.getLocalManagedKafkas();
         assertEquals(0, items.size());
 
-        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+        assertNull(controlPlane.getManagedKafka(PLACEMENT_ID));
 
-        items = managedKafkas.list().getItems();
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Uni.createFrom().item(Arrays.asList(managedKafka)));
+        managedKafkaSync.syncKafkaClusters(Runnable::run);
+
+        items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
         assertFalse(items.get(0).getSpec().isDeleted());
 
-        // so we don't have to wait for the informer to be updated, we'll just mock to a
-        // new instance
-        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(exampleManagedKafka());
-
         // should do nothing
-        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-        items = managedKafkas.list().getItems();
+        managedKafkaSync.syncKafkaClusters(Runnable::run);
+        items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
 
-        managedKafka.getSpec().setDeleted(true);
-        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
-        items = managedKafkas.list().getItems();
-        assertTrue(items.get(0).getSpec().isDeleted());
+        // make sure the remote tracking is there and not marked as deleted
+        assertFalse(controlPlane.getManagedKafka(PLACEMENT_ID).getSpec().isDeleted());
 
-        // need to inform the control plane delete is still needed
-        managedKafkas.delete();
-        Mockito.when(localLookup.getLocalManagedKafka(managedKafka)).thenReturn(null);
-        managedKafkaSync.syncKafkaClusters(Arrays.asList(managedKafka), Runnable::run);
+        managedKafka.getSpec().setDeleted(true);
+        managedKafkaSync.syncKafkaClusters(Runnable::run);
+        items = lookup.getLocalManagedKafkas();
+        assertTrue(items.get(0).getSpec().isDeleted());
+        // now the remote tracking should be marked as deleted
+        assertTrue(controlPlane.getManagedKafka(PLACEMENT_ID).getSpec().isDeleted());
+
+        // final removal
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Uni.createFrom().item(Collections.emptyList()));
+        managedKafkaSync.syncKafkaClusters(Runnable::run);
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(0, items.size());
+
+        // remote tracking should be gone
+        assertNull(controlPlane.getManagedKafka(PLACEMENT_ID));
+
+        // if it shows up again need to inform the control plane delete is still needed
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Uni.createFrom().item(Arrays.asList(managedKafka)));
+        managedKafkaSync.syncKafkaClusters(Runnable::run);
 
         // expect there to be a status about the deletion
-        ArgumentCaptor<ManagedKafkaStatus> statusCaptor = ArgumentCaptor.forClass(ManagedKafkaStatus.class);
-        Mockito.verify(controlPlane).updateKafkaClusterStatus(statusCaptor.capture(), Mockito.eq("mycluster"));
-        ManagedKafkaStatus status = statusCaptor.getValue();
-        assertEquals(1, status.getConditions().size());
-
-        //final removal
-        managedKafkaSync.syncKafkaClusters(Collections.emptyList(), Runnable::run);
-        items = managedKafkas.list().getItems();
-        assertEquals(0, items.size());
+        ArgumentCaptor<Map<String, ManagedKafkaStatus>> statusCaptor = ArgumentCaptor.forClass(Map.class);
+        Mockito.verify(controlPlaneRestClient).updateKafkaClustersStatus(Mockito.eq(CLUSTER_ID), statusCaptor.capture());
+        Map<String, ManagedKafkaStatus> status = statusCaptor.getValue();
+        assertEquals(1, status.size());
+        assertEquals(1, status.get(PLACEMENT_ID).getConditions().size());
     }
 
     private ManagedKafka exampleManagedKafka() {
@@ -97,7 +111,7 @@ public class PollerTest {
         managedKafka.setKind("ManagedKafka");
         managedKafka.getMetadata().setNamespace("test");
         managedKafka.getMetadata().setName("name");
-        managedKafka.setKafkaClusterId("mycluster");
+        managedKafka.setId(PLACEMENT_ID);
         ManagedKafkaSpec spec = new ManagedKafkaSpec();
         Versions versions = new Versions();
         versions.setKafka("2.2.2");

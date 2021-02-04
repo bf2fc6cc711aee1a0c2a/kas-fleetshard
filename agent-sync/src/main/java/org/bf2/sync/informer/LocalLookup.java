@@ -4,12 +4,17 @@ import java.util.List;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
+import io.fabric8.kubernetes.client.informers.cache.Cache;
+
 /**
  * Provides an interface to lookup the local (informer) state
  */
 public interface LocalLookup {
 
-    ManagedKafka getLocalManagedKafka(ManagedKafka remote);
+    /**
+     * @see Cache#metaNamespaceKeyFunc(Object) for the key
+     */
+    ManagedKafka getLocalManagedKafka(String metaNamespaceKey);
 
     List<ManagedKafka> getLocalManagedKafkas();
 
