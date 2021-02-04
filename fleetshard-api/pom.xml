@@ -5,10 +5,10 @@
 
     <parent>
         <groupId>org.bf2</groupId>
-        <artifactId>mk-agent</artifactId>
+        <artifactId>kas-fleetshard</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>agent-api</artifactId>
+    <artifactId>fleetshard-api</artifactId>
 
     <dependencies>
         <dependency>

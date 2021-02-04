@@ -1,9 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: agent-operator
+  name: fleetshard-operator
   labels:
-    app: agent-operator
+    app: fleetshard-operator
 rules:
   # the Java operator SDK seems to list CRDs
   - apiGroups:

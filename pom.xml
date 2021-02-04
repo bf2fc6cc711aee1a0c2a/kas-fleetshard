@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.bf2</groupId>
-    <artifactId>mk-agent</artifactId>
+    <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
 
@@ -30,8 +30,8 @@
     </properties>
 
     <modules>
-        <module>agent-api</module>
-        <module>agent-operator</module>
+        <module>fleetshard-api</module>
+        <module>fleetshard-operator</module>
         <module>systemtest</module>
         <module>test</module>
     </modules>

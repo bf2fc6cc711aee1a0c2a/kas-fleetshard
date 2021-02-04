@@ -10,9 +10,9 @@ import org.bf2.operator.controllers.ManagedKafkaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AgentOperator implements QuarkusApplication {
+public class FleetShardOperator implements QuarkusApplication {
 
-    private static final Logger log = LoggerFactory.getLogger(AgentOperator.class);
+    private static final Logger log = LoggerFactory.getLogger(FleetShardOperator.class);
 
     @Inject
     private KubernetesClient client;
@@ -22,10 +22,9 @@ public class AgentOperator implements QuarkusApplication {
 
     @Inject
     private ManagedKafkaController managedKafkaController;
-
     @Override
     public int run(String... args) throws Exception {
-        log.info("Managed Kafka agent operator");
+        log.info("kas fleetshard operator");
         Quarkus.waitForExit();
         return 0;
     }

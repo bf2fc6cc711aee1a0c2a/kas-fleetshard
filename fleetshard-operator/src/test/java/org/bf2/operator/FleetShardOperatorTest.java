@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
 @UseKubeMockServer(https = false, crud = true, port = 56565)
-public class AgentOperatorTest {
+public class FleetShardOperatorTest {
 
     static KubernetesClient client;
 
@@ -50,11 +50,11 @@ public class AgentOperatorTest {
                                                     KafkaCluster.class,
                                                     KafkaInstance.class,
                                                     Operand.class,
-                                                    AgentOperator.class,
+                                                    FleetShardOperator.class,
                                                     ConditionUtils.class,
                                                     InformerManager.class,
                                                     Main.class))
-                    .setApplicationName("agent-operator")
+                    .setApplicationName("fleetshard-operator")
                     .setApplicationVersion("0.1-SNAPSHOT")
                     .setRuntimeProperties(Map.of(
                             "quarkus.kubernetes-client.master-url", "http://localhost:56565",

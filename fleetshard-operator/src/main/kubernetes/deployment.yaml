@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agent-operator
+  name: fleetshard-operator
   labels:
-    app: agent-operator
+    app: fleetshard-operator
 spec:
   replicas: 1
   template:
     metadata:
-      name: agent-operator
+      name: fleetshard-operator
       labels:
-        app: agent-operator
+        app: fleetshard-operator
     spec:
-      serviceAccountName: agent-operator
+      serviceAccountName: fleetshard-operator
       containers:
-        - name: agent-operator
+        - name: fleetshard-operator
           image: quay.io/ppatierno/agent-operator:0.0.1
           imagePullPolicy: Always
           env:
@@ -23,4 +23,4 @@ spec:
               value: "true"
   selector:
     matchLabels:
-      app: agent-operator
+      app: fleetshard-operator
