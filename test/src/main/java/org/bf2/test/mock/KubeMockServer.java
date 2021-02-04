@@ -24,6 +24,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Optional;
 
+/**
+ * Custom CRUD mock kube server which allows to set also port of running mock
+ */
 public class KubeMockServer implements AfterEachCallback, AfterAllCallback, BeforeEachCallback, BeforeAllCallback {
     private KubernetesMockServer mock;
     private NamespacedKubernetesClient client;

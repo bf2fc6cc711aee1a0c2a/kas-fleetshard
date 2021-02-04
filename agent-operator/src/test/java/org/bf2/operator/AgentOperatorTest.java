@@ -29,6 +29,9 @@ public class AgentOperatorTest {
 
     static KubernetesClient client;
 
+    /**
+     * Run operator and connect it into custom mock kube server
+     */
     @RegisterExtension
     static final QuarkusProdModeTest config =
             new QuarkusProdModeTest()
@@ -58,6 +61,10 @@ public class AgentOperatorTest {
                             "quarkus.kubernetes-client.trust-certs", "true"))
                     .setRun(true);
 
+    /**
+     * Test of operator can start and connect to a kube server without error
+     * CRD of managed kafka is already installed
+     */
     @Test
     void testConnectOperatorToCluster() throws InterruptedException {
         Thread.sleep(5_000);
