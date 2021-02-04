@@ -152,6 +152,11 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (optError.isPresent()) {
                 ConditionUtils.updateConditionStatus(optError.get(), "False");
             }
+
+            // TODO: just reflecting for now what was defined in the spec
+            managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
+            managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+
         } else if (kafkaInstance.isError(managedKafka)) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "False");

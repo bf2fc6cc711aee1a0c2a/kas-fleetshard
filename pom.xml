@@ -20,7 +20,7 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <dekorate.version>2.0.0.beta4</dekorate.version>
+        <dekorate.version>2.0.0.beta8</dekorate.version>
         <strimzi.version>0.22.0-SNAPSHOT</strimzi.version>
         <quarkus.operator.extension>1.7.1</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
