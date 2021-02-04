@@ -33,6 +33,7 @@
         <module>agent-api</module>
         <module>agent-operator</module>
         <module>systemtest</module>
+        <module>test</module>
     </modules>
 
     <dependencyManagement>
@@ -83,12 +84,6 @@
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-junit5</artifactId>
-                <version>${quarkus.platform.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.quarkus</groupId>
-                <artifactId>quarkus-test-kubernetes-client</artifactId>
                 <version>${quarkus.platform.version}</version>
                 <scope>test</scope>
             </dependency>

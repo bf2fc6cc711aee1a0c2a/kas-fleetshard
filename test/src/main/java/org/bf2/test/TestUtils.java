@@ -1,4 +1,4 @@
-package org.bf2.systemtest;
+package org.bf2.test;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

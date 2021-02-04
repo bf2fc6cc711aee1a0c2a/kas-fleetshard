@@ -2,11 +2,11 @@
  * Copyright Strimzi authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package org.bf2.systemtest.k8s.cmdClient;
+package org.bf2.test.k8s.cmdClient;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.executor.Exec;
+import org.bf2.test.executor.Exec;
 
 import java.util.List;
 import java.util.Map;

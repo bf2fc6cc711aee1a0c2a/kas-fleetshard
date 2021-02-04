@@ -1,4 +1,4 @@
-package org.bf2.systemtest;
+package org.bf2.test;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,6 +39,7 @@ public class Environment {
      */
     public static final String SUITE_ROOT = System.getProperty("user.dir");
     public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
+    public static final String ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent().toString();
 
 
     private Environment() {

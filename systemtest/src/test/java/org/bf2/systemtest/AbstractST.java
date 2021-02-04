@@ -4,7 +4,7 @@ import org.bf2.systemtest.framework.ExtensionContextParameterResolver;
 import org.bf2.systemtest.framework.IndicativeSentences;
 import org.bf2.systemtest.framework.TestCallbackListener;
 import org.bf2.systemtest.framework.TestExceptionCallbackListener;
-import org.bf2.systemtest.k8s.KubeClient;
+import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.TestInstance;

@@ -1,4 +1,4 @@
-package org.bf2.systemtest.executor;
+package org.bf2.test.executor;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 

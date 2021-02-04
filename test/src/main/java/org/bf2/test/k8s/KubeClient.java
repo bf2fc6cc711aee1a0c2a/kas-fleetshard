@@ -1,14 +1,13 @@
-package org.bf2.systemtest.k8s;
+package org.bf2.test.k8s;
 
 import io.fabric8.kubernetes.api.model.APIService;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.k8s.cmdClient.KubeCmdClient;
-import org.bf2.systemtest.k8s.cmdClient.Kubectl;
-import org.bf2.systemtest.k8s.cmdClient.Oc;
+import org.bf2.test.k8s.cmdClient.KubeCmdClient;
+import org.bf2.test.k8s.cmdClient.Kubectl;
+import org.bf2.test.k8s.cmdClient.Oc;
 
 import java.util.List;
 
@@ -22,13 +21,12 @@ public class KubeClient {
 
 
     private KubeClient() {
+        this.client = new DefaultKubernetesClient();
         if (isGenericKubernetes()) {
             LOGGER.info("Running tests against generic kubernetes cluster");
-            this.client = new DefaultKubernetesClient();
             this.cmdClient = new Kubectl();
         } else {
             LOGGER.info("Running tests against openshift cluster");
-            this.client = new DefaultOpenShiftClient();
             this.cmdClient = new Oc();
         }
     }

@@ -2,13 +2,12 @@
  * Copyright Strimzi authors.
  * License: Apache License 2.0 (see the file LICENSE or http://apache.org/licenses/LICENSE-2.0.html).
  */
-package org.bf2.systemtest.k8s.cmdClient;
+package org.bf2.test.k8s.cmdClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.bf2.systemtest.executor.ExecResult;
+import org.bf2.test.executor.ExecResult;
 
 import java.io.File;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;

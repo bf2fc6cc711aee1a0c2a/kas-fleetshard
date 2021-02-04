@@ -1,7 +1,7 @@
-package org.bf2.systemtest.executor;
+package org.bf2.test.executor;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
-import org.bf2.systemtest.k8s.KubeClusterException;
+import org.bf2.test.k8s.KubeClusterException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
