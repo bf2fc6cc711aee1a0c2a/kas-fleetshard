@@ -17,7 +17,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
-import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 
@@ -60,8 +59,8 @@ public class InformerManager implements LocalLookup {
     }
 
     @Override
-    public ManagedKafka getLocalManagedKafka(ManagedKafka remote) {
-        return managedKafkaInformer.getIndexer().getByKey(Cache.metaNamespaceKeyFunc(remote));
+    public ManagedKafka getLocalManagedKafka(String metaNamespaceKey) {
+        return managedKafkaInformer.getIndexer().getByKey(metaNamespaceKey);
     }
 
     @Override

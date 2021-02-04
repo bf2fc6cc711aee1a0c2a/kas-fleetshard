@@ -1,25 +1,25 @@
 package org.bf2.sync.informer;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 
 /**
- * Simple generic handler.  The consumer should be async.
+ * Simple generic handler.  The consumer should be non-blocking.
  */
 final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements ResourceEventHandler<T> {
 
-    private Consumer<T> consumer;
+    private BiConsumer<T, T> consumer;
 
-    public CustomResourceEventHandler(Consumer<T> consumer) {
+    public CustomResourceEventHandler(BiConsumer<T, T> consumer) {
         this.consumer = consumer;
     }
 
     @Override
     public void onAdd(T obj) {
         if (obj.getStatus() != null) {
-            consumer.accept(obj);
+            consumer.accept(null, obj);
         }
     }
 
@@ -35,7 +35,7 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         // which is a way to ensure the consumer has an up-to-date state
         // even if something is missed
         if (newObj.getStatus() != null) {
-            consumer.accept(newObj);
+            consumer.accept(oldObj, newObj);
         }
     }
 

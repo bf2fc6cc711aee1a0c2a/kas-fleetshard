@@ -1,7 +1,6 @@
 package org.bf2.operator.controllers;
 
 import java.util.Arrays;
-import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -59,22 +58,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Override
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
-        Optional<CustomResourceEvent> latestEvent = context.getEvents().getLatestOfType(CustomResourceEvent.class);
-        if (latestEvent.isPresent()) {
-            if (resource.getStatus() == null) {
-                log.infof("Updating Kafka agent instance %s in namespace %s", resource.getMetadata().getName(),
-                        this.namespace);
-                // this does not manage any other resources, so nothing to create
-                // calculate the node metrics and update
-                resource.setStatus(buildStatus(resource));
-                return UpdateControl.updateCustomResourceAndStatus(resource);
-            } else {
-                log.infof("Updating Kafka agent Status %s in namespace %s", resource.getMetadata().getName(),
-                        this.namespace);
-                resource.setStatus(buildStatus(resource));
-                return UpdateControl.updateStatusSubResource(resource);
-            }
-        }
+        context.getEvents().getLatestOfType(CustomResourceEvent.class);
         return UpdateControl.noUpdate();
     }
 
