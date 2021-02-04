@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
@@ -29,7 +30,11 @@ public class InformerManager {
     @Inject
     private DeploymentEventSource deploymentEventSource;
 
-    SharedInformerFactory sharedInformerFactory;
+    private SharedInformerFactory sharedInformerFactory;
+
+    private SharedIndexInformer<Kafka> kafkaSharedIndexInformer;
+    private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
+
 
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = client.informers();
@@ -38,10 +43,10 @@ public class InformerManager {
                 new OperationContext().withLabels(Collections.singletonMap("app.kubernetes.io/managed-by", "agent-operator"));
 
         // TODO: should we make the resync time configurable?
-        SharedIndexInformer<Kafka> kafkaSharedIndexInformer =
+        kafkaSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
 
-        SharedIndexInformer<Deployment> deploymentSharedIndexInformer =
+        deploymentSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 60 * 1000L);
 
         kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
@@ -52,5 +57,13 @@ public class InformerManager {
 
     void onStop(@Observes ShutdownEvent ev) {
         sharedInformerFactory.stopAllRegisteredInformers();
+    }
+
+    public Kafka getLocalKafka(String namespace, String name) {
+        return kafkaSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public Deployment getLocalDeployment(String namespace, String name) {
+        return deploymentSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 }

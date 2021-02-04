@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -21,8 +22,8 @@ public class AdminServer implements Operand<ManagedKafka> {
     @Inject
     private KubernetesClient kubernetesClient;
 
-    private Deployment deployment;
-    private Service service;
+    @Inject
+    private InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -45,36 +46,28 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isInstalling() {
+    public boolean isInstalling(ManagedKafka managedKafka) {
         // TODO: logic for check if it's installing
         return false;
     }
 
     @Override
-    public boolean isReady() {
+    public boolean isReady(ManagedKafka managedKafka) {
         // TODO: logic for check if it's ready
         return true;
     }
 
     @Override
-    public boolean isError() {
+    public boolean isError(ManagedKafka managedKafka) {
         // TODO: logic for check if it's error
         return false;
     }
 
-    public Deployment getDeployment() {
-        return deployment;
+    public static String adminServerName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-admin-server";
     }
 
-    public void setDeployment(Deployment deployment) {
-        this.deployment = deployment;
-    }
-
-    public Service getService() {
-        return service;
-    }
-
-    public void setService(Service service) {
-        this.service = service;
+    public static String adminServerNamespace(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getNamespace();
     }
 }

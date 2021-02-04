@@ -10,6 +10,7 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBui
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.slf4j.Logger;
@@ -30,28 +31,29 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaCluster.class);
 
-    private Kafka kafka;
-
     @Inject
     private KafkaResourceClient kafkaResourceClient;
 
+    @Inject
+    private InformerManager informerManager;
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        kafka = kafkaFrom(managedKafka);
+        Kafka kafka = kafkaFrom(managedKafka);
         // Kafka resource doesn't exist, has to be created
-        if (kafkaResourceClient.getByName(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName()) == null) {
+        if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
             log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
         // Kafka resource already exists, has to be updated
         } else {
-            log.info("Updating Kafka instance {}", managedKafka.getSpec().getVersions().getKafka());
+            log.info("Updating Kafka instance {}", kafka.getSpec().getKafka().getVersion());
             kafkaResourceClient.createOrReplace(kafka);
         }
     }
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        kafkaResourceClient.delete(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
     private Kafka kafkaFrom(ManagedKafka managedKafka) {
@@ -66,8 +68,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         Kafka kafka = new KafkaBuilder()
                 .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA1)
                 .withNewMetadata()
-                    .withName(managedKafka.getMetadata().getName())
-                    .withNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(kafkaClusterName(managedKafka))
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withLabels(getLabels())
                 .endMetadata()
                 .withNewSpec()
@@ -115,7 +117,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isInstalling() {
+    public boolean isInstalling(ManagedKafka managedKafka) {
+        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         boolean isInstalling =
                 kafkaCondition.getType().equals("NotReady")
@@ -126,7 +129,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isReady() {
+    public boolean isReady(ManagedKafka managedKafka) {
+        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         boolean isReady = kafkaCondition.getType().equals("Ready") && kafkaCondition.getStatus().equals("True");
         log.info("KafkaCluster isReady = {}", isReady);
@@ -134,7 +138,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isError() {
+    public boolean isError(ManagedKafka managedKafka) {
+        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         Condition kafkaCondition = kafka.getStatus().getConditions().get(0);
         boolean isError =
                 kafkaCondition.getType().equals("NotReady")
@@ -144,11 +149,11 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return isError;
     }
 
-    public Kafka getKafka() {
-        return kafka;
+    public static String kafkaClusterName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName();
     }
 
-    public void setKafka(Kafka kafka) {
-        this.kafka = kafka;
+    public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getNamespace();
     }
 }

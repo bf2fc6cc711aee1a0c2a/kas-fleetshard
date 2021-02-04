@@ -25,17 +25,21 @@ public interface Operand<T extends CustomResource> {
     void delete(T customResource, Context<T> context);
 
     /**
+     *
+     * @param customResource custom resource
      * @return if the operand instance is still installing
      */
-    boolean isInstalling();
+    boolean isInstalling(T customResource);
 
     /**
-     * @return @return if the operand instance is ready to be used
+     * @param customResource custom resource
+     * @return if the operand instance is ready to be used
      */
-    boolean isReady();
+    boolean isReady(T customResource);
 
     /**
-     * @return @return if the operand instance is in an error state
+     * @param customResource custom resource
+     * @return if the operand instance is in an error state
      */
-    boolean isError();
+    boolean isError(T customResource);
 }
