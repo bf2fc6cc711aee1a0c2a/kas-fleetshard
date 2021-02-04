@@ -5,10 +5,10 @@
 
     <parent>
         <groupId>org.bf2</groupId>
-        <artifactId>mk-agent</artifactId>
+        <artifactId>kas-fleetshard</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>agent-sync</artifactId>
+    <artifactId>kas-fleetshard-sync</artifactId>
 
     <dependencies>
         <dependency>
@@ -19,7 +19,7 @@
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
-            <artifactId>agent-api</artifactId>
+            <artifactId>kas-fleetshard-api</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

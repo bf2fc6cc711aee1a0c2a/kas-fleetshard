@@ -12,6 +12,7 @@ public class ManagedKafkaSpec {
     private ManagedKafkaAuthenticationOAuth oauth;
     private ManagedKafkaEndpoint endpoint;
     private Versions versions;
+    private boolean deleted;
 
     public ManagedKafkaCapacity getCapacity() {
         return capacity;
@@ -43,5 +44,13 @@ public class ManagedKafkaSpec {
 
     public void setVersions(Versions versions) {
         this.versions = versions;
+    }
+
+    public boolean isDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.deleted = deleted;
     }
 }

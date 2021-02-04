@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.sundr.builder.annotations.Buildable;
 
-@Buildable
+@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class ManagedKafkaAgentStatus {
 
     private List<ManagedKafkaCondition> conditions;

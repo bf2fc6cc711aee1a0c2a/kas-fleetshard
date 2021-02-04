@@ -7,6 +7,6 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 public class Main {
 
     public static void main(String... args) {
-        Quarkus.run(AgentSync.class, args);
+        Quarkus.run(KasFleetShardSync.class, args);
     }
 }
