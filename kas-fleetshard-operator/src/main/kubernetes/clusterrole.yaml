@@ -1,0 +1,78 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kas-fleetshard-operator
+  labels:
+    app: kas-fleetshard-operator
+rules:
+  # the Java operator SDK seems to list CRDs
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - managedkafka.bf2.org
+    resources:
+      - managedkafkas
+      - managedkafkas/status
+    verbs:
+      - get
+      - list
+      - watch
+      - patch
+      - update
+  - apiGroups:
+      - kafka.strimzi.io
+    resources:
+      - kafkas
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - kafka.strimzi.io
+    resources:
+      - kafkas
+      - kafkas/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - deployments/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - extensions
+    resources:
+      - deployments
+      - deployments/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update

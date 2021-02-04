@@ -1,6 +1,6 @@
 package org.bf2.systemtest.framework;
 
-import org.bf2.systemtest.Environment;
+import org.bf2.test.Environment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.platform.launcher.TestExecutionListener;

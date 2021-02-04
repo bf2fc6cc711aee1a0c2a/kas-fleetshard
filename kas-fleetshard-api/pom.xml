@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.bf2</groupId>
+        <artifactId>kas-fleetshard</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>kas-fleetshard-api</artifactId>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.dekorate</groupId>
+            <artifactId>crd-annotations</artifactId>
+            <optional>true</optional> <!-- we need to keep this optional to avoid conflicts with quarkus-kubernetes -->
+        </dependency>
+        <dependency>
+            <groupId>io.sundr</groupId>
+            <artifactId>builder-annotations</artifactId>
+        </dependency>
+
+        <dependency>
+          <groupId>io.fabric8</groupId>
+          <artifactId>kubernetes-server-mock</artifactId>
+          <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+            </plugin>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire-plugin.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>
