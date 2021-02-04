@@ -87,7 +87,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         try {
-            ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
+            ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, RESOURCE_NAME);
             if (resource != null) {
                 log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
                 resource.setStatus(buildStatus(resource));
