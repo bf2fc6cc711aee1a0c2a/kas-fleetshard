@@ -126,7 +126,7 @@ public class Canary implements Operand<ManagedKafka> {
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
-        boolean isInstalling = deployment.getStatus() == null;
+        boolean isInstalling = deployment == null || deployment.getStatus() == null;
         log.info("Canary isInstalling = {}", isInstalling);
         return isInstalling;
     }
@@ -134,8 +134,8 @@ public class Canary implements Operand<ManagedKafka> {
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
         Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
-        boolean isReady = deployment.getStatus() == null ||
-                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas()));
+        boolean isReady = deployment != null && (deployment.getStatus() == null ||
+                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
         log.info("Canary isReady = {}", isReady);
         return isReady;
     }
