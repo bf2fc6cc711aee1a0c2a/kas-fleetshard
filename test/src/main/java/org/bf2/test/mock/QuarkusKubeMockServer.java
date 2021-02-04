@@ -54,7 +54,7 @@ public class QuarkusKubeMockServer implements QuarkusTestResourceLifecycleManage
      */
     public void configureServer(KubernetesServer mockServer) throws FileNotFoundException {
         // initialize with the crd
-        server.getClient().load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "agent-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
+        server.getClient().load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "kas-fleetshard-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
                 server.getClient().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
 
     }
