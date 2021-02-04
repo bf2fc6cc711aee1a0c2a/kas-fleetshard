@@ -30,8 +30,8 @@
     </properties>
 
     <modules>
-        <module>fleetshard-api</module>
-        <module>fleetshard-operator</module>
+        <module>kas-fleetshard-api</module>
+        <module>kas-fleetshard-operator</module>
         <module>systemtest</module>
         <module>test</module>
     </modules>

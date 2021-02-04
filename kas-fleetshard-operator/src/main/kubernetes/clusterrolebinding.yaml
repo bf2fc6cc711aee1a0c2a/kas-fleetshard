@@ -1,14 +1,14 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: fleetshard-operator
+  name: kas-fleetshard-operator
   labels:
-    app: fleetshard-operator
+    app: kas-fleetshard-operator
 subjects:
   - kind: ServiceAccount
-    name: fleetshard-operator
-    namespace: fleetshard
+    name: kas-fleetshard-operator
+    namespace: kas-fleetshard
 roleRef:
   kind: ClusterRole
-  name: fleetshard-operator
+  name: kas-fleetshard-operator
   apiGroup: rbac.authorization.k8s.io

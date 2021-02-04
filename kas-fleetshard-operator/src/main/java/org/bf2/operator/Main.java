@@ -7,6 +7,6 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 public class Main {
 
     public static void main(String... args) {
-        Quarkus.run(FleetShardOperator.class, args);
+        Quarkus.run(KasFleetShardOperator.class, args);
     }
 }

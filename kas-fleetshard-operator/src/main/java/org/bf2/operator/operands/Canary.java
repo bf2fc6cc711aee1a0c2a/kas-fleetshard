@@ -108,7 +108,7 @@ public class Canary implements Operand<ManagedKafka> {
         // TODO: adding label about observability
         Map<String, String> labels = new HashMap<>(2);
         labels.put("app", canaryName);
-        labels.put("app.kubernetes.io/managed-by", "fleetshard-operator");
+        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
     }
 

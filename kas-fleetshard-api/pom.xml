@@ -8,7 +8,7 @@
         <artifactId>kas-fleetshard</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>fleetshard-api</artifactId>
+    <artifactId>kas-fleetshard-api</artifactId>
 
     <dependencies>
         <dependency>

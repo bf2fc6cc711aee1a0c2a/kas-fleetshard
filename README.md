@@ -5,7 +5,7 @@
 
 ## Running
 
-> **WARNING** : currently the fleetshard operator needs a Strimzi operator already running on your Kubernetes/OpenShift cluster.
+> **WARNING** : currently the kas fleetshard operator needs a Strimzi operator already running on your Kubernetes/OpenShift cluster.
 
 ```shell
 kubectl create namespace kafka
@@ -28,7 +28,7 @@ Finally, you can start the operator from your IDE running the `Main` application
 or you can run it from the command line by running the following command (with Quarkus in "dev" mode).
 
 ```shell
-mvn -pl fleetshard-operator quarkus:dev
+mvn -pl kas-fleetshard-operator quarkus:dev
 ```
 
 > NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.

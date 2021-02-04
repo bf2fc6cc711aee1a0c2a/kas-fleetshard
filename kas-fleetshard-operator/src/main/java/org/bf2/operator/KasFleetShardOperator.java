@@ -10,9 +10,9 @@ import org.bf2.operator.controllers.ManagedKafkaController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FleetShardOperator implements QuarkusApplication {
+public class KasFleetShardOperator implements QuarkusApplication {
 
-    private static final Logger log = LoggerFactory.getLogger(FleetShardOperator.class);
+    private static final Logger log = LoggerFactory.getLogger(KasFleetShardOperator.class);
 
     @Inject
     private KubernetesClient client;

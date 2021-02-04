@@ -90,7 +90,7 @@ public class KubeMockServer implements AfterEachCallback, AfterAllCallback, Befo
         this.mock.init(InetAddress.getLoopbackAddress(), a.port());
         this.client = this.mock.createClient();
 
-        client.load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "fleetshard-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
+        client.load(new FileInputStream(Paths.get(Environment.ROOT_PATH, "kas-fleetshard-api", "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get().forEach(crd ->
                 client.apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
     }
 

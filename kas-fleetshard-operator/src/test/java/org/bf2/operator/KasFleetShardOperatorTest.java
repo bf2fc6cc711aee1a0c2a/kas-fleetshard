@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 
 
 @UseKubeMockServer(https = false, crud = true, port = 56565)
-public class FleetShardOperatorTest {
+public class KasFleetShardOperatorTest {
 
     static KubernetesClient client;
 
@@ -50,7 +50,7 @@ public class FleetShardOperatorTest {
                                                     KafkaCluster.class,
                                                     KafkaInstance.class,
                                                     Operand.class,
-                                                    FleetShardOperator.class,
+                                                    KasFleetShardOperator.class,
                                                     ConditionUtils.class,
                                                     InformerManager.class,
                                                     Main.class))

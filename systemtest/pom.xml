@@ -14,7 +14,7 @@
     <dependencies>
         <dependency>
             <groupId>org.bf2</groupId>
-            <artifactId>fleetshard-api</artifactId>
+            <artifactId>kas-fleetshard-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
