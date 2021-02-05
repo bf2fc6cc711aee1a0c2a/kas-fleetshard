@@ -64,7 +64,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             try {
                 kafkaInstance.createOrUpdate(managedKafka);
             } catch (Exception ex) {
-                log.error("Error reconciling {}", managedKafka.getMetadata().getName());
+                log.error("Error reconciling {}", managedKafka.getMetadata().getName(), ex);
                 return UpdateControl.noUpdate();
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
