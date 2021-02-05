@@ -20,10 +20,10 @@ import javax.inject.Inject;
 public class AdminServer implements Operand<ManagedKafka> {
 
     @Inject
-    private KubernetesClient kubernetesClient;
+    KubernetesClient kubernetesClient;
 
     @Inject
-    private InformerManager informerManager;
+    InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {

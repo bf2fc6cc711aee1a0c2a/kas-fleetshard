@@ -32,10 +32,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     private static final Logger log = LoggerFactory.getLogger(KafkaCluster.class);
 
     @Inject
-    private KafkaResourceClient kafkaResourceClient;
+    KafkaResourceClient kafkaResourceClient;
 
     @Inject
-    private InformerManager informerManager;
+    InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -56,7 +56,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
-    private Kafka kafkaFrom(ManagedKafka managedKafka) {
+    Kafka kafkaFrom(ManagedKafka managedKafka) {
 
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);
