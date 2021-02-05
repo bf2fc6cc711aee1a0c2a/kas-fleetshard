@@ -1,0 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: kas-fleetshard-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+    - "apiextensions.k8s.io"
+  resources:
+    - 'customresourcedefinitions'  
+  verbs:
+    - get
+    - list
+    - watch  
+- apiGroups:
+  - managedkafka.bf2.org
+  resources:
+  - 'managedkafkas'
+  - 'managedkafkas/status'
+  - 'managedkafkas/finalizers'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

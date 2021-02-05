@@ -1,0 +1,117 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: managedkafkas.managedkafka.bf2.org
+spec:
+  group: managedkafka.bf2.org
+  names:
+    kind: ManagedKafka
+    plural: managedkafkas
+    shortNames:
+    - mk
+    singular: managedkafka
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        status:
+          properties:
+            conditions:
+              items:
+                properties:
+                  type:
+                    type: string
+                  reason:
+                    type: string
+                  message:
+                    type: string
+                  status:
+                    type: string
+                  lastTransitionTime:
+                    type: string
+                type: object
+              type: array
+            capacity:
+              properties:
+                ingressEgressThroughputPerSec:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                totalMaxConnections:
+                  type: integer
+                maxDataRetentionSize:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                maxPartitions:
+                  type: integer
+                maxDataRetentionPeriod:
+                  type: string
+              type: object
+            versions:
+              properties:
+                kafka:
+                  type: string
+              type: object
+          type: object
+        spec:
+          properties:
+            capacity:
+              properties:
+                ingressEgressThroughputPerSec:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                totalMaxConnections:
+                  type: integer
+                maxDataRetentionSize:
+                  anyOf:
+                  - type: integer
+                  - type: string
+                maxPartitions:
+                  type: integer
+                maxDataRetentionPeriod:
+                  type: string
+              type: object
+            oauth:
+              properties:
+                clientId:
+                  type: string
+                clientSecret:
+                  type: string
+                tokenEndpointURI:
+                  type: string
+                jwksEndpointURI:
+                  type: string
+                validIssuerEndpointURI:
+                  type: string
+                userNameClaim:
+                  type: string
+                tlsTrustedCertificate:
+                  type: string
+              type: object
+            endpoint:
+              properties:
+                bootstrapAddress:
+                  type: string
+                tls:
+                  properties:
+                    cert:
+                      type: string
+                    key:
+                      type: string
+                  type: object
+              type: object
+            versions:
+              properties:
+                kafka:
+                  type: string
+              type: object
+          type: object
+      type: object
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true

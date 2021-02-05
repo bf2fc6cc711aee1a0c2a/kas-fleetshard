@@ -1,0 +1,17 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kas-fleetshard-operators
+  namespace: openshift-marketplace
+spec:
+  displayName: kas-fleetshard-operator
+  icon:
+    base64data: ""
+    mediatype: ""
+  image: quay.io/k_wall/kas-fleetshard-operator-registry:autolatest
+  priority: -400
+  publisher: b2F ORG
+  sourceType: grpc
+  updateStrategy:
+    registryPoll:
+      interval: 60s

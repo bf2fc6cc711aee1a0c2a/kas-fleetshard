@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: kas-fleetshard-operator
+subjects:
+- kind: ServiceAccount
+  name: kas-fleetshard-operator
+roleRef:
+  kind: Role
+  name: kas-fleetshard-operator
+  apiGroup: rbac.authorization.k8s.io
