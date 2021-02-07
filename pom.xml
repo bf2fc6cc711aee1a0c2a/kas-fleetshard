@@ -61,6 +61,11 @@
                 <version>${quarkus.platform.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+                <version>${quarkus.platform.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.dekorate</groupId>
                 <artifactId>crd-annotations</artifactId>
                 <version>${dekorate.version}</version>
