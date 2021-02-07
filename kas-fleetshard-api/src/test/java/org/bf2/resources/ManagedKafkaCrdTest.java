@@ -52,7 +52,7 @@ public class ManagedKafkaCrdTest {
     }
 
     @Test
-    @Disabled("Managed kafka throws error when build is called ->  org.bf2.operator.resources.v1alpha1.EditableManagedKafka CustomResource must provide an API version using @io.fabric8.kubernetes.model.annotation.Group and @io.fabric8.kubernetes.model.annotation.Version")
+    @Disabled("due to issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/60")
     void testCreateDeleteManagedKafkaResource() {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(

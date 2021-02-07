@@ -28,6 +28,7 @@ class KafkaClusterTest {
 
     @Test
     void testManagedKafkaToKafka() {
+        //TODO rewrite to builder
         ManagedKafka mk = new ManagedKafka();
         mk.getMetadata().setName("test-mk");
         mk.getMetadata().setNamespace("test");
