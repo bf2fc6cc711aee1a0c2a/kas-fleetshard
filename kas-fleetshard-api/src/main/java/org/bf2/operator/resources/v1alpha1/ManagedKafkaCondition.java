@@ -7,7 +7,10 @@ import io.sundr.builder.annotations.Buildable;
 /**
  * Defines a condition related to the ManagedKafka instance status
  */
-@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
+@Buildable(
+        builderPackage = "io.fabric8.kubernetes.api.builder",
+        editableEnabled = false
+)
 public class ManagedKafkaCondition {
 
     public enum Type {

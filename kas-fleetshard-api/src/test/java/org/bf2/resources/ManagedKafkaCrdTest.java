@@ -10,7 +10,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.FileInputStream;
@@ -52,7 +51,6 @@ public class ManagedKafkaCrdTest {
     }
 
     @Test
-    @Disabled("due to issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/60")
     void testCreateDeleteManagedKafkaResource() {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
