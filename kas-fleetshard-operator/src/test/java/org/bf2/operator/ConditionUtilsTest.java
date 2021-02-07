@@ -20,7 +20,7 @@ public class ConditionUtilsTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"Installing", "Error", "Ready"})
-    void testBuildYpdateCondition(String type) {
+    void testBuildUpdateCondition(String type) {
         ManagedKafkaCondition mkcondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), "True");
         assertEquals("True", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());

@@ -61,7 +61,8 @@ public class Canary implements Operand<ManagedKafka> {
                 .delete();
     }
 
-    Deployment deploymentFrom(ManagedKafka managedKafka) {
+    /* test */
+    protected Deployment deploymentFrom(ManagedKafka managedKafka) {
 
         String canaryName = canaryName(managedKafka);
 

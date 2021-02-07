@@ -35,7 +35,8 @@ public class AdminServer implements Operand<ManagedKafka> {
         // TODO: delete the AdminServer resources
     }
 
-    public Deployment deploymentFrom(ManagedKafka managedKafka) {
+    /* test */
+    protected Deployment deploymentFrom(ManagedKafka managedKafka) {
         // TODO: generate the admin server deployment
         return new DeploymentBuilder().build();
     }

@@ -56,7 +56,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
-    Kafka kafkaFrom(ManagedKafka managedKafka) {
+    /* test */
+    protected Kafka kafkaFrom(ManagedKafka managedKafka) {
 
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);
