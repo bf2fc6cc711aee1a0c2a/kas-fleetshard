@@ -13,11 +13,11 @@ import javax.inject.Inject;
 public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Inject
-    private KafkaCluster kafkaCluster;
+    KafkaCluster kafkaCluster;
     @Inject
-    private Canary canary;
+    Canary canary;
     @Inject
-    private AdminServer adminServer;
+    AdminServer adminServer;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {

@@ -20,10 +20,10 @@ import javax.inject.Inject;
 public class AdminServer implements Operand<ManagedKafka> {
 
     @Inject
-    private KubernetesClient kubernetesClient;
+    KubernetesClient kubernetesClient;
 
     @Inject
-    private InformerManager informerManager;
+    InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -35,7 +35,8 @@ public class AdminServer implements Operand<ManagedKafka> {
         // TODO: delete the AdminServer resources
     }
 
-    public Deployment deploymentFrom(ManagedKafka managedKafka) {
+    /* test */
+    protected Deployment deploymentFrom(ManagedKafka managedKafka) {
         // TODO: generate the admin server deployment
         return new DeploymentBuilder().build();
     }

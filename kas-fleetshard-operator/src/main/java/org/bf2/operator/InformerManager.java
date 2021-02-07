@@ -23,12 +23,12 @@ import java.util.Collections;
 public class InformerManager {
 
     @Inject
-    private KubernetesClient client;
+    KubernetesClient client;
 
     @Inject
-    private KafkaEventSource kafkaEventSource;
+    KafkaEventSource kafkaEventSource;
     @Inject
-    private DeploymentEventSource deploymentEventSource;
+    DeploymentEventSource deploymentEventSource;
 
     private SharedInformerFactory sharedInformerFactory;
 

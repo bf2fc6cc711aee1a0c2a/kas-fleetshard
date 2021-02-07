@@ -100,65 +100,6 @@
         </dependencies>
     </dependencyManagement>
 
-    <build>
-        <plugins>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
-                <configuration>
-                    <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-                    <systemPropertyVariables>
-                        <maven.home>${maven.home}</maven.home>
-                    </systemPropertyVariables>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-failsafe-plugin</artifactId>
-                <version>${surefire-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>integration-test</goal>
-                            <goal>verify</goal>
-                        </goals>
-                        <configuration>
-                            <forkCount>0</forkCount>
-                            <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-                            <includes>
-                                <include>**/IT*.java</include>
-                                <include>**/*IT.java</include>
-                                <include>**/ST*.java</include>
-                                <include>**/*ST.java</include>
-                            </includes>
-                            <statelessTestsetReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
-                                <disable>false</disable>
-                                <version>3.0</version>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedTestSuiteClassName>true</usePhrasedTestSuiteClassName>
-                                <usePhrasedTestCaseClassName>true</usePhrasedTestCaseClassName>
-                                <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
-                            </statelessTestsetReporter>
-                            <consoleOutputReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5ConsoleOutputReporter">
-                                <disable>false</disable>
-                                <encoding>UTF-8</encoding>
-                                <usePhrasedFileName>true</usePhrasedFileName>
-                            </consoleOutputReporter>
-                            <statelessTestsetInfoReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoReporter">
-                                <disable>false</disable>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedClassNameInRunning>false</usePhrasedClassNameInRunning>
-                                <usePhrasedClassNameInTestCaseSummary>true</usePhrasedClassNameInTestCaseSummary>
-                            </statelessTestsetInfoReporter>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
    <repositories>
     <repository>
       <id>oss-sonatype</id>

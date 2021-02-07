@@ -33,10 +33,10 @@ public class Canary implements Operand<ManagedKafka> {
     private static final Logger log = LoggerFactory.getLogger(Canary.class);
 
     @Inject
-    private KubernetesClient kubernetesClient;
+    KubernetesClient kubernetesClient;
 
     @Inject
-    private InformerManager informerManager;
+    InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -61,7 +61,8 @@ public class Canary implements Operand<ManagedKafka> {
                 .delete();
     }
 
-    private Deployment deploymentFrom(ManagedKafka managedKafka) {
+    /* test */
+    protected Deployment deploymentFrom(ManagedKafka managedKafka) {
 
         String canaryName = canaryName(managedKafka);
 

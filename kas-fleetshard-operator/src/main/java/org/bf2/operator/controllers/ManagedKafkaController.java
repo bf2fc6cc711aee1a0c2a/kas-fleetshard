@@ -32,13 +32,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
-    private KafkaEventSource kafkaEventSource;
+    KafkaEventSource kafkaEventSource;
 
     @Inject
-    private DeploymentEventSource deploymentEventSource;
+    DeploymentEventSource deploymentEventSource;
 
     @Inject
-    private KafkaInstance kafkaInstance;
+    KafkaInstance kafkaInstance;
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
