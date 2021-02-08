@@ -1,13 +1,14 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
-import org.bf2.operator.resources.v1alpha1.Versions;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.bf2.test.mock.QuarkusKubernetesMockServer;
 import org.junit.jupiter.api.Test;
@@ -28,14 +29,19 @@ class KafkaClusterTest {
 
     @Test
     void testManagedKafkaToKafka() {
-        //TODO rewrite to builder
-        ManagedKafka mk = new ManagedKafka();
-        mk.getMetadata().setName("test-mk");
-        mk.getMetadata().setNamespace("test");
-        mk.setSpec(new ManagedKafkaSpec());
-        Versions v = new Versions();
-        v.setKafka("2.6.0");
-        mk.getSpec().setVersions(v);
+        ManagedKafka mk = new ManagedKafkaBuilder()
+                .withMetadata(
+                        new ObjectMetaBuilder()
+                                .withNamespace("test")
+                                .withName("test-mk")
+                                .build())
+                .withSpec(
+                        new ManagedKafkaSpecBuilder()
+                                .withNewVersions()
+                                .withKafka("2.6.0")
+                                .endVersions()
+                                .build())
+                .build();
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk);
 
