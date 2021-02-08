@@ -17,6 +17,8 @@ import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
@@ -46,6 +48,9 @@ public class ManagedKafkaSync {
 
     @javax.annotation.Resource
     ManagedExecutor pollExecutor;
+
+    @Inject
+    KubernetesClient kubeClient;
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -154,11 +159,7 @@ public class ManagedKafkaSync {
                 create(remote);
             }
         } else if (remote == null) {
-            log.debugf("Deleting ManagedKafka %s %s", local.getId(), Cache.metaNamespaceKeyFunc(local));
-
-            client.delete(local.getMetadata().getNamespace(), local.getMetadata().getName());
-
-            controlPlane.removeManagedKafka(local);
+            delete(local);
         } else if (specChanged(remote.getSpec(), local)) {
             log.debugf("Initiating Delete of ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
             // specChanged is only looking at delete currently, so mark the local as deleted
@@ -170,13 +171,26 @@ public class ManagedKafkaSync {
         }
     }
 
-    void create(ManagedKafka remote) {
-        // TODO: account for namespaces.
-        // eventually the remote metadata should be ignored (or unset) - and we should assign /
-        // create a local namespace as needed
-        // for now we're assuming remote.getMetadata().getNamespace() is set;
+    void delete(ManagedKafka local) {
+        log.debugf("Deleting ManagedKafka %s %s", local.getId(), Cache.metaNamespaceKeyFunc(local));
 
+        client.delete(local.getMetadata().getNamespace(), local.getMetadata().getName());
+
+        kubeClient.namespaces().withName(local.getId()).delete();
+
+        // only remove the local after we're fully cleaned up, so that
+        // we'll keep retrying if there is a failure
+        controlPlane.removeManagedKafka(local);
+    }
+
+    void create(ManagedKafka remote) {
         log.debugf("Creating ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
+
+        // assume the local namespace will be the same as the placement id
+        remote.getMetadata().setNamespace(remote.getId());
+
+        kubeClient.namespaces().createOrReplace(
+                new NamespaceBuilder().withNewMetadata().withName(remote.getId()).endMetadata().build());
 
         // TODO: there may be additional cleansing, setting of defaults, etc. on the remote instance before creation
         client.create(remote);

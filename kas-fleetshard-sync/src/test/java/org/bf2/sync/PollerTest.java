@@ -109,7 +109,6 @@ public class PollerTest {
     private ManagedKafka exampleManagedKafka() {
         ManagedKafka managedKafka = new ManagedKafka();
         managedKafka.setKind("ManagedKafka");
-        managedKafka.getMetadata().setNamespace("test");
         managedKafka.getMetadata().setName("name");
         managedKafka.setId(PLACEMENT_ID);
         ManagedKafkaSpec spec = new ManagedKafkaSpec();
