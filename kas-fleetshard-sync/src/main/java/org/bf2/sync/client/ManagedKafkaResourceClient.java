@@ -48,7 +48,7 @@ public class ManagedKafkaResourceClient {
     }
 
     public List<ManagedKafka> list() {
-        return kafkaResourceClient.list().getItems();
+        return kafkaResourceClient.inAnyNamespace().list().getItems();
     }
 
 }
