@@ -43,9 +43,8 @@ public class Environment {
     public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
     public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
     public static final Path YAML_BUNDLE_PATH = getOrDefault(YAML_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "kas-fleetshard-operator", "src", "main", "kubernetes"));
-    public static final Path CRD_PATH = ROOT_PATH.resolve("kas-fleetshard-api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+    public static final Path CRD_PATH = ROOT_PATH.resolve("kas-fleetshard-api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8").resolve("managedkafkas.managedkafka.bf2.org-v1.yml");
     public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
-
 
     private Environment() {
     }

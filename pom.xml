@@ -20,13 +20,12 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <quarkus-plugin.version>1.11.0.Final</quarkus-plugin.version>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <dekorate.version>2.0.0.beta8</dekorate.version>
         <strimzi.version>0.22.0-SNAPSHOT</strimzi.version>
         <quarkus.operator.extension>1.7.1</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
-        <sundrio.version>0.24.1</sundrio.version>
+        <sundrio.version>0.24.2</sundrio.version>
     </properties>
 
     <modules>
@@ -38,6 +37,47 @@
 
     <dependencyManagement>
         <dependencies>
+
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-certificates</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-node</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-discovery</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-scheduling</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-events</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-common</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>crd-generator</artifactId>
+                <version>5.1-SNAPSHOT</version>
+            </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -64,11 +104,6 @@
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
                 <version>${quarkus.platform.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.dekorate</groupId>
-                <artifactId>crd-annotations</artifactId>
-                <version>${dekorate.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.sundr</groupId>

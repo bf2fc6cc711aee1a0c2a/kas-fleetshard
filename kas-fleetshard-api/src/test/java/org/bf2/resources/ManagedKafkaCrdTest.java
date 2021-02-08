@@ -2,7 +2,7 @@ package org.bf2.resources;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
@@ -39,14 +39,15 @@ public class ManagedKafkaCrdTest {
     @Test
     void testRegisterCrds() throws IOException {
         //load all crds
-        List<HasMetadata> crdList = client.load(new FileInputStream(Paths.get(ROOT_PATH, "target", "classes", "META-INF", "dekorate", "kubernetes.yml").toString())).get();
+        List<HasMetadata> crdList = client.load(new FileInputStream(Paths.get(ROOT_PATH, "target", "classes", "META-INF", "fabric8", "managedkafkas.managedkafka.bf2.org-v1.yml").toString())).get();
 
         for (HasMetadata crd : crdList) {
-            CustomResourceDefinition created = client.apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+            CustomResourceDefinition created = client.apiextensions().v1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
             assertNotNull(created);
             assertEquals(crd.getMetadata().getName(), created.getMetadata().getName());
-            assertNotNull(created.getSpec().getValidation().getOpenAPIV3Schema());
-            assertNotNull(client.apiextensions().v1beta1().customResourceDefinitions().withName(created.getMetadata().getName()).get());
+            assertEquals(1, created.getSpec().getVersions().size());
+            assertNotNull(created.getSpec().getVersions().get(0).getSchema().getOpenAPIV3Schema());
+            assertNotNull(client.apiextensions().v1().customResourceDefinitions().withName(created.getMetadata().getName()).get());
         }
     }
 

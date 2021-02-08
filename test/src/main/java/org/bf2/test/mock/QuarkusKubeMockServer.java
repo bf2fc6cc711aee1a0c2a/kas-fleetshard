@@ -1,6 +1,6 @@
 package org.bf2.test.mock;
 
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
@@ -55,7 +55,7 @@ public class QuarkusKubeMockServer implements QuarkusTestResourceLifecycleManage
     public void configureServer(KubernetesServer mockServer) throws FileNotFoundException {
         // initialize with the crd
         server.getClient().load(new FileInputStream(Environment.CRD_PATH.toString())).get().forEach(crd ->
-                server.getClient().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
+                server.getClient().apiextensions().v1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
 
     }
 
