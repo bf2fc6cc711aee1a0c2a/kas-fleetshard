@@ -5,7 +5,10 @@ import io.sundr.builder.annotations.Buildable;
 /**
  * Represents a TLS keys pair, both public (signed certificate) and private
  */
-@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
+@Buildable(
+        builderPackage = "io.fabric8.kubernetes.api.builder",
+        editableEnabled = false
+)
 public class TlsKeyPair {
 
     private String cert;

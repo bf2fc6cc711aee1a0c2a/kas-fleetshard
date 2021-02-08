@@ -32,13 +32,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
-    private KafkaEventSource kafkaEventSource;
+    KafkaEventSource kafkaEventSource;
 
     @Inject
-    private DeploymentEventSource deploymentEventSource;
+    DeploymentEventSource deploymentEventSource;
 
     @Inject
-    private KafkaInstance kafkaInstance;
+    KafkaInstance kafkaInstance;
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
@@ -64,7 +64,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             try {
                 kafkaInstance.createOrUpdate(managedKafka);
             } catch (Exception ex) {
-                log.error("Error reconciling {}", managedKafka.getMetadata().getName());
+                log.error("Error reconciling {}", managedKafka.getMetadata().getName(), ex);
                 return UpdateControl.noUpdate();
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);

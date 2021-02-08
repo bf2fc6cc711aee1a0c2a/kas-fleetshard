@@ -6,7 +6,10 @@ import io.sundr.builder.annotations.Buildable;
 /**
  * Defines the capacity provided by a ManagedKafka instance in terms of throughput, connection, data retention and more
  */
-@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
+@Buildable(
+        builderPackage = "io.fabric8.kubernetes.api.builder",
+        editableEnabled = false
+)
 public class ManagedKafkaCapacity {
 
     private Quantity ingressEgressThroughputPerSec;

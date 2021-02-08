@@ -15,13 +15,13 @@ public class KasFleetShardOperator implements QuarkusApplication {
     private static final Logger log = LoggerFactory.getLogger(KasFleetShardOperator.class);
 
     @Inject
-    private KubernetesClient client;
+    KubernetesClient client;
 
     @Inject
-    private Operator operator;
+    Operator operator;
 
     @Inject
-    private ManagedKafkaController managedKafkaController;
+    ManagedKafkaController managedKafkaController;
     @Override
     public int run(String... args) throws Exception {
         log.info("kas fleetshard operator");

@@ -8,7 +8,10 @@ import java.util.List;
 /**
  * Defines the current status with related conditions of a ManagedKafka instance
  */
-@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
+@Buildable(
+        builderPackage = "io.fabric8.kubernetes.api.builder",
+        editableEnabled = false
+)
 public class ManagedKafkaStatus {
 
     private List<ManagedKafkaCondition> conditions;
