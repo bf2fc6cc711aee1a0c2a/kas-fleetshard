@@ -54,7 +54,7 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
     }
 
     public List<T> list() {
-        return resourceClient.list().getItems();
+        return resourceClient.inAnyNamespace().list().getItems();
     }
 
     public T updateStatus(T resource) {

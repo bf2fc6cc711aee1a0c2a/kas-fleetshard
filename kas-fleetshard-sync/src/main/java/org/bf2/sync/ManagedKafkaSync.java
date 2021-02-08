@@ -17,6 +17,8 @@ import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
@@ -47,6 +49,9 @@ public class ManagedKafkaSync {
     @javax.annotation.Resource
     ManagedExecutor pollExecutor;
 
+    @Inject
+    KubernetesClient kubeClient;
+
     /**
      * Update the local state based upon the remote ManagedKafkas
      * The strategy here is to take a pass over the list and find any deferred work
@@ -61,9 +66,8 @@ public class ManagedKafkaSync {
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
 
-            // TODO this requires the namespace is already set - this will change
-            // see also the create method
-            ManagedKafka existing = lookup.getLocalManagedKafka(Cache.metaNamespaceKeyFunc(remoteManagedKafka));
+            String localKey = Cache.namespaceKeyFunc(determineNamespace(remoteManagedKafka), remoteManagedKafka.getMetadata().getName());
+            ManagedKafka existing = lookup.getLocalManagedKafka(localKey);
 
             // take action based upon differences
             // this is really just seeing if an instance needs created and the delete flag
@@ -73,7 +77,7 @@ public class ManagedKafkaSync {
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
                     executor.execute(() -> {
-                        reconcile(remoteManagedKafka.getId(), Cache.metaNamespaceKeyFunc(remoteManagedKafka));
+                        reconcile(remoteManagedKafka.getId(), localKey);
                     });
                 } else {
                     // we've successfully removed locally, but control plane is not aware
@@ -88,7 +92,7 @@ public class ManagedKafkaSync {
                 }
             } else if (specChanged(remoteSpec, existing)) {
                 executor.execute(() -> {
-                    reconcile(remoteManagedKafka.getId(), Cache.metaNamespaceKeyFunc(existing));
+                    reconcile(remoteManagedKafka.getId(), localKey);
                 });
             }
         }
@@ -113,6 +117,14 @@ public class ManagedKafkaSync {
     }
 
     /**
+     * Determine what local namespace the remote instance should be in
+     * For now we're assuming the (placement) id
+     */
+    String determineNamespace(ManagedKafka remoteManagedKafka) {
+        return remoteManagedKafka.getId();
+    }
+
+    /**
      * TODO: delete is the only spec change we are currently tracking wrt modifications
      * it's also not clear if there are any fields in the spec that we
      * or the agent may fill out by default that should be retained,
@@ -122,7 +134,7 @@ public class ManagedKafkaSync {
     private boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
         if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
-            log.warnf("Ignoring ManagedKafka %s %s that wants to come back to life", existing.getId(), Cache.metaNamespaceKeyFunc(existing));
+            log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
             return false;
         }
 
@@ -154,13 +166,9 @@ public class ManagedKafkaSync {
                 create(remote);
             }
         } else if (remote == null) {
-            log.debugf("Deleting ManagedKafka %s %s", local.getId(), Cache.metaNamespaceKeyFunc(local));
-
-            client.delete(local.getMetadata().getNamespace(), local.getMetadata().getName());
-
-            controlPlane.removeManagedKafka(local);
+            delete(local);
         } else if (specChanged(remote.getSpec(), local)) {
-            log.debugf("Initiating Delete of ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
+            log.debugf("Initiating Delete of ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
             // specChanged is only looking at delete currently, so mark the local as deleted
             client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
                     mk.getSpec().setDeleted(true);
@@ -170,13 +178,28 @@ public class ManagedKafkaSync {
         }
     }
 
-    void create(ManagedKafka remote) {
-        // TODO: account for namespaces.
-        // eventually the remote metadata should be ignored (or unset) - and we should assign /
-        // create a local namespace as needed
-        // for now we're assuming remote.getMetadata().getNamespace() is set;
+    void delete(ManagedKafka local) {
+        log.debugf("Deleting ManagedKafka %s", Cache.metaNamespaceKeyFunc(local));
 
-        log.debugf("Creating ManagedKafka %s %s", remote.getId(), Cache.metaNamespaceKeyFunc(remote));
+        client.delete(local.getMetadata().getNamespace(), local.getMetadata().getName());
+
+        kubeClient.namespaces().withName(local.getMetadata().getNamespace()).delete();
+
+        // only remove the local after we're fully cleaned up, so that
+        // we'll keep retrying if there is a failure
+        controlPlane.removeManagedKafka(local);
+    }
+
+    void create(ManagedKafka remote) {
+        String namespace = determineNamespace(remote);
+
+        remote.getMetadata().setNamespace(namespace);
+
+        // log after the namespace is set
+        log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
+
+        kubeClient.namespaces().createOrReplace(
+                new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
 
         // TODO: there may be additional cleansing, setting of defaults, etc. on the remote instance before creation
         client.create(remote);
