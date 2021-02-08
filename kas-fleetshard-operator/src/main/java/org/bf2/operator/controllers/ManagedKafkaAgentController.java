@@ -49,7 +49,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     private AgentResourceClient agentClient;
 
-    @ConfigProperty(name = "kubernetes.namespace")
+    @ConfigProperty(name = "kubernetes.namespace", defaultValue = "test")
     private String namespace;
 
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
@@ -79,7 +79,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         try {
-            ManagedKafkaAgent resource = this.agentClient.get(this.namespace, RESOURCE_NAME);
+            ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, RESOURCE_NAME);
             if (resource == null) {
                 resource = new ManagedKafkaAgent();
                 resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
