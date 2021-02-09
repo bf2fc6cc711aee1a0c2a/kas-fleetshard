@@ -92,10 +92,7 @@ public class MockControlPlane {
                 .endEndpoint()
                 .build());
         mk.setId(clusterName(id));
-        mk.getMetadata().setName(clusterName(id));
-        //mk.getMetadata().setNamespace(clusterName(id));
-
-
+        mk.getMetadata().setName("kluster-"+clusterName(id));
         return mk;
     }
 
