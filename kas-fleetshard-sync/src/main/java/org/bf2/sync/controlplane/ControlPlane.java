@@ -11,6 +11,7 @@ import javax.inject.Inject;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.sync.ManagedKafkaSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
@@ -92,21 +93,28 @@ public class ControlPlane {
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
-        if (oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
+        if ((oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus()))
+                || (oldManagedKafka == null && newManagedKafka.getSpec() != null)) {
             // send a status update immediately (async)
             updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
-        } else {
-            // TODO: if it's a spec change it can be filtered
-            // send a resync in a batch
-            synchronized (pendingStatus) {
-                pendingStatus.put(newManagedKafka.getId(), newManagedKafka.getStatus());
-            }
+            return;
+        }
+        if (oldManagedKafka != null && ManagedKafkaSync.specChanged(oldManagedKafka.getSpec(), newManagedKafka)) {
+            // the control plane initiated this, so it doesn't need to be sent
+            return;
+        }
+        // send a resync in a batch
+        synchronized (pendingStatus) {
+            pendingStatus.put(newManagedKafka.getId(), newManagedKafka.getStatus());
         }
     }
 
     boolean statusChanged(ManagedKafkaStatus oldStatus, ManagedKafkaStatus newStatus) {
+        if (oldStatus == null) {
+            return true;
+        }
         // TODO: implement me
-        return true;
+        return !oldStatus.equals(newStatus);
     }
 
     /**

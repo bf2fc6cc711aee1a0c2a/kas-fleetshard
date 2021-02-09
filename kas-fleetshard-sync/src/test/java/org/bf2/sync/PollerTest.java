@@ -13,9 +13,9 @@ import java.util.Map;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -35,8 +36,8 @@ import io.smallrye.mutiny.Uni;
 @TestProfile(MockSyncProfile.class)
 public class PollerTest {
 
-    private static final String PLACEMENT_ID = "pid";
-    private static final String CLUSTER_ID = "007";
+    static final String PLACEMENT_ID = "pid";
+    static final String CLUSTER_ID = "007";
 
     @Inject
     KubernetesClient client;
@@ -106,17 +107,21 @@ public class PollerTest {
         assertEquals(1, status.get(PLACEMENT_ID).getConditions().size());
     }
 
-    private ManagedKafka exampleManagedKafka() {
-        ManagedKafka managedKafka = new ManagedKafka();
-        managedKafka.setKind("ManagedKafka");
-        managedKafka.getMetadata().setName("name");
-        managedKafka.setId(PLACEMENT_ID);
-        ManagedKafkaSpec spec = new ManagedKafkaSpec();
-        Versions versions = new Versions();
-        versions.setKafka("2.2.2");
-        spec.setVersions(versions);
-        managedKafka.setSpec(spec);
-        return managedKafka;
+    static ManagedKafka exampleManagedKafka() {
+        ManagedKafka mk = new ManagedKafkaBuilder()
+                .withId(PLACEMENT_ID)
+                .withMetadata(
+                        new ObjectMetaBuilder()
+                                .withName("name")
+                                .build())
+                .withSpec(
+                        new ManagedKafkaSpecBuilder()
+                                .withNewVersions()
+                                .withKafka("2.6.0")
+                                .endVersions()
+                                .build())
+                .build();
+        return mk;
     }
 
 }

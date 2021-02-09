@@ -16,6 +16,10 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         this.consumer = consumer;
     }
 
+    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer) {
+        return new CustomResourceEventHandler<T>(consumer);
+    }
+
     @Override
     public void onAdd(T obj) {
         if (obj.getStatus() != null) {
@@ -25,7 +29,7 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
 
     @Override
     public void onDelete(T obj, boolean deletedFinalStateUnknown) {
-        // TODO: this will depend upon the delete strategy chosen
+        // this will depend upon the delete strategy chosen
         // currently there is nothing for sync to do on delete
     }
 

@@ -1,15 +1,19 @@
 package org.bf2.sync;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
@@ -34,8 +38,7 @@ import io.quarkus.scheduler.Scheduled;
 @ApplicationScoped
 public class ManagedKafkaSync {
 
-    @Inject
-    Logger log;
+    private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
 
     @Inject
     ManagedKafkaResourceClient client;
@@ -46,11 +49,17 @@ public class ManagedKafkaSync {
     @Inject
     ControlPlane controlPlane;
 
-    @javax.annotation.Resource
-    ManagedExecutor pollExecutor;
-
     @Inject
     KubernetesClient kubeClient;
+
+    ExecutorService executorService = new ThreadPoolExecutor(2, 2, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<>(10000), new ThreadPoolExecutor.DiscardOldestPolicy() {
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+            log.warn("Reconcile queue is full - purging an old task");
+            super.rejectedExecution(r, e);
+        }
+
+    });
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -131,7 +140,7 @@ public class ManagedKafkaSync {
      *
      * this will be generalized as needed
      */
-    private boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
+    public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
         if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
@@ -207,11 +216,19 @@ public class ManagedKafkaSync {
 
     @Scheduled(every = "{poll.interval}")
     void pollKafkaClusters() {
-        controlPlane.updateKafkaClusterStatus(new ManagedKafkaStatus(), "x");
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list
-        syncKafkaClusters(pollExecutor);
+        try {
+            syncKafkaClusters(executorService);
+        } catch (RuntimeException e) {
+            // TODO: this could be inverted to a uni subscription
+            if (e.getCause() instanceof IOException) {
+                log.debugf("Could not poll for managed kafkas %s", e.getCause().getMessage());
+            } else {
+                log.errorf(e, "Could not poll for managed kafkas");
+            }
+        }
     }
 
 }
