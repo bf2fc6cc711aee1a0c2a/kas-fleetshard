@@ -6,13 +6,12 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +33,7 @@ public class ManagedKafkaST extends AbstractST {
         StrimziOperatorManager.uninstallStrimziClusterWideResources(kube);
     }
 
-    @Test
+    @ParallelTest
     void testDeployManagedKafka(ExtensionContext extensionContext) {
         String mkAppName = "mk-create";
         String testNamespace = "mk-test-create-check";
@@ -58,7 +57,7 @@ public class ManagedKafkaST extends AbstractST {
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
     }
 
-    @Test
+    @ParallelTest
     void testCreateDeleteCreateSameManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-create-delete";
         String testNamespace = "mk-test-create-delete";

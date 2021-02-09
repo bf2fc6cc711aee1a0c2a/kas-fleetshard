@@ -42,7 +42,10 @@ jobs:
           -Dquarkus.container-image.insecure=true
 
       - name: Run integration test
-        run: mvn verify -pl systemtest -am --no-transfer-progress
+        run: |
+          mvn verify -pl systemtest -am --no-transfer-progress \
+            -Djunit.jupiter.execution.parallel.enabled=true \
+            -Djunit.jupiter.execution.parallel.config.fixed.parallelism=2
 
       - name: Archive results
         uses: actions/upload-artifact@v2
