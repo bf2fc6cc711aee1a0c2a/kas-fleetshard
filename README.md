@@ -21,7 +21,7 @@ mvn install
 After that, apply the generated CRD to the Kubernetes/OpenShift cluster by running the following commands.
 
 ```shell
-kubectl apply -f kas-fleetshard-api/target/classes/META-INF/dekorate/kubernetes.yml
+kubectl apply -f  ./kas-fleetshard-api/target/classes/META-INF/fabric8/managedkafkas.managedkafka.bf2.org-v1.yml
 ```
 
 Finally, you can start the operator from your IDE running the `Main` application (for a step by step debugging purposes), 
