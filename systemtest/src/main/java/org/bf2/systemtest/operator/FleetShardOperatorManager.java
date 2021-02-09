@@ -1,8 +1,7 @@
 package org.bf2.systemtest.operator;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
-import org.apache.commons.collections.map.SingletonMap;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -21,7 +20,7 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing kas-fleetshard-operator");
         LOGGER.info("Installing CRD");
         kubeClient.client().load(new FileInputStream(Environment.CRD_PATH.toString())).get().forEach(crd ->
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
+                kubeClient.client().apiextensions().v1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
 
         kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         LOGGER.info("Installing operator from files: {}", Environment.YAML_BUNDLE_PATH.toString());
