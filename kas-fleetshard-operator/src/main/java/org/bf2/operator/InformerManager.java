@@ -40,7 +40,9 @@ public class InformerManager {
         sharedInformerFactory = client.informers();
 
         OperationContext operationContext =
-                new OperationContext().withLabels(Collections.singletonMap("app.kubernetes.io/managed-by", "kas-fleetshard-operator"));
+                new OperationContext()
+                        .withLabels(Collections.singletonMap("app.kubernetes.io/managed-by", "kas-fleetshard-operator"))
+                        .withIsNamespaceConfiguredFromGlobalConfig(true);
 
         // TODO: should we make the resync time configurable?
         kafkaSharedIndexInformer =
