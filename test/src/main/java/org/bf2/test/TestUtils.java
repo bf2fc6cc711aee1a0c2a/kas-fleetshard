@@ -1,5 +1,7 @@
 package org.bf2.test;
 
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.utils.IOHelpers;
 import org.apache.logging.log4j.LogManager;
@@ -149,6 +151,18 @@ public class TestUtils {
         LOGGER.info("=======================================================================");
     }
 
+    /**
+     * Check all containers state in pod and return boolean status if po is running
+     * @param p pod
+     */
+    public static boolean isPodReady(Pod p) {
+        return p.getStatus().getContainerStatuses().stream().allMatch(ContainerStatus::getReady);
+    }
+
+    /**
+     * Replacer function replacing values in input stream and returns modified input stream
+     * @param values map of values for replace
+     */
     public static Function<InputStream, InputStream> replacer(final Map<String, String> values) {
         return in -> {
             try {
