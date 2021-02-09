@@ -8,8 +8,30 @@ There are two main processing activities:
 
 - Process local events and push those updates to the control plane, currently in the Informer package.
 
-## Notes
+## build/test
 
-- the kas-fleetshard-sync will eventually be added as a sidecar in the operator application.properties.  There may need to be a different file/profile for deployment of the operator without the sidecar.
+```shell
+mvn clean install
+```
 
-- for now we're blocked on issues with the properties driven sidecar, so we'll just provide instructions for running as a separate deployment.
+## running locally
+
+```shell
+mvn quarkus:dev
+```
+
+> NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
+
+## deployment
+
+Follow the operator instructions to at least build / install the CRDs.  
+
+The operator is optional for the sync to function.
+
+To directly use the minikube registry, run:
+
+```shell
+eval $(minikube docker-env)
+
+mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent
+```
