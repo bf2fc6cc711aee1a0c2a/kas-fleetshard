@@ -31,7 +31,9 @@ public class Environment {
      * Definition of env vars
      */
     private static final String LOG_DIR_ENV = "LOG_DIR";
-    private static final String CONFIG_FILE_PATH_ENVAR = "CONFIG_PATH";
+    private static final String CONFIG_FILE_PATH_ENV = "CONFIG_PATH";
+    private static final String YAML_BUNDLE_PATH_ENV = "YAML_BUNDLE_PATH";
+    private static final String FLEET_SHARD_OPERATOR_IMAGE_ENV = "FLEET_SHARD_OPERATOR_IMAGE";
 
 
     /*
@@ -39,7 +41,10 @@ public class Environment {
      */
     public static final String SUITE_ROOT = System.getProperty("user.dir");
     public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
-    public static final String ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent().toString();
+    public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
+    public static final Path YAML_BUNDLE_PATH = getOrDefault(YAML_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "kas-fleetshard-operator", "src", "main", "kubernetes"));
+    public static final Path CRD_PATH = ROOT_PATH.resolve("kas-fleetshard-api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+    public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
 
 
     private Environment() {
@@ -93,7 +98,7 @@ public class Environment {
      * @return json object with loaded variables
      */
     private static JsonNode loadConfigurationFile() {
-        config = System.getenv().getOrDefault(CONFIG_FILE_PATH_ENVAR,
+        config = System.getenv().getOrDefault(CONFIG_FILE_PATH_ENV,
                 Paths.get(System.getProperty("user.dir"), "config.json").toAbsolutePath().toString());
         ObjectMapper mapper = new ObjectMapper();
         try {

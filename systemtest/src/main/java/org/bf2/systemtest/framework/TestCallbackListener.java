@@ -1,6 +1,5 @@
 package org.bf2.systemtest.framework;
 
-
 import org.bf2.test.TestUtils;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -26,10 +25,12 @@ public class TestCallbackListener implements BeforeAllCallback, BeforeEachCallba
     @Override
     public void afterAll(ExtensionContext extensionContext) throws Exception {
         TestUtils.logWithSeparator("-> End of test class: {}", extensionContext.getRequiredTestClass().getName());
+        ResourceManager.getInstance().deleteResources(extensionContext);
     }
 
     @Override
     public void afterEach(ExtensionContext extensionContext) throws Exception {
         TestUtils.logWithSeparator("-> End of test method: {}", extensionContext.getDisplayName());
+        ResourceManager.getInstance().deleteResources(extensionContext);
     }
 }
