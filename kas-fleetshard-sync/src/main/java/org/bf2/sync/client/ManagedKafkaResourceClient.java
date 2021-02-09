@@ -3,8 +3,8 @@ package org.bf2.sync.client;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -13,21 +13,23 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.quarkus.runtime.StartupEvent;
 
 /**
  * Represents a wrapper around a Kubernetes client for handling operations on a
  * Managed Kafka custom resource
+ *
+ * TODO this should eventually use the common base class
  */
 @ApplicationScoped
 public class ManagedKafkaResourceClient {
 
     @Inject
-    private KubernetesClient kubernetesClient;
+    KubernetesClient kubernetesClient;
 
     private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> kafkaResourceClient;
 
-    void onStart(@Observes StartupEvent ev) {
+    @PostConstruct
+    void onStart() {
         kafkaResourceClient = kubernetesClient.customResources(ManagedKafka.class, ManagedKafkaList.class);
     }
 
