@@ -37,6 +37,7 @@ import io.quarkus.scheduler.Scheduled;
  */
 @ApplicationScoped
 public class ManagedKafkaSync {
+    public static final String INSTANCE_DELETION_COMPLETE = "InstanceDeletionComplete";
 
     private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
 
@@ -94,7 +95,7 @@ public class ManagedKafkaSync {
 
                     // doesn't need to be async as the control plane call is async
                     ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                    statusBuilder.addNewCondition().withType("InstanceDeletionComplete").endCondition();
+                    statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
 
                     // fire and forget - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(statusBuilder.build(), remoteManagedKafka.getId());
