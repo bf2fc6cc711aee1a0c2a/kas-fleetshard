@@ -1,12 +1,11 @@
 package org.bf2.systemtest.framework;
 
-import org.bf2.test.Environment;
-import org.bf2.test.TestUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.Environment;
+import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.ExtensionContext;
-
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,14 +16,14 @@ public class LogCollector {
 
     /**
      * Calls storing cluster info for connected cluster
-     *
-     * @param extensionContext
-     * @param throwable
-     * @throws Throwable
      */
     public static void saveKubernetesState(ExtensionContext extensionContext, Throwable throwable) throws Throwable {
+        LOGGER.warn("Printing all pods on cluster");
         KubeClient.getInstance().client().pods().inAnyNamespace().list().getItems().forEach(p ->
-                LOGGER.info("Pod: {} in ns: {}", p.getMetadata().getName(), p.getMetadata().getNamespace()));
+                LOGGER.info("Pod: {} in ns: {} with phase: {}",
+                        p.getMetadata().getName(),
+                        p.getMetadata().getNamespace(),
+                        p.getStatus().getPhase()));
 
         Path logPath = TestUtils.getLogPath(Environment.LOG_DIR.resolve("failedTest").toString(), extensionContext);
         Files.createDirectories(logPath);
@@ -38,10 +37,16 @@ public class LogCollector {
     }
 
     private static void saveClusterState(Path logpath) throws IOException {
-//        Files.writeString(logpath.resolve("describe_nodes.log"), cluster.cmdClient().exec(false, false, "describe", "nodes").out());
-//        Files.writeString(logpath.resolve("events.log"), cluster.cmdClient().exec(false, false, "get", "events", "--all-namespaces").out());
-//        Files.writeString(logpath.resolve("pvs.txt"), cluster.cmdClient().exec(false, false, "describe", "pv").out());
-//        Files.writeString(logpath.resolve("storageclass.yml"), cluster.cmdClient().exec(false, false, "get", "storageclass", "-o", "yaml").out());
-//        Files.writeString(logpath.resolve("routes.yml"), cluster.cmdClient().exec(false, false, "get", "routes", "--all-namespaces", "-o", "yaml").out());
+        KubeClient kube = KubeClient.getInstance();
+        Files.writeString(logpath.resolve("describe-cluster-nodes.log"), kube.cmdClient().exec(false, false, "describe", "nodes").out());
+        Files.writeString(logpath.resolve("all-events.log"), kube.cmdClient().exec(false, false, "get", "events", "--all-namespaces").out());
+        Files.writeString(logpath.resolve("pvs.log"), kube.cmdClient().exec(false, false, "describe", "pv").out());
+        Files.writeString(logpath.resolve("routes.yml"), kube.cmdClient().exec(false, false, "get", "routes", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("ingress.yml"), kube.cmdClient().exec(false, false, "get", "ingress", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("kas-fleetshard-operator-pods.yml"), kube.cmdClient().exec(false, false, "get", "pod", "-l", "app=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("strimzi-kafka-pods.yml"), kube.cmdClient().exec(false, false, "get", "pod", "-l", "app.kubernetes.io/managed-by=strimzi-cluster-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("managedkafkas.yml"), kube.cmdClient().exec(false, false, "get", "managedkafka", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("kafkas.yml"), kube.cmdClient().exec(false, false, "get", "kafka", "-l", "app.kubernetes.io/managed-by=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("pods-managed-by-operator.yml"), kube.cmdClient().exec(false, false, "get", "pods", "-l", "app.kubernetes.io/managed-by=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
     }
 }
