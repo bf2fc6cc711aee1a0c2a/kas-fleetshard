@@ -67,12 +67,22 @@ public class ResourceManager {
     };
 
     @SafeVarargs
+    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, TimeoutBudget waitDuration, T... resources) {
+        createResource(testContext, true, waitDuration, resources);
+    }
+
+    @SafeVarargs
     public final <T extends HasMetadata> void createResource(ExtensionContext testContext, T... resources) {
-        createResource(testContext, true, resources);
+        createResource(testContext, true, TimeoutBudget.ofDuration(Duration.ofMinutes(10)), resources);
     }
 
     @SafeVarargs
     public final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, T... resources) {
+        createResource(testContext, waitReady, null, resources);
+    }
+
+    @SafeVarargs
+    private final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, TimeoutBudget timeout, T... resources) {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
             if (type == null) {
@@ -105,7 +115,7 @@ public class ResourceManager {
                     continue;
                 }
 
-                assertTrue(waitResourceCondition(resource, type::isReady),
+                assertTrue(waitResourceCondition(resource, type::isReady, timeout),
                         String.format("Timed out waiting for %s %s in namespace %s to be ready", resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
 
                 T updated = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
@@ -132,7 +142,7 @@ public class ResourceManager {
     }
 
     public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition) {
-        return waitResourceCondition(resource, condition, TimeoutBudget.ofDuration(Duration.ofMinutes(10)));
+        return waitResourceCondition(resource, condition, TimeoutBudget.ofDuration(Duration.ofMinutes(5)));
     }
 
     public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition, TimeoutBudget timeout) {
