@@ -19,10 +19,14 @@ rules:
     resources:
       - managedkafkas
       - managedkafkas/status
+      - managedkafkaagents
+      - managedkafkaagents/status
     verbs:
       - get
       - list
       - watch
+      - create
+      - delete
       - patch
       - update
   - apiGroups:
@@ -52,6 +56,7 @@ rules:
       - update
   - apiGroups:
       - apps
+      - extensions
     resources:
       - deployments
       - deployments/status
@@ -64,10 +69,9 @@ rules:
       - patch
       - update
   - apiGroups:
-      - extensions
+      - ""
     resources:
-      - deployments
-      - deployments/status
+      - namespaces
     verbs:
       - get
       - list
