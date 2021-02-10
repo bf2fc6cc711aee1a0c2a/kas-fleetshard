@@ -1,11 +1,16 @@
 package org.bf2.test;
 
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.utils.IOHelpers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -17,7 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 
 /**
  * Test utils contains static help methods
@@ -142,5 +149,31 @@ public class TestUtils {
         LOGGER.info("=======================================================================");
         LOGGER.info(pattern, text);
         LOGGER.info("=======================================================================");
+    }
+
+    /**
+     * Check all containers state in pod and return boolean status if po is running
+     * @param p pod
+     */
+    public static boolean isPodReady(Pod p) {
+        return p.getStatus().getContainerStatuses().stream().allMatch(ContainerStatus::getReady);
+    }
+
+    /**
+     * Replacer function replacing values in input stream and returns modified input stream
+     * @param values map of values for replace
+     */
+    public static Function<InputStream, InputStream> replacer(final Map<String, String> values) {
+        return in -> {
+            try {
+                String strContent = IOHelpers.readFully(in);
+                for (Map.Entry<String, String> replacer : values.entrySet()) {
+                    strContent = strContent.replace(replacer.getKey(), replacer.getValue());
+                }
+                return new ByteArrayInputStream(strContent.getBytes());
+            } catch (IOException ex) {
+                throw KubernetesClientException.launderThrowable(ex);
+            }
+        };
     }
 }

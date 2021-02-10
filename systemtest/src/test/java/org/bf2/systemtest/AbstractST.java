@@ -2,6 +2,7 @@ package org.bf2.systemtest;
 
 import org.bf2.systemtest.framework.ExtensionContextParameterResolver;
 import org.bf2.systemtest.framework.IndicativeSentences;
+import org.bf2.systemtest.framework.ResourceManager;
 import org.bf2.systemtest.framework.TestCallbackListener;
 import org.bf2.systemtest.framework.TestExceptionCallbackListener;
 import org.bf2.test.k8s.KubeClient;
@@ -23,9 +24,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractST {
     protected KubeClient kube;
+    protected ResourceManager resourceManager;
 
     @BeforeAll
     void init() {
         kube = KubeClient.getInstance();
+        resourceManager = ResourceManager.getInstance();
     }
 }

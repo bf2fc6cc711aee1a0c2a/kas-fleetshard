@@ -22,10 +22,31 @@ jobs:
         with:
           minikube version: 'v1.17.1'
           kubernetes version: 'latest'
-          start args: '--insecure-registry "10.0.0.0/24" --insecure-registry "localhost:5000" --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.authorization-mode=RBAC,Node'
+          start args: '--addons=registry --insecure-registry "10.0.0.0/24" --insecure-registry "localhost:5000" --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.authorization-mode=RBAC,Node'
 
-      - name: enable registry
-        run: minikube addons enable registry
+      - name: Enable OLM
+        run: |
+          curl -L https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/install.sh -o install.sh
+          chmod +x install.sh
+          ./install.sh v0.17.0
+
+      - name: Build and push operator
+        run: |
+          mvn clean package -pl kas-fleetshard-operator -am --no-transfer-progress \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=true \
+          -Dquarkus.container-image.group=bf2 \
+          -Dquarkus.container-image.name=kas-fleetshard-operator \
+          -Dquarkus.container-image.tag=latest \
+          -Dquarkus.container-image.registry=localhost:5000 \
+          -Dquarkus.container-image.insecure=true
 
       - name: Run integration test
-        run: mvn verify -pl systemtest --no-transfer-progress -am
+        run: mvn verify -pl systemtest -am --no-transfer-progress
+
+      - name: Archive results
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: artifacts
+          path: systemtest/target/logs/
