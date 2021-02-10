@@ -227,7 +227,7 @@ public class AdminServer implements Operand<ManagedKafka> {
                     .withNewPort()
                         .withTargetPort(new IntOrString("http"))
                     .endPort()
-                    .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapAddress())
+                    .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
                     .withNewTls()
                         .withTermination("edge")
                     .endTls()

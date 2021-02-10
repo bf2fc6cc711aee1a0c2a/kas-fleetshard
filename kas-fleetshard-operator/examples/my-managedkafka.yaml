@@ -32,7 +32,7 @@ spec:
       l4wOuDwKQa+upc8GftXE2C//4mKANBC6It01gUaTIpo=
       -----END CERTIFICATE-----
   endpoint:
-    bootstrapAddress: xyz.yyy.com
+    bootstrapServerHost: xyz.yyy.com
     tls:
       cert: |-
         -----BEGIN CERTIFICATE-----

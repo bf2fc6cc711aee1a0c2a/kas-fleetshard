@@ -68,7 +68,7 @@ public class ManagedKafkaST extends AbstractST {
                                     .withMaxPartitions(100)
                                 .endCapacity()
                                 .withNewEndpoint()
-                                    .withNewBootstrapAddress("")
+                                    .withNewBootstrapServerHost("")
                                     .withNewTls()
                                         .withNewCert("cert")
                                         .withNewKey("key")

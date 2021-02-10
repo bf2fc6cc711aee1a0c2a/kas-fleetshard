@@ -71,7 +71,7 @@ public class ManagedKafkaCrdTest {
                                     .withMaxPartitions(100)
                                 .endCapacity()
                                 .withNewEndpoint()
-                                    .withNewBootstrapAddress("")
+                                    .withNewBootstrapServerHost("")
                                     .withNewTls()
                                         .withNewCert("cert")
                                         .withNewKey("key")
