@@ -17,8 +17,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
-import io.smallrye.mutiny.Uni;
-
 @ApplicationScoped
 @Path("/api/managed-services-api/v1/agent-clusters/")
 @RegisterRestClient
@@ -27,16 +25,16 @@ public interface ControlPlaneRestClient {
     @PUT
     @Path("/{id}/status")
     @Consumes(MediaType.APPLICATION_JSON)
-    Uni<Void> updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status);
+    void updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status);
 
     @GET
     @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
-    Uni<List<ManagedKafka>> getKafkaClusters(@PathParam("id") String id);
+    List<ManagedKafka> getKafkaClusters(@PathParam("id") String id);
 
     @PUT
     @Path("/{id}/kafkas/status")
     @Consumes(MediaType.APPLICATION_JSON)
-    Uni<Void> updateKafkaClustersStatus(@PathParam("id") String id, Map<String, ManagedKafkaStatus> status);
+    void updateKafkaClustersStatus(@PathParam("id") String id, Map<String, ManagedKafkaStatus> status);
 
 }
