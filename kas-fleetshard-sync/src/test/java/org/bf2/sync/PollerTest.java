@@ -16,9 +16,11 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -54,6 +56,15 @@ public class PollerTest {
 
     @Inject
     DirectLocalLookup lookup;
+
+    @Inject
+    ManagedKafkaResourceClient managedKafkaClient;
+
+    @AfterEach
+    public void afterEach() {
+        // the test resource is suite scoped, so we clean up after each test
+        managedKafkaClient.list().forEach((mk)->managedKafkaClient.delete(mk.getMetadata().getNamespace(), mk.getMetadata().getName()));
+    }
 
     @Test
     public void testAddDelete() {

@@ -17,6 +17,7 @@ import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.bf2.sync.informer.InformerManager;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -43,6 +44,12 @@ public class UpdateTest {
 
     @Inject
     InformerManager informerManager;
+
+    @AfterEach
+    public void afterEach() {
+        // the test resource is suite scoped, so we clean up after each test
+        managedKafkaClient.list().forEach((mk)->managedKafkaClient.delete(mk.getMetadata().getNamespace(), mk.getMetadata().getName()));
+    }
 
     @Test
     public void testManagedKafkaInformer() throws InterruptedException {

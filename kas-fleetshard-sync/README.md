@@ -14,24 +14,36 @@ There are two main processing activities:
 mvn clean install
 ```
 
-## running locally
+## running
+
+Follow the operator instructions to at least build / install the CRDs, then create the kas-fleetshard namespace and create necessary authorizations:
+
+```shell
+kubectl create namespace kas-fleetshard
+kubectl config set-context --current --namespace=kas-fleetshard
+kubectl create -f ../kas-fleetshard-operator/src/main/kubernetes
+```
+
+> NOTE: ../kas-fleetshard-operator/src/main/kubernetes contains a deployment of the operator, which is not required for the sync to function.
+
+### local
+
+If crc or minikube is running, Quarkus should be smart enough to know how to connect to the instance and create a local process to run the sync.  
+
+> NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
+
+Simply run:
 
 ```shell
 mvn quarkus:dev
 ```
 
-> NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
-
-## deployment
-
-Follow the operator instructions to at least build / install the CRDs.  
-
-The operator is optional for the sync to function.
+### in container
 
 To directly use the minikube registry, run:
 
 ```shell
 eval $(minikube docker-env)
 
-mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent
+mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard
 ```
