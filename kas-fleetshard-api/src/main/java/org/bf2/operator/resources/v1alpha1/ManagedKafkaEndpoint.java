@@ -11,15 +11,15 @@ import io.sundr.builder.annotations.Buildable;
 )
 public class ManagedKafkaEndpoint {
 
-    private String bootstrapAddress;
+    private String bootstrapServerHost;
     private TlsKeyPair tls;
 
-    public String getBootstrapAddress() {
-        return bootstrapAddress;
+    public String getBootstrapServerHost() {
+        return bootstrapServerHost;
     }
 
-    public void setBootstrapAddress(String bootstrapAddress) {
-        this.bootstrapAddress = bootstrapAddress;
+    public void setBootstrapServerHost(String bootstrapServerHost) {
+        this.bootstrapServerHost = bootstrapServerHost;
     }
 
     public TlsKeyPair getTls() {
