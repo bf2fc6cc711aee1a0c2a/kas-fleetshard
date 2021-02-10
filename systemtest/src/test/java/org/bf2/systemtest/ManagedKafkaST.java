@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class ManagedKafkaST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaST.class);
@@ -96,5 +97,6 @@ public class ManagedKafkaST extends AbstractST {
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
+        fail("nevim");
     }
 }

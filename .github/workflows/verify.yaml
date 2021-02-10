@@ -43,3 +43,10 @@ jobs:
 
       - name: Run integration test
         run: mvn verify -pl systemtest -am --no-transfer-progress
+
+      - name: Archive results
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: artifacts
+          path: systemtest/target/logs/
