@@ -3,14 +3,11 @@ package org.bf2.sync;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
@@ -53,14 +50,8 @@ public class ManagedKafkaSync {
     @Inject
     KubernetesClient kubeClient;
 
-    ExecutorService executorService = new ThreadPoolExecutor(2, 2, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<>(10000), new ThreadPoolExecutor.DiscardOldestPolicy() {
-        @Override
-        public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
-            log.warn("Reconcile queue is full - purging an old task");
-            super.rejectedExecution(r, e);
-        }
-
-    });
+    @Inject
+    ExecutorService executorService;
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -68,7 +59,7 @@ public class ManagedKafkaSync {
      * Then execute that deferred work using the {@link ManagedExecutor} but with
      * a refresh of the state to ensure we're still acting appropriately.
      */
-    public void syncKafkaClusters(Executor executor) {
+    public void syncKafkaClusters() {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
         for (ManagedKafka remoteManagedKafka : controlPlane.getKafkaClusters()) {
@@ -86,22 +77,23 @@ public class ManagedKafkaSync {
 
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
-                    executor.execute(() -> {
+                    executorService.execute(() -> {
                         reconcile(remoteManagedKafka.getId(), localKey);
                     });
                 } else {
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
 
-                    // doesn't need to be async as the control plane call is async
-                    ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                    statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
+                    executorService.execute(() -> {
+                        ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
+                        statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
 
-                    // fire and forget - if it fails, we'll retry on the next poll
-                    controlPlane.updateKafkaClusterStatus(statusBuilder.build(), remoteManagedKafka.getId());
+                        // fire and forget - if it fails, we'll retry on the next poll
+                        controlPlane.updateKafkaClusterStatus(statusBuilder.build(), remoteManagedKafka.getId());
+                    });
                 }
             } else if (specChanged(remoteSpec, existing)) {
-                executor.execute(() -> {
+                executorService.execute(() -> {
                     reconcile(remoteManagedKafka.getId(), localKey);
                 });
             }
@@ -119,7 +111,7 @@ public class ManagedKafkaSync {
                 // TODO: seems bad
             }
 
-            executor.execute(() -> {
+            executorService.execute(() -> {
                 reconcile(null, Cache.metaNamespaceKeyFunc(local));
             });
         }
@@ -220,16 +212,17 @@ public class ManagedKafkaSync {
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list
-        try {
-            syncKafkaClusters(executorService);
-        } catch (RuntimeException e) {
-            // TODO: this could be inverted to a uni subscription
-            if (e.getCause() instanceof IOException) {
-                log.debugf("Could not poll for managed kafkas %s", e.getCause().getMessage());
-            } else {
-                log.errorf(e, "Could not poll for managed kafkas");
+        executorService.execute(()->{
+            try {
+                syncKafkaClusters();
+            } catch (RuntimeException e) {
+                if (e.getCause() instanceof IOException || e instanceof WebApplicationException) {
+                    log.infof("Could not poll for managed kafkas %s", e.getMessage());
+                } else {
+                    log.errorf(e, "Could not poll for managed kafkas");
+                }
             }
-        }
+        });
     }
 
 }

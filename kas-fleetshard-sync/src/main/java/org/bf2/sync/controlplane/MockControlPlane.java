@@ -65,7 +65,7 @@ public class MockControlPlane {
     private ManagedKafka createManagedKafka(int id) {
         ManagedKafka mk = new ManagedKafka();
         mk.setSpec(new ManagedKafkaSpecBuilder()
-                .withVersions(new VersionsBuilder().withKafka("2.2.6").build())
+                .withVersions(new VersionsBuilder().withKafka("2.2.6").withStrimzi("0.21.1").build())
                 .withNewCapacity()
                     .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
                     .withTotalMaxConnections(100)

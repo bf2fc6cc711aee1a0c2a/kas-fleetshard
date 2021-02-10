@@ -21,6 +21,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockito.exceptions.verification.WantedButNotInvoked;
 
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -62,8 +63,23 @@ public class UpdateTest {
         managedKafka.getMetadata().setNamespace("test");
         managedKafkaClient.create(managedKafka);
 
+        // wait to make sure we see the status update
+        for (int i = 0; i < 500; i++) {
+            try {
+                getUpdates().getValue().get(PollerTest.PLACEMENT_ID);
+                break;
+            } catch (WantedButNotInvoked e) {
+                Thread.sleep(10);
+            }
+        }
         assertNotNull(getUpdates().getValue().get(PollerTest.PLACEMENT_ID));
 
+        for (int i = 0; i < 500; i++) {
+            if (!informerManager.getLocalManagedKafkas().isEmpty()) {
+                break;
+            }
+            Thread.sleep(10);
+        }
         assertFalse(informerManager.getLocalManagedKafkas().isEmpty());
     }
 

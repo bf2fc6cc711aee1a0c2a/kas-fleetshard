@@ -4,9 +4,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -31,6 +34,9 @@ public class ControlPlane {
     @RestClient
     ControlPlaneRestClient controlPlaneClient;
 
+    @Inject
+    ExecutorService executorService;
+
     /* holds a copy of the remote state */
     private ConcurrentHashMap<String, ManagedKafka> managedKafkas = new ConcurrentHashMap<>();
 
@@ -52,38 +58,51 @@ public class ControlPlane {
      * Make an async call to update the status.  A default failure handler is already added.
      */
     public void updateStatus(ManagedKafkaAgent oldAgent, ManagedKafkaAgent newAgent) {
-        controlPlaneClient.updateStatus(id, newAgent.getStatus()).subscribe().with(
-                item -> {},
-                failure -> log.errorf(failure, "Could not update status for ManagedKafkaAgent"));
+        executorService.execute(() -> {
+            try {
+                controlPlaneClient.updateStatus(id, newAgent.getStatus());
+            } catch (WebApplicationException e) {
+                log.errorf(e, "Could not update status for ManagedKafkaAgent");
+            }
+        });
     }
 
     /**
      * Get the current list of ManagedKafka clusters from the control plane
+     * as a blocking call.
      * Also updates the cache of ManagedKafka instances
      * @return
      */
     public List<ManagedKafka> getKafkaClusters() {
-        return controlPlaneClient.getKafkaClusters(id)
-                .onItem().invoke((mks)->{
-                    mks.forEach((mk)->addManagedKafka(mk));
-                })
-                .await().indefinitely();
+        List<ManagedKafka> result = controlPlaneClient.getKafkaClusters(id);
+        result.forEach((mk)->addManagedKafka(mk));
+        return result;
     }
 
     /**
      * Make an async call to update the status.  A default failure handler is already added.
      */
     public void updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
-        updateKafkaClusterStatus(Map.of(clusterId, status));
+        updateKafkaClusterStatus(()->{return Map.of(clusterId, status);});
     }
 
     /**
      * Make an async call to update the status.  A default failure handler is already added.
+     *
+     * A {@link Supplier} is used to defer the map construction.
      */
-    public void updateKafkaClusterStatus(Map<String, ManagedKafkaStatus> status) {
-        controlPlaneClient.updateKafkaClustersStatus(id, status).subscribe().with(
-                item -> {},
-                failure -> log.errorf(failure, "Could not update status for %s", status.keySet()));
+    public void updateKafkaClusterStatus(Supplier<Map<String, ManagedKafkaStatus>> statusSupplier) {
+        executorService.execute(() -> {
+            Map<String, ManagedKafkaStatus> status = statusSupplier.get();
+            if (status.isEmpty()) {
+                return;
+            }
+            try {
+                controlPlaneClient.updateKafkaClustersStatus(id, status);
+            } catch (WebApplicationException e) {
+                log.errorf(e, "Could not update status for %s", status.keySet());
+            }
+        });
     }
 
     /**
@@ -123,15 +142,14 @@ public class ControlPlane {
      */
     @Scheduled(every = "{poll.interval}", delayed = "{update.delayed}")
     public void sendPendingStatusUpdates() {
-        Map<String, ManagedKafkaStatus> toSend = null;
-        synchronized (pendingStatus) {
-            if (pendingStatus.isEmpty()) {
-                return;
+        updateKafkaClusterStatus(()->{
+            Map<String, ManagedKafkaStatus> toSend = null;
+            synchronized (pendingStatus) {
+                toSend = new HashMap<>(pendingStatus);
+                pendingStatus.clear();
             }
-            toSend = new HashMap<>(pendingStatus);
-            pendingStatus.clear();
-        }
-        updateKafkaClusterStatus(toSend);
+            return toSend;
+        });
     }
 
 }
