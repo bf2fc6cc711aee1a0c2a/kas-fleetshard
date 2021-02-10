@@ -45,6 +45,7 @@ public class FleetShardOperatorManager {
         mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
         Thread.sleep(10_000);
         kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
+        TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         LOGGER.info("kas-fleetshard-operator is deleted");
     }
 }
