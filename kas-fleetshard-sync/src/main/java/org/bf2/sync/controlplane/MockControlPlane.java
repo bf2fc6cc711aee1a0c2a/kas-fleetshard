@@ -84,7 +84,7 @@ public class MockControlPlane {
                     .withTlsTrustedCertificate(CERT)
                 .endOauth()
                 .withNewEndpoint()
-                    .withBootstrapAddress("xyz.com")
+                    .withBootstrapServerHost("xyz.com")
                     .withNewTls()
                         .withCert(CERT)
                         .withKey(CERT)
