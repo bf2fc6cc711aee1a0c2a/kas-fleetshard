@@ -59,7 +59,6 @@ public class ManagedKafkaST extends AbstractST {
     }
 
     @Test
-    @Disabled("Issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/77")
     void testCreateDeleteCreateSameManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-create-delete";
         String testNamespace = "mk-test-create-delete";
