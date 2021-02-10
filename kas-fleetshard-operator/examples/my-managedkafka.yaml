@@ -66,3 +66,4 @@ spec:
         -----END PRIVATE KEY-----
   versions:
     kafka: 2.6.0
+    strimzi: 0.21.1

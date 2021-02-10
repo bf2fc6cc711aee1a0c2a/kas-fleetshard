@@ -12,6 +12,7 @@ import io.sundr.builder.annotations.Buildable;
 public class Versions {
 
     private String kafka;
+    private String strimzi;
 
     public String getKafka() {
         return kafka;
@@ -19,5 +20,13 @@ public class Versions {
 
     public void setKafka(String kafka) {
         this.kafka = kafka;
+    }
+
+    public String getStrimzi() {
+        return strimzi;
+    }
+
+    public void setStrimzi(String strimzi) {
+        this.strimzi = strimzi;
     }
 }
