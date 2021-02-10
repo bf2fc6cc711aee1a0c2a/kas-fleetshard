@@ -99,6 +99,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                         new ManagedKafkaSpecBuilder()
                                 .withNewVersions()
                                     .withKafka("2.6.0")
+                                    .withStrimzi("0.21.1")
                                 .endVersions()
                                 .withNewCapacity()
                                     .withNewIngressEgressThroughputPerSec("4Mi")

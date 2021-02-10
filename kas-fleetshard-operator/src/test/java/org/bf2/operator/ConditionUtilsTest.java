@@ -40,7 +40,8 @@ public class ConditionUtilsTest {
                 .withSpec(
                         new ManagedKafkaSpecBuilder()
                                 .withNewVersions()
-                                .withKafka("2.6.0")
+                                    .withKafka("2.6.0")
+                                    .withStrimzi("0.21.1")
                                 .endVersions()
                                 .build())
                 .withStatus(
