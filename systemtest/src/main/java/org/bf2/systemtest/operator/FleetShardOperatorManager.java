@@ -2,7 +2,6 @@ package org.bf2.systemtest.operator;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
-import org.apache.commons.collections.map.SingletonMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -35,9 +34,9 @@ public class FleetShardOperatorManager {
     public static boolean isOperatorInstalled() {
         return KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains("kas-fleetshard-operator")) &&
-                KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
-                .list().getItems().stream().filter(pod ->
-                        pod.getMetadata().getName().contains("kas-fleetshard-operator")).findFirst().get().getStatus().getPhase().equals("Running");
+                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                        .list().getItems().stream().filter(pod ->
+                                pod.getMetadata().getName().contains("kas-fleetshard-operator")).findFirst().get());
     }
 
     public static void deleteFleetShardOperator(KubeClient kubeClient) throws InterruptedException {
@@ -46,6 +45,7 @@ public class FleetShardOperatorManager {
         mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
         Thread.sleep(10_000);
         kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
+        TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         LOGGER.info("kas-fleetshard-operator is deleted");
     }
 }

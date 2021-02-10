@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -53,6 +54,7 @@ public class StrimziOperatorManager {
                 kubeClient.client().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
             });
         });
+        String crbID = UUID.randomUUID().toString().substring(0, 5);
         opItems.stream().filter(RoleBinding.class::isInstance).forEach(roleBinding -> {
             roleBinding.getMetadata().setNamespace(OPERATOR_NS);
             RoleBinding rb = (RoleBinding) roleBinding;
@@ -60,7 +62,7 @@ public class StrimziOperatorManager {
 
             ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
                     .withNewMetadata()
-                    .withName(rb.getMetadata().getName() + "-all-ns")
+                    .withName(rb.getMetadata().getName() + "-all-ns-" + crbID)
                     .withAnnotations(rb.getMetadata().getAnnotations())
                     .withLabels(rb.getMetadata().getLabels())
                     .endMetadata()
@@ -77,9 +79,9 @@ public class StrimziOperatorManager {
 
         opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(OPERATOR_NS).createOrReplace());
         TestUtils.waitFor("Operator ready", 1_000, 120_000, () ->
-                KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                         .list().getItems().stream().filter(pod ->
-                        pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get().getStatus().getPhase().equals("Running"));
+                                pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
         LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
     }
 
@@ -87,5 +89,9 @@ public class StrimziOperatorManager {
         LOGGER.info("Deleting Strimzi : {}", OPERATOR_NS);
         kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
         CLUSTER_WIDE_RESOURCE_DELETERS.forEach(delete -> delete.accept(null));
+        TestUtils.waitFor("Delete strimzi", 2_000, 120_000, () ->
+                kubeClient.client().pods().inNamespace(OPERATOR_NS).list().getItems().stream().noneMatch(pod ->
+                        pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
+                !kubeClient.namespaceExists(OPERATOR_NS));
     }
 }

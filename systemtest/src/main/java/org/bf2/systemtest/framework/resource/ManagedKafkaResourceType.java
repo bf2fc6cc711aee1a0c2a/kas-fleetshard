@@ -1,14 +1,18 @@
 package org.bf2.systemtest.framework.resource;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
@@ -41,8 +45,8 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     public boolean isReady(ManagedKafka mk) {
         return mk != null &&
                 mk.getStatus() != null &&
-                mk.getStatus().getConditions().stream().anyMatch(c -> c.getType().equals(ManagedKafkaCondition.Type.Ready.name())) &&
-                mk.getStatus().getConditions().stream().filter(c -> c.getType().equals(ManagedKafkaCondition.Type.Ready.name())).findFirst().get().getStatus().equals("True");
+                getCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready) != null &&
+                Objects.requireNonNull(getCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready)).getStatus().equals("True");
     }
 
     @Override
@@ -74,5 +78,53 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     public static List<Pod> getZookeeperPods(ManagedKafka mk) {
         return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
                 pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "zookeeper"))).collect(Collectors.toList());
+    }
+
+    public static Pod getAdminApiPod(ManagedKafka mk) {
+        return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
+                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "admin-server"))).findFirst().get();
+    }
+
+    /**
+     * get common default managedkafka instance
+     */
+    public static ManagedKafka getDefault(String namespace, String appName) {
+        return new ManagedKafkaBuilder()
+                .withMetadata(
+                        new ObjectMetaBuilder()
+                                .withNamespace(namespace)
+                                .withName(appName)
+                                .build())
+                .withSpec(
+                        new ManagedKafkaSpecBuilder()
+                                .withNewVersions()
+                                    .withKafka("2.6.0")
+                                .endVersions()
+                                .withNewCapacity()
+                                    .withNewIngressEgressThroughputPerSec("4Mi")
+                                    .withNewMaxDataRetentionPeriod("P14D")
+                                    .withNewMaxDataRetentionSize("100Gi")
+                                    .withTotalMaxConnections(500)
+                                    .withMaxPartitions(100)
+                                .endCapacity()
+                                .withNewEndpoint()
+                                    .withNewBootstrapServerHost("")
+                                    .withNewTls()
+                                        .withNewCert("cert")
+                                        .withNewKey("key")
+                                    .endTls()
+                                .endEndpoint()
+                                .withNewOauth()
+                                    .withClientId("clientID")
+                                    .withNewTlsTrustedCertificate("cert")
+                                    .withClientSecret("secret")
+                                    .withUserNameClaim("userClaim")
+                                    .withNewTokenEndpointURI("tokenEndpointURI")
+                                    .withNewJwksEndpointURI("jwksEndpointURI")
+                                    .withNewTokenEndpointURI("tokenUri")
+                                    .withNewValidIssuerEndpointURI("issuer")
+                                .endOauth()
+                                .build())
+                .build();
     }
 }
