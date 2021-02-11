@@ -3,8 +3,9 @@ package org.bf2.sync.informer;
 import java.time.Duration;
 import java.util.List;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -17,8 +18,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
@@ -37,7 +36,8 @@ public class InformerManager implements LocalLookup {
     private SharedIndexInformer<ManagedKafka> managedKafkaInformer;
     private SharedIndexInformer<ManagedKafkaAgent> managedAgentInformer;
 
-    void onStart(@Observes StartupEvent ev) {
+    @PostConstruct
+    protected void onStart() {
         sharedInformerFactory = client.informers();
 
         managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
@@ -52,7 +52,8 @@ public class InformerManager implements LocalLookup {
         sharedInformerFactory.startAllRegisteredInformers();
     }
 
-    void onStop(@Observes ShutdownEvent ev) {
+    @PreDestroy
+    protected void onStop() {
         sharedInformerFactory.stopAllRegisteredInformers();
     }
 

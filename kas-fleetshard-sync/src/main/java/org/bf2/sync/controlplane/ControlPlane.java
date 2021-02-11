@@ -14,7 +14,6 @@ import javax.ws.rs.WebApplicationException;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.sync.ManagedKafkaSync;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -114,16 +113,10 @@ public class ControlPlane {
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
-        if (oldManagedKafka != null) {
-            if (statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
-                // send a status update immediately (async)
-                updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
-                return;
-            }
-            if (ManagedKafkaSync.specChanged(oldManagedKafka.getSpec(), newManagedKafka)) {
-                // the control plane initiated this, so it doesn't need to be sent
-                return;
-            }
+        if (oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
+            // send a status update immediately (async)
+            updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
+            return;
         }
     }
 
@@ -143,6 +136,7 @@ public class ControlPlane {
     public void sendResync() {
         updateKafkaClusterStatus(() -> {
             return localLookup.getLocalManagedKafkas().stream()
+                    .filter((mk)->mk.getStatus()!=null)
                     .collect(Collectors.toMap(ManagedKafka::getId, ManagedKafka::getStatus));
         });
     }
