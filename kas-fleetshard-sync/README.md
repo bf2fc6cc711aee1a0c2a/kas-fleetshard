@@ -47,3 +47,21 @@ eval $(minikube docker-env)
 
 mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard
 ```
+
+### In OpenShift (Code Ready Container)
+
+To get access to the OpenShift image registry run below commands
+
+```shell
+oc extract secret/router-ca --keys=tls.crt -n openshift-ingress-operator
+sudo mkdir -p /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/ 
+sudo cp tls.crt /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/
+sudo chmod 644 /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/tls.crt
+buildah login -u developer -p $(oc whoami -t) default-route-openshift-image-registry.apps-crc.testing
+```
+
+now to deploy the agent-sync run
+
+```shell
+mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard -Dquarkus.kubernetes-client.trust-certs=true
+```
