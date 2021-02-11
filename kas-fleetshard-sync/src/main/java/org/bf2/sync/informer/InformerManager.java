@@ -66,4 +66,8 @@ public class InformerManager implements LocalLookup {
     public List<ManagedKafka> getLocalManagedKafkas() {
         return managedKafkaInformer.getIndexer().list();
     }
+
+    public boolean isReady() {
+        return managedAgentInformer.hasSynced() && managedAgentInformer.hasSynced();
+    }
 }
