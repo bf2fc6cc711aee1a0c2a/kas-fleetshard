@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled("Issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/78")
 public class RecoveryST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(RecoveryST.class);
 
@@ -39,7 +40,6 @@ public class RecoveryST extends AbstractST {
     }
 
     @Test
-    @Disabled("Issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/78")
     void testDeleteDeployedResources(ExtensionContext extensionContext) {
         String mkAppName = "mk-resource-recovery";
         String testNamespace = "mk-test-resources-recovery";
