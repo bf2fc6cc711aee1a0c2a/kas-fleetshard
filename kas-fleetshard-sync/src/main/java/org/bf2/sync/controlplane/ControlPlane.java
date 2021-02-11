@@ -1,11 +1,11 @@
 package org.bf2.sync.controlplane;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -15,6 +15,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.ManagedKafkaSync;
+import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
@@ -37,10 +38,11 @@ public class ControlPlane {
     @Inject
     ExecutorService executorService;
 
+    @Inject
+    LocalLookup localLookup;
+
     /* holds a copy of the remote state */
     private ConcurrentHashMap<String, ManagedKafka> managedKafkas = new ConcurrentHashMap<>();
-
-    private Map<String, ManagedKafkaStatus> pendingStatus = new HashMap<>();
 
     void addManagedKafka(ManagedKafka remoteManagedKafka) {
         managedKafkas.put(remoteManagedKafka.getId(), remoteManagedKafka);
@@ -112,19 +114,16 @@ public class ControlPlane {
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
-        if ((oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus()))
-                || (oldManagedKafka == null && newManagedKafka.getSpec() != null)) {
-            // send a status update immediately (async)
-            updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
-            return;
-        }
-        if (oldManagedKafka != null && ManagedKafkaSync.specChanged(oldManagedKafka.getSpec(), newManagedKafka)) {
-            // the control plane initiated this, so it doesn't need to be sent
-            return;
-        }
-        // send a resync in a batch
-        synchronized (pendingStatus) {
-            pendingStatus.put(newManagedKafka.getId(), newManagedKafka.getStatus());
+        if (oldManagedKafka != null) {
+            if (statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
+                // send a status update immediately (async)
+                updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
+                return;
+            }
+            if (ManagedKafkaSync.specChanged(oldManagedKafka.getSpec(), newManagedKafka)) {
+                // the control plane initiated this, so it doesn't need to be sent
+                return;
+            }
         }
     }
 
@@ -137,18 +136,14 @@ public class ControlPlane {
     }
 
     /**
-     * There doesn't seem to be a great way to know when a resyn is done,
+     * There doesn't seem to be a great way to know when a resync is done,
      * so we'll just flush here
      */
-    @Scheduled(every = "{poll.interval}", delayed = "{update.delayed}")
-    public void sendPendingStatusUpdates() {
-        updateKafkaClusterStatus(()->{
-            Map<String, ManagedKafkaStatus> toSend = null;
-            synchronized (pendingStatus) {
-                toSend = new HashMap<>(pendingStatus);
-                pendingStatus.clear();
-            }
-            return toSend;
+    @Scheduled(every = "{resync.interval}", delayed = "{update.delayed}")
+    public void sendResync() {
+        updateKafkaClusterStatus(() -> {
+            return localLookup.getLocalManagedKafkas().stream()
+                    .collect(Collectors.toMap(ManagedKafka::getId, ManagedKafka::getStatus));
         });
     }
 
