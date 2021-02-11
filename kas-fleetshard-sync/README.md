@@ -57,7 +57,7 @@ oc extract secret/router-ca --keys=tls.crt -n openshift-ingress-operator
 sudo mkdir -p /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/ 
 sudo cp tls.crt /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/
 sudo chmod 644 /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/tls.crt
-buildah login -u developer -p $(oc whoami -t) default-route-openshift-image-registry.apps-crc.testing
+docker login -u developer -p $(oc whoami -t) default-route-openshift-image-registry.apps-crc.testing
 ```
 
 now to deploy the agent-sync run
