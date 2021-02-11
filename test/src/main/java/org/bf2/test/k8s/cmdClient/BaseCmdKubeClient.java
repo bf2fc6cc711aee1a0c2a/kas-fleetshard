@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static java.lang.String.join;
 import static java.util.Arrays.asList;
 
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
@@ -370,31 +369,21 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     }
 
     @Override
-    public String searchInLog(String resourceType, String resourceName, long sinceSeconds, String... grepPattern) {
+    public String searchInLog(String resourceType, String resourceName, long sinceSeconds) {
         try {
-            return Exec.exec("bash", "-c", join(" ", namespacedCommand("logs", resourceType + "/" + resourceName, "--since=" + sinceSeconds + "s",
-                    "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1"))).out();
+            return Exec.exec(namespacedCommand("logs", resourceType + "/" + resourceName, "--since=" + sinceSeconds + "s")).out();
         } catch (KubeClusterException e) {
-            if (e.result != null && e.result.returnCode() == 1) {
-                LOGGER.info("{} not found", grepPattern);
-            } else {
-                LOGGER.error("Caught exception while searching {} in logs", grepPattern);
-            }
+            LOGGER.error("Caught exception while searching in logs");
         }
         return "";
     }
 
     @Override
-    public String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds, String... grepPattern) {
+    public String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds) {
         try {
-            return Exec.exec("bash", "-c", join(" ", namespacedCommand("logs", resourceType + "/" + resourceName, "-c " + resourceContainer, "--since=" + sinceSeconds + "s",
-                    "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1"))).out();
+            return Exec.exec(namespacedCommand("logs", resourceType + "/" + resourceName, "-c " + resourceContainer, "--since=" + sinceSeconds + "s")).out();
         } catch (KubeClusterException e) {
-            if (e.result != null && e.result.exitStatus()) {
-                LOGGER.info("{} not found", grepPattern);
-            } else {
-                LOGGER.error("Caught exception while searching {} in logs", grepPattern);
-            }
+            LOGGER.error("Caught exception while searching in logs");
         }
         return "";
     }

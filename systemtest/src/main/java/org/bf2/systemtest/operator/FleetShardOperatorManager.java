@@ -48,4 +48,9 @@ public class FleetShardOperatorManager {
         TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         LOGGER.info("kas-fleetshard-operator is deleted");
     }
+
+    public static String getErrorsFromOperatorLog(long sinceInSec) {
+        KubeClient kube = KubeClient.getInstance();
+        return kube.cmdClient().namespace(OPERATOR_NS).searchInLog("deployment", "kas-fleetshard-operator", sinceInSec);
+    }
 }

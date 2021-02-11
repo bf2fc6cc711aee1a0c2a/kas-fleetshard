@@ -18,9 +18,9 @@ public class LogCollector {
      * Calls storing cluster info for connected cluster
      */
     public static void saveKubernetesState(ExtensionContext extensionContext, Throwable throwable) throws Throwable {
-        LOGGER.warn("Printing all pods on cluster");
+        LOGGER.debug("Printing all pods on cluster");
         KubeClient.getInstance().client().pods().inAnyNamespace().list().getItems().forEach(p ->
-                LOGGER.info("Pod: {} in ns: {} with phase: {}",
+                LOGGER.debug("Pod: {} in ns: {} with phase: {}",
                         p.getMetadata().getName(),
                         p.getMetadata().getNamespace(),
                         p.getStatus().getPhase()));

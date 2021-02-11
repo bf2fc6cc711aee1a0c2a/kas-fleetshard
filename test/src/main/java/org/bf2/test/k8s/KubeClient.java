@@ -91,8 +91,9 @@ public class KubeClient {
 
     /**
      * Apply resources from files
+     *
      * @param namespace namessppace where to apply
-     * @param paths folders
+     * @param paths     folders
      */
     public void apply(String namespace, final Path... paths) throws Exception {
         apply(namespace, inputStream -> inputStream, paths);

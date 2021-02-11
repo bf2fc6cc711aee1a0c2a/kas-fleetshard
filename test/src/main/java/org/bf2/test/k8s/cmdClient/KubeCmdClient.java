@@ -197,20 +197,18 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @param resourceType The type of resource
      * @param resourceName The name of resource
      * @param sinceSeconds Return logs newer than a relative duration like 5s, 2m, or 3h.
-     * @param grepPattern  Grep patterns for search
      * @return Grep result as string
      */
-    String searchInLog(String resourceType, String resourceName, long sinceSeconds, String... grepPattern);
+    String searchInLog(String resourceType, String resourceName, long sinceSeconds);
 
     /**
      * @param resourceType      The type of resource
      * @param resourceName      The name of resource
      * @param resourceContainer The name of resource container
      * @param sinceSeconds      Return logs newer than a relative duration like 5s, 2m, or 3h.
-     * @param grepPattern       Grep patterns for search
      * @return Grep result as string
      */
-    String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds, String... grepPattern);
+    String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds);
 
     String getResourceAsJson(String resourceType, String resourceName);
 
