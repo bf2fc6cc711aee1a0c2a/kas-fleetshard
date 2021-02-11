@@ -12,8 +12,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -30,7 +29,8 @@ import java.util.Map;
 @ApplicationScoped
 public class Canary implements Operand<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(Canary.class);
+    @Inject
+    Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -128,7 +128,7 @@ public class Canary implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.info("Canary isInstalling = {}", isInstalling);
+        log.infof("Canary isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -137,7 +137,7 @@ public class Canary implements Operand<ManagedKafka> {
         Deployment deployment = informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.info("Canary isReady = {}", isReady);
+        log.infof("Canary isReady = %s", isReady);
         return isReady;
     }
 

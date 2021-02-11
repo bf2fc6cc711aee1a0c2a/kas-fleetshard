@@ -19,8 +19,7 @@ import io.fabric8.openshift.api.model.RouteBuilder;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -37,7 +36,8 @@ import java.util.Map;
 @ApplicationScoped
 public class AdminServer implements Operand<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(AdminServer.class);
+    @Inject
+    Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -251,7 +251,7 @@ public class AdminServer implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.info("Admin Server isInstalling = {}", isInstalling);
+        log.infof("Admin Server isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -260,7 +260,7 @@ public class AdminServer implements Operand<ManagedKafka> {
         Deployment deployment = informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.info("Admin Server isReady = {}", isReady);
+        log.infof("Admin Server isReady = %s", isReady);
         return isReady;
     }
 

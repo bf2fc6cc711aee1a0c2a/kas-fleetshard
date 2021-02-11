@@ -18,8 +18,7 @@ import org.bf2.operator.operands.AdminServer;
 import org.bf2.operator.operands.Canary;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 import java.util.Collections;
@@ -29,7 +28,8 @@ import java.util.Optional;
 @Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
+    @Inject
+    Logger log;
 
     @Inject
     KafkaEventSource kafkaEventSource;
@@ -42,7 +42,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        log.info("Deleting Kafka instance {}", managedKafka.getMetadata().getName());
+        log.infof("Deleting Kafka instance %s", managedKafka.getMetadata().getName());
         kafkaInstance.delete(managedKafka, context);
         return DeleteControl.DEFAULT_DELETE;
     }
@@ -64,7 +64,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             try {
                 kafkaInstance.createOrUpdate(managedKafka);
             } catch (Exception ex) {
-                log.error("Error reconciling {}", managedKafka.getMetadata().getName(), ex);
+                log.errorf("Error reconciling %s", managedKafka.getMetadata().getName(), ex);
                 return UpdateControl.noUpdate();
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
@@ -74,9 +74,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
-            log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+            log.infof("Kafka resource %s/%s is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             if (kafka.getStatus() != null) {
-                log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
+                log.infof("Kafka conditions = %s", kafka.getStatus().getConditions());
                 updateManagedKafkaStatus(managedKafka);
             }
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
@@ -86,14 +86,14 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(DeploymentEvent.class);
         if (latestDeploymentEvent.isPresent()) {
             Deployment deployment = latestDeploymentEvent.get().getDeployment();
-            log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+            log.infof("Deployment resource %s/%s is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
 
             // check if the Deployment is related to Canary or Admin Server
             // NOTE: the informer already filter only these Deployments, just checking for safety
             if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka)) ||
                 deployment.getMetadata().getName().equals(AdminServer.adminServerName(managedKafka))) {
                 if (deployment.getStatus() != null) {
-                    log.info("Deployment conditions = {}", deployment.getStatus().getConditions());
+                    log.infof("Deployment conditions = %s", deployment.getStatus().getConditions());
                     updateManagedKafkaStatus(managedKafka);
                 }
             }

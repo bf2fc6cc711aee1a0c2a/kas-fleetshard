@@ -3,31 +3,32 @@ package org.bf2.operator.events;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 @ApplicationScoped
 public class KafkaEventSource extends AbstractEventSource implements ResourceEventHandler<Kafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaEventSource.class);
+    @Inject
+    Logger log;
 
     @Override
     public void onAdd(Kafka kafka) {
-        log.info("Add event received for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+        log.infof("Add event received for Kafka %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
         handleEvent(kafka);
     }
 
     @Override
     public void onUpdate(Kafka oldKafka, Kafka newKafka) {
-        log.info("Update event received for Kafka {}/{}", oldKafka.getMetadata().getNamespace(), oldKafka.getMetadata().getName());
+        log.infof("Update event received for Kafka %s/%s", oldKafka.getMetadata().getNamespace(), oldKafka.getMetadata().getName());
         handleEvent(newKafka);
     }
 
     @Override
     public void onDelete(Kafka kafka, boolean deletedFinalStateUnknown) {
-        log.info("Delete event received for Kafka {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+        log.infof("Delete event received for Kafka %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
         handleEvent(kafka);
     }
 

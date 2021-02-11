@@ -3,31 +3,32 @@ package org.bf2.operator.events;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 @ApplicationScoped
 public class DeploymentEventSource extends AbstractEventSource implements ResourceEventHandler<Deployment> {
 
-    private static final Logger log = LoggerFactory.getLogger(DeploymentEventSource.class);
+    @Inject
+    Logger log;
 
     @Override
     public void onAdd(Deployment deployment) {
-        log.info("Add event received for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+        log.infof("Add event received for Deployment %s/%s", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
         handleEvent(deployment);
     }
 
     @Override
     public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
-        log.info("Update event received for Deployment {}/{}", oldDeployment.getMetadata().getNamespace(), oldDeployment.getMetadata().getName());
+        log.infof("Update event received for Deployment %s/%s", oldDeployment.getMetadata().getNamespace(), oldDeployment.getMetadata().getName());
         handleEvent(newDeployment);
     }
 
     @Override
     public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
-        log.info("Delete event received for Deployment {}/{}", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+        log.infof("Delete event received for Deployment %s/%s", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
         handleEvent(deployment);
     }
 
