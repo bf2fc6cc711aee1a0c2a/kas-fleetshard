@@ -25,12 +25,6 @@ jobs:
           kubernetes version: 'latest'
           start args: '--addons=registry --insecure-registry "10.0.0.0/24" --insecure-registry "localhost:5000" --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.authorization-mode=RBAC,Node'
 
-      - name: Enable OLM
-        run: |
-          curl -L https://github.com/operator-framework/operator-lifecycle-manager/releases/download/v0.17.0/install.sh -o install.sh
-          chmod +x install.sh
-          ./install.sh v0.17.0
-
       - name: Build and push operator
         run: |
           mvn clean package -pl kas-fleetshard-operator -am --no-transfer-progress \
