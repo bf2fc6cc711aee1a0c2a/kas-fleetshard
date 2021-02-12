@@ -60,6 +60,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
+    /* test */
     protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
@@ -82,61 +83,6 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                     .editOrNewZookeeper()
                         .withReplicas(3)
                         .withStorage((SingleVolumeStorage)getStorage())
-                    .endZookeeper()
-                .endSpec()
-                .build();
-
-        // setting the ManagedKafka has owner of the Kafka resource is needed
-        // by the operator sdk to handle events on the Kafka resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        kafka.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
-
-        return kafka;
-    }
-
-    /* test */
-    protected Kafka kafkaFrom(ManagedKafka managedKafka) {
-
-        Map<String, Object> config = new HashMap<>();
-        config.put("offsets.topic.replication.factor", 3);
-        config.put("transaction.state.log.replication.factor", 3);
-        config.put("transaction.state.log.min.isr", 2);
-        config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
-        config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
-
-        Kafka kafka = new KafkaBuilder()
-                .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA1)
-                .withNewMetadata()
-                    .withName(kafkaClusterName(managedKafka))
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withLabels(getLabels())
-                .endMetadata()
-                .withNewSpec()
-                    .withNewKafka()
-                        .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                        .withReplicas(3)
-                        .withListeners(
-                                new ArrayOrObjectKafkaListenersBuilder()
-                                        .withGenericKafkaListeners(
-                                                new GenericKafkaListenerBuilder()
-                                                        .withName("plain")
-                                                        .withPort(9092)
-                                                        .withType(KafkaListenerType.INTERNAL)
-                                                        .withTls(false)
-                                                        .build()
-                                        ).build()
-                        )
-                        .withStorage(new EphemeralStorageBuilder().build())
-                        .withConfig(config)
-                    .endKafka()
-                    .withNewZookeeper()
-                        .withReplicas(3)
-                        .withStorage(new EphemeralStorageBuilder().build())
                     .endZookeeper()
                 .endSpec()
                 .build();
