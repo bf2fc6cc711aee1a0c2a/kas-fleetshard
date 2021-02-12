@@ -84,13 +84,11 @@ public class ManagedKafkaSync {
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
 
-                    executorService.execute(() -> {
-                        ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                        statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
+                    ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
+                    statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
 
-                        // fire and forget - if it fails, we'll retry on the next poll
-                        controlPlane.updateKafkaClusterStatus(statusBuilder.build(), remoteManagedKafka.getId());
-                    });
+                    // fire and forget the async call - if it fails, we'll retry on the next poll
+                    controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
             } else if (specChanged(remoteSpec, existing)) {
                 executorService.execute(() -> {

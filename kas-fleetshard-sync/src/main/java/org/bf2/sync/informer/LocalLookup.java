@@ -3,6 +3,7 @@ package org.bf2.sync.informer;
 import java.util.List;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 
@@ -18,5 +19,5 @@ public interface LocalLookup {
 
     List<ManagedKafka> getLocalManagedKafkas();
 
-    // getLocalManagedKafkaAgent
+    ManagedKafkaAgent getLocalManagedKafkaAgent();
 }

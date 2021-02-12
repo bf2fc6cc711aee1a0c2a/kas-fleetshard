@@ -30,9 +30,7 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         if (log.isTraceEnabled()) {
             log.tracef("Add event for %s", Cache.metaNamespaceKeyFunc(obj));
         }
-        if (obj.getStatus() != null) {
-            consumer.accept(null, obj);
-        }
+        consumer.accept(null, obj);
     }
 
     @Override
@@ -52,9 +50,7 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         // an update will also be generated for each resyncPeriodInMillis
         // which is a way to ensure the consumer has an up-to-date state
         // even if something is missed
-        if (newObj.getStatus() != null) {
-            consumer.accept(oldObj, newObj);
-        }
+        consumer.accept(oldObj, newObj);
     }
 
 }

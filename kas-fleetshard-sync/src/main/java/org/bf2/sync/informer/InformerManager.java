@@ -47,7 +47,7 @@ public class InformerManager implements LocalLookup {
         // for the Agent
         managedAgentInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,
                 resync.toMillis());
-        managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateStatus));
+        managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         sharedInformerFactory.startAllRegisteredInformers();
     }
@@ -69,5 +69,15 @@ public class InformerManager implements LocalLookup {
 
     public boolean isReady() {
         return managedAgentInformer.hasSynced() && managedAgentInformer.hasSynced();
+    }
+
+    @Override
+    public ManagedKafkaAgent getLocalManagedKafkaAgent() {
+        List<ManagedKafkaAgent> list = managedAgentInformer.getIndexer().list();
+        if (list.isEmpty()) {
+            return null;
+        }
+        // we're assuming it's a singleton
+        return list.get(0);
     }
 }

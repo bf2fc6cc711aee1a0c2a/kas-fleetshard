@@ -6,9 +6,11 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.informer.LocalLookup;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.Mock;
 
 /**
@@ -22,6 +24,9 @@ public class DirectLocalLookup implements LocalLookup {
     @Inject
     ManagedKafkaResourceClient client;
 
+    @Inject
+    KubernetesClient kubeClient;
+
     @Override
     public ManagedKafka getLocalManagedKafka(String metaNamespaceKey) {
         String[] parts = metaNamespaceKey.split("/");
@@ -31,6 +36,15 @@ public class DirectLocalLookup implements LocalLookup {
     @Override
     public List<ManagedKafka> getLocalManagedKafkas() {
         return client.list();
+    }
+
+    @Override
+    public ManagedKafkaAgent getLocalManagedKafkaAgent() {
+        List<ManagedKafkaAgent> items = kubeClient.customResources(ManagedKafkaAgent.class).list().getItems();
+        if (items.isEmpty()) {
+            return null;
+        }
+        return items.get(0);
     }
 
 }

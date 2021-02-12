@@ -1,5 +1,8 @@
 package org.bf2.sync.controlplane;
 
+import static java.util.Objects.requireNonNullElse;
+
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,16 +16,22 @@ import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
 public class ControlPlane {
+
+    private static final ManagedKafkaStatus EMPTY_MANAGED_KAFKA_STATUS = new ManagedKafkaStatus();
+    private static final ManagedKafkaAgentStatus EMPTY_MANAGED_KAFKA_AGENT_STATUS = new ManagedKafkaAgentStatus();
 
     @Inject
     Logger log;
@@ -56,12 +65,25 @@ public class ControlPlane {
     }
 
     /**
-     * Make an async call to update the status.  A default failure handler is already added.
+     * Make an async call to update the status, but only if it is different that the old.
+     *
+     * newAgent is expected to be non-null
      */
-    public void updateStatus(ManagedKafkaAgent oldAgent, ManagedKafkaAgent newAgent) {
+    public void updateAgentStatus(ManagedKafkaAgent oldAgent, ManagedKafkaAgent newAgent) {
+        if (oldAgent != null && statusChanged(oldAgent.getStatus(), newAgent.getStatus())) {
+            // send a status update immediately (async)
+            updateAgentStatus();
+        }
+    }
+
+    private void updateAgentStatus() {
         executorService.execute(() -> {
             try {
-                controlPlaneClient.updateStatus(id, newAgent.getStatus());
+                ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
+                if (localManagedKafkaAgent != null) {
+                    controlPlaneClient.updateStatus(id, localManagedKafkaAgent.getStatus());
+                }
+                // TODO if it's null we could still send an empty status
             } catch (WebApplicationException e) {
                 log.errorf(e, "Could not update status for ManagedKafkaAgent");
             }
@@ -81,14 +103,21 @@ public class ControlPlane {
     }
 
     /**
-     * Make an async call to update the status.  A default failure handler is already added.
+     * Make an async call to update the status.
      */
-    public void updateKafkaClusterStatus(ManagedKafkaStatus status, String clusterId) {
-        updateKafkaClusterStatus(()->{return Map.of(clusterId, status);});
+    public void updateKafkaClusterStatus(String localMetaNamespaceKey, String clusterId) {
+        updateKafkaClusterStatus(() -> {
+            ManagedKafka kafka = localLookup.getLocalManagedKafka(localMetaNamespaceKey);
+            if (kafka == null) {
+                return Collections.emptyMap();
+            }
+            // for consistency we'll send an empty status
+            return Map.<String, ManagedKafkaStatus>of(clusterId, requireNonNullElse(kafka.getStatus(), EMPTY_MANAGED_KAFKA_STATUS));
+        });
     }
 
     /**
-     * Make an async call to update the status.  A default failure handler is already added.
+     * Make an async call to update the status.
      *
      * A {@link Supplier} is used to defer the map construction.
      */
@@ -107,38 +136,46 @@ public class ControlPlane {
     }
 
     /**
-     * Update the control plane with the status of this ManagedKafka, but
-     * only if it's different than what the control plane already knows.
+     * Async update the control plane with the status of this ManagedKafka, but
+     * only if it's different than the old
      *
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
         if (oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
             // send a status update immediately (async)
-            updateKafkaClusterStatus(newManagedKafka.getStatus(), newManagedKafka.getId());
-            return;
+            updateKafkaClusterStatus(Cache.metaNamespaceKeyFunc(newManagedKafka), newManagedKafka.getId());
         }
     }
 
-    boolean statusChanged(ManagedKafkaStatus oldStatus, ManagedKafkaStatus newStatus) {
-        if (oldStatus == null) {
-            return true;
-        }
-        // TODO: implement me
-        return !oldStatus.equals(newStatus);
+    static boolean statusChanged(ManagedKafkaAgentStatus oldStatus, ManagedKafkaAgentStatus newStatus) {
+        // TODO this will likely change as we're reusing the ManagedKafkaConditions
+        // a couple of interfaces would keep the logic similar though
+        return maxTransitionTime(requireNonNullElse(oldStatus, EMPTY_MANAGED_KAFKA_AGENT_STATUS).getConditions()).compareTo(
+                maxTransitionTime(requireNonNullElse(newStatus, EMPTY_MANAGED_KAFKA_AGENT_STATUS).getConditions())) < 0;
+    }
+
+    static boolean statusChanged(ManagedKafkaStatus oldStatus, ManagedKafkaStatus newStatus) {
+        return maxTransitionTime(requireNonNullElse(oldStatus, EMPTY_MANAGED_KAFKA_STATUS).getConditions()).compareTo(
+                maxTransitionTime(requireNonNullElse(newStatus, EMPTY_MANAGED_KAFKA_STATUS).getConditions())) < 0;
+    }
+
+    private static String maxTransitionTime(List<ManagedKafkaCondition> conditions) {
+        return requireNonNullElse(conditions, Collections.<ManagedKafkaCondition>emptyList()).stream()
+                        .map((mkc)->requireNonNullElse(mkc.getLastTransitionTime(), "0"))
+                        .max(String::compareTo).orElse("");
     }
 
     /**
-     * There doesn't seem to be a great way to know when a resync is done,
-     * so we'll just flush here
+     * On the resync interval, send everything
      */
     @Scheduled(every = "{resync.interval}", delayed = "{update.delayed}")
     public void sendResync() {
         updateKafkaClusterStatus(() -> {
-            return localLookup.getLocalManagedKafkas().stream()
-                    .filter((mk)->mk.getStatus()!=null)
-                    .collect(Collectors.toMap(ManagedKafka::getId, ManagedKafka::getStatus));
+            return localLookup.getLocalManagedKafkas().stream().collect(Collectors.toMap(ManagedKafka::getId,
+                    (mk) -> requireNonNullElse(mk.getStatus(), EMPTY_MANAGED_KAFKA_STATUS)));
         });
+        updateAgentStatus();
     }
 
 }

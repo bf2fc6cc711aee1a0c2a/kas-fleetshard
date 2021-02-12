@@ -47,6 +47,7 @@ public class UpdateTest {
     @Test
     public void testControlPlanUpdates() {
         ManagedKafka managedKafka = PollerTest.exampleManagedKafka();
+        managedKafka.getMetadata().setNamespace(managedKafka.getId());
         managedKafka.setStatus(
                 new ManagedKafkaStatusBuilder().addNewCondition().withStatus("Installed").endCondition().build());
         managedKafkaClient.create(managedKafka);
