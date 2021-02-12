@@ -1,13 +1,8 @@
 package org.bf2.sync;
-import java.io.IOException;
-
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Readiness;
@@ -16,28 +11,16 @@ import org.eclipse.microprofile.health.Readiness;
 @ApplicationScoped
 public class ReadinessHealthCheck implements HealthCheck {
 
-    @ConfigProperty(name = "sync.kas-fleetshard-operator.url", defaultValue = "http://kas-fleetshard-operator:8080")
-    String fleetShardURL;
-
-    private CloseableHttpClient httpClient = HttpClients.createDefault();
+    @Inject
+    ControlPlane controlPlane;
 
     @Override
     public HealthCheckResponse call() {
-        if (isOperatorReady()) {
+        try {
+            this.controlPlane.getKafkaClusters();
             return HealthCheckResponse.up("Ready");
+        } catch (RuntimeException e) {
+            return HealthCheckResponse.down("Failed to reach control plane");
         }
-        return HealthCheckResponse.down("Fleet shard operator is not available and it's liveness check failed");
-    }
-
-    public boolean isOperatorReady() {
-        HttpGet request = new HttpGet(fleetShardURL+"/q/health/live");
-        try (CloseableHttpResponse response = httpClient.execute(request)) {
-            if (response.getStatusLine().getStatusCode() == 200) {
-                return true;
-            }
-        } catch (IOException e) {
-            // noop
-        }
-        return false;
     }
 }
