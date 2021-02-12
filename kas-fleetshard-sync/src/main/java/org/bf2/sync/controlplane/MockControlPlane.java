@@ -27,6 +27,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.bf2.sync.ManagedKafkaSync;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -38,23 +39,13 @@ public class MockControlPlane {
 
     private final int MAX_KAFKA = 3;
 
-    private static final String CERT = "      -----BEGIN CERTIFICATE-----\n"
-            + "      MIICLDCCAdKgAwIBAgIBADAKBggqhkjOPQQDAjB9MQswCQYDVQQGEwJCRTEPMA0G\n"
-            + "      A1UEChMGR251VExTMSUwIwYDVQQLExxHbnVUTFMgY2VydGlmaWNhdGUgYXV0aG9y\n"
-            + "      aXR5MQ8wDQYDVQQIEwZMZXV2ZW4xJTAjBgNVBAMTHEdudVRMUyBjZXJ0aWZpY2F0\n"
-            + "      ZSBhdXRob3JpdHkwHhcNMTEwNTIzMjAzODIxWhcNMTIxMjIyMDc0MTUxWjB9MQsw\n"
-            + "      CQYDVQQGEwJCRTEPMA0GA1UEChMGR251VExTMSUwIwYDVQQLExxHbnVUTFMgY2Vy\n"
-            + "      dGlmaWNhdGUgYXV0aG9yaXR5MQ8wDQYDVQQIEwZMZXV2ZW4xJTAjBgNVBAMTHEdu\n"
-            + "      dVRMUyBjZXJ0aWZpY2F0ZSBhdXRob3JpdHkwWTATBgcqhkjOPQIBBggqhkjOPQMB\n"
-            + "      BwNCAARS2I0jiuNn14Y2sSALCX3IybqiIJUvxUpj+oNfzngvj/Niyv2394BWnW4X\n"
-            + "      uQ4RTEiywK87WRcWMGgJB5kX/t2no0MwQTAPBgNVHRMBAf8EBTADAQH/MA8GA1Ud\n"
-            + "      DwEB/wQFAwMHBgAwHQYDVR0OBBYEFPC0gf6YEr+1KLlkQAPLzB9mTigDMAoGCCqG\n"
-            + "      SM49BAMCA0gAMEUCIDGuwD1KPyG+hRf88MeyMQcqOFZD0TbVleF+UsAGQ4enAiEA\n"
-            + "      l4wOuDwKQa+upc8GftXE2C//4mKANBC6It01gUaTIpo=\n"
-            + "      -----END CERTIFICATE-----";
+    private static final String CERT = "cert";
 
     @Inject
     Logger log;
+
+    @ConfigProperty(name="sync.run-control-plane-simulation", defaultValue = "false")
+    boolean runSimulation;
 
     // current active clusters
     Map<String, ManagedKafka> kafkas = Collections.synchronizedMap(new HashMap<>());
@@ -102,8 +93,13 @@ public class MockControlPlane {
 
     @Scheduled(every = "{poll.interval}")
     void loop() {
-        Random random = new Random(System.currentTimeMillis());
 
+        // only run simulation when needed
+        if (!this.runSimulation) {
+            return;
+        }
+
+        Random random = new Random(System.currentTimeMillis());
         log.info("control plane:: Running Simulation");
 
         // feed the start of clusters
