@@ -14,16 +14,20 @@ import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.ConditionUtils;
-import org.bf2.operator.operands.AdminServer;
-import org.bf2.operator.operands.Canary;
 import org.bf2.operator.operands.KafkaInstance;
-import org.bf2.operator.resources.v1alpha1.*;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Controller
@@ -54,20 +58,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(CustomResourceEvent.class);
 
         if (latestManagedKafkaEvent.isPresent()) {
-            // add status if not already available on the ManagedKafka resource
-            if (managedKafka.getStatus() == null) {
-                managedKafka.setStatus(
-                        new ManagedKafkaStatusBuilder()
-                                .withConditions(Collections.emptyList())
-                                .build());
-            }
-            try {
-                kafkaInstance.createOrUpdate(managedKafka);
-            } catch (Exception ex) {
-                log.error("Error reconciling {}", managedKafka.getMetadata().getName(), ex);
-                return UpdateControl.noUpdate();
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
         }
 
         Optional<KafkaEvent> latestKafkaEvent =
@@ -75,11 +66,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
-            if (kafka.getStatus() != null) {
-                log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
-                updateManagedKafkaStatus(managedKafka);
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            updateManagedKafkaStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
         Optional<DeploymentEvent> latestDeploymentEvent =
@@ -87,17 +76,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestDeploymentEvent.isPresent()) {
             Deployment deployment = latestDeploymentEvent.get().getDeployment();
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
-
-            // check if the Deployment is related to Canary or Admin Server
-            // NOTE: the informer already filter only these Deployments, just checking for safety
-            if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka)) ||
-                deployment.getMetadata().getName().equals(AdminServer.adminServerName(managedKafka))) {
-                if (deployment.getStatus() != null) {
-                    log.info("Deployment conditions = {}", deployment.getStatus().getConditions());
-                    updateManagedKafkaStatus(managedKafka);
-                }
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            updateManagedKafkaStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
         return UpdateControl.noUpdate();
@@ -117,6 +98,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * @param managedKafka ManagedKafka instance
      */
     private void updateManagedKafkaStatus(ManagedKafka managedKafka) {
+        // add status if not already available on the ManagedKafka resource
+        ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
+                new ManagedKafkaStatusBuilder()
+                .withConditions(Collections.emptyList())
+                .build());
+        managedKafka.setStatus(status);
+
         List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
         Optional<ManagedKafkaCondition> optInstalling =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);

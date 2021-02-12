@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled("Issue https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/78")
 public class RecoveryST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(RecoveryST.class);
 
@@ -55,15 +54,13 @@ public class RecoveryST extends AbstractST {
         resourceManager.createResource(extensionContext, mk);
 
         LOGGER.info("Delete resources in namespace {}", testNamespace);
-        kube.client().pods().inNamespace(testNamespace).delete();
-        kube.client().services().inNamespace(testNamespace).delete();
-        kube.client().apps().statefulSets().inNamespace(testNamespace).delete();
-        kube.client().apps().deployments().inNamespace(testNamespace).delete();
+        kube.client().apps().deployments().inNamespace(testNamespace).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
+        kafkacli.inNamespace(testNamespace).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
 
-        TestUtils.waitFor("Managed kafka status is not ready", 5_000, 120_000, () -> {
+        TestUtils.waitFor("Managed kafka status is installing", 5_000, 120_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
             return Objects.requireNonNull(
-                    ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready)).getStatus().equals("False");
+                    ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Installing)).getStatus().equals("True");
         });
 
         TestUtils.waitFor("Managed kafka status is again ready", 20_000, 500_000, () -> {

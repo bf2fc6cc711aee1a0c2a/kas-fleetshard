@@ -53,6 +53,10 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         return resourceClient.inNamespace(namespace).withName(name).edit(function);
     }
 
+    public T patch(T resource) {
+        return resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).patch(resource);
+    }
+
     public List<T> list() {
         return resourceClient.list().getItems();
     }

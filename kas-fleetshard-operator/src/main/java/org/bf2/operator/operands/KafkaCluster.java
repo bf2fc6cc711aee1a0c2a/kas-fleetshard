@@ -5,11 +5,14 @@ import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.Context;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
 import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
+import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
+import io.strimzi.api.kafka.model.storage.Storage;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -39,7 +42,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Kafka kafka = kafkaFrom(managedKafka);
+        Kafka current = cachedDeployment(managedKafka);
+        Kafka kafka = kafkaFrom(managedKafka, current);
         // Kafka resource doesn't exist, has to be created
         if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
             log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
@@ -47,7 +51,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         // Kafka resource already exists, has to be updated
         } else {
             log.info("Updating Kafka instance {}", kafka.getSpec().getKafka().getVersion());
-            kafkaResourceClient.createOrReplace(kafka);
+            kafkaResourceClient.patch(kafka);
         }
     }
 
@@ -57,43 +61,28 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Kafka kafkaFrom(ManagedKafka managedKafka) {
+    protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
 
-        Map<String, Object> config = new HashMap<>();
-        config.put("offsets.topic.replication.factor", 3);
-        config.put("transaction.state.log.replication.factor", 3);
-        config.put("transaction.state.log.min.isr", 2);
-        config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
-        config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
+        KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
-        Kafka kafka = new KafkaBuilder()
+        Kafka kafka = builder
                 .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA1)
-                .withNewMetadata()
+                .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withLabels(getLabels())
                 .endMetadata()
-                .withNewSpec()
-                    .withNewKafka()
+                .editOrNewSpec()
+                    .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
                         .withReplicas(3)
-                        .withListeners(
-                                new ArrayOrObjectKafkaListenersBuilder()
-                                        .withGenericKafkaListeners(
-                                                new GenericKafkaListenerBuilder()
-                                                        .withName("plain")
-                                                        .withPort(9092)
-                                                        .withType(KafkaListenerType.INTERNAL)
-                                                        .withTls(false)
-                                                        .build()
-                                        ).build()
-                        )
-                        .withStorage(new EphemeralStorageBuilder().build())
-                        .withConfig(config)
+                        .withListeners(getListeners())
+                        .withStorage(getStorage())
+                        .withConfig(getKafkaConfig(managedKafka))
                     .endKafka()
-                    .withNewZookeeper()
+                    .editOrNewZookeeper()
                         .withReplicas(3)
-                        .withStorage(new EphemeralStorageBuilder().build())
+                        .withStorage((SingleVolumeStorage)getStorage())
                     .endZookeeper()
                 .endSpec()
                 .build();
@@ -111,7 +100,33 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return kafka;
     }
 
-    private static Map<String, String> getLabels() {
+    private Map<String, Object> getKafkaConfig(ManagedKafka managedKafka) {
+        Map<String, Object> config = new HashMap<>();
+        config.put("offsets.topic.replication.factor", 3);
+        config.put("transaction.state.log.replication.factor", 3);
+        config.put("transaction.state.log.min.isr", 2);
+        config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
+        config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
+        return config;
+    }
+
+    private ArrayOrObjectKafkaListeners getListeners() {
+        return new ArrayOrObjectKafkaListenersBuilder()
+                .withGenericKafkaListeners(
+                        new GenericKafkaListenerBuilder()
+                                .withName("plain")
+                                .withPort(9092)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(false)
+                                .build()
+                ).build();
+    }
+
+    private Storage getStorage() {
+        return new EphemeralStorageBuilder().build();
+    }
+
+    private Map<String, String> getLabels() {
         Map<String, String> labels = new HashMap<>(1);
         labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
@@ -119,7 +134,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
-        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+        Kafka kafka = cachedDeployment(managedKafka);
         boolean isInstalling = kafka == null || kafka.getStatus() == null ||
                 (kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
@@ -130,7 +145,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
-        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+        Kafka kafka = cachedDeployment(managedKafka);
         boolean isReady = kafka != null && (kafka.getStatus() == null ||
                 (kafkaCondition(kafka).getType().equals("Ready") && kafkaCondition(kafka).getStatus().equals("True")));
         log.info("KafkaCluster isReady = {}", isReady);
@@ -139,7 +154,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isError(ManagedKafka managedKafka) {
-        Kafka kafka = informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+        Kafka kafka = cachedDeployment(managedKafka);
         boolean isError = kafka != null && kafka.getStatus() != null
                 && kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
@@ -150,6 +165,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     private Condition kafkaCondition(Kafka kafka) {
         return kafka.getStatus().getConditions().get(0);
+    }
+
+    private Kafka cachedDeployment(ManagedKafka managedKafka) {
+        return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
