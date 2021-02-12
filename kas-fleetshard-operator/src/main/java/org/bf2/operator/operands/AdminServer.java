@@ -2,6 +2,8 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
@@ -56,7 +58,8 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Deployment deployment = deploymentFrom(managedKafka);
+        Deployment current = cachedDeployment(managedKafka);
+        Deployment deployment = deploymentFrom(managedKafka, current);
         // Admin Server deployment resource doesn't exist, has to be created
         if (kubernetesClient.apps().deployments()
                 .inNamespace(deployment.getMetadata().getNamespace())
@@ -64,7 +67,10 @@ public class AdminServer implements Operand<ManagedKafka> {
             kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
         // Admin Server deployment resource already exists, has to be updated
         } else {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).createOrReplace(deployment);
+            kubernetesClient.apps().deployments()
+                    .inNamespace(deployment.getMetadata().getNamespace())
+                    .withName(deployment.getMetadata().getName())
+                    .patch(deployment);
         }
 
         Service service = serviceFrom(managedKafka);
@@ -116,30 +122,28 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Deployment deploymentFrom(ManagedKafka managedKafka) {
+    protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String adminServerName = adminServerName(managedKafka);
 
-        Deployment deployment = new DeploymentBuilder()
-                .withNewMetadata()
+        DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
+
+        Deployment deployment = builder
+                .editOrNewMetadata()
                     .withName(adminServerName)
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withLabels(getLabels(adminServerName))
                 .endMetadata()
-                .withNewSpec()
-                    .withNewSelector()
-                        .addToMatchLabels(getLabels(adminServerName))
+                .editOrNewSpec()
+                    .withReplicas(1)
+                    .editOrNewSelector()
+                        .withMatchLabels(getLabels(adminServerName))
                     .endSelector()
-                    .withNewTemplate()
-                        .withNewMetadata()
-                            .addToLabels(getLabels(adminServerName))
+                    .editOrNewTemplate()
+                        .editOrNewMetadata()
+                            .withLabels(getLabels(adminServerName))
                         .endMetadata()
-                        .withNewSpec()
-                            .addNewContainer()
-                                .withName(adminServerName)
-                                .withImage("quay.io/sknot/strimzi-admin:0.0.3")
-                                .withEnv(getEnvVar(managedKafka))
-                                .withPorts(getContainerPorts())
-                            .endContainer()
+                        .editOrNewSpec()
+                            .withContainers(getContainers(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec()
@@ -158,25 +162,38 @@ public class AdminServer implements Operand<ManagedKafka> {
         return deployment;
     }
 
-    private static Map<String, String> getLabels(String adminServerName) {
+    private List<Container> getContainers(ManagedKafka managedKafka) {
+        String adminServerName = adminServerName(managedKafka);
+
+        Container container = new ContainerBuilder()
+                .withName(adminServerName)
+                .withImage("quay.io/sknot/strimzi-admin:0.0.3")
+                .withEnv(getEnvVar(managedKafka))
+                .withPorts(getContainerPorts())
+                .build();
+
+        return Collections.singletonList(container);
+    }
+
+    private Map<String, String> getLabels(String adminServerName) {
         Map<String, String> labels = new HashMap<>(2);
         labels.put("app", adminServerName);
         labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
     }
 
-    private static List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
+    private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(2);
         // TODO: move to port 9095 that should be OAuth enabled in the Kafka resource
         envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9092").build());
         return envVars;
     }
 
-    private static List<ContainerPort> getContainerPorts() {
+    private List<ContainerPort> getContainerPorts() {
         return Collections.singletonList(new ContainerPortBuilder().withName("http").withContainerPort(8080).build());
     }
 
-    private static List<ServicePort> getServicePorts() {
+    private List<ServicePort> getServicePorts() {
         return Collections.singletonList(new ServicePortBuilder().withName("http").withProtocol("TCP").withPort(8080).withTargetPort(new IntOrString("http")).build());
     }
 
@@ -249,7 +266,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
-        Deployment deployment = informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+        Deployment deployment = cachedDeployment(managedKafka);
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
         log.info("Admin Server isInstalling = {}", isInstalling);
         return isInstalling;
@@ -257,7 +274,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
-        Deployment deployment = informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+        Deployment deployment = cachedDeployment(managedKafka);
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
         log.info("Admin Server isReady = {}", isReady);
@@ -268,6 +285,10 @@ public class AdminServer implements Operand<ManagedKafka> {
     public boolean isError(ManagedKafka managedKafka) {
         // TODO: logic for check if it's error
         return false;
+    }
+
+    private Deployment cachedDeployment(ManagedKafka managedKafka) {
+        return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
     public static String adminServerName(ManagedKafka managedKafka) {

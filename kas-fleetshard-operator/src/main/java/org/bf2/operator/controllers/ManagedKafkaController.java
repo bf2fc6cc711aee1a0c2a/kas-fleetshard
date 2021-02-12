@@ -79,6 +79,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
                 updateManagedKafkaStatus(managedKafka);
             }
+            kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
 
@@ -97,6 +98,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                     updateManagedKafkaStatus(managedKafka);
                 }
             }
+            kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.updateCustomResourceAndStatus(managedKafka);
         }
 
