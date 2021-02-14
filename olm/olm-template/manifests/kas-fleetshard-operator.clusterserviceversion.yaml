@@ -44,7 +44,7 @@ spec:
             - patch
             - update
             - watch
-      cluserPermissions:
+      clusterPermissions:
       - serviceAccountName: kas-fleetshard-operator
         rules:
         - apiGroups:
@@ -112,7 +112,7 @@ spec:
                 name: kas-fleetshard-operator
             spec:
               containers:
-              - image: quay.io/k_wall/kas-fleetshard-operator:{{version}}
+              - image: quay.io/mk-ci-cd/kas-fleetshard-operator:{{version}}
                 imagePullPolicy: Always
                 name: kas-fleetshard-operator
               serviceAccountName: kas-fleetshard-operator
