@@ -1,5 +1,7 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -7,12 +9,17 @@ import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteList;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEventSource;
+import org.bf2.operator.events.RouteEventSource;
+import org.bf2.operator.events.ServiceEventSource;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -23,21 +30,26 @@ import java.util.Collections;
 public class InformerManager {
 
     @Inject
-    KubernetesClient client;
+    KubernetesClient kubernetesClient;
 
     @Inject
     KafkaEventSource kafkaEventSource;
     @Inject
     DeploymentEventSource deploymentEventSource;
+    @Inject
+    ServiceEventSource serviceEventSource;
+    @Inject
+    RouteEventSource routeEventSource;
 
     private SharedInformerFactory sharedInformerFactory;
 
     private SharedIndexInformer<Kafka> kafkaSharedIndexInformer;
     private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
-
-
+    private SharedIndexInformer<Service> serviceSharedIndexInformer;
+    private SharedIndexInformer<Route> routeSharedIndexInformer;
+    
     void onStart(@Observes StartupEvent ev) {
-        sharedInformerFactory = client.informers();
+        sharedInformerFactory = kubernetesClient.informers();
 
         OperationContext operationContext =
                 new OperationContext()
@@ -47,12 +59,21 @@ public class InformerManager {
         // TODO: should we make the resync time configurable?
         kafkaSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
+        kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
 
         deploymentSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 60 * 1000L);
-
-        kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
         deploymentSharedIndexInformer.addEventHandler(deploymentEventSource);
+
+        serviceSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 60 * 1000L);
+        serviceSharedIndexInformer.addEventHandler(serviceEventSource);
+
+        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+            routeSharedIndexInformer =
+                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
+            routeSharedIndexInformer.addEventHandler(routeEventSource);
+        }
 
         sharedInformerFactory.startAllRegisteredInformers();
     }
@@ -67,5 +88,17 @@ public class InformerManager {
 
     public Deployment getLocalDeployment(String namespace, String name) {
         return deploymentSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public Service getLocalService(String namespace, String name) {
+        return serviceSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public Route getLocalRoute(String namespace, String name) {
+        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+            return routeSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        } else {
+            throw new IllegalArgumentException("Not running on OpenShift cluster, Routes are not available");
+        }
     }
 }
