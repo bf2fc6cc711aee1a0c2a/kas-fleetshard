@@ -1,4 +1,4 @@
-name: Integration tests
+name: Smoke tests
 on:
   push:
     branches: [ main ]
@@ -7,7 +7,7 @@ on:
     types: [ opened, reopened, synchronize ]
 
 jobs:
-  verify:
+  smoke:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,9 +36,9 @@ jobs:
           -Dquarkus.container-image.registry=localhost:5000 \
           -Dquarkus.container-image.insecure=true
 
-      - name: Run integration test
+      - name: Run smoke test
         run: |
-          mvn verify -pl systemtest -am --no-transfer-progress \
+          mvn verify -pl systemtest -Dgroups=smoke -am --no-transfer-progress \
             -Djunit.jupiter.execution.parallel.enabled=true \
             -Djunit.jupiter.execution.parallel.config.fixed.parallelism=2
 
