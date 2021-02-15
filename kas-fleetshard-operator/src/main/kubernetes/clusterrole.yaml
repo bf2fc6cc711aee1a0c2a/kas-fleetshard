@@ -89,7 +89,6 @@ rules:
       - patch
       - update
   - apiGroups:
-      - ""
       - route.openshift.io
     resources:
       - routes
