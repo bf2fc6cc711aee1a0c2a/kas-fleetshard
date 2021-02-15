@@ -19,6 +19,11 @@
 mvn clean verify -pl systemtest -am
 ```
 
+#### Running smoke tests
+```
+mvn clean verify -pl systemtest -Dgroups=smoke -am
+```
+
 #### Running single test or subset of tests
 ```
 mvn clean verify -pl systemtest -am -Dtest=ManagedKafkaST#testDeployManagedKafka
