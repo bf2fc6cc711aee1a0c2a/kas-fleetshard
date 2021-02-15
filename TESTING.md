@@ -16,28 +16,28 @@
 
 #### Running full suite
 ```
-mvn clean verify -pl systemtest -am
+mvn clean verify -P systemtest -pl systemtest -am
 ```
 
 #### Running smoke tests
 ```
-mvn clean verify -pl systemtest -Dgroups=smoke -am
+mvn clean verify -P systemtest -pl systemtest -Dgroups=smoke -am
 ```
 
 #### Running single test or subset of tests
 ```
-mvn clean verify -pl systemtest -am -Dtest=ManagedKafkaST#testDeployManagedKafka
+mvn clean verify -P systemtest -pl systemtest -am -Dtest=ManagedKafkaST#testDeployManagedKafka
 ```
 ```
-mvn clean verify -pl systemtest -am -Dtest=ManagedKafkaST,RecoveryST
+mvn clean verify -P systemtest -pl systemtest -am -Dtest=ManagedKafkaST,RecoveryST
 ```
 
 ### Running testsuite in parallel
 ```
-mvn verify -pl systemtest -am -Djunit.jupiter.execution.parallel.enabled=true
+mvn verify -P systemtest -pl systemtest -am -Djunit.jupiter.execution.parallel.enabled=true
 ```
 ```
-mvn verify -pl systemtest -am \
+mvn verify -P systemtest -pl systemtest -am \
             -Djunit.jupiter.execution.parallel.enabled=true \
             -Djunit.jupiter.execution.parallel.config.fixed.parallelism=2
 ```

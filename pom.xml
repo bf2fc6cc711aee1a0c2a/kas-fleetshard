@@ -32,9 +32,17 @@
     <modules>
         <module>kas-fleetshard-api</module>
         <module>kas-fleetshard-operator</module>
-        <module>systemtest</module>
         <module>test</module>
     </modules>
+    
+    <profiles>
+	    <profile>
+	        <id>systemtest</id>
+	        <modules>
+	            <module>systemtest</module>
+	        </modules>
+	    </profile>   
+    </profiles>
 
     <dependencyManagement>
         <dependencies>
