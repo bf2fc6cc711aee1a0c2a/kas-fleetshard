@@ -27,6 +27,7 @@
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
         <sundrio.version>0.24.1</sundrio.version>
+        <lombok.version>1.18.16</lombok.version>
     </properties>
 
     <modules>
@@ -41,8 +42,8 @@
         <dependencies>
             <dependency>
                 <groupId>org.bf2</groupId>
-        	    <artifactId>kas-fleetshard-api</artifactId>
-        	    <version>${project.version}</version>
+                <artifactId>kas-fleetshard-api</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
@@ -90,6 +91,12 @@
                 <groupId>io.strimzi</groupId>
                 <artifactId>api</artifactId>
                 <version>${strimzi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
             </dependency>
             <!-- test -->
             <dependency>

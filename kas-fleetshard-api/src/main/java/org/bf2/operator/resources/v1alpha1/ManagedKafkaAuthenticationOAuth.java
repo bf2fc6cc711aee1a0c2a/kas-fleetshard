@@ -1,6 +1,8 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import io.sundr.builder.annotations.Buildable;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Defines the configuration for the Kafka instance authentication against an OAuth server
@@ -9,6 +11,8 @@ import io.sundr.builder.annotations.Buildable;
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
 )
+@ToString
+@EqualsAndHashCode
 public class ManagedKafkaAuthenticationOAuth {
 
     private String clientId;
