@@ -109,7 +109,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                                     .withMaxPartitions(100)
                                 .endCapacity()
                                 .withNewEndpoint()
-                                    .withNewBootstrapServerHost("")
+                                    .withNewBootstrapServerHost(appName)
                                     .withNewTls()
                                         .withNewCert("cert")
                                         .withNewKey("key")
