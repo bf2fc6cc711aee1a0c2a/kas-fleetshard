@@ -1,6 +1,10 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -13,6 +17,10 @@ import org.bf2.operator.events.DeploymentEvent;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
+import org.bf2.operator.events.RouteEvent;
+import org.bf2.operator.events.RouteEventSource;
+import org.bf2.operator.events.ServiceEvent;
+import org.bf2.operator.events.ServiceEventSource;
 import org.bf2.operator.ConditionUtils;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -36,10 +44,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
+    KubernetesClient kubernetesClient;
+
+    @Inject
     KafkaEventSource kafkaEventSource;
 
     @Inject
     DeploymentEventSource deploymentEventSource;
+
+    @Inject
+    ServiceEventSource serviceEventSource;
+
+    @Inject
+    RouteEventSource routeEventSource;
 
     @Inject
     KafkaInstance kafkaInstance;
@@ -81,6 +98,24 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
+        Optional<ServiceEvent> latestServiceEvent =
+                context.getEvents().getLatestOfType(ServiceEvent.class);
+        if (latestServiceEvent.isPresent()) {
+            Service service = latestServiceEvent.get().getService();
+            log.info("Service resource {}/{} is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
+        }
+
+        Optional<RouteEvent> latestRouteEvent =
+                context.getEvents().getLatestOfType(RouteEvent.class);
+        if (latestRouteEvent.isPresent()) {
+            Route route = latestRouteEvent.get().getRoute();
+            log.info("Route resource {}/{} is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
+        }
+
         return UpdateControl.noUpdate();
     }
 
@@ -89,6 +124,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         log.info("init");
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
         eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
+        eventSourceManager.registerEventSource("service-event-source", serviceEventSource);
+        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+            eventSourceManager.registerEventSource("route-event-source", routeEventSource);
+        }
     }
 
     /**

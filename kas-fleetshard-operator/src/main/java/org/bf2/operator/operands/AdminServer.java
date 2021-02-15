@@ -18,13 +18,16 @@ import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
+import io.quarkus.runtime.StartupEvent;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,19 +50,18 @@ public class AdminServer implements Operand<ManagedKafka> {
     @Inject
     InformerManager informerManager;
 
-    // TODO: enable when Quarkus injection issue about KuberneteClient vs OpenShiftClient ambiguity will be fixed
-    /*
     OpenShiftClient openShiftClient;
 
     void onStart(@Observes StartupEvent ev) {
-        openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
+        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+            openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
+        }
     }
-    */
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Deployment current = cachedDeployment(managedKafka);
-        Deployment deployment = deploymentFrom(managedKafka, current);
+        Deployment currentDeployment = cachedDeployment(managedKafka);
+        Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
         // Admin Server deployment resource doesn't exist, has to be created
         if (kubernetesClient.apps().deployments()
                 .inNamespace(deployment.getMetadata().getNamespace())
@@ -73,7 +75,8 @@ public class AdminServer implements Operand<ManagedKafka> {
                     .patch(deployment);
         }
 
-        Service service = serviceFrom(managedKafka);
+        Service currentService = cachedService(managedKafka);
+        Service service = serviceFrom(managedKafka, currentService);
         // Admin Server service resource doesn't exist, has to be created
         if (kubernetesClient.services()
                 .inNamespace(service.getMetadata().getNamespace())
@@ -81,22 +84,28 @@ public class AdminServer implements Operand<ManagedKafka> {
             kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).create(service);
         // Admin Server service resource already exists, has to be updated
         } else {
-            kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).createOrReplace(service);
+            kubernetesClient.services()
+                    .inNamespace(service.getMetadata().getNamespace())
+                    .withName(service.getMetadata().getName())
+                    .patch(service);
         }
 
-        // TODO: enable when Quarkus injection issue about KuberneteClient vs OpenShiftClient ambiguity will be fixed
-        /*
-        Route route = routeFrom(managedKafka);
-        // Admin Server route resource doesn't exist, has to be created
-        if (openShiftClient.routes()
-                .inNamespace(route.getMetadata().getNamespace())
-                .withName(route.getMetadata().getName()).get() == null) {
-            openShiftClient.routes().inNamespace(route.getMetadata().getNamespace()).create(route);
-        // Admin Server route resource already exists, has to be updated
-        } else {
-            openShiftClient.routes().inNamespace(route.getMetadata().getNamespace()).createOrReplace(route);
+        if (openShiftClient != null) {
+            Route currentRoute = cachedRoute(managedKafka);
+            Route route = routeFrom(managedKafka, currentRoute);
+            // Admin Server route resource doesn't exist, has to be created
+            if (openShiftClient.routes()
+                    .inNamespace(route.getMetadata().getNamespace())
+                    .withName(route.getMetadata().getName()).get() == null) {
+                openShiftClient.routes().inNamespace(route.getMetadata().getNamespace()).create(route);
+                // Admin Server route resource already exists, has to be updated
+            } else {
+                openShiftClient.routes()
+                        .inNamespace(route.getMetadata().getNamespace())
+                        .withName(route.getMetadata().getName())
+                        .patch(route);
+            }
         }
-        */
     }
 
     @Override
@@ -112,13 +121,12 @@ public class AdminServer implements Operand<ManagedKafka> {
                 .withName(adminServerName(managedKafka))
                 .delete();
 
-        // TODO: enable when Quarkus injection issue about KuberneteClient vs OpenShiftClient ambiguity will be fixed
-        /*
-        openShiftClient.routes()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka))
-                .delete();
-         */
+        if (openShiftClient != null) {
+            openShiftClient.routes()
+                    .inNamespace(adminServerNamespace(managedKafka))
+                    .withName(adminServerName(managedKafka))
+                    .delete();
+        }
     }
 
     /* test */
@@ -162,6 +170,78 @@ public class AdminServer implements Operand<ManagedKafka> {
         return deployment;
     }
 
+    /* test */
+    protected Service serviceFrom(ManagedKafka managedKafka, Service current) {
+        String adminServerName = adminServerName(managedKafka);
+
+        ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
+
+        Service service = builder
+                .editOrNewMetadata()
+                    .withNamespace(adminServerNamespace(managedKafka))
+                    .withName(adminServerName(managedKafka))
+                    .withLabels(getLabels(adminServerName))
+                .endMetadata()
+                .editOrNewSpec()
+                    .withSelector(getLabels(adminServerName))
+                    .withPorts(getServicePorts())
+                .endSpec()
+                .build();
+
+        // setting the ManagedKafka has owner of the Admin Server service resource is needed
+        // by the operator sdk to handle events on the Service resource properly
+        OwnerReference ownerReference = new OwnerReferenceBuilder()
+                .withApiVersion(managedKafka.getApiVersion())
+                .withKind(managedKafka.getKind())
+                .withName(managedKafka.getMetadata().getName())
+                .withUid(managedKafka.getMetadata().getUid())
+                .build();
+        service.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+
+        return service;
+    }
+
+    /* test */
+    protected Route routeFrom(ManagedKafka managedKafka, Route current) {
+        String adminServerName = adminServerName(managedKafka);
+
+        RouteBuilder builder = current != null ? new RouteBuilder(current) : new RouteBuilder();
+
+        Route route = builder
+                .editOrNewMetadata()
+                    .withNamespace(adminServerNamespace(managedKafka))
+                    .withName(adminServerName(managedKafka))
+                    // TODO: adding labels for shared Ingress controller
+                    .withLabels(getLabels(adminServerName))
+                .endMetadata()
+                .editOrNewSpec()
+                    .withNewTo()
+                        .withKind("Service")
+                        .withName(adminServerName)
+                    .endTo()
+                    .withNewPort()
+                        .withTargetPort(new IntOrString("http"))
+                    .endPort()
+                    .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
+                    .withNewTls()
+                        .withTermination("edge")
+                    .endTls()
+                .endSpec()
+                .build();
+
+        // setting the ManagedKafka has owner of the Admin Server route resource is needed
+        // by the operator sdk to handle events on the Route resource properly
+        OwnerReference ownerReference = new OwnerReferenceBuilder()
+                .withApiVersion(managedKafka.getApiVersion())
+                .withKind(managedKafka.getKind())
+                .withName(managedKafka.getMetadata().getName())
+                .withUid(managedKafka.getMetadata().getUid())
+                .build();
+        route.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+
+        return route;
+    }
+
     private List<Container> getContainers(ManagedKafka managedKafka) {
         String adminServerName = adminServerName(managedKafka);
 
@@ -197,73 +277,6 @@ public class AdminServer implements Operand<ManagedKafka> {
         return Collections.singletonList(new ServicePortBuilder().withName("http").withProtocol("TCP").withPort(8080).withTargetPort(new IntOrString("http")).build());
     }
 
-    /* test */
-    protected Service serviceFrom(ManagedKafka managedKafka) {
-        String adminServerName = adminServerName(managedKafka);
-
-        Service service = new ServiceBuilder()
-                .withNewMetadata()
-                    .withNamespace(adminServerNamespace(managedKafka))
-                    .withName(adminServerName(managedKafka))
-                    .withLabels(getLabels(adminServerName))
-                .endMetadata()
-                .withNewSpec()
-                    .withSelector(getLabels(adminServerName))
-                    .withPorts(getServicePorts())
-                .endSpec()
-                .build();
-
-        // setting the ManagedKafka has owner of the Admin Server service resource is needed
-        // by the operator sdk to handle events on the Service resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        service.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
-
-        return service;
-    }
-
-    /* test */
-    protected Route routeFrom(ManagedKafka managedKafka) {
-        String adminServerName = adminServerName(managedKafka);
-
-        Route route = new RouteBuilder()
-                .withNewMetadata()
-                    .withNamespace(adminServerNamespace(managedKafka))
-                    .withName(adminServerName(managedKafka))
-                    // TODO: adding labels for shared Ingress controller
-                .endMetadata()
-                .withNewSpec()
-                    .withNewTo()
-                        .withKind("Service")
-                        .withName(adminServerName)
-                    .endTo()
-                    .withNewPort()
-                        .withTargetPort(new IntOrString("http"))
-                    .endPort()
-                    .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                    .withNewTls()
-                        .withTermination("edge")
-                    .endTls()
-                .endSpec()
-                .build();
-
-        // setting the ManagedKafka has owner of the Admin Server route resource is needed
-        // by the operator sdk to handle events on the Route resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        route.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
-
-        return route;
-    }
-
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
@@ -289,6 +302,14 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     private Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+    }
+
+    private Service cachedService(ManagedKafka managedKafka) {
+        return informerManager.getLocalService(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+    }
+
+    private Route cachedRoute(ManagedKafka managedKafka) {
+        return informerManager.getLocalRoute(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
     public static String adminServerName(ManagedKafka managedKafka) {
