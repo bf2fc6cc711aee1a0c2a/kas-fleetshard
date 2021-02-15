@@ -1,5 +1,14 @@
 package org.bf2.operator;
 
+import java.util.Collections;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Observes;
+import javax.inject.Inject;
+
+import org.bf2.operator.events.DeploymentEventSource;
+import org.bf2.operator.events.KafkaEventSource;
+
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -11,13 +20,6 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.events.DeploymentEventSource;
-import org.bf2.operator.events.KafkaEventSource;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
-import javax.inject.Inject;
-import java.util.Collections;
 
 @ApplicationScoped
 public class InformerManager {
@@ -67,5 +69,9 @@ public class InformerManager {
 
     public Deployment getLocalDeployment(String namespace, String name) {
         return deploymentSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public boolean isReady() {
+        return kafkaSharedIndexInformer.hasSynced() && deploymentSharedIndexInformer.hasSynced();
     }
 }

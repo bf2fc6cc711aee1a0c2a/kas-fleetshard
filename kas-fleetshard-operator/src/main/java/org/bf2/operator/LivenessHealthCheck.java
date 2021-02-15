@@ -17,7 +17,7 @@ public class LivenessHealthCheck implements HealthCheck {
 
     @Override
     public HealthCheckResponse call() {
-        if (this.kubernetesClient.getNamespace() != null) {
+        if (this.kubernetesClient.namespaces().list().getItems().size() > 1) {
             return HealthCheckResponse.up("alive");
         }
         return HealthCheckResponse.down("can't reach kube api, liveness check failed");
