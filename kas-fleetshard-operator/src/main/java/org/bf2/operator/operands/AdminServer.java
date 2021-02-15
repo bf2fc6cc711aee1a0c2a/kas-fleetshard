@@ -312,6 +312,11 @@ public class AdminServer implements Operand<ManagedKafka> {
         return informerManager.getLocalRoute(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
+    public String Uri(ManagedKafka managedKafka) {
+        Route route = cachedRoute(managedKafka);
+        return route != null ? route.getSpec().getHost() : null;
+    }
+
     public static String adminServerName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-admin-server";
     }

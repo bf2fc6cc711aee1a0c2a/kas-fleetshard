@@ -183,6 +183,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             // TODO: just reflecting for now what was defined in the spec
             managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
             managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().Uri(managedKafka));
 
         } else if (kafkaInstance.isError(managedKafka)) {
             if (optInstalling.isPresent()) {

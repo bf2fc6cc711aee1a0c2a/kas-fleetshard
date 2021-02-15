@@ -20,6 +20,8 @@ import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.events.RouteEventSource;
 import org.bf2.operator.events.ServiceEventSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -28,6 +30,8 @@ import java.util.Collections;
 
 @ApplicationScoped
 public class InformerManager {
+
+    private static final Logger log = LoggerFactory.getLogger(InformerManager.class);
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -98,7 +102,8 @@ public class InformerManager {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             return routeSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
         } else {
-            throw new IllegalArgumentException("Not running on OpenShift cluster, Routes are not available");
+            log.warn("Not running on OpenShift cluster, Routes are not available");
+            return null;
         }
     }
 }
