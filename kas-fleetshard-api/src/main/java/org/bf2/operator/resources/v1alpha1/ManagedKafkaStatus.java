@@ -17,6 +17,7 @@ public class ManagedKafkaStatus {
     private List<ManagedKafkaCondition> conditions;
     private ManagedKafkaCapacity capacity;
     private Versions versions;
+    private String adminServerURI;
 
     public List<ManagedKafkaCondition> getConditions() {
         return conditions;
@@ -42,5 +43,14 @@ public class ManagedKafkaStatus {
 
     public void setVersions(Versions versions) {
         this.versions = versions;
+    }
+
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
+    public String getAdminServerURI() {
+        return adminServerURI;
+    }
+
+    public void setAdminServerURI(String adminServerURI) {
+        this.adminServerURI = adminServerURI;
     }
 }
