@@ -1,9 +1,11 @@
 package org.bf2.operator.resources.v1alpha1;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import io.sundr.builder.annotations.Buildable;
-
+import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import io.sundr.builder.annotations.Buildable;
 
 /**
  * Defines the current status with related conditions of a ManagedKafka instance
@@ -20,6 +22,9 @@ public class ManagedKafkaStatus {
     private String adminServerURI;
 
     public List<ManagedKafkaCondition> getConditions() {
+        if (conditions == null) {
+            conditions = new ArrayList<>();
+        }
         return conditions;
     }
 

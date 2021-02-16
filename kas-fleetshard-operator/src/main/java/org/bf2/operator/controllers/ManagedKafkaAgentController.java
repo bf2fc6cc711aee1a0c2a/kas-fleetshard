@@ -21,6 +21,7 @@ import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -55,6 +56,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
     private String clusterId;
 
+    @Inject
+    KubernetesClient kubeClient;
+
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
         log.infof("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.namespace);
@@ -85,6 +89,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
                 resource.getMetadata().setName(RESOURCE_NAME);
                 resource.getMetadata().setNamespace(this.namespace);
+                if (this.kubeClient.namespaces().withName(namespace).get() == null) {
+                    return; //must be running locally with no namespace configured
+                }
                 this.agentClient.createOrReplace(resource);
             }
             log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
