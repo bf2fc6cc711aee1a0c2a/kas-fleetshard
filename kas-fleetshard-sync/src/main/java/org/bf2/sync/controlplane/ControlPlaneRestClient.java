@@ -19,7 +19,7 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 @ApplicationScoped
 @Path("/api/managed-services-api/v1/agent-clusters/")
-@RegisterRestClient
+@RegisterRestClient(configKey = "control-plane")
 public interface ControlPlaneRestClient {
 
     @PUT

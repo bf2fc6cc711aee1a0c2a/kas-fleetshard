@@ -162,7 +162,7 @@ public class ControlPlane {
     /**
      * On the resync interval, send everything
      */
-    @Scheduled(every = "{resync.interval}", delayed = "{update.delayed}")
+    @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
         updateKafkaClusterStatus(() -> {
             return localLookup.getLocalManagedKafkas().stream().collect(Collectors.toMap(ManagedKafka::getId,
