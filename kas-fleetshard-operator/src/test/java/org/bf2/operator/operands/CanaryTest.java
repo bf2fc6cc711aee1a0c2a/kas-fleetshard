@@ -42,7 +42,7 @@ public class CanaryTest {
                                 .build())
                 .build();
 
-        Deployment canaryDeployment = canary.deploymentFrom(mk);
+        Deployment canaryDeployment = canary.deploymentFrom(mk, null);
 
         server.getClient().apps().deployments().create(canaryDeployment);
         assertNotNull(server.getClient().apps().deployments()

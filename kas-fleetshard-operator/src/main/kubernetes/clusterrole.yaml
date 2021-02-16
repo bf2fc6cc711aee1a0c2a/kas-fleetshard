@@ -92,3 +92,17 @@ rules:
       - delete
       - patch
       - update
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+      - routes/custom-host
+      - routes/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update

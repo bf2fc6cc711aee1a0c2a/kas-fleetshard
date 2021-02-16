@@ -1,6 +1,10 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -13,17 +17,25 @@ import org.bf2.operator.events.DeploymentEvent;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
 import org.bf2.operator.events.KafkaEventSource;
+import org.bf2.operator.events.RouteEvent;
+import org.bf2.operator.events.RouteEventSource;
+import org.bf2.operator.events.ServiceEvent;
+import org.bf2.operator.events.ServiceEventSource;
 import org.bf2.operator.ConditionUtils;
-import org.bf2.operator.operands.AdminServer;
-import org.bf2.operator.operands.Canary;
 import org.bf2.operator.operands.KafkaInstance;
-import org.bf2.operator.resources.v1alpha1.*;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Controller
@@ -32,10 +44,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
 
     @Inject
+    KubernetesClient kubernetesClient;
+
+    @Inject
     KafkaEventSource kafkaEventSource;
 
     @Inject
     DeploymentEventSource deploymentEventSource;
+
+    @Inject
+    ServiceEventSource serviceEventSource;
+
+    @Inject
+    RouteEventSource routeEventSource;
 
     @Inject
     KafkaInstance kafkaInstance;
@@ -54,20 +75,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(CustomResourceEvent.class);
 
         if (latestManagedKafkaEvent.isPresent()) {
-            // add status if not already available on the ManagedKafka resource
-            if (managedKafka.getStatus() == null) {
-                managedKafka.setStatus(
-                        new ManagedKafkaStatusBuilder()
-                                .withConditions(Collections.emptyList())
-                                .build());
-            }
-            try {
-                kafkaInstance.createOrUpdate(managedKafka);
-            } catch (Exception ex) {
-                log.error("Error reconciling {}", managedKafka.getMetadata().getName(), ex);
-                return UpdateControl.noUpdate();
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
         }
 
         Optional<KafkaEvent> latestKafkaEvent =
@@ -75,11 +83,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getKafka();
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
-            if (kafka.getStatus() != null) {
-                log.info("Kafka conditions = {}", kafka.getStatus().getConditions());
-                updateManagedKafkaStatus(managedKafka);
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            updateManagedKafkaStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
         Optional<DeploymentEvent> latestDeploymentEvent =
@@ -87,17 +93,27 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestDeploymentEvent.isPresent()) {
             Deployment deployment = latestDeploymentEvent.get().getDeployment();
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+            updateManagedKafkaStatus(managedKafka);
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.updateStatusSubResource(managedKafka);
+        }
 
-            // check if the Deployment is related to Canary or Admin Server
-            // NOTE: the informer already filter only these Deployments, just checking for safety
-            if (deployment.getMetadata().getName().equals(Canary.canaryName(managedKafka)) ||
-                deployment.getMetadata().getName().equals(AdminServer.adminServerName(managedKafka))) {
-                if (deployment.getStatus() != null) {
-                    log.info("Deployment conditions = {}", deployment.getStatus().getConditions());
-                    updateManagedKafkaStatus(managedKafka);
-                }
-            }
-            return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+        Optional<ServiceEvent> latestServiceEvent =
+                context.getEvents().getLatestOfType(ServiceEvent.class);
+        if (latestServiceEvent.isPresent()) {
+            Service service = latestServiceEvent.get().getService();
+            log.info("Service resource {}/{} is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
+        }
+
+        Optional<RouteEvent> latestRouteEvent =
+                context.getEvents().getLatestOfType(RouteEvent.class);
+        if (latestRouteEvent.isPresent()) {
+            Route route = latestRouteEvent.get().getRoute();
+            log.info("Route resource {}/{} is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
         }
 
         return UpdateControl.noUpdate();
@@ -108,6 +124,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         log.info("init");
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
         eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
+        eventSourceManager.registerEventSource("service-event-source", serviceEventSource);
+        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+            eventSourceManager.registerEventSource("route-event-source", routeEventSource);
+        }
     }
 
     /**
@@ -117,6 +137,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * @param managedKafka ManagedKafka instance
      */
     private void updateManagedKafkaStatus(ManagedKafka managedKafka) {
+        // add status if not already available on the ManagedKafka resource
+        ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
+                new ManagedKafkaStatusBuilder()
+                .withConditions(Collections.emptyList())
+                .build());
+        managedKafka.setStatus(status);
+
         List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
         Optional<ManagedKafkaCondition> optInstalling =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);
@@ -156,6 +183,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             // TODO: just reflecting for now what was defined in the spec
             managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
             managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().Uri(managedKafka));
 
         } else if (kafkaInstance.isError(managedKafka)) {
             if (optInstalling.isPresent()) {

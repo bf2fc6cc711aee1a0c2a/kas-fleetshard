@@ -1,11 +1,11 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
@@ -19,16 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
 @QuarkusTest
-class KafkaClusterTest {
+public class AdminServerTest {
 
     @QuarkusKubernetesMockServer
     static KubernetesServer server;
 
     @Inject
-    KafkaCluster kafkaCluster;
+    AdminServer adminServer;
 
     @Test
-    void testManagedKafkaToKafka() {
+    void createAdminServerDeployment() {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
                         new ObjectMetaBuilder()
@@ -43,10 +43,11 @@ class KafkaClusterTest {
                                 .build())
                 .build();
 
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
 
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
-        kafkaCli.create(kafka);
-        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
+        server.getClient().apps().deployments().create(adminServerDeployment);
+        assertNotNull(server.getClient().apps().deployments()
+                .inNamespace(adminServerDeployment.getMetadata().getNamespace())
+                .withName(adminServerDeployment.getMetadata().getName()).get());
     }
 }
