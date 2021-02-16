@@ -1,19 +1,20 @@
 package org.bf2.systemtest.framework.resource;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
@@ -90,6 +91,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      */
     public static ManagedKafka getDefault(String namespace, String appName) {
         return new ManagedKafkaBuilder()
+                .withId(namespace)
                 .withMetadata(
                         new ObjectMetaBuilder()
                                 .withNamespace(namespace)
