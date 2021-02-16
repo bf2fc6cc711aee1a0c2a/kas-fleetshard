@@ -16,7 +16,6 @@ import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.informer.LocalLookup;
@@ -31,7 +30,6 @@ import io.quarkus.scheduler.Scheduled;
 public class ControlPlane {
 
     private static final ManagedKafkaStatus EMPTY_MANAGED_KAFKA_STATUS = new ManagedKafkaStatus();
-    private static final ManagedKafkaAgentStatus EMPTY_MANAGED_KAFKA_AGENT_STATUS = new ManagedKafkaAgentStatus();
 
     @Inject
     Logger log;
@@ -70,7 +68,9 @@ public class ControlPlane {
      * newAgent is expected to be non-null
      */
     public void updateAgentStatus(ManagedKafkaAgent oldAgent, ManagedKafkaAgent newAgent) {
-        if (oldAgent != null && statusChanged(oldAgent.getStatus(), newAgent.getStatus())) {
+        if (oldAgent != null
+                // as long as there are no spec changes, only a status change is updating the resource version
+                && !oldAgent.getMetadata().getResourceVersion().equals(newAgent.getMetadata().getResourceVersion())) {
             // send a status update immediately (async)
             updateAgentStatus();
         }
@@ -146,13 +146,6 @@ public class ControlPlane {
             // send a status update immediately (async)
             updateKafkaClusterStatus(Cache.metaNamespaceKeyFunc(newManagedKafka), newManagedKafka.getId());
         }
-    }
-
-    static boolean statusChanged(ManagedKafkaAgentStatus oldStatus, ManagedKafkaAgentStatus newStatus) {
-        // TODO this will likely change as we're reusing the ManagedKafkaConditions
-        // a couple of interfaces would keep the logic similar though
-        return maxTransitionTime(requireNonNullElse(oldStatus, EMPTY_MANAGED_KAFKA_AGENT_STATUS).getConditions()).compareTo(
-                maxTransitionTime(requireNonNullElse(newStatus, EMPTY_MANAGED_KAFKA_AGENT_STATUS).getConditions())) < 0;
     }
 
     static boolean statusChanged(ManagedKafkaStatus oldStatus, ManagedKafkaStatus newStatus) {

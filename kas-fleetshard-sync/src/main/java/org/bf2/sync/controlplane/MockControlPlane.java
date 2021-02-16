@@ -151,6 +151,9 @@ public class MockControlPlane {
     }
 
     private boolean isDeleted(ManagedKafkaStatus status) {
+        if (status.getConditions() == null) {
+            return false;
+        }
         for (ManagedKafkaCondition c : status.getConditions()) {
             if (c.getType().equals(ManagedKafkaSync.INSTANCE_DELETION_COMPLETE)) {
                 return true;

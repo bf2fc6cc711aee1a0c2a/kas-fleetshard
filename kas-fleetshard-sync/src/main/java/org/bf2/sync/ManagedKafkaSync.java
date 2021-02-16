@@ -77,9 +77,7 @@ public class ManagedKafkaSync {
 
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
-                    executorService.execute(() -> {
-                        reconcile(remoteManagedKafka.getId(), localKey);
-                    });
+                    reconcileAsync(remoteManagedKafka.getId(), localKey);
                 } else {
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
@@ -91,9 +89,7 @@ public class ManagedKafkaSync {
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
             } else if (specChanged(remoteSpec, existing)) {
-                executorService.execute(() -> {
-                    reconcile(remoteManagedKafka.getId(), localKey);
-                });
+                reconcileAsync(remoteManagedKafka.getId(), localKey);
             }
         }
 
@@ -104,14 +100,13 @@ public class ManagedKafkaSync {
             }
 
             // TODO: confirm full deletion
-            // also check for condition
+            // also check for condition or whatever is signaling done
             if (!local.getSpec().isDeleted()) {
                 // TODO: seems bad
+                log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted", Cache.metaNamespaceKeyFunc(local));
             }
 
-            executorService.execute(() -> {
-                reconcile(null, Cache.metaNamespaceKeyFunc(local));
-            });
+            reconcileAsync(null, Cache.metaNamespaceKeyFunc(local));
         }
 
     }
@@ -124,13 +119,6 @@ public class ManagedKafkaSync {
         return remoteManagedKafka.getId();
     }
 
-    /**
-     * TODO: delete is the only spec change we are currently tracking wrt modifications
-     * it's also not clear if there are any fields in the spec that we
-     * or the agent may fill out by default that should be retained,
-     *
-     * this will be generalized as needed
-     */
     public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
         if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
@@ -138,7 +126,13 @@ public class ManagedKafkaSync {
             return false;
         }
 
-        return remoteSpec.isDeleted() && !existing.getSpec().isDeleted();
+        return !remoteSpec.equals(existing);
+    }
+
+    void reconcileAsync(String remoteId, String localMetaNamespaceKey) {
+        executorService.execute(() -> {
+            reconcile(remoteId, localMetaNamespaceKey);
+        });
     }
 
     /**
@@ -168,13 +162,13 @@ public class ManagedKafkaSync {
         } else if (remote == null) {
             delete(local);
         } else if (specChanged(remote.getSpec(), local)) {
-            log.debugf("Initiating Delete of ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
-            // specChanged is only looking at delete currently, so mark the local as deleted
+            log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(remote));
+            ManagedKafkaSpec spec = remote.getSpec();
             client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                    mk.getSpec().setDeleted(true);
+                    mk.setSpec(spec);
                     return mk;
                 });
-            // the operator will handle the deletion from here
+            // the operator will handle it from here
         }
     }
 
