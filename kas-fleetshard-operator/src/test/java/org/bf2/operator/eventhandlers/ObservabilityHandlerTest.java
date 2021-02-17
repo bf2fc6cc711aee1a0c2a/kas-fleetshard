@@ -81,7 +81,7 @@ public class ObservabilityHandlerTest {
         assertEquals("observability-operator", map.getMetadata().getLabels().get("configures"));
 
         // status verification
-        map = observabilityHandler.createConfigMapBuilder(s).editMetadata()
+        map = observabilityHandler.createObservabilityConfigMapBuilder(s).editMetadata()
             .addToAnnotations("observability-operator/status", "accepted").endMetadata().build();
         getConfigMapResource().createOrReplace(map);
         assertTrue(observabilityHandler.isObservabilityRunning());

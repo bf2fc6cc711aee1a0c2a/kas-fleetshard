@@ -36,16 +36,16 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
     void onStart(@Observes StartupEvent ev) {
         Secret secret = this.client.secrets().inNamespace(this.client.getNamespace()).withName(InformerManager.SECRET_NAME).get();
         if (secret != null) {
-            findConfigMap().createOrReplace(createConfigMap(secret));
+            observabilityConfigMap().createOrReplace(createObservabilityConfigMap(secret));
             log.info("Observability configuration for fleetshard operator created");
         } else {
-            log.error("Observability configuration for fleetshard operator con not be created because secret does not exist");
+            log.warn("Observability configuration for fleetshard operator con not be created because secret does not exist");
         }
     }
 
     @Override
     public void onAdd(Secret obj) {
-        findConfigMap().createOrReplace(createConfigMap(obj));
+        observabilityConfigMap().createOrReplace(createObservabilityConfigMap(obj));
         log.info("Observability configuration for fleetshard operator created");
     }
 
@@ -54,26 +54,26 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
         if (!oldObj.getMetadata().getResourceVersion().equals(newObj.getMetadata().getResourceVersion())) {
             return;
         }
-        findConfigMap().createOrReplace(createConfigMap(newObj));
+        observabilityConfigMap().createOrReplace(createObservabilityConfigMap(newObj));
         log.info("Observability configuration for fleetshard operator updated");
     }
 
     @Override
     public void onDelete(Secret obj, boolean deletedFinalStateUnknown) {
-        if(findConfigMap().delete()) {
+        if(observabilityConfigMap().delete()) {
             log.info("Observability configuration for fleetshard operator deleted");
         }
     }
 
-    Resource<ConfigMap> findConfigMap(){
+    Resource<ConfigMap> observabilityConfigMap(){
         return this.client.configMaps().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_CONFIGMAP_NAME);
     }
 
-    ConfigMap createConfigMap(Secret secret) {
-        return createConfigMapBuilder(secret).build();
+    ConfigMap createObservabilityConfigMap(Secret secret) {
+        return createObservabilityConfigMapBuilder(secret).build();
     }
 
-    ConfigMapBuilder createConfigMapBuilder(Secret secret) {
+    ConfigMapBuilder createObservabilityConfigMapBuilder(Secret secret) {
         OwnerReference ownerReference = new OwnerReferenceBuilder()
                 .withApiVersion(secret.getApiVersion())
                 .withKind(secret.getKind())
@@ -95,7 +95,7 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
     }
 
     public boolean isObservabilityRunning() {
-        ConfigMap cm = findConfigMap().get();
+        ConfigMap cm = observabilityConfigMap().get();
         if (cm != null) {
             String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
             if (status != null && status.equalsIgnoreCase("accepted")) {
