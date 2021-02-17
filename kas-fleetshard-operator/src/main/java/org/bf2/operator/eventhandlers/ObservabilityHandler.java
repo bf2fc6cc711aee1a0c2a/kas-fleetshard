@@ -54,10 +54,8 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
 
     @Override
     public void onUpdate(Secret oldObj, Secret newObj) {
-        if (isAddOnFleetShardSecret(oldObj)) {
-            if (!oldObj.getMetadata().getResourceVersion().equals(newObj.getMetadata().getResourceVersion())) {
-                return;
-            }
+        if (isAddOnFleetShardSecret(oldObj)
+                && !oldObj.getMetadata().getResourceVersion().equals(newObj.getMetadata().getResourceVersion())) {
             observabilityConfigMap().createOrReplace(createObservabilityConfigMap(newObj));
             log.info("Observability configuration for fleetshard operator updated");
         }
