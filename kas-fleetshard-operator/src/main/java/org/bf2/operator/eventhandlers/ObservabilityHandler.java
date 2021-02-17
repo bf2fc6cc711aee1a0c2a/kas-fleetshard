@@ -5,8 +5,7 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.bf2.operator.InformerManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -27,8 +26,10 @@ import io.quarkus.runtime.StartupEvent;
  */
 public class ObservabilityHandler implements ResourceEventHandler<Secret> {
 
-    private static final Logger log = LoggerFactory.getLogger(ObservabilityHandler.class);
     static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
+
+    @Inject
+    Logger log;
 
     @Inject
     protected KubernetesClient client;
@@ -45,24 +46,34 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
 
     @Override
     public void onAdd(Secret obj) {
-        observabilityConfigMap().createOrReplace(createObservabilityConfigMap(obj));
-        log.info("Observability configuration for fleetshard operator created");
+        if (isAddOnFleetShardSecret(obj)) {
+            observabilityConfigMap().createOrReplace(createObservabilityConfigMap(obj));
+            log.info("Observability configuration for fleetshard operator created");
+        }
     }
 
     @Override
     public void onUpdate(Secret oldObj, Secret newObj) {
-        if (!oldObj.getMetadata().getResourceVersion().equals(newObj.getMetadata().getResourceVersion())) {
-            return;
+        if (isAddOnFleetShardSecret(oldObj)) {
+            if (!oldObj.getMetadata().getResourceVersion().equals(newObj.getMetadata().getResourceVersion())) {
+                return;
+            }
+            observabilityConfigMap().createOrReplace(createObservabilityConfigMap(newObj));
+            log.info("Observability configuration for fleetshard operator updated");
         }
-        observabilityConfigMap().createOrReplace(createObservabilityConfigMap(newObj));
-        log.info("Observability configuration for fleetshard operator updated");
     }
 
     @Override
     public void onDelete(Secret obj, boolean deletedFinalStateUnknown) {
-        if(observabilityConfigMap().delete()) {
-            log.info("Observability configuration for fleetshard operator deleted");
+        if (isAddOnFleetShardSecret(obj)) {
+            if(observabilityConfigMap().delete()) {
+                log.info("Observability configuration for fleetshard operator deleted");
+            }
         }
+    }
+
+    boolean isAddOnFleetShardSecret(Secret obj) {
+        return obj.getMetadata().getName().equals(InformerManager.SECRET_NAME);
     }
 
     Resource<ConfigMap> observabilityConfigMap(){

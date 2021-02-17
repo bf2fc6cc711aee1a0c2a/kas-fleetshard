@@ -98,11 +98,10 @@ public class InformerManager {
             routeSharedIndexInformer.addEventHandler(routeEventSource);
         }
 
-        // no resync needed, also namespace scoped
-        OperationContext secretContext = new OperationContext().withNamespace(this.kubernetesClient.getNamespace())
-                .withName(SECRET_NAME);
+        // namespace scoped operation context. Note: "withName" in operation context filter yielded unexpected results in testing
+        OperationContext nsContext = new OperationContext().withNamespace(this.kubernetesClient.getNamespace());
         secretSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, secretContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, nsContext, 60 * 1000L);
         secretSharedIndexInformer.addEventHandler(this.observabilityHandler);
 
         sharedInformerFactory.startAllRegisteredInformers();
