@@ -102,7 +102,7 @@ public class InformerManager {
         OperationContext secretContext = new OperationContext().withNamespace(this.kubernetesClient.getNamespace())
                 .withName(SECRET_NAME);
         secretSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, secretContext, 0);
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, secretContext, 60 * 1000L);
         secretSharedIndexInformer.addEventHandler(this.observabilityHandler);
 
         sharedInformerFactory.startAllRegisteredInformers();

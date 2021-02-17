@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -72,12 +74,20 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
     }
 
     ConfigMapBuilder createConfigMapBuilder(Secret secret) {
-        //TODO: property names from secret needs to be confirmed with control plane
+        OwnerReference ownerReference = new OwnerReferenceBuilder()
+                .withApiVersion(secret.getApiVersion())
+                .withKind(secret.getKind())
+                .withName(secret.getMetadata().getName())
+                .withUid(secret.getMetadata().getUid())
+                .build();
+
         return new ConfigMapBuilder()
                 .withNewMetadata()
                     .withNamespace(secret.getMetadata().getNamespace())
                     .withName(OBSERVABILITY_CONFIGMAP_NAME)
                     .addToLabels("configures", "observability-operator")
+                    .addToLabels("app.kubernetes.io/managed-by", "kas-fleetshard-operator")
+                    .withOwnerReferences(ownerReference)
                 .endMetadata()
                 .addToData("access_token", secret.getData().get("observability.access_token"))
                 .addToData("channel", secret.getData().get("observability.channel"))
