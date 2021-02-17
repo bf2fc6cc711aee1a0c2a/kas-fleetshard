@@ -1,5 +1,7 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -16,6 +18,7 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.events.ConfigMapEventSource;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEventSource;
 import org.bf2.operator.events.RouteEventSource;
@@ -43,6 +46,8 @@ public class InformerManager {
     @Inject
     ServiceEventSource serviceEventSource;
     @Inject
+    ConfigMapEventSource configMapEventSource;
+    @Inject
     RouteEventSource routeEventSource;
 
     private SharedInformerFactory sharedInformerFactory;
@@ -50,6 +55,7 @@ public class InformerManager {
     private SharedIndexInformer<Kafka> kafkaSharedIndexInformer;
     private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
     private SharedIndexInformer<Service> serviceSharedIndexInformer;
+    private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
     
     void onStart(@Observes StartupEvent ev) {
@@ -72,6 +78,10 @@ public class InformerManager {
         serviceSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 60 * 1000L);
         serviceSharedIndexInformer.addEventHandler(serviceEventSource);
+
+        configMapSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 60 * 1000L);
+        configMapSharedIndexInformer.addEventHandler(configMapEventSource);
 
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             routeSharedIndexInformer =
@@ -96,6 +106,10 @@ public class InformerManager {
 
     public Service getLocalService(String namespace, String name) {
         return serviceSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public ConfigMap getLocalConfigMap(String namespace, String name) {
+        return configMapSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Route getLocalRoute(String namespace, String name) {

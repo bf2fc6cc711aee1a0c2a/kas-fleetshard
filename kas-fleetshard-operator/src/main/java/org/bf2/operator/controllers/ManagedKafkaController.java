@@ -1,5 +1,6 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -13,6 +14,8 @@ import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.events.ConfigMapEvent;
+import org.bf2.operator.events.ConfigMapEventSource;
 import org.bf2.operator.events.DeploymentEvent;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEvent;
@@ -54,6 +57,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     ServiceEventSource serviceEventSource;
+
+    @Inject
+    ConfigMapEventSource configMapEventSource;
 
     @Inject
     RouteEventSource routeEventSource;
@@ -107,6 +113,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             return UpdateControl.noUpdate();
         }
 
+        Optional<ConfigMapEvent> latestConfigMapEvent =
+                context.getEvents().getLatestOfType(ConfigMapEvent.class);
+        if (latestConfigMapEvent.isPresent()) {
+            ConfigMap configMap = latestConfigMapEvent.get().getConfigMap();
+            log.info("ConfigMap resource {}/{} is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
+        }
+
         Optional<RouteEvent> latestRouteEvent =
                 context.getEvents().getLatestOfType(RouteEvent.class);
         if (latestRouteEvent.isPresent()) {
@@ -125,6 +140,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
         eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
         eventSourceManager.registerEventSource("service-event-source", serviceEventSource);
+        eventSourceManager.registerEventSource("configmap-event-source", configMapEventSource);
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             eventSourceManager.registerEventSource("route-event-source", routeEventSource);
         }

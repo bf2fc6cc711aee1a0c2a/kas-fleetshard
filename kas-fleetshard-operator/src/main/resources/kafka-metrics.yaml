@@ -1,0 +1,198 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-metrics
+  labels:
+    app.kubernetes.io/managed-by: kas-fleetshard-operator
+data:
+  my-key: |
+    lowercaseOutputName: true
+    rules:
+      - labels:
+          clientID: $3
+          partition: $5
+          topic: $4
+        name: kafka_server_$1_$2
+        pattern: >-
+          kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+),
+          partition=(.*)><>Value
+        type: GAUGE
+      - labels:
+          broker: '$4:$5'
+          clientId: $3
+        name: kafka_server_$1_$2
+        pattern: >-
+          kafka.server<type=(.+), name=(.+), clientId=(.+), brokerHost=(.+),
+          brokerPort=(.+)><>Value
+        type: GAUGE
+      - labels:
+          cipher: $5
+          listener: $2
+          networkProcessor: $3
+          protocol: $4
+        name: kafka_server_$1_connections_tls_info
+        pattern: >-
+          kafka.server<type=(.+), cipher=(.+), protocol=(.+), listener=(.+),
+          networkProcessor=(.+)><>connections
+        type: GAUGE
+      - labels:
+          clientSoftwareName: $2
+          clientSoftwareVersion: $3
+          listener: $4
+          networkProcessor: $5
+        name: kafka_server_$1_connections_software
+        pattern: >-
+          kafka.server<type=(.+), clientSoftwareName=(.+),
+          clientSoftwareVersion=(.+), listener=(.+),
+          networkProcessor=(.+)><>connections
+        type: GAUGE
+      - labels:
+          listener: $2
+          networkProcessor: $3
+        name: kafka_server_$1_$4
+        pattern: 'kafka.server<type=(.+), listener=(.+), networkProcessor=(.+)><>(.+):'
+        type: GAUGE
+      - labels:
+          listener: $2
+          networkProcessor: $3
+        name: kafka_server_$1_$4
+        pattern: 'kafka.server<type=(.+), listener=(.+), networkProcessor=(.+)><>(.+)'
+        type: GAUGE
+      - name: kafka_controller_kafkacontroller_offline_partitions_count
+        pattern: >-
+          kafka.controller<type=KafkaController,
+          name=OfflinePartitionsCount><>Value
+        type: GAUGE
+      - name: kafka_server_replicamanager_under_replicated_partitions
+        pattern: >-
+          kafka.server<type=ReplicaManager,
+          name=UnderReplicatedPartitions><>Value
+        type: GAUGE
+      - name: kafka_server_replicamanager_at_min_isr_partition_count
+        pattern: >-
+          kafka.server<type=ReplicaManager,
+          name=AtMinIsrPartitionCount><>Value
+        type: GAUGE
+      - labels:
+          partition: $2
+          topic: $1
+        name: kafka_cluster_partition_at_min_isr
+        pattern: >-
+          kafka.cluster<type=Partition, name=AtMinIsr, topic=(.+),
+          partition=(.*)><>Value
+        type: GAUGE
+      - name: kafka_server_replicamanager_under_min_isr_partition_count
+        pattern: >-
+          kafka.server<type=ReplicaManager,
+          name=UnderMinIsrPartitionCount><>Value
+        type: GAUGE
+      - labels:
+          partition: $2
+          topic: $1
+        name: kafka_cluster_partition_under_min_isr
+        pattern: >-
+          kafka.cluster<type=Partition, name=UnderMinIsr, topic=(.+),
+          partition=(.*)><>Value
+        type: GAUGE
+      - name: kafka_controller_kafkacontroller_active_controller_count
+        pattern: >-
+          kafka.controller<type=KafkaController,
+          name=ActiveControllerCount><>Value
+        type: GAUGE
+      - name: kafka_server_replicamanager_leader_count
+        pattern: 'kafka.server<type=ReplicaManager, name=LeaderCount><>Value'
+        type: GAUGE
+      - labels:
+          topic: $1
+        name: kafka_server_brokertopicmetrics_bytes_in_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics, name=BytesInPerSec,
+          topic=(.+)><>Count
+        type: GAUGE
+      - labels:
+          topic: $1
+        name: kafka_server_brokertopicmetrics_bytes_out_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics, name=BytesOutPerSec,
+          topic=(.+)><>Count
+        type: GAUGE
+      - labels:
+          topic: $1
+        name: kafka_server_brokertopicmetrics_messages_in_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics, name=MessagesInPerSec,
+          topic=(.+)><>Count
+        type: GAUGE
+      - name: kafka_controller_kafkacontroller_global_partition_count
+        pattern: >-
+          kafka.controller<type=KafkaController,
+          name=GlobalPartitionCount><>Value
+        type: GAUGE
+      - labels:
+          partition: $2
+          topic: $1
+        name: kafka_log_log_size
+        pattern: 'kafka.log<type=Log, name=Size, topic=(.+), partition=(.*)><>Value'
+        type: GAUGE
+      - name: kafka_log_logmanager_offline_log_directory_count
+        pattern: 'kafka.log<type=LogManager, name=OfflineLogDirectoryCount><>Value'
+        type: GAUGE
+      - name: kafka_controller_controllerstats_unclean_leader_elections_total
+        pattern: >-
+          kafka.controller<type=ControllerStats,
+          name=UncleanLeaderElectionsPerSec><>Count
+        type: GAUGE
+      - name: kafka_server_replicamanager_partition_count
+        pattern: 'kafka.server<type=ReplicaManager, name=PartitionCount><>Value'
+        type: GAUGE
+      - labels:
+          topic: $1
+        name: kafka_server_brokertopicmetrics_total_produce_requests_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics,
+          name=TotalProduceRequestsPerSec, topic=(.+)><>Count
+        type: COUNTER
+      - name: kafka_server_brokertopicmetrics_failed_produce_requests_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics,
+          name=FailedProduceRequestsPerSec><>Count
+        type: COUNTER
+      - labels:
+          topic: $1
+        name: kafka_server_brokertopicmetrics_total_fetch_requests_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics, name=TotalFetchRequestsPerSec,
+          topic=(.+)><>Count
+        type: COUNTER
+      - name: kafka_server_brokertopicmetrics_failed_fetch_requests_total
+        pattern: >-
+          kafka.server<type=BrokerTopicMetrics,
+          name=FailedFetchRequestsPerSec><>Count
+        type: COUNTER
+      - name: kafka_network_socketserver_network_processor_avg_idle_percent
+        pattern: >-
+          kafka.network<type=SocketServer,
+          name=NetworkProcessorAvgIdlePercent><>Value
+        type: GAUGE
+      - name: >-
+          kafka_server_kafkarequesthandlerpool_request_handler_avg_idle_percent
+        pattern: >-
+          kafka.server<type=KafkaRequestHandlerPool,
+          name=RequestHandlerAvgIdlePercent><>MeanRate
+        type: GAUGE
+      - labels:
+          partition: $2
+          topic: $1
+        name: kafka_cluster_partition_replicas_count
+        pattern: >-
+          kafka.cluster<type=Partition, name=ReplicasCount, topic=(.+),
+          partition=(.*)><>Value
+        type: GAUGE
+      - labels:
+          $1: $2
+          quantile: 0.$3
+        name: kafka_network_requestmetrics_total_time_ms
+        pattern: >-
+          kafka.network<type=RequestMetrics, name=TotalTimeMs,
+          (.+)=(.+)><>(\d+)thPercentile
+        type: GAUGE

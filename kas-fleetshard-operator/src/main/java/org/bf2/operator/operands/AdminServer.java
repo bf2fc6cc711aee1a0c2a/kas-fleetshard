@@ -9,8 +9,6 @@ import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.OwnerReference;
-import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -159,13 +157,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        deployment.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+        OperandUtils.setAsOwner(managedKafka, deployment);
 
         return deployment;
     }
@@ -190,13 +182,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         // setting the ManagedKafka has owner of the Admin Server service resource is needed
         // by the operator sdk to handle events on the Service resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        service.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+        OperandUtils.setAsOwner(managedKafka, service);
 
         return service;
     }
@@ -231,13 +217,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         // setting the ManagedKafka has owner of the Admin Server route resource is needed
         // by the operator sdk to handle events on the Route resource properly
-        OwnerReference ownerReference = new OwnerReferenceBuilder()
-                .withApiVersion(managedKafka.getApiVersion())
-                .withKind(managedKafka.getKind())
-                .withName(managedKafka.getMetadata().getName())
-                .withUid(managedKafka.getMetadata().getUid())
-                .build();
-        route.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+        OperandUtils.setAsOwner(managedKafka, route);
 
         return route;
     }

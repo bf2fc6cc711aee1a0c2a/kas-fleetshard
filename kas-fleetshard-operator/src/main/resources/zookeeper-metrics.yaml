@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zookeeper-metrics
+  labels:
+    app.kubernetes.io/managed-by: kas-fleetshard-operator
+data:
+  my-key: |
+    lowercaseOutputName: true
+    rules:
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_outstanding_requests
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+))><>OutstandingRequests
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_avg_request_latency
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+))><>AvgRequestLatency
+        type: GAUGE
+      - name: zookeeper_quorum_size
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+))><>QuorumSize
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_num_alive_connections
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+))><>NumAliveConnections
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_in_memory_data_tree_node_count
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+),
+          name3=InMemoryDataTree)><>NodeCount
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_in_memory_data_tree_watch_count
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+),
+          name3=InMemoryDataTree)><>WatchCount
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_min_request_latency
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+))><>MinRequestLatency
+        type: GAUGE
+      - labels:
+          memberType: $3
+          replicaId: $2
+        name: zookeeper_max_request_latency
+        pattern: >-
+          org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+),
+          name1=replica.(\d+), name2=(\w+))><>MaxRequestLatency
+        type: GAUGE
