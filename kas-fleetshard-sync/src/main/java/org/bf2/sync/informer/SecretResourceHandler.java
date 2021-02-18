@@ -3,6 +3,7 @@ package org.bf2.sync.informer;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.quarkus.runtime.Quarkus;
 
 import org.jboss.logging.Logger;
 
@@ -27,6 +28,7 @@ class SecretResourceHandler implements ResourceEventHandler<Secret> {
             this.secretAvailable = true;
             log.debug(InformerManager.SECRET_NAME + " added");
         }
+        reconcile();
     }
 
     @Override
@@ -35,6 +37,7 @@ class SecretResourceHandler implements ResourceEventHandler<Secret> {
             this.secretUpdated = true;
             log.debug(InformerManager.SECRET_NAME + " updated");
         }
+        reconcile();
     }
 
     @Override
@@ -44,6 +47,7 @@ class SecretResourceHandler implements ResourceEventHandler<Secret> {
             this.secretUpdated = true;
             log.debug(InformerManager.SECRET_NAME + " deleted");
         }
+        reconcile();
     }
 
     boolean isAddOnFleetShardSecret(Secret obj) {
@@ -56,5 +60,15 @@ class SecretResourceHandler implements ResourceEventHandler<Secret> {
 
     public boolean isSecretAvailable() {
         return this.secretAvailable;
+    }
+
+    /**
+     * This method is used to bounce the Sync pod so that new configuration is immediately taken effect.
+     */
+    private void reconcile() {
+        if (!isSecretAvailable() || isSecretChanged()) {
+            log.info(InformerManager.SECRET_NAME + " changed or deleted, requires a restart to pickup new configuration");
+            Quarkus.asyncExit(-2);
+        }
     }
 }
