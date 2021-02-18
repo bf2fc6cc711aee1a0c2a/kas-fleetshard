@@ -15,7 +15,10 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 
@@ -30,6 +33,9 @@ public class InformerManager implements LocalLookup {
 
     @Inject
     ControlPlane controlPlane;
+
+    @Inject
+    ManagedKafkaAgentCRHandler mkaHandler;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -48,6 +54,12 @@ public class InformerManager implements LocalLookup {
         managedAgentInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,
                 resync.toMillis());
         managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
+
+        // namespace scoped operation context. Note: "withName" in operation context filter yielded unexpected results in testing
+        OperationContext nsContext = new OperationContext().withNamespace(this.client.getNamespace());
+        var secretSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, nsContext, 60 * 1000L);
+        secretSharedIndexInformer.addEventHandler(this.mkaHandler);
 
         sharedInformerFactory.startAllRegisteredInformers();
     }

@@ -8,6 +8,7 @@ public class ManagedKafkaAgentSpec {
      * Cluster ID given by the control plane
      */
     String clusterId;
+    String[] allowedStrimziVersions;
 
     public String getClusterId() {
         return clusterId;
@@ -15,5 +16,13 @@ public class ManagedKafkaAgentSpec {
 
     public void setClusterId(String clusterId) {
         this.clusterId = clusterId;
+    }
+
+    public String[] getAllowedStrimziVersions() {
+        return allowedStrimziVersions;
+    }
+
+    public void setAllowedStrimziVersions(String[] allowedStrimziVersions) {
+        this.allowedStrimziVersions = allowedStrimziVersions;
     }
 }

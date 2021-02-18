@@ -11,8 +11,6 @@ import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -87,19 +85,11 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     void statusUpdateLoop() {
         try {
             ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, RESOURCE_NAME);
-            if (resource == null) {
-                if (this.kubeClient.namespaces().withName(namespace).get() == null) {
-                    return; //must be running locally with no namespace configured
-                }
-                resource = new ManagedKafkaAgentBuilder()
-                        .withSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build())
-                        .withMetadata(new ObjectMetaBuilder().withName(RESOURCE_NAME).withName(this.namespace).build())
-                        .build();
-                this.agentClient.createOrReplace(resource);
+            if (resource != null) {
+                log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
+                resource.setStatus(buildStatus(resource));
+                this.agentClient.updateStatus(resource);
             }
-            log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
-            resource.setStatus(buildStatus(resource));
-            this.agentClient.updateStatus(resource);
         } catch(RuntimeException e) {
             log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
         }
