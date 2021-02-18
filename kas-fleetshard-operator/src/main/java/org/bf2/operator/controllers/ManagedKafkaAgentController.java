@@ -11,6 +11,7 @@ import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
@@ -21,6 +22,8 @@ import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
@@ -85,13 +88,13 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         try {
             ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, RESOURCE_NAME);
             if (resource == null) {
-                resource = new ManagedKafkaAgent();
-                resource.setSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build());
-                resource.getMetadata().setName(RESOURCE_NAME);
-                resource.getMetadata().setNamespace(this.namespace);
                 if (this.kubeClient.namespaces().withName(namespace).get() == null) {
                     return; //must be running locally with no namespace configured
                 }
+                resource = new ManagedKafkaAgentBuilder()
+                        .withSpec(new ManagedKafkaAgentSpecBuilder().withClusterId(this.clusterId).build())
+                        .withMetadata(new ObjectMetaBuilder().withName(RESOURCE_NAME).withName(this.namespace).build())
+                        .build();
                 this.agentClient.createOrReplace(resource);
             }
             log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
@@ -115,22 +118,22 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
-                .withDataRetentionSize("40Gi")
-                .withIngressEgressThroughputPerSec("40Gi")
+                .withDataRetentionSize(Quantity.parse("40Gi"))
+                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
                 .withPartitions(10000)
                 .build();
 
         ClusterCapacity remaining = new ClusterCapacityBuilder()
                 .withConnections(10000)
-                .withDataRetentionSize("40Gi")
-                .withIngressEgressThroughputPerSec("40Gi")
+                .withDataRetentionSize(Quantity.parse("40Gi"))
+                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
                 .withPartitions(10000)
                 .build();
 
         ClusterCapacity delta = new ClusterCapacityBuilder()
                 .withConnections(10000)
-                .withDataRetentionSize("40Gi")
-                .withIngressEgressThroughputPerSec("40Gi")
+                .withDataRetentionSize(Quantity.parse("40Gi"))
+                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
                 .withPartitions(10000)
                 .build();
 

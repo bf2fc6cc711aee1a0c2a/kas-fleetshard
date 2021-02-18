@@ -1,43 +1,44 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.sundr.builder.annotations.Buildable;
 
 @Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class ClusterCapacity {
-    private String ingressEgressThroughputPerSec;
-    private int connections;
-    private String dataRetentionSize;
-    private int partitions;
+    private Quantity ingressEgressThroughputPerSec;
+    private Integer connections;
+    private Quantity dataRetentionSize;
+    private Integer partitions;
 
-    public String getIngressEgressThroughputPerSec() {
+    public Quantity getIngressEgressThroughputPerSec() {
         return ingressEgressThroughputPerSec;
     }
 
-    public void setIngressEgressThroughputPerSec(String ingressEgressThroughputPerSec) {
+    public void setIngressEgressThroughputPerSec(Quantity ingressEgressThroughputPerSec) {
         this.ingressEgressThroughputPerSec = ingressEgressThroughputPerSec;
     }
 
-    public int getConnections() {
+    public Integer getConnections() {
         return connections;
     }
 
-    public void setConnections(int connections) {
+    public void setConnections(Integer connections) {
         this.connections = connections;
     }
 
-    public String getDataRetentionSize() {
+    public Quantity getDataRetentionSize() {
         return dataRetentionSize;
     }
 
-    public void setDataRetentionSize(String dataRetentionSize) {
+    public void setDataRetentionSize(Quantity dataRetentionSize) {
         this.dataRetentionSize = dataRetentionSize;
     }
 
-    public int getPartitions() {
+    public Integer getPartitions() {
         return partitions;
     }
 
-    public void setPartitions(int partitions) {
+    public void setPartitions(Integer partitions) {
         this.partitions = partitions;
     }
 }
