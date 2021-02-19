@@ -4,6 +4,8 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import java.util.Base64;
+
 import org.bf2.operator.InformerManager;
 import org.jboss.logging.Logger;
 
@@ -98,9 +100,13 @@ public class ObservabilityHandler implements ResourceEventHandler<Secret> {
                     .addToLabels("app.kubernetes.io/managed-by", "kas-fleetshard-operator")
                     .withOwnerReferences(ownerReference)
                 .endMetadata()
-                .addToData("access_token", secret.getData().get("observability.access_token"))
-                .addToData("channel", secret.getData().get("observability.channel"))
-                .addToData("repository", secret.getData().get("observability.repository"));
+                .addToData("access_token", getSecretData(secret,"observability.access_token"))
+                .addToData("channel", getSecretData(secret,"observability.channel"))
+                .addToData("repository", getSecretData(secret,"observability.repository"));
+    }
+
+    static String getSecretData(Secret secret, String propertyName) {
+        return new String(Base64.getDecoder().decode(secret.getData().get(propertyName)));
     }
 
     public boolean isObservabilityRunning() {

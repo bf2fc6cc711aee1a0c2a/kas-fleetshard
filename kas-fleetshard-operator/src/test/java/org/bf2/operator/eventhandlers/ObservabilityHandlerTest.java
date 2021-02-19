@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import javax.inject.Inject;
 
+import java.util.Base64;
+
 import org.bf2.operator.InformerManager;
 import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.bf2.test.mock.QuarkusKubernetesMockServer;
@@ -38,9 +40,9 @@ public class ObservabilityHandlerTest {
                 .withNamespace(server.getClient().getNamespace())
                 .withName(InformerManager.SECRET_NAME)
             .endMetadata()
-            .addToData("observability.access_token", "test-token")
-            .addToData("observability.channel", "test")
-            .addToData("observability.repository", "test-repo")
+            .addToData("observability.access_token", Base64.getEncoder().encodeToString("test-token".getBytes()))
+            .addToData("observability.channel", Base64.getEncoder().encodeToString("test".getBytes()))
+            .addToData("observability.repository", Base64.getEncoder().encodeToString("test-repo".getBytes()))
             .build());
     }
 
@@ -65,9 +67,9 @@ public class ObservabilityHandlerTest {
         Secret s = getSecretResource().get();
         assertNotNull(s);
 
-        assertEquals("test-token", s.getData().get("observability.access_token"));
-        assertEquals("test", s.getData().get("observability.channel"));
-        assertEquals("test-repo", s.getData().get("observability.repository"));
+        assertEquals("test-token", ObservabilityHandler.getSecretData(s,"observability.access_token"));
+        assertEquals("test", ObservabilityHandler.getSecretData(s,"observability.channel"));
+        assertEquals("test-repo", ObservabilityHandler.getSecretData(s,"observability.repository"));
 
         // lets call event handler
         observabilityHandler.onAdd(s);
