@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
 
@@ -9,19 +8,9 @@
         <artifactId>kas-fleetshard</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>kas-fleetshard-operator</artifactId>
+    <artifactId>kas-fleetshard-sync</artifactId>
 
     <dependencies>
-        <dependency>
-            <groupId>org.bf2</groupId>
-            <artifactId>kas-fleetshard-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.bf2</groupId>
-            <artifactId>test</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>${quarkus.platform.group-id}</groupId>
             <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -29,12 +18,12 @@
             <type>pom</type>
         </dependency>
         <dependency>
-            <groupId>io.sundr</groupId>
-            <artifactId>builder-annotations</artifactId>
+            <groupId>org.bf2</groupId>
+            <artifactId>kas-fleetshard-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.javaoperatorsdk</groupId>
-            <artifactId>operator-framework-quarkus-extension</artifactId>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-container-image-jib</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -45,25 +34,47 @@
             <artifactId>quarkus-kubernetes-client</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.sundr</groupId>
+            <artifactId>builder-annotations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-micrometer-registry-prometheus</artifactId>
+            <artifactId>quarkus-rest-client</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.strimzi</groupId>
-            <artifactId>api</artifactId>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-resteasy-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>
-        </dependency>        
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-oidc-client-filter</artifactId>
+        </dependency>
         <!-- test -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5-mockito</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-test-kubernetes-client</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

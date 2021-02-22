@@ -12,7 +12,7 @@
     <properties>
         <surefire-plugin.version>3.0.0-M5</surefire-plugin.version>
         <maven.compiler.target>11</maven.compiler.target>
-        <quarkus.platform.version>1.11.0.Final</quarkus.platform.version>
+        <quarkus.platform.version>1.11.3.Final</quarkus.platform.version>
         <maven.compiler.source>11</maven.compiler.source>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
@@ -27,11 +27,13 @@
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
         <sundrio.version>0.24.1</sundrio.version>
+        <lombok.version>1.18.16</lombok.version>
     </properties>
 
     <modules>
         <module>kas-fleetshard-api</module>
         <module>kas-fleetshard-operator</module>
+        <module>kas-fleetshard-sync</module>
         <module>test</module>
     </modules>
     
@@ -46,6 +48,11 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.bf2</groupId>
+                <artifactId>kas-fleetshard-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
@@ -92,6 +99,12 @@
                 <groupId>io.strimzi</groupId>
                 <artifactId>api</artifactId>
                 <version>${strimzi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
             </dependency>
             <!-- test -->
             <dependency>

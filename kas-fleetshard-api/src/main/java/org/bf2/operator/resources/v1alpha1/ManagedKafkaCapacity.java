@@ -2,6 +2,8 @@ package org.bf2.operator.resources.v1alpha1;
 
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.sundr.builder.annotations.Buildable;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Defines the capacity provided by a ManagedKafka instance in terms of throughput, connection, data retention and more
@@ -10,6 +12,8 @@ import io.sundr.builder.annotations.Buildable;
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
 )
+@ToString
+@EqualsAndHashCode
 public class ManagedKafkaCapacity {
 
     private Quantity ingressEgressThroughputPerSec;
