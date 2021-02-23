@@ -51,13 +51,13 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     Logger log;
 
     @Inject
-    private AgentResourceClient agentClient;
+    AgentResourceClient agentClient;
 
     @ConfigProperty(name = "kubernetes.namespace", defaultValue = "test")
-    private String namespace;
+    String namespace;
 
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
-    private String clusterId;
+    String clusterId;
 
     @Inject
     KubernetesClient kubeClient;
