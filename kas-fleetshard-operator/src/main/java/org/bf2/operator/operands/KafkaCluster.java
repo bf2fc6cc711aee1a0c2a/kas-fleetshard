@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
 import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
@@ -52,6 +53,7 @@ import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +103,11 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     @Inject
     InformerManager informerManager;
 
+    @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
+    boolean isKafkaAuthenticationEnabled;
+    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
+    boolean isKafkaExternalCertificateEnabled;
+
     Base64.Encoder encoder = Base64.getEncoder();
 
     @Override
@@ -109,17 +116,21 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         Kafka kafka = kafkaFrom(managedKafka, currentKafka);
         createOrUpdate(kafka);
 
-        // TODO: adding informer for Secret and the using cache
-        Secret tlsSecret = tlsSecretFrom(managedKafka);
-        createOrUpdate(tlsSecret);
+        if (isKafkaExternalCertificateEnabled) {
+            // TODO: adding informer for Secret and the using cache
+            Secret tlsSecret = tlsSecretFrom(managedKafka);
+            createOrUpdate(tlsSecret);
+        }
 
-        // TODO: adding informer for Secret and the using cache
-        Secret ssoClientSecret = ssoClientSecretFrom(managedKafka);
-        createOrUpdate(ssoClientSecret);
+        if (isKafkaAuthenticationEnabled) {
+            // TODO: adding informer for Secret and the using cache
+            Secret ssoClientSecret = ssoClientSecretFrom(managedKafka);
+            createOrUpdate(ssoClientSecret);
 
-        // TODO: adding informer for Secret and the using cache
-        Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka);
-        createOrUpdate(ssoTlsSecret);
+            // TODO: adding informer for Secret and the using cache
+            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka);
+            createOrUpdate(ssoTlsSecret);
+        }
 
         ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, "kafka-metrics");
         ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, "kafka-metrics", currentKafkaMetricsConfigMap);
@@ -141,18 +152,22 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .inNamespace(managedKafka.getMetadata().getNamespace())
                 .withName("zookeeper-metrics")
                 .delete();
-        kubernetesClient.secrets()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(kafkaTlsSecretName(managedKafka))
-                .delete();
-        kubernetesClient.secrets()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(ssoClientSecretName(managedKafka))
-                .delete();
-        kubernetesClient.secrets()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(ssoTlsSecretName(managedKafka))
-                .delete();
+        if (isKafkaExternalCertificateEnabled) {
+            kubernetesClient.secrets()
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(kafkaTlsSecretName(managedKafka))
+                    .delete();
+        }
+        if (isKafkaAuthenticationEnabled) {
+            kubernetesClient.secrets()
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(ssoClientSecretName(managedKafka))
+                    .delete();
+            kubernetesClient.secrets()
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(ssoTlsSecretName(managedKafka))
+                    .delete();
+        }
     }
 
     private void createOrUpdate(Kafka kafka) {
@@ -306,6 +321,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return secret;
     }
 
+    /* test */
     protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka) {
         Map<String, String> certs = new HashMap<>(1);
         certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes()));
@@ -340,6 +356,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected CertAndKeySecretSource getTlsCertAndKeySecretSource(ManagedKafka managedKafka) {
+        if (!isKafkaExternalCertificateEnabled) {
+            return null;
+        }
         return new CertAndKeySecretSourceBuilder()
                 .withSecretName(kafkaTlsSecretName(managedKafka))
                 .withCertificate("tls.crt")
@@ -452,27 +471,31 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
         KafkaListenerAuthentication oauthAuthenticationListener = null;
 
-        ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
+        if (isKafkaAuthenticationEnabled) {
+            ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
 
-        plainOverOauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
-                .withClientId(managedKafkaAuthenticationOAuth.getClientId())
-                .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
-                .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
-                .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                .withTlsTrustedCertificates(getSsoTlsCertSecretSource(managedKafka))
-                .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
-                .withEnablePlain(true)
-                .withTokenEndpointUri(managedKafkaAuthenticationOAuth.getTokenEndpointURI())
-                .build();
+            plainOverOauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
+                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
+                    .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
+                    .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
+                    .withTlsTrustedCertificates(getSsoTlsCertSecretSource(managedKafka))
+                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
+                    .withEnablePlain(true)
+                    .withTokenEndpointUri(managedKafkaAuthenticationOAuth.getTokenEndpointURI())
+                    .build();
 
-        oauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
-                .withClientId(managedKafkaAuthenticationOAuth.getClientId())
-                .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
-                .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
-                .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                .withTlsTrustedCertificates(getSsoTlsCertSecretSource(managedKafka))
-                .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
-                .build();
+            oauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
+                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
+                    .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
+                    .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
+                    .withTlsTrustedCertificates(getSsoTlsCertSecretSource(managedKafka))
+                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
+                    .build();
+        }
+
+        KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
@@ -488,11 +511,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
                                 .build(),
-                        //TODO: using OpenShift Route should be related to the cluster. If it's not OpenShift, not using Routes.
                         new GenericKafkaListenerBuilder()
                                 .withName("external")
                                 .withPort(9094)
-                                .withType(KafkaListenerType.ROUTE)
+                                .withType(externalListenerType)
                                 .withTls(true)
                                 .withAuth(plainOverOauthAuthenticationListener)
                                 .withConfiguration(
