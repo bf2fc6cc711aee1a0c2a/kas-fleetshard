@@ -14,16 +14,8 @@ import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.events.ConfigMapEvent;
-import org.bf2.operator.events.ConfigMapEventSource;
-import org.bf2.operator.events.DeploymentEvent;
-import org.bf2.operator.events.DeploymentEventSource;
-import org.bf2.operator.events.KafkaEvent;
-import org.bf2.operator.events.KafkaEventSource;
-import org.bf2.operator.events.RouteEvent;
-import org.bf2.operator.events.RouteEventSource;
-import org.bf2.operator.events.ServiceEvent;
-import org.bf2.operator.events.ServiceEventSource;
+import org.bf2.operator.events.ResourceEvent;
+import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.ConditionUtils;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -50,19 +42,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     KubernetesClient kubernetesClient;
 
     @Inject
-    KafkaEventSource kafkaEventSource;
+    ResourceEventSource.KafkaEventSource kafkaEventSource;
 
     @Inject
-    DeploymentEventSource deploymentEventSource;
+    ResourceEventSource.DeploymentEventSource deploymentEventSource;
 
     @Inject
-    ServiceEventSource serviceEventSource;
+    ResourceEventSource.ServiceEventSource serviceEventSource;
 
     @Inject
-    ConfigMapEventSource configMapEventSource;
+    ResourceEventSource.ConfigMapEventSource configMapEventSource;
 
     @Inject
-    RouteEventSource routeEventSource;
+    ResourceEventSource.RouteEventSource routeEventSource;
 
     @Inject
     KafkaInstance kafkaInstance;
@@ -84,48 +76,48 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             kafkaInstance.createOrUpdate(managedKafka);
         }
 
-        Optional<KafkaEvent> latestKafkaEvent =
-                context.getEvents().getLatestOfType(KafkaEvent.class);
+        Optional<ResourceEvent.KafkaEvent> latestKafkaEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
-            Kafka kafka = latestKafkaEvent.get().getKafka();
+            Kafka kafka = latestKafkaEvent.get().getResource();
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
             kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
-        Optional<DeploymentEvent> latestDeploymentEvent =
-                context.getEvents().getLatestOfType(DeploymentEvent.class);
+        Optional<ResourceEvent.DeploymentEvent> latestDeploymentEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.DeploymentEvent.class);
         if (latestDeploymentEvent.isPresent()) {
-            Deployment deployment = latestDeploymentEvent.get().getDeployment();
+            Deployment deployment = latestDeploymentEvent.get().getResource();
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
             kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
-        Optional<ServiceEvent> latestServiceEvent =
-                context.getEvents().getLatestOfType(ServiceEvent.class);
+        Optional<ResourceEvent.ServiceEvent> latestServiceEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.ServiceEvent.class);
         if (latestServiceEvent.isPresent()) {
-            Service service = latestServiceEvent.get().getService();
+            Service service = latestServiceEvent.get().getResource();
             log.info("Service resource {}/{} is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
             kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.noUpdate();
         }
 
-        Optional<ConfigMapEvent> latestConfigMapEvent =
-                context.getEvents().getLatestOfType(ConfigMapEvent.class);
+        Optional<ResourceEvent.ConfigMapEvent> latestConfigMapEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.ConfigMapEvent.class);
         if (latestConfigMapEvent.isPresent()) {
-            ConfigMap configMap = latestConfigMapEvent.get().getConfigMap();
+            ConfigMap configMap = latestConfigMapEvent.get().getResource();
             log.info("ConfigMap resource {}/{} is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
             kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.noUpdate();
         }
 
-        Optional<RouteEvent> latestRouteEvent =
-                context.getEvents().getLatestOfType(RouteEvent.class);
+        Optional<ResourceEvent.RouteEvent> latestRouteEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.RouteEvent.class);
         if (latestRouteEvent.isPresent()) {
-            Route route = latestRouteEvent.get().getRoute();
+            Route route = latestRouteEvent.get().getResource();
             log.info("Route resource {}/{} is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
             kafkaInstance.createOrUpdate(managedKafka);
             return UpdateControl.noUpdate();

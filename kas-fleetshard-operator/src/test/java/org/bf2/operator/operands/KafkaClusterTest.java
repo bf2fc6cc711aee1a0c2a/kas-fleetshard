@@ -1,9 +1,11 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -62,7 +64,8 @@ class KafkaClusterTest {
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
+        var crdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
+        var kafkaCli = server.getClient().customResources(crdContext, Kafka.class, KafkaList.class);
         kafkaCli.create(kafka);
         assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }

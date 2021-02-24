@@ -217,7 +217,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
         Kafka kafka = builder
-                .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA2)
+                .withNewApiVersion(Kafka.RESOURCE_GROUP + "/" + Kafka.V1BETA1)
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
