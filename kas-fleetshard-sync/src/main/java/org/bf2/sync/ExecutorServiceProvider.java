@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Inject;
@@ -30,6 +31,12 @@ public class ExecutorServiceProvider {
     @Produces
     public ExecutorService executorService() {
         return executor;
+    }
+
+    @PreDestroy
+    void shutdown() {
+        // we don't need to be more graceful than this as any action will be retried
+        executor.shutdownNow();
     }
 
 }

@@ -48,6 +48,8 @@ eval $(minikube docker-env)
 mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard
 ```
 
+Be default the image will run in prod mode.  Add -Dquarkus.profile=dev to run in dev mode - which does not expect sso nor the addon secret
+
 ### In OpenShift (Code Ready Container)
 
 To get access to the OpenShift image registry run below commands
