@@ -26,10 +26,10 @@ mvn clean verify -P systemtest -pl systemtest -Dgroups=smoke -am
 
 #### Running single test or subset of tests
 ```
-mvn clean verify -P systemtest -pl systemtest -am -Dtest=ManagedKafkaST#testDeployManagedKafka
+mvn clean verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST#testDeployManagedKafka
 ```
 ```
-mvn clean verify -P systemtest -pl systemtest -am -Dtest=ManagedKafkaST,RecoveryST
+mvn clean verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST,RecoveryST
 ```
 
 ### Running testsuite in parallel
