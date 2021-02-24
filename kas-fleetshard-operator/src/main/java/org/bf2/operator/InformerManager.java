@@ -3,8 +3,6 @@ package org.bf2.operator;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
 
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -22,7 +20,6 @@ import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 
-import org.bf2.operator.eventhandlers.ObservabilityHandler;
 import org.bf2.operator.events.ConfigMapEventSource;
 import org.bf2.operator.events.DeploymentEventSource;
 import org.bf2.operator.events.KafkaEventSource;
@@ -55,8 +52,6 @@ public class InformerManager {
     ConfigMapEventSource configMapEventSource;
     @Inject
     RouteEventSource routeEventSource;
-    @Inject
-    ObservabilityHandler observabilityHandler;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -65,7 +60,6 @@ public class InformerManager {
     private SharedIndexInformer<Service> serviceSharedIndexInformer;
     private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
-    private SharedIndexInformer<Secret> secretSharedIndexInformer;
 
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
@@ -97,12 +91,6 @@ public class InformerManager {
                     sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
             routeSharedIndexInformer.addEventHandler(routeEventSource);
         }
-
-        // namespace scoped operation context. Note: "withName" in operation context filter yielded unexpected results in testing
-        OperationContext nsContext = new OperationContext().withNamespace(this.kubernetesClient.getNamespace());
-        secretSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, nsContext, 60 * 1000L);
-        secretSharedIndexInformer.addEventHandler(this.observabilityHandler);
 
         sharedInformerFactory.startAllRegisteredInformers();
     }
