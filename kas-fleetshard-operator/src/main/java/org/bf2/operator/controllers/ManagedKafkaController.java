@@ -1,6 +1,7 @@
 package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -52,6 +53,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     ResourceEventSource.ConfigMapEventSource configMapEventSource;
+
+    @Inject
+    ResourceEventSource.SecretEventSource secretEventSource;
 
     @Inject
     ResourceEventSource.RouteEventSource routeEventSource;
@@ -114,6 +118,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             return UpdateControl.noUpdate();
         }
 
+        Optional<ResourceEvent.SecretEvent> latestSecretEvent =
+                context.getEvents().getLatestOfType(ResourceEvent.SecretEvent.class);
+        if (latestSecretEvent.isPresent()) {
+            Secret secret = latestSecretEvent.get().getResource();
+            log.info("Secret resource {}/{} is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
+            kafkaInstance.createOrUpdate(managedKafka);
+            return UpdateControl.noUpdate();
+        }
+
         Optional<ResourceEvent.RouteEvent> latestRouteEvent =
                 context.getEvents().getLatestOfType(ResourceEvent.RouteEvent.class);
         if (latestRouteEvent.isPresent()) {
@@ -133,6 +146,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
         eventSourceManager.registerEventSource("service-event-source", serviceEventSource);
         eventSourceManager.registerEventSource("configmap-event-source", configMapEventSource);
+        eventSourceManager.registerEventSource("secret-event-source", secretEventSource);
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             eventSourceManager.registerEventSource("route-event-source", routeEventSource);
         }

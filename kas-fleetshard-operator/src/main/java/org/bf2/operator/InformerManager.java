@@ -2,6 +2,8 @@ package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -46,6 +48,8 @@ public class InformerManager {
     @Inject
     ResourceEventSource.ConfigMapEventSource configMapEventSource;
     @Inject
+    ResourceEventSource.SecretEventSource secretEventSource;
+    @Inject
     ResourceEventSource.RouteEventSource routeEventSource;
 
     private SharedInformerFactory sharedInformerFactory;
@@ -54,6 +58,7 @@ public class InformerManager {
     private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
     private SharedIndexInformer<Service> serviceSharedIndexInformer;
     private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
+    private SharedIndexInformer<Secret> secretSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
     
     void onStart(@Observes StartupEvent ev) {
@@ -91,6 +96,10 @@ public class InformerManager {
                 sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 60 * 1000L);
         configMapSharedIndexInformer.addEventHandler(configMapEventSource);
 
+        secretSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 60 * 1000L);
+        secretSharedIndexInformer.addEventHandler(secretEventSource);
+
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             routeSharedIndexInformer =
                     sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
@@ -118,6 +127,10 @@ public class InformerManager {
 
     public ConfigMap getLocalConfigMap(String namespace, String name) {
         return configMapSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public Secret getLocalSecret(String namespace, String name) {
+        return secretSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Route getLocalRoute(String namespace, String name) {

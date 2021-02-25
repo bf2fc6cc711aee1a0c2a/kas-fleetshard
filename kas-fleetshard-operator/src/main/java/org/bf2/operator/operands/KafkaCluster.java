@@ -117,27 +117,27 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         createOrUpdate(kafka);
 
         if (isKafkaExternalCertificateEnabled) {
-            // TODO: adding informer for Secret and the using cache
-            Secret tlsSecret = tlsSecretFrom(managedKafka);
+            Secret currentTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
+            Secret tlsSecret = tlsSecretFrom(managedKafka, currentTlsSecret);
             createOrUpdate(tlsSecret);
         }
 
         if (isKafkaAuthenticationEnabled) {
-            // TODO: adding informer for Secret and the using cache
-            Secret ssoClientSecret = ssoClientSecretFrom(managedKafka);
+            Secret currentSsoClientSecret = cachedSecret(managedKafka, ssoClientSecretName(managedKafka));
+            Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
             createOrUpdate(ssoClientSecret);
 
-            // TODO: adding informer for Secret and the using cache
-            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka);
+            Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
+            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
             createOrUpdate(ssoTlsSecret);
         }
 
-        ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, "kafka-metrics");
-        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, "kafka-metrics", currentKafkaMetricsConfigMap);
+        ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
+        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
         createOrUpdate(kafkaMetricsConfigMap);
 
-        ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, "zookeeper-metrics");
-        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, "zookeeper-metrics", currentZooKeeperMetricsConfigMap);
+        ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
+        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
     }
 
@@ -146,11 +146,11 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         kubernetesClient.configMaps()
                 .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName("kafka-metrics")
+                .withName(kafkaMetricsConfigMapName(managedKafka))
                 .delete();
         kubernetesClient.configMaps()
                 .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName("zookeeper-metrics")
+                .withName(zookeeperMetricsConfigMapName(managedKafka))
                 .delete();
         if (isKafkaExternalCertificateEnabled) {
             kubernetesClient.secrets()
@@ -240,7 +240,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                         .withStorage((SingleVolumeStorage)getZooKeeperStorage())
                         .withResources(getZooKeeperResources(managedKafka))
                         .withJvmOptions(getZooKeeperJvmOptions(managedKafka))
-                        .withTemplate(getZooKeeperTemplate(managedKafka))
+                        .withTemplate(getZookeeperTemplate(managedKafka))
                         .withMetricsConfig(getZooKeeperMetricsConfig(managedKafka))
                     .endZookeeper()
                     .editOrNewKafkaExporter()
@@ -281,11 +281,14 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Secret tlsSecretFrom(ManagedKafka managedKafka) {
+    protected Secret tlsSecretFrom(ManagedKafka managedKafka, Secret current) {
+
+        SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
+
         Map<String, String> certs = new HashMap<>(2);
         certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes()));
         certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes()));
-        Secret secret = new SecretBuilder()
+        Secret secret = builder
                 .editOrNewMetadata()
                     .withName(kafkaTlsSecretName(managedKafka))
                     .withLabels(MANAGED_BY_LABELS)
@@ -302,10 +305,13 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Secret ssoClientSecretFrom(ManagedKafka managedKafka) {
+    protected Secret ssoClientSecretFrom(ManagedKafka managedKafka, Secret current) {
+
+        SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
+
         Map<String, String> data = new HashMap<>(1);
         data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes()));
-        Secret secret = new SecretBuilder()
+        Secret secret = builder
                 .editOrNewMetadata()
                     .withName(ssoClientSecretName(managedKafka))
                     .withLabels(MANAGED_BY_LABELS)
@@ -322,7 +328,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka) {
+    protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         Map<String, String> certs = new HashMap<>(1);
         certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes()));
         Secret secret = new SecretBuilder()
@@ -368,7 +374,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     private MetricsConfig getKafkaMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
-                .withName("kafka-metrics")
+                .withName(kafkaMetricsConfigMapName(managedKafka))
                 .withKey("my-key")
                 .build();
 
@@ -379,7 +385,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     private MetricsConfig getZooKeeperMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
-                .withName("zookeeper-metrics")
+                .withName(zookeeperMetricsConfigMapName(managedKafka))
                 .withKey("my-key")
                 .build();
 
@@ -399,7 +405,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .build();
     }
 
-    private ZookeeperClusterTemplate getZooKeeperTemplate(ManagedKafka managedKafka) {
+    private ZookeeperClusterTemplate getZookeeperTemplate(ManagedKafka managedKafka) {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
                 .withRequiredDuringSchedulingIgnoredDuringExecution(
                         new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
@@ -622,6 +628,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return informerManager.getLocalConfigMap(kafkaClusterNamespace(managedKafka), name);
     }
 
+    private Secret cachedSecret(ManagedKafka managedKafka, String name) {
+        return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
+    }
+
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
     }
@@ -640,5 +650,13 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     public static String ssoTlsSecretName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-sso-cert";
+    }
+
+    public static String kafkaMetricsConfigMapName(ManagedKafka managedKafka) {
+        return "kafka-metrics";
+    }
+
+    public static String zookeeperMetricsConfigMapName(ManagedKafka managedKafka) {
+        return "zookeeper-metrics";
     }
 }

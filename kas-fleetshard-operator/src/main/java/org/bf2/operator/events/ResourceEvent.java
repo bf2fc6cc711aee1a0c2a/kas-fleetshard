@@ -2,6 +2,7 @@ package org.bf2.operator.events;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.openshift.api.model.Route;
@@ -52,6 +53,13 @@ public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
     public static class ServiceEvent extends ResourceEvent<Service> {
 
         public ServiceEvent(Service resource, ResourceEventSource<Service> resourceEventSource) {
+            super(resource, resourceEventSource);
+        }
+    }
+
+    public static class SecretEvent extends ResourceEvent<Secret> {
+
+        public SecretEvent(Secret resource, ResourceEventSource<Secret> resourceEventSource) {
             super(resource, resourceEventSource);
         }
     }

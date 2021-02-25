@@ -2,19 +2,19 @@ package org.bf2.operator.events;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
-import io.javaoperatorsdk.operator.processing.event.Event;
 import io.strimzi.api.kafka.model.Kafka;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 
-public class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
+public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
 
     private static final Logger log = LoggerFactory.getLogger(ResourceEventSource.class);
 
@@ -36,46 +36,59 @@ public class ResourceEventSource<T extends HasMetadata> extends AbstractEventSou
         handleEvent(resource);
     }
 
-    private void handleEvent(T resource) {
-        Event event;
-        if (resource instanceof ConfigMap) {
-            event = new ResourceEvent.ConfigMapEvent((ConfigMap) resource, (ConfigMapEventSource) this);
-        } else if (resource instanceof Deployment) {
-            event = new ResourceEvent.DeploymentEvent((Deployment) resource, (DeploymentEventSource) this);
-        } else if (resource instanceof Kafka) {
-            event = new ResourceEvent.KafkaEvent((Kafka) resource, (KafkaEventSource) this);
-        } else if (resource instanceof Route) {
-            event = new ResourceEvent.RouteEvent((Route) resource, (RouteEventSource) this);
-        } else if (resource instanceof Service) {
-            event = new ResourceEvent.ServiceEvent((Service) resource, (ServiceEventSource) this);
-        } else {
-            throw new IllegalArgumentException("No matching resource event for type " + resource.getClass().getName());
-        }
-        eventHandler.handleEvent(event);
-    }
+    protected abstract void handleEvent(T resource);
 
     @ApplicationScoped
     public static class ConfigMapEventSource extends ResourceEventSource<ConfigMap> {
 
+        @Override
+        protected void handleEvent(ConfigMap resource) {
+            eventHandler.handleEvent(new ResourceEvent.ConfigMapEvent(resource, this));
+        }
     }
 
     @ApplicationScoped
     public static class DeploymentEventSource extends ResourceEventSource<Deployment> {
 
+        @Override
+        protected void handleEvent(Deployment resource) {
+            eventHandler.handleEvent(new ResourceEvent.DeploymentEvent(resource, this));
+        }
     }
 
     @ApplicationScoped
     public static class KafkaEventSource extends ResourceEventSource<Kafka> {
 
+        @Override
+        protected void handleEvent(Kafka resource) {
+            eventHandler.handleEvent(new ResourceEvent.KafkaEvent(resource, this));
+        }
     }
 
     @ApplicationScoped
     public static class RouteEventSource extends ResourceEventSource<Route> {
 
+        @Override
+        protected void handleEvent(Route resource) {
+            eventHandler.handleEvent(new ResourceEvent.RouteEvent(resource, this));
+        }
     }
 
     @ApplicationScoped
     public static class ServiceEventSource extends ResourceEventSource<Service> {
 
+        @Override
+        protected void handleEvent(Service resource) {
+            eventHandler.handleEvent(new ResourceEvent.ServiceEvent(resource, this));
+        }
+    }
+
+    @ApplicationScoped
+    public static class SecretEventSource extends ResourceEventSource<Secret> {
+
+        @Override
+        protected void handleEvent(Secret resource) {
+            eventHandler.handleEvent(new ResourceEvent.SecretEvent(resource, this));
+        }
     }
 }
