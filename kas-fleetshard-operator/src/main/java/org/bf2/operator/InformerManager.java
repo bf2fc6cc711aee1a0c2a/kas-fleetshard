@@ -2,11 +2,14 @@ package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
@@ -16,13 +19,10 @@ import io.fabric8.openshift.api.model.RouteList;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
+import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.events.ConfigMapEventSource;
-import org.bf2.operator.events.DeploymentEventSource;
-import org.bf2.operator.events.KafkaEventSource;
-import org.bf2.operator.events.RouteEventSource;
-import org.bf2.operator.events.ServiceEventSource;
+import org.bf2.operator.events.ResourceEventSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,15 +40,17 @@ public class InformerManager {
     KubernetesClient kubernetesClient;
 
     @Inject
-    KafkaEventSource kafkaEventSource;
+    ResourceEventSource.KafkaEventSource kafkaEventSource;
     @Inject
-    DeploymentEventSource deploymentEventSource;
+    ResourceEventSource.DeploymentEventSource deploymentEventSource;
     @Inject
-    ServiceEventSource serviceEventSource;
+    ResourceEventSource.ServiceEventSource serviceEventSource;
     @Inject
-    ConfigMapEventSource configMapEventSource;
+    ResourceEventSource.ConfigMapEventSource configMapEventSource;
     @Inject
-    RouteEventSource routeEventSource;
+    ResourceEventSource.SecretEventSource secretEventSource;
+    @Inject
+    ResourceEventSource.RouteEventSource routeEventSource;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -56,6 +58,7 @@ public class InformerManager {
     private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
     private SharedIndexInformer<Service> serviceSharedIndexInformer;
     private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
+    private SharedIndexInformer<Secret> secretSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
     
     void onStart(@Observes StartupEvent ev) {
@@ -67,8 +70,18 @@ public class InformerManager {
                         .withIsNamespaceConfiguredFromGlobalConfig(true);
 
         // TODO: should we make the resync time configurable?
+
+        // Disabling v1beta2 until Strimzi 0.23.0 will be available and shipped.
+        /*
         kafkaSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
+        kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
+        */
+
+        // creating a CRD context which is based on v1beta1 (returned by the Crds.kafka() method)
+        var crdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
+        kafkaSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerForCustomResource(crdContext, Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
         kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
 
         deploymentSharedIndexInformer =
@@ -82,6 +95,10 @@ public class InformerManager {
         configMapSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 60 * 1000L);
         configMapSharedIndexInformer.addEventHandler(configMapEventSource);
+
+        secretSharedIndexInformer =
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 60 * 1000L);
+        secretSharedIndexInformer.addEventHandler(secretEventSource);
 
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             routeSharedIndexInformer =
@@ -110,6 +127,10 @@ public class InformerManager {
 
     public ConfigMap getLocalConfigMap(String namespace, String name) {
         return configMapSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public Secret getLocalSecret(String namespace, String name) {
+        return secretSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Route getLocalRoute(String namespace, String name) {

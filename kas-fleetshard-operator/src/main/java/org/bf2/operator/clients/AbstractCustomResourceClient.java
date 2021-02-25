@@ -23,9 +23,13 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
 
     protected abstract Class<L> getCustomResourceListClass();
 
+    protected MixedOperation<T, L, Resource<T>> getResourceClient() {
+        return kubernetesClient.customResources(getCustomResourceClass(), getCustomResourceListClass());
+    }
+
     @PostConstruct
     void onStart() {
-        resourceClient = kubernetesClient.customResources(getCustomResourceClass(), getCustomResourceListClass());
+        resourceClient = getResourceClient();
     }
 
     public void delete(String namespace, String name) {
