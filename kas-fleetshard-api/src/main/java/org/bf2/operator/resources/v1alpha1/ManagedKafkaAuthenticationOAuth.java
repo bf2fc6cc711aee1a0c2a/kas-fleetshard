@@ -22,6 +22,15 @@ public class ManagedKafkaAuthenticationOAuth {
     private String validIssuerEndpointURI;
     private String userNameClaim;
     private String tlsTrustedCertificate;
+    private String customClaimCheck;
+
+    public String getCustomClaimCheck() {
+        return customClaimCheck;
+    }
+
+    public void setCustomClaimCheck(String customClaimCheck) {
+        this.customClaimCheck = customClaimCheck;
+    }
 
     public String getClientId() {
         return clientId;
