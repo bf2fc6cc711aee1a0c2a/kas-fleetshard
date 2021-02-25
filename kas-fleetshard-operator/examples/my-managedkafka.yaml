@@ -17,6 +17,7 @@ spec:
     jwksEndpointURI: https://jwksEndpointURI
     validIssuerEndpointURI: https://validIssuerEndpointURI
     userNameClaim: userNameClaim
+    customClaimCheck: customClaim
     tlsTrustedCertificate: |-
       -----BEGIN CERTIFICATE-----
       MIICLDCCAdKgAwIBAgIBADAKBggqhkjOPQQDAjB9MQswCQYDVQQGEwJCRTEPMA0G
