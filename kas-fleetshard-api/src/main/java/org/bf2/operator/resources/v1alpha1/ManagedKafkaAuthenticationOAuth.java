@@ -1,5 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -22,6 +23,16 @@ public class ManagedKafkaAuthenticationOAuth {
     private String validIssuerEndpointURI;
     private String userNameClaim;
     private String tlsTrustedCertificate;
+    private String customClaimCheck;
+
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
+    public String getCustomClaimCheck() {
+        return customClaimCheck;
+    }
+
+    public void setCustomClaimCheck(String customClaimCheck) {
+        this.customClaimCheck = customClaimCheck;
+    }
 
     public String getClientId() {
         return clientId;

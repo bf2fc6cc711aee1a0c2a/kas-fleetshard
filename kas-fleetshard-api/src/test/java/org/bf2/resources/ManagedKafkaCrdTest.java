@@ -83,6 +83,7 @@ public class ManagedKafkaCrdTest {
                                     .withNewTlsTrustedCertificate("cert")
                                     .withClientSecret("secret")
                                     .withUserNameClaim("userClaim")
+                                    .withCustomClaimCheck("customClaim")
                                     .withNewTokenEndpointURI("tokenEndpointURI")
                                     .withNewJwksEndpointURI("jwksEndpointURI")
                                     .withNewTokenEndpointURI("tokenUri")
