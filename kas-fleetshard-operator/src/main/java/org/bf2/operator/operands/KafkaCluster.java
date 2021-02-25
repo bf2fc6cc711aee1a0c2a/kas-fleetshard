@@ -112,9 +112,6 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Kafka currentKafka = cachedDeployment(managedKafka);
-        Kafka kafka = kafkaFrom(managedKafka, currentKafka);
-        createOrUpdate(kafka);
 
         if (isKafkaExternalCertificateEnabled) {
             Secret currentTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
@@ -139,6 +136,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
+
+        Kafka currentKafka = cachedDeployment(managedKafka);
+        Kafka kafka = kafkaFrom(managedKafka, currentKafka);
+        createOrUpdate(kafka);
     }
 
     @Override
