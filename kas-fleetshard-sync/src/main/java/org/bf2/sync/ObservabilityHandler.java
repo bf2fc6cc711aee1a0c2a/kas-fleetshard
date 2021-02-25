@@ -15,7 +15,7 @@ import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 
 /**
- * Observabilty configuration, this at startup creates a configmap based on properties provided.
+ * Observability configuration, this at startup creates a configmap based on properties provided.
  * Observability operator picks this config map configures the metrics for Kafka based
  * on the content supplied. Upon successful configuration sets a annotation on ConfigMap as Status.
  * On any changes to configuration, the application restarts and configures a new/updates to configmap
@@ -44,7 +44,7 @@ public class ObservabilityHandler {
         observabilityConfigMap().createOrReplace(createObservabilityConfigMap());
     }
 
-    @Scheduled(every = "60s")
+    @Scheduled(every = "60s", delay = 60)
     void loop() {
         // if in case onStart fails or anyone deletes the configMap this makes sure the configMap created again
         if (observabilityConfigMap().get() == null) {

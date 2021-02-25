@@ -53,7 +53,7 @@ public class ManagedKafkaAgentCRHandler {
         return !(this.kubeClient.namespaces().withName(this.kubeClient.getNamespace()).get() == null);
     }
 
-    @Scheduled(every = "60s")
+    @Scheduled(every = "60s", delay = 60)
     void loop() {
         if (shouldCreateManagedKafkaAgent()) {
             createOrUpdateManagedKafkaAgentCR();
