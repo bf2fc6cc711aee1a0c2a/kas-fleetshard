@@ -582,7 +582,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     private Map<String, String> getKafkaLabels() {
-        Map<String, String> labels = new HashMap<>(1);
+        Map<String, String> labels = new HashMap<>(2);
         labels.put("ingressType", "sharded");
         labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
