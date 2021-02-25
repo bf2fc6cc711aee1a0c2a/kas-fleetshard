@@ -197,8 +197,7 @@ public class AdminServer implements Operand<ManagedKafka> {
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
-                    // TODO: adding labels for shared Ingress controller
-                    .withLabels(getLabels(adminServerName))
+                    .withLabels(getRouteLabels())
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewTo()
@@ -242,10 +241,16 @@ public class AdminServer implements Operand<ManagedKafka> {
         return labels;
     }
 
+    private Map<String, String> getRouteLabels() {
+        Map<String, String> labels = new HashMap<>(2);
+        labels.put("ingressType", "sharded");
+        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
+        return labels;
+    }
+
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(2);
-        // TODO: move to port 9095 that should be OAuth enabled in the Kafka resource
-        envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9092").build());
+        List<EnvVar> envVars = new ArrayList<>(1);
+        envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095").build());
         return envVars;
     }
 
