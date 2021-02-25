@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
@@ -42,17 +43,27 @@ public class ManagedKafkaAgentCRHandler {
     private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
 
     void onStart(@Observes StartupEvent ev) {
+        if (shouldCreateManagedKafkaAgent()) {
+            createOrUpdateManagedKafkaAgentCR();
+        }
+    }
+
+    //must be running locally with no namespace configured
+    private boolean shouldCreateManagedKafkaAgent() {
+        return !(this.kubeClient.namespaces().withName(this.kubeClient.getNamespace()).get() == null);
+    }
+
+    @Scheduled(every = "60s", delay = 60)
+    void loop() {
+        if (shouldCreateManagedKafkaAgent()) {
+            createOrUpdateManagedKafkaAgentCR();
+        }
+    }
+
+    private void createOrUpdateManagedKafkaAgentCR() {
         String namespace = this.kubeClient.getNamespace();
         this.agentClient = kubeClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
 
-        if (this.kubeClient.namespaces().withName(namespace).get() == null) {
-            return; //must be running locally with no namespace configured
-        }
-
-        createOrUpdateManagedKafkaAgentCR(namespace);
-    }
-
-    private void createOrUpdateManagedKafkaAgentCR(String namespace) {
         ManagedKafkaAgent resource = this.agentClient.inNamespace(namespace).withName(RESOURCE_NAME).get();
 
         String[] allowedVersions = new String[] {};

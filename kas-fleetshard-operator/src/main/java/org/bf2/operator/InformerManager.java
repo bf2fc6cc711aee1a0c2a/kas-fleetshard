@@ -33,6 +33,7 @@ import java.util.Collections;
 
 @ApplicationScoped
 public class InformerManager {
+    public static final String SECRET_NAME = "addon-kas-fleetshard-operator-parameters";
 
     private static final Logger log = LoggerFactory.getLogger(InformerManager.class);
 
@@ -60,7 +61,7 @@ public class InformerManager {
     private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
     private SharedIndexInformer<Secret> secretSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
-    
+
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
