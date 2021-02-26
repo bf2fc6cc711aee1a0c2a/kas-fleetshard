@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 public class ManagedKafkaAgentCRHandler {
 
     private static final String RESOURCE_NAME = "managed-agent";
+    private static final String STRIMZI_VERSIONS = "strimzi.allowed_versions";
 
     @Inject
     Logger log;
@@ -36,30 +38,40 @@ public class ManagedKafkaAgentCRHandler {
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
     private String clusterId;
 
-    @ConfigProperty(name="strimzi.allowed_versions")
+    @ConfigProperty(name=STRIMZI_VERSIONS)
     String strimziVersions;
 
     private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
 
     void onStart(@Observes StartupEvent ev) {
+        if (shouldCreateManagedKafkaAgent()) {
+            createOrUpdateManagedKafkaAgentCR();
+        }
+    }
+
+    //must be running locally with no namespace configured
+    private boolean shouldCreateManagedKafkaAgent() {
+        return !(this.kubeClient.namespaces().withName(this.kubeClient.getNamespace()).get() == null);
+    }
+
+    @Scheduled(every = "60s")
+    void loop() {
+        if (shouldCreateManagedKafkaAgent()) {
+            createOrUpdateManagedKafkaAgentCR();
+        }
+    }
+
+    private void createOrUpdateManagedKafkaAgentCR() {
         String namespace = this.kubeClient.getNamespace();
         this.agentClient = kubeClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
 
-        if (this.kubeClient.namespaces().withName(namespace).get() == null) {
-            return; //must be running locally with no namespace configured
-        }
-
-        createOrUpdateManagedKafkaAgentCR(namespace);
-    }
-
-    private void createOrUpdateManagedKafkaAgentCR(String namespace) {
         ManagedKafkaAgent resource = this.agentClient.inNamespace(namespace).withName(RESOURCE_NAME).get();
 
         String[] allowedVersions = new String[] {};
         if (this.strimziVersions != null && this.strimziVersions.trim().length() > 0) {
             allowedVersions = this.strimziVersions.trim().split("\\s*,\\s*");
             if (allowedVersions.length == 0) {
-                log.error("The property strimzi.allowed_versions is not configured");
+                log.errorf("The property %s is not configured", STRIMZI_VERSIONS);
                 return;
             }
         }
@@ -75,9 +87,11 @@ public class ManagedKafkaAgentCRHandler {
                             .build())
                     .build();
             this.agentClient.inNamespace(namespace).createOrReplace(resource);
+            log.infof("ManagedKafkaAgent CR created with name %s", RESOURCE_NAME);
         } else if (!Arrays.equals(resource.getSpec().getAllowedStrimziVersions(), allowedVersions)) {
             resource.getSpec().setAllowedStrimziVersions(allowedVersions);
             this.agentClient.inNamespace(namespace).createOrReplace(resource);
+            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", RESOURCE_NAME);
         }
     }
 }
