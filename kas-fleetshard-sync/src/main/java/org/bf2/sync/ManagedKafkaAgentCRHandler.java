@@ -27,6 +27,7 @@ import java.util.Arrays;
 public class ManagedKafkaAgentCRHandler {
 
     private static final String RESOURCE_NAME = "managed-agent";
+    private static final String STRIMZI_VERSIONS = "strimzi.allowed_versions";
 
     @Inject
     Logger log;
@@ -37,7 +38,7 @@ public class ManagedKafkaAgentCRHandler {
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
     private String clusterId;
 
-    @ConfigProperty(name="strimzi.allowed_versions")
+    @ConfigProperty(name=STRIMZI_VERSIONS)
     String strimziVersions;
 
     private MixedOperation<ManagedKafkaAgent, ManagedKafkaAgentList, Resource<ManagedKafkaAgent>> agentClient;
@@ -70,7 +71,7 @@ public class ManagedKafkaAgentCRHandler {
         if (this.strimziVersions != null && this.strimziVersions.trim().length() > 0) {
             allowedVersions = this.strimziVersions.trim().split("\\s*,\\s*");
             if (allowedVersions.length == 0) {
-                log.error("The property strimzi.allowed_versions is not configured");
+                log.errorf("The property %s is not configured", STRIMZI_VERSIONS);
                 return;
             }
         }
@@ -86,11 +87,11 @@ public class ManagedKafkaAgentCRHandler {
                             .build())
                     .build();
             this.agentClient.inNamespace(namespace).createOrReplace(resource);
-            log.info("ManagedKafkaAgent CR created with name " + RESOURCE_NAME);
+            log.infof("ManagedKafkaAgent CR created with name %s", RESOURCE_NAME);
         } else if (!Arrays.equals(resource.getSpec().getAllowedStrimziVersions(), allowedVersions)) {
             resource.getSpec().setAllowedStrimziVersions(allowedVersions);
             this.agentClient.inNamespace(namespace).createOrReplace(resource);
-            log.info("ManagedKafkaAgent CR updated for allowed strmzi version with name " + RESOURCE_NAME);
+            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", RESOURCE_NAME);
         }
     }
 }

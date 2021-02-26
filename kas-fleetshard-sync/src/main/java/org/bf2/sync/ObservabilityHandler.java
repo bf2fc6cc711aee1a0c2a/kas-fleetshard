@@ -42,7 +42,7 @@ public class ObservabilityHandler {
 
     void onStart(@Observes StartupEvent ev) {
         observabilityConfigMap().createOrReplace(createObservabilityConfigMap());
-        log.info("ConfigMap " + OBSERVABILITY_CONFIGMAP_NAME + " created for the Observability Operator");
+        log.infof("ConfigMap %s created for the Observability Operator", OBSERVABILITY_CONFIGMAP_NAME);
     }
 
     @Scheduled(every = "60s")
@@ -50,7 +50,7 @@ public class ObservabilityHandler {
         // if in case onStart fails or anyone deletes the configMap this makes sure the configMap created again
         if (observabilityConfigMap().get() == null) {
             observabilityConfigMap().createOrReplace(createObservabilityConfigMap());
-            log.info("ConfigMap " + OBSERVABILITY_CONFIGMAP_NAME + " created for the Observability Operator");
+            log.infof("ConfigMap %s created for the Observability Operator", OBSERVABILITY_CONFIGMAP_NAME);
         }
     }
 
