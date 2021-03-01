@@ -262,18 +262,16 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     protected ConfigMap configMapFrom(ManagedKafka managedKafka,  String name, ConfigMap current) {
 
         InputStream is = this.getClass().getClassLoader().getResourceAsStream(name + ".yaml");
-        ConfigMap desired = kubernetesClient.configMaps().load(is).get();
+        ConfigMap template = kubernetesClient.configMaps().load(is).get();
 
-        ConfigMap configMap = desired;
-        if (current != null) {
-            configMap = new ConfigMapBuilder(current)
-                    .editOrNewMetadata()
-                        .withNamespace(kafkaClusterNamespace(managedKafka))
-                        .withLabels(MANAGED_BY_LABELS)
-                    .endMetadata()
-                    .withData(desired.getData())
-                    .build();
-        }
+        ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
+        ConfigMap configMap = builder
+                .editOrNewMetadata()
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
+                    .withLabels(MANAGED_BY_LABELS)
+                .endMetadata()
+                .withData(template.getData())
+                .build();
 
         // setting the ManagedKafka has owner of the ConfigMap resource is needed
         // by the operator sdk to handle events on the ConfigMap resource properly
