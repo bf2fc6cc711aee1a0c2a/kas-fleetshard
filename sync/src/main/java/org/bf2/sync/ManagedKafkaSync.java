@@ -3,6 +3,7 @@ package org.bf2.sync;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -63,7 +64,7 @@ public class ManagedKafkaSync {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
         for (ManagedKafka remoteManagedKafka : controlPlane.getKafkaClusters()) {
-            remotes.put(remoteManagedKafka.getId(), remoteManagedKafka);
+            remotes.put(ControlPlane.managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
 
@@ -77,7 +78,7 @@ public class ManagedKafkaSync {
 
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
-                    reconcileAsync(remoteManagedKafka.getId(), localKey);
+                    reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
                 } else {
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
@@ -88,14 +89,14 @@ public class ManagedKafkaSync {
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
-            } else if (specChanged(remoteSpec, existing)) {
-                reconcileAsync(remoteManagedKafka.getId(), localKey);
+            } else if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
+                reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
             }
         }
 
         // process final removals
         for (ManagedKafka local : lookup.getLocalManagedKafkas()) {
-            if (remotes.get(local.getId()) != null) {
+            if (remotes.get(ControlPlane.managedKafkaKey(local)) != null) {
                 continue;
             }
 
@@ -113,10 +114,10 @@ public class ManagedKafkaSync {
 
     /**
      * Determine what local namespace the remote instance should be in
-     * For now we're assuming the (placement) id
+     * Will effectively be name
      */
     String determineNamespace(ManagedKafka remoteManagedKafka) {
-        return remoteManagedKafka.getId();
+        return remoteManagedKafka.getMetadata().getName();
     }
 
     public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
@@ -126,9 +127,13 @@ public class ManagedKafkaSync {
             return false;
         }
 
-        return !remoteSpec.equals(existing);
+        return !remoteSpec.equals(existing.getSpec());
     }
 
+    /**
+     * @param remoteId - obtained from {@link ControlPlane#managedKafkaKey(ManagedKafka)}
+     * @param localMetaNamespaceKey - obtained from {@link Cache#namespaceKeyFunc(String, String)}
+     */
     void reconcileAsync(String remoteId, String localMetaNamespaceKey) {
         executorService.execute(() -> {
             reconcile(remoteId, localMetaNamespaceKey);
@@ -161,14 +166,20 @@ public class ManagedKafkaSync {
             }
         } else if (remote == null) {
             delete(local);
-        } else if (specChanged(remote.getSpec(), local)) {
-            log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(remote));
-            ManagedKafkaSpec spec = remote.getSpec();
-            client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                    mk.setSpec(spec);
-                    return mk;
-                });
-            // the operator will handle it from here
+        } else {
+            if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {
+                log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
+                return;
+            }
+            if (specChanged(remote.getSpec(), local)) {
+                log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(remote));
+                ManagedKafkaSpec spec = remote.getSpec();
+                client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
+                        mk.setSpec(spec);
+                        return mk;
+                    });
+                // the operator will handle it from here
+            }
         }
     }
 
@@ -195,7 +206,6 @@ public class ManagedKafkaSync {
         kubeClient.namespaces().createOrReplace(
                 new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
 
-        // TODO: there may be additional cleansing, setting of defaults, etc. on the remote instance before creation
         client.create(remote);
     }
 

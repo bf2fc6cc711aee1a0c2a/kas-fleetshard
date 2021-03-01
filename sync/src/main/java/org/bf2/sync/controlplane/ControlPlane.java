@@ -51,15 +51,19 @@ public class ControlPlane {
     private ConcurrentHashMap<String, ManagedKafka> managedKafkas = new ConcurrentHashMap<>();
 
     void addManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.put(remoteManagedKafka.getId(), remoteManagedKafka);
+        managedKafkas.put(managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
     }
 
     public void removeManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.remove(remoteManagedKafka.getId());
+        managedKafkas.remove(managedKafkaKey(remoteManagedKafka));
     }
 
     public ManagedKafka getManagedKafka(String id) {
         return managedKafkas.get(id);
+    }
+
+    public static String managedKafkaKey(ManagedKafka kafka) {
+        return kafka.getId() + "/" + kafka.getPlacementId();
     }
 
     /**
