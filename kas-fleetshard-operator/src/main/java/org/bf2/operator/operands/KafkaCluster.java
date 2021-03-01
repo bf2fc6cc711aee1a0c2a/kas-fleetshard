@@ -146,26 +146,26 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         kubernetesClient.configMaps()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(kafkaMetricsConfigMapName(managedKafka))
                 .delete();
         kubernetesClient.configMaps()
-                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(zookeeperMetricsConfigMapName(managedKafka))
                 .delete();
         if (isKafkaExternalCertificateEnabled) {
             kubernetesClient.secrets()
-                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .inNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(kafkaTlsSecretName(managedKafka))
                     .delete();
         }
         if (isKafkaAuthenticationEnabled) {
             kubernetesClient.secrets()
-                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .inNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoClientSecretName(managedKafka))
                     .delete();
             kubernetesClient.secrets()
-                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .inNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoTlsSecretName(managedKafka))
                     .delete();
         }
@@ -262,17 +262,16 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     protected ConfigMap configMapFrom(ManagedKafka managedKafka,  String name, ConfigMap current) {
 
         InputStream is = this.getClass().getClassLoader().getResourceAsStream(name + ".yaml");
-        ConfigMap desired = kubernetesClient.configMaps().load(is).get();
+        ConfigMap template = kubernetesClient.configMaps().load(is).get();
 
-        ConfigMap configMap = desired;
-        if (current != null) {
-            configMap = new ConfigMapBuilder(current)
-                    .editOrNewMetadata()
-                        .withLabels(MANAGED_BY_LABELS)
-                    .endMetadata()
-                    .withData(desired.getData())
-                    .build();
-        }
+        ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
+        ConfigMap configMap = builder
+                .editOrNewMetadata()
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
+                    .withLabels(MANAGED_BY_LABELS)
+                .endMetadata()
+                .withData(template.getData())
+                .build();
 
         // setting the ManagedKafka has owner of the ConfigMap resource is needed
         // by the operator sdk to handle events on the ConfigMap resource properly
@@ -291,6 +290,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes()));
         Secret secret = builder
                 .editOrNewMetadata()
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(kafkaTlsSecretName(managedKafka))
                     .withLabels(MANAGED_BY_LABELS)
                 .endMetadata()
@@ -314,6 +314,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes()));
         Secret secret = builder
                 .editOrNewMetadata()
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoClientSecretName(managedKafka))
                     .withLabels(MANAGED_BY_LABELS)
                 .endMetadata()
@@ -334,6 +335,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes()));
         Secret secret = new SecretBuilder()
                 .editOrNewMetadata()
+                    .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoTlsSecretName(managedKafka))
                     .withLabels(MANAGED_BY_LABELS)
                 .endMetadata()
