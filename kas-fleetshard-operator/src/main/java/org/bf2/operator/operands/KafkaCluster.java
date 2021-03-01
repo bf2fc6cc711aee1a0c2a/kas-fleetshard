@@ -191,7 +191,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
             // Secret resource already exists, has to be updated
         } else {
             kubernetesClient.secrets()
-                    .inNamespace(secret.getMetadata().getName())
+                    .inNamespace(secret.getMetadata().getNamespace())
                     .withName(secret.getMetadata().getName())
                     .patch(secret);
         }
@@ -206,7 +206,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
             // ConfigMap resource already exists, has to be updated
         } else {
             kubernetesClient.configMaps()
-                    .inNamespace(configMap.getMetadata().getName())
+                    .inNamespace(configMap.getMetadata().getNamespace())
                     .withName(configMap.getMetadata().getName())
                     .patch(configMap);
         }
