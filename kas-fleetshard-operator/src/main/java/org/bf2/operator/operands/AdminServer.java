@@ -226,7 +226,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         Container container = new ContainerBuilder()
                 .withName(adminServerName)
-                .withImage("quay.io/sknot/strimzi-admin:0.0.3")
+                .withImage("quay.io/sknot/kafka-admin-api:0.0.4")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .build();
