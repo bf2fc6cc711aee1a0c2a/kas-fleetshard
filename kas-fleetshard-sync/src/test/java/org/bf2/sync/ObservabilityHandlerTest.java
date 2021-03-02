@@ -1,5 +1,6 @@
 package org.bf2.sync;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -48,8 +49,13 @@ public class ObservabilityHandlerTest {
         assertEquals("test", this.channel);
         assertEquals("test-repo", this.repository);
 
-        // lets call event handler
         ConfigMap map = getConfigMapResource().get();
+        assertNull(map);
+
+        observabilityHandler.loop();
+
+        // lets call event handler
+        map = getConfigMapResource().get();
         assertNotNull(map);
 
         // map verification
