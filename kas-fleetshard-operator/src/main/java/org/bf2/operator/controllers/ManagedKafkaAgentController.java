@@ -20,8 +20,10 @@ import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -43,6 +45,7 @@ import io.quarkus.scheduler.Scheduled;
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     private static final String RESOURCE_NAME = "managed-agent";
+    static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
 
     @Inject
     Logger log;
@@ -94,6 +97,20 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         }
     }
 
+    Resource<ConfigMap> observabilityConfigMap() {
+        return this.kubeClient.configMaps().inNamespace(this.namespace).withName(OBSERVABILITY_CONFIGMAP_NAME);
+    }
+
+    public boolean isObservabilityRunning() {
+        ConfigMap cm = observabilityConfigMap().get();
+        if (cm != null) {
+            String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
+            if (status != null && status.equalsIgnoreCase("accepted")) {
+                return true;
+            }
+        }
+        return false;
+    }
     /**
      * TODO: this needs to be replaced with actual metrics
      * @return
@@ -101,7 +118,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     private ManagedKafkaAgentStatus buildStatus(ManagedKafkaAgent resource) {
         ManagedKafkaCondition readyCondition = new ManagedKafkaConditionBuilder()
                 .withType(ManagedKafkaCondition.Type.Ready.name())
-                .withStatus("True")
+                .withStatus(isObservabilityRunning() ? "True" : "False")
                 .withLastTransitionTime(ConditionUtils.iso8601Now())
                 .build();
 
