@@ -36,11 +36,10 @@ public class ManagedKafkaAgentCRHandler {
     LocalLookup lookup;
 
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
-    private String clusterId;
+    String clusterId;
 
     @ConfigProperty(name=STRIMZI_VERSIONS)
     String strimziVersions;
-
 
     @Scheduled(every = "60s")
     void loop() {

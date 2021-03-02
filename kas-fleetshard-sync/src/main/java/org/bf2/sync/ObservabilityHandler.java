@@ -1,7 +1,6 @@
 package org.bf2.sync;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -11,7 +10,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -39,11 +37,6 @@ public class ObservabilityHandler {
 
     @ConfigProperty(name = "observability.repository")
     String repository;
-
-    void onStart(@Observes StartupEvent ev) {
-        observabilityConfigMap().createOrReplace(createObservabilityConfigMap());
-        log.infof("ConfigMap %s created for the Observability Operator", OBSERVABILITY_CONFIGMAP_NAME);
-    }
 
     @Scheduled(every = "60s")
     void loop() {
