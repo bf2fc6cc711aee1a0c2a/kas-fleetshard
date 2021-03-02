@@ -452,6 +452,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         config.put("offsets.topic.replication.factor", 3);
         config.put("transaction.state.log.min.isr", 2);
         config.put("transaction.state.log.replication.factor", 3);
+        config.put("auto.create.topics.enable", "false");
+        config.put("min.insync.replicas", 2);
+        config.put("default.replication.factor", 3);
         config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
 
