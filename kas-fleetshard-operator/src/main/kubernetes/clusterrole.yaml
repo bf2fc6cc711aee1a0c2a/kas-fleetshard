@@ -5,10 +5,10 @@ metadata:
   labels:
     app: kas-fleetshard-operator
 rules:
-  # the Java operator SDK seems to list CRDs
   - apiGroups:
       - apiextensions.k8s.io
     resources:
+      # the Java operator SDK seems to need listing CRDs
       - customresourcedefinitions
     verbs:
       - get
@@ -17,6 +17,7 @@ rules:
   - apiGroups:
       - managedkafka.bf2.org
     resources:
+      # operator main custom resources for getting Kafka instance to deploy, configuration and reporting back status
       - managedkafkas
       - managedkafkas/status
       - managedkafkaagents
@@ -32,18 +33,7 @@ rules:
   - apiGroups:
       - kafka.strimzi.io
     resources:
-      - kafkas
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-  - apiGroups:
-      - kafka.strimzi.io
-    resources:
+      # operator creates Kafka custom resource for Strimzi operator and gets the status
       - kafkas
       - kafkas/status
     verbs:
@@ -58,6 +48,7 @@ rules:
       - apps
       - extensions
     resources:
+      # operator creates Deployments for canary and admin server UI
       - deployments
       - deployments/status
     verbs:
@@ -71,19 +62,11 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - namespaces
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
+      # the operator creates Services for admin server UI
       - services
+      # the operator creates ConfigMaps and Secrets for Kafka metrics configuration and TLS and Keycloak certificates
+      - configmaps
+      - secrets
     verbs:
       - get
       - list
@@ -95,22 +78,10 @@ rules:
   - apiGroups:
       - route.openshift.io
     resources:
+      # the operator creates a Route for the admin server UI
       - routes
       - routes/custom-host
       - routes/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-      - secrets
     verbs:
       - get
       - list

@@ -8,9 +8,6 @@ subjects:
   - kind: ServiceAccount
     name: kas-fleetshard-operator
     namespace: kas-fleetshard
-  - kind: ServiceAccount
-    name: kas-fleetshard-sync
-    namespace: kas-fleetshard
 roleRef:
   kind: ClusterRole
   name: kas-fleetshard-operator
