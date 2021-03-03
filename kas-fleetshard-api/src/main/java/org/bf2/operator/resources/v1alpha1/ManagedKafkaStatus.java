@@ -20,6 +20,7 @@ public class ManagedKafkaStatus {
     private ManagedKafkaCapacity capacity;
     private Versions versions;
     private String adminServerURI;
+    private String updatedTimestamp;
 
     public List<ManagedKafkaCondition> getConditions() {
         if (conditions == null) {
@@ -57,5 +58,13 @@ public class ManagedKafkaStatus {
 
     public void setAdminServerURI(String adminServerURI) {
         this.adminServerURI = adminServerURI;
+    }
+
+    public String getUpdatedTimestamp() {
+        return updatedTimestamp;
+    }
+
+    public void setUpdatedTimestamp(String updatedTimestamp) {
+        this.updatedTimestamp = updatedTimestamp;
     }
 }
