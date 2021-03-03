@@ -1,11 +1,18 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: kas-fleetshard-operator
+  name: kas-fleetshard-sync
 rules:
   - apiGroups:
       - ""
     resources:
       - configmaps
       - secrets
-    verbs: [get, list, create, update, delete, deletecollection, watch]
+    verbs:
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - deletecollection
+      - watch

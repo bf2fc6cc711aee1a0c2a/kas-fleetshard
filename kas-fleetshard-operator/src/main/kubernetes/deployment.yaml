@@ -15,7 +15,7 @@ spec:
       serviceAccountName: kas-fleetshard-operator
       containers:
         - name: kas-fleetshard-operator
-          image: ##IMAGE##
+          image: default-route-openshift-image-registry.apps.ppatiern.jpis.s1.devshift.org/images/kas-fleetshard-operator:1.0.0-SNAPSHOT
           env:
             # needed just for OpenShift
             - name: QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS
