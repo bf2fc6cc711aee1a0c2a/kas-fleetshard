@@ -13,11 +13,8 @@ import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
-
-import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -59,14 +56,12 @@ public class RecoveryST extends AbstractST {
 
         TestUtils.waitFor("Managed kafka status is installing", 1_000, 60_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
-            return Objects.requireNonNull(
-                    ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Installing)).getStatus().equals("True");
+            return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Installing));
         });
 
         TestUtils.waitFor("Managed kafka status is again ready", 1_000, 500_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
-            return Objects.requireNonNull(
-                    ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready)).getStatus().equals("True");
+            return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Ready));
         });
 
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get());

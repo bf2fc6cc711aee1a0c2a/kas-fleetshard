@@ -1,6 +1,5 @@
 package org.bf2.operator.resources.v1alpha1;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -22,9 +21,6 @@ public class ManagedKafkaStatus {
     private String adminServerURI;
 
     public List<ManagedKafkaCondition> getConditions() {
-        if (conditions == null) {
-            conditions = new ArrayList<>();
-        }
         return conditions;
     }
 
