@@ -457,6 +457,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         config.put("default.replication.factor", 3);
         config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
+        config.put("ssl.enabled.protocols", "TLSv1.3");
+        config.put("ssl.protocol", "TLSv1.3");
 
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at 4 MB/sec
