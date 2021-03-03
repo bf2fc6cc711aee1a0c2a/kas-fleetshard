@@ -44,10 +44,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     @Override
     public boolean isReady(ManagedKafka mk) {
-        return mk != null &&
-                mk.getStatus() != null &&
-                getCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready) != null &&
-                Objects.requireNonNull(getCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready)).getStatus().equals("True");
+        return "True".equals(getConditionStatus(mk, ManagedKafkaCondition.Type.Ready));
     }
 
     @Override
@@ -57,10 +54,14 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         existing.setStatus(newResource.getStatus());
     }
 
-    public static ManagedKafkaCondition getCondition(List<ManagedKafkaCondition> conditions, ManagedKafkaCondition.Type type) {
-        for (ManagedKafkaCondition condition : conditions) {
+    public static String getConditionStatus(ManagedKafka mk, ManagedKafkaCondition.Type type) {
+        if (mk == null || mk.getStatus() == null || mk.getStatus().getConditions() == null) {
+            return null;
+        }
+
+        for (ManagedKafkaCondition condition : mk.getStatus().getConditions()) {
             if (type.name().equals(condition.getType())) {
-                return condition;
+                return condition.getStatus();
             }
         }
         return null;

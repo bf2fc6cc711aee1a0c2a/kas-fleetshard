@@ -29,7 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.util.Collections;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -162,12 +163,16 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         // add status if not already available on the ManagedKafka resource
         ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
                 new ManagedKafkaStatusBuilder()
-                .withConditions(Collections.emptyList())
                 .build());
         status.setUpdatedTimestamp(ConditionUtils.iso8601Now());
         managedKafka.setStatus(status);
 
+        // add conditions if not already available
         List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
+        if (managedKafkaConditions == null) {
+            managedKafkaConditions = new ArrayList<>();
+            status.setConditions(managedKafkaConditions);
+        }
         Optional<ManagedKafkaCondition> optInstalling =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);
         Optional<ManagedKafkaCondition> optReady =
