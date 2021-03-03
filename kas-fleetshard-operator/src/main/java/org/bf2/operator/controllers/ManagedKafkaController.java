@@ -164,6 +164,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 new ManagedKafkaStatusBuilder()
                 .withConditions(Collections.emptyList())
                 .build());
+        status.setUpdatedTimestamp(ConditionUtils.iso8601Now());
         managedKafka.setStatus(status);
 
         List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();

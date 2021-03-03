@@ -5,6 +5,7 @@ import static java.util.Objects.requireNonNullElse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
@@ -16,7 +17,6 @@ import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -149,14 +149,13 @@ public class ControlPlane {
     }
 
     static boolean statusChanged(ManagedKafkaStatus oldStatus, ManagedKafkaStatus newStatus) {
-        return maxTransitionTime(requireNonNullElse(oldStatus, EMPTY_MANAGED_KAFKA_STATUS).getConditions()).compareTo(
-                maxTransitionTime(requireNonNullElse(newStatus, EMPTY_MANAGED_KAFKA_STATUS).getConditions())) < 0;
-    }
-
-    private static String maxTransitionTime(List<ManagedKafkaCondition> conditions) {
-        return requireNonNullElse(conditions, Collections.<ManagedKafkaCondition>emptyList()).stream()
-                        .map((mkc)->requireNonNullElse(mkc.getLastTransitionTime(), "0"))
-                        .max(String::compareTo).orElse("");
+        if (oldStatus == null) {
+            return newStatus != null;
+        }
+        if (newStatus == null) {
+            return false;
+        }
+        return !Objects.equals(oldStatus.getUpdatedTimestamp(), newStatus.getUpdatedTimestamp());
     }
 
     /**
