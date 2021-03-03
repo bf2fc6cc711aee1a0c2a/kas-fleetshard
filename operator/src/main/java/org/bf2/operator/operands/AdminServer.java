@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -108,23 +109,52 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        kubernetesClient.apps()
-                .deployments()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka))
-                .delete();
-
-        kubernetesClient.services()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka))
-                .delete();
+        adminDeploymentResource(managedKafka).delete();
+        adminServiceResource(managedKafka).delete();
 
         if (openShiftClient != null) {
-            openShiftClient.routes()
-                    .inNamespace(adminServerNamespace(managedKafka))
-                    .withName(adminServerName(managedKafka))
-                    .delete();
+            adminRouteResource(managedKafka).delete();
         }
+    }
+
+    private Resource<Route> adminRouteResource(ManagedKafka managedKafka) {
+        return openShiftClient.routes()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
+    }
+
+    private Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
+        return kubernetesClient.services()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
+    }
+
+    private Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
+        return kubernetesClient.apps().deployments()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
+    }
+
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean deleted = true;
+        Deployment deployment = adminDeploymentResource(managedKafka).get();
+        if (deployment != null ) {
+            deleted = false;
+        }
+
+        Service service = adminServiceResource(managedKafka).get();
+        if (service != null) {
+            deleted = false;
+        }
+
+        if (openShiftClient != null) {
+            Route route = adminRouteResource(managedKafka).get();
+            if (route != null) {
+                deleted = false;
+            }
+        }
+        return deleted;
     }
 
     /* test */

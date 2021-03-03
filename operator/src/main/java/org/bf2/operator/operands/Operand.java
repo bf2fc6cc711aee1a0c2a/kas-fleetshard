@@ -42,4 +42,11 @@ public interface Operand<T extends CustomResource> {
      * @return if the operand instance is in an error state
      */
     boolean isError(T customResource);
+
+    /**
+     *
+     * @param customResource custom resource
+     * @return if resource is deleted
+     */
+    boolean isDeleted(T customResource);
 }

@@ -74,6 +74,13 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         return false;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        return kafkaCluster.isDeleted(managedKafka)
+                && canary.isDeleted(managedKafka)
+                && adminServer.isDeleted(managedKafka);
+    }
+
     public KafkaCluster getKafkaCluster() {
         return kafkaCluster;
     }

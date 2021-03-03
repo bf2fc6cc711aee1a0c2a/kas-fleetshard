@@ -72,6 +72,14 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         return DeleteControl.DEFAULT_DELETE;
     }
 
+    public void handleUpdate(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        if (managedKafka.getSpec().isDeleted()) {
+            kafkaInstance.delete(managedKafka, context);
+        } else {
+            kafkaInstance.createOrUpdate(managedKafka);
+        }
+    }
+
     @Override
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
 
@@ -79,7 +87,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(CustomResourceEvent.class);
 
         if (latestManagedKafkaEvent.isPresent()) {
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
         }
 
         Optional<ResourceEvent.KafkaEvent> latestKafkaEvent =
@@ -88,7 +96,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             Kafka kafka = latestKafkaEvent.get().getResource();
             log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
@@ -98,7 +106,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             Deployment deployment = latestDeploymentEvent.get().getResource();
             log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
 
@@ -107,7 +115,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestServiceEvent.isPresent()) {
             Service service = latestServiceEvent.get().getResource();
             log.info("Service resource {}/{} is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
 
@@ -116,7 +124,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestConfigMapEvent.isPresent()) {
             ConfigMap configMap = latestConfigMapEvent.get().getResource();
             log.info("ConfigMap resource {}/{} is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
 
@@ -125,7 +133,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestSecretEvent.isPresent()) {
             Secret secret = latestSecretEvent.get().getResource();
             log.info("Secret resource {}/{} is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
 
@@ -181,7 +189,11 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         Optional<ManagedKafkaCondition> optError =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Error);
 
-        if (kafkaInstance.isInstalling(managedKafka)) {
+        if (managedKafka.getSpec().isDeleted() && kafkaInstance.isDeleted(managedKafka)) {
+            managedKafkaConditions.clear();
+            ManagedKafkaCondition deleted = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Deleted, "True");
+            managedKafkaConditions.add(deleted);
+        } else if (kafkaInstance.isInstalling(managedKafka)) {
             if (optInstalling.isPresent()) {
                 ConditionUtils.updateConditionStatus(optInstalling.get(), "True");
             } else {
