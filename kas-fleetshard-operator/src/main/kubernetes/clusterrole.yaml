@@ -62,8 +62,6 @@ rules:
   - apiGroups:
       - ""
     resources:
-      # the synchronizer needs to create namespace for the Kafka instance
-      - namespaces
       # the operator creates Services for admin server UI
       - services
       # the operator creates ConfigMaps and Secrets for Kafka metrics configuration and TLS and Keycloak certificates
