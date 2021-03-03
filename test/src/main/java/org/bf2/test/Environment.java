@@ -35,6 +35,19 @@ public class Environment {
     private static final String YAML_BUNDLE_PATH_ENV = "YAML_BUNDLE_PATH";
     private static final String FLEET_SHARD_OPERATOR_IMAGE_ENV = "FLEET_SHARD_OPERATOR_IMAGE";
 
+    /*
+     * Vars for default managed kafka CR
+     */
+    private static final String OAUTH_CLIENT_SECRET_ENV = "OATH_CLIENT_SECRET";
+    private static final String OAUTH_USER_CLAIM_ENV = "OAUTH_USER_CLAIM";
+    private static final String OAUTH_JWKS_ENDPOINT_ENV = "OAUTH_JWKS_ENDPOINT";
+    private static final String OAUTH_TOKEN_ENDPOINT_ENV = "OAUTH_TOKEN_ENDPOINT";
+    private static final String OAUTH_ISSUER_ENDPOINT_ENV = "OAUTH_ISSUER_ENDPOINT";
+    private static final String OAUTH_CLIENT_ID_ENV = "OAUTH_CLIENT_ID";
+    private static final String OAUTH_TLS_CERT_ENV = "OAUTH_TLS_CERT";
+    private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
+    private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
+
 
     /*
      * Setup constants from env variables or set default
@@ -45,6 +58,16 @@ public class Environment {
     public static final Path YAML_BUNDLE_PATH = getOrDefault(YAML_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "kas-fleetshard-operator", "src", "main", "kubernetes"));
     public static final Path CRD_PATH = ROOT_PATH.resolve("kas-fleetshard-api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
     public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
+
+    public static final String OAUTH_CLIENT_SECRET = getOrDefault(OAUTH_CLIENT_SECRET_ENV, "client_secret");
+    public static final String OAUTH_USER_CLAIM = getOrDefault(OAUTH_USER_CLAIM_ENV, "preferred_username");
+    public static final String OAUTH_JWKS_ENDPOINT = getOrDefault(OAUTH_JWKS_ENDPOINT_ENV, "jwks_endpoint");
+    public static final String OAUTH_TOKEN_ENDPOINT = getOrDefault(OAUTH_TOKEN_ENDPOINT_ENV, "token_ednpoint");
+    public static final String OAUTH_ISSUER_ENDPOINT = getOrDefault(OAUTH_ISSUER_ENDPOINT_ENV, "issuer_endpoint");
+    public static final String OAUTH_CLIENT_ID = getOrDefault(OAUTH_CLIENT_ID_ENV, "client_id");
+    public static final String OAUTH_TLS_CERT = getOrDefault(OAUTH_TLS_CERT_ENV, "cert");
+    public static final String ENDPOINT_TLS_CERT = getOrDefault(ENDPOINT_TLS_CERT_ENV, "cert");
+    public static final String ENDPOINT_TLS_KEY = getOrDefault(ENDPOINT_TLS_KEY_ENV, "key");
 
 
     private Environment() {

@@ -13,7 +13,6 @@ import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -43,7 +42,7 @@ public class RecoveryST extends AbstractST {
         String mkAppName = "mk-resource-recovery";
         String testNamespace = "mk-test-resources-recovery";
 
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
@@ -63,7 +62,7 @@ public class RecoveryST extends AbstractST {
                     ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Installing)).getStatus().equals("True");
         });
 
-        TestUtils.waitFor("Managed kafka status is again ready", 1_000, 500_000, () -> {
+        TestUtils.waitFor("Managed kafka status is again ready", 1_000, 800_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
             return Objects.requireNonNull(
                     ManagedKafkaResourceType.getCondition(m.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready)).getStatus().equals("True");

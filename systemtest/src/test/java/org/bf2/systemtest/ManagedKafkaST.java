@@ -44,7 +44,7 @@ public class ManagedKafkaST extends AbstractST {
         String mkAppName = "mk-create";
         String testNamespace = "mk-test-create-check";
 
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
@@ -60,6 +60,7 @@ public class ManagedKafkaST extends AbstractST {
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
+        assertEquals(1, ManagedKafkaResourceType.getKafkaExporterPods(mk).size());
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
     }
 
@@ -68,7 +69,7 @@ public class ManagedKafkaST extends AbstractST {
         String mkAppName = "mk-create-delete";
         String testNamespace = "mk-test-create-delete";
 
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
