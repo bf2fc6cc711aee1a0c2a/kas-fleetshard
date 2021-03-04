@@ -68,7 +68,8 @@ public class InformerManager implements LocalLookup {
     }
 
     public boolean isReady() {
-        return managedAgentInformer.hasSynced() && managedAgentInformer.hasSynced();
+        return !managedAgentInformer.lastSyncResourceVersion().isEmpty()
+                && !managedAgentInformer.lastSyncResourceVersion().isEmpty();
     }
 
     @Override
