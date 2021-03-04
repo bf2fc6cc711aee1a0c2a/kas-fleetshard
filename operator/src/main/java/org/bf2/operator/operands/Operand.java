@@ -46,7 +46,7 @@ public interface Operand<T extends CustomResource> {
     /**
      *
      * @param customResource custom resource
-     * @return if resource is deleted
+     * @return if the operand instance is deleted
      */
     boolean isDeleted(T customResource);
 }

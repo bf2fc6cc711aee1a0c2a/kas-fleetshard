@@ -62,22 +62,6 @@ public class Canary implements Operand<ManagedKafka> {
         canaryDeploymentResource(managedKafka).delete();
     }
 
-    @Override
-    public boolean isDeleted(ManagedKafka managedKafka) {
-        Deployment deployment = canaryDeploymentResource(managedKafka).get();
-        if (deployment != null ) {
-            return false;
-        }
-        return true;
-    }
-
-    private Resource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {
-        return kubernetesClient.apps()
-                .deployments()
-                .inNamespace(canaryNamespace(managedKafka))
-                .withName(canaryName(managedKafka));
-    }
-
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
 
@@ -167,6 +151,13 @@ public class Canary implements Operand<ManagedKafka> {
         return false;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = cachedDeployment(managedKafka) == null;
+        log.info("Canary isDeleted = {}", isDeleted);
+        return isDeleted;
+    }
+
     private Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
     }
@@ -177,5 +168,12 @@ public class Canary implements Operand<ManagedKafka> {
 
     public static String canaryNamespace(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getNamespace();
+    }
+
+    private Resource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {
+        return kubernetesClient.apps()
+                .deployments()
+                .inNamespace(canaryNamespace(managedKafka))
+                .withName(canaryName(managedKafka));
     }
 }

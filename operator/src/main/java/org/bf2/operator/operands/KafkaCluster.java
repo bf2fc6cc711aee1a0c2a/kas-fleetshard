@@ -115,9 +115,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     public void createOrUpdate(ManagedKafka managedKafka) {
 
         if (isKafkaExternalCertificateEnabled) {
-            Secret currentTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
-            Secret tlsSecret = tlsSecretFrom(managedKafka, currentTlsSecret);
-            createOrUpdate(tlsSecret);
+            Secret currentKafkaTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
+            Secret kafkaTlsSecret = kafkaTlsSecretFrom(managedKafka, currentKafkaTlsSecret);
+            createOrUpdate(kafkaTlsSecret);
         }
 
         if (isKafkaAuthenticationEnabled) {
@@ -138,7 +138,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
-        Kafka currentKafka = cachedDeployment(managedKafka);
+        Kafka currentKafka = cachedKafka(managedKafka);
         Kafka kafka = kafkaFrom(managedKafka, currentKafka);
         createOrUpdate(kafka);
     }
@@ -147,82 +147,16 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
 
-        kafkaMetricsResource(managedKafka).delete();
-        zookeeperMetricsResource(managedKafka).delete();
+        configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
+        configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
 
         if (isKafkaExternalCertificateEnabled) {
-            tlsSecretResource(managedKafka).delete();
+            secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
         }
         if (isKafkaAuthenticationEnabled) {
-            ssoSecretResource(managedKafka).delete();
-            ssoTlsSecretResource(managedKafka).delete();
+            secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
+            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
         }
-    }
-
-    @Override
-    public boolean isDeleted(ManagedKafka managedKafka) {
-        Kafka kafka = kafkaResourceClient.getByName(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
-        if (kafka != null) {
-            return false;
-        }
-
-        ConfigMap configMap = kafkaMetricsResource(managedKafka).get();
-        if (configMap != null) {
-            return false;
-        }
-
-        configMap = zookeeperMetricsResource(managedKafka).get();
-        if (configMap != null) {
-            return false;
-        }
-
-        if (isKafkaExternalCertificateEnabled) {
-            Secret secret = tlsSecretResource(managedKafka).get();
-            if (secret != null ) {
-                return false;
-            }
-        }
-        if (isKafkaAuthenticationEnabled) {
-            Secret secret = ssoSecretResource(managedKafka).get();
-            if (secret != null) {
-                return false;
-            }
-            secret = ssoTlsSecretResource(managedKafka).get();
-            if (secret != null) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private Resource<Secret> ssoTlsSecretResource(ManagedKafka managedKafka) {
-        return kubernetesClient.secrets()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(ssoTlsSecretName(managedKafka));
-    }
-
-    private Resource<Secret> ssoSecretResource(ManagedKafka managedKafka) {
-        return kubernetesClient.secrets()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(ssoClientSecretName(managedKafka));
-    }
-
-    private Resource<Secret> tlsSecretResource(ManagedKafka managedKafka) {
-        return kubernetesClient.secrets()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(kafkaTlsSecretName(managedKafka));
-    }
-
-    private Resource<ConfigMap> zookeeperMetricsResource(ManagedKafka managedKafka) {
-        return kubernetesClient.configMaps()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(zookeeperMetricsConfigMapName(managedKafka));
-    }
-
-    private Resource<ConfigMap> kafkaMetricsResource(ManagedKafka managedKafka) {
-        return kubernetesClient.configMaps()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(kafkaMetricsConfigMapName(managedKafka));
     }
 
     private void createOrUpdate(Kafka kafka) {
@@ -335,7 +269,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
-    protected Secret tlsSecretFrom(ManagedKafka managedKafka, Secret current) {
+    protected Secret kafkaTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
 
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
@@ -651,7 +585,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
-        Kafka kafka = cachedDeployment(managedKafka);
+        Kafka kafka = cachedKafka(managedKafka);
         boolean isInstalling = kafka == null || kafka.getStatus() == null ||
                 (kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
@@ -662,7 +596,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
-        Kafka kafka = cachedDeployment(managedKafka);
+        Kafka kafka = cachedKafka(managedKafka);
         boolean isReady = kafka != null && (kafka.getStatus() == null ||
                 (kafkaCondition(kafka).getType().equals("Ready") && kafkaCondition(kafka).getStatus().equals("True")));
         log.info("KafkaCluster isReady = {}", isReady);
@@ -671,7 +605,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isError(ManagedKafka managedKafka) {
-        Kafka kafka = cachedDeployment(managedKafka);
+        Kafka kafka = cachedKafka(managedKafka);
         boolean isError = kafka != null && kafka.getStatus() != null
                 && kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
@@ -680,11 +614,28 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return isError;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = cachedKafka(managedKafka) == null &&
+                cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka)) == null &&
+                cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka)) == null;
+
+        if (isKafkaExternalCertificateEnabled) {
+            isDeleted = isDeleted && cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka)) == null;
+        }
+        if (isKafkaAuthenticationEnabled) {
+            isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
+                    cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
+        }
+        log.info("KafkaCluster isDeleted = {}", isDeleted);
+        return isDeleted;
+    }
+
     private Condition kafkaCondition(Kafka kafka) {
         return kafka.getStatus().getConditions().get(0);
     }
 
-    private Kafka cachedDeployment(ManagedKafka managedKafka) {
+    private Kafka cachedKafka(ManagedKafka managedKafka) {
         return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
@@ -694,6 +645,18 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     private Secret cachedSecret(ManagedKafka managedKafka, String name) {
         return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
+    }
+
+    private Resource<Secret> secretResource(ManagedKafka managedKafka, String name) {
+        return kubernetesClient.secrets()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(name);
+    }
+
+    private Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+        return kubernetesClient.configMaps()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(name);
     }
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
