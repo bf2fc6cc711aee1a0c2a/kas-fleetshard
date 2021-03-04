@@ -21,10 +21,7 @@ Follow the operator instructions to at least build / install the CRDs, then crea
 ```shell
 kubectl create namespace kas-fleetshard
 kubectl config set-context --current --namespace=kas-fleetshard
-kubectl create -f ../kas-fleetshard-operator/src/main/kubernetes
 ```
-
-> NOTE: ../kas-fleetshard-operator/src/main/kubernetes contains a deployment of the operator, which is not required for the sync to function.
 
 ### local
 
