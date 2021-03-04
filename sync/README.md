@@ -16,7 +16,7 @@ mvn clean install
 
 ## running
 
-Follow the operator instructions to at least build / install the CRDs, then create the kas-fleetshard namespace and create necessary authorizations:
+Follow the operator instructions to at least build / install the CRDs, then create the kas-fleetshard namespace:
 
 ```shell
 kubectl create namespace kas-fleetshard
