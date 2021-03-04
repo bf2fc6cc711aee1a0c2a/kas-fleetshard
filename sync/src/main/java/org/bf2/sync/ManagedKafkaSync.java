@@ -9,9 +9,11 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.WebApplicationException;
 
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
@@ -34,8 +36,6 @@ import io.quarkus.scheduler.Scheduled;
  */
 @ApplicationScoped
 public class ManagedKafkaSync {
-    public static final String INSTANCE_DELETION_COMPLETE = "InstanceDeletionComplete";
-
     private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
 
     @Inject
@@ -83,7 +83,7 @@ public class ManagedKafkaSync {
                     // we need to send another status update to let them know
 
                     ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                    statusBuilder.addNewCondition().withType(INSTANCE_DELETION_COMPLETE).endCondition();
+                    statusBuilder.withConditions(ConditionUtils.buildCondition(Type.Deleted, "True"));
 
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});

@@ -18,6 +18,10 @@
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
+            <artifactId>kas-fleetshard-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.bf2</groupId>
             <artifactId>test</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

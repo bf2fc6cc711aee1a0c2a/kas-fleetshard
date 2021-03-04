@@ -20,13 +20,13 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
-import org.bf2.sync.ManagedKafkaSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -151,15 +151,7 @@ public class MockControlPlane {
     }
 
     private boolean isDeleted(ManagedKafkaStatus status) {
-        if (status.getConditions() == null) {
-            return false;
-        }
-        for (ManagedKafkaCondition c : status.getConditions()) {
-            if (c.getType().equals(ManagedKafkaSync.INSTANCE_DELETION_COMPLETE)) {
-                return true;
-            }
-        }
-        return false;
+        return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Deleted).isPresent();
     }
 
     @PUT

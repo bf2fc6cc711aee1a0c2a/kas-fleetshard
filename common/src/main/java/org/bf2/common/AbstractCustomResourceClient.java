@@ -1,4 +1,4 @@
-package org.bf2.operator.clients;
+package org.bf2.common;
 
 import java.util.List;
 import java.util.function.UnaryOperator;
@@ -61,6 +61,9 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         return resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).patch(resource);
     }
 
+    /**
+     * List the resource across all namespaces
+     */
     public List<T> list() {
         return resourceClient.inAnyNamespace().list().getItems();
     }
@@ -69,5 +72,11 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         return resourceClient.updateStatus(resource);
     }
 
+    /**
+     * Get the default namespace for the client
+     */
+    public String getNamespace() {
+        return kubernetesClient.getNamespace();
+    }
 
 }
