@@ -137,24 +137,23 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean deleted = true;
         Deployment deployment = adminDeploymentResource(managedKafka).get();
         if (deployment != null ) {
-            deleted = false;
+            return false;
         }
 
         Service service = adminServiceResource(managedKafka).get();
         if (service != null) {
-            deleted = false;
+            return false;
         }
 
         if (openShiftClient != null) {
             Route route = adminRouteResource(managedKafka).get();
             if (route != null) {
-                deleted = false;
+                return false;
             }
         }
-        return deleted;
+        return true;
     }
 
     /* test */

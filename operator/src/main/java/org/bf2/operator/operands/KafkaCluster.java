@@ -161,39 +161,38 @@ public class KafkaCluster implements Operand<ManagedKafka> {
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean deleted = true;
         Kafka kafka = kafkaResourceClient.getByName(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
         if (kafka != null) {
-            deleted = false;
+            return false;
         }
 
         ConfigMap configMap = kafkaMetricsResource(managedKafka).get();
         if (configMap != null) {
-            deleted = false;
+            return false;
         }
 
         configMap = zookeeperMetricsResource(managedKafka).get();
         if (configMap != null) {
-            deleted = false;
+            return false;
         }
 
         if (isKafkaExternalCertificateEnabled) {
             Secret secret = tlsSecretResource(managedKafka).get();
             if (secret != null ) {
-                deleted = false;
+                return false;
             }
         }
         if (isKafkaAuthenticationEnabled) {
             Secret secret = ssoSecretResource(managedKafka).get();
             if (secret != null) {
-                deleted = false;
+                return false;
             }
             secret = ssoTlsSecretResource(managedKafka).get();
             if (secret != null) {
-                deleted = false;
+                return false;
             }
         }
-        return deleted;
+        return true;
     }
 
     private Resource<Secret> ssoTlsSecretResource(ManagedKafka managedKafka) {
