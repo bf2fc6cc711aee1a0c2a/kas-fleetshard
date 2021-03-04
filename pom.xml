@@ -31,9 +31,9 @@
     </properties>
 
     <modules>
-        <module>kas-fleetshard-api</module>
-        <module>kas-fleetshard-operator</module>
-        <module>kas-fleetshard-sync</module>
+        <module>api</module>
+        <module>operator</module>
+        <module>sync</module>
         <module>test</module>
     </modules>
     
