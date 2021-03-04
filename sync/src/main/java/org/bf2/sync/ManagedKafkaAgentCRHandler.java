@@ -8,6 +8,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
+import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -41,6 +43,15 @@ public class ManagedKafkaAgentCRHandler {
     @ConfigProperty(name=STRIMZI_VERSIONS)
     String strimziVersions;
 
+    @ConfigProperty(name = "observability.access_token")
+    String accessToken;
+
+    @ConfigProperty(name = "observability.channel")
+    String channel;
+
+    @ConfigProperty(name = "observability.repository")
+    String repository;
+
     @Scheduled(every = "60s")
     void loop() {
         createOrUpdateManagedKafkaAgentCR();
@@ -51,6 +62,7 @@ public class ManagedKafkaAgentCRHandler {
 
         ManagedKafkaAgent resource = lookup.getLocalManagedKafkaAgent();
 
+        // allowed Strimzi versions by the control plane
         String[] allowedVersions = new String[] {};
         if (this.strimziVersions != null && this.strimziVersions.trim().length() > 0) {
             allowedVersions = this.strimziVersions.trim().split("\\s*,\\s*");
@@ -60,23 +72,42 @@ public class ManagedKafkaAgentCRHandler {
             }
         }
 
+        // Observability repository information
+        ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
+                .withAccessToken(this.accessToken)
+                .withChannel(this.channel)
+                .withRepository(this.repository)
+                .build();
+
+        boolean update = false;
         if (resource == null) {
             resource = new ManagedKafkaAgentBuilder()
                     .withSpec(new ManagedKafkaAgentSpecBuilder()
                             .withClusterId(this.clusterId)
                             .withAllowedStrimziVersions(allowedVersions)
+                            .withObservability(observabilityConfig)
                             .build())
                     .withMetadata(new ObjectMetaBuilder().withName(RESOURCE_NAME)
                             .withNamespace(namespace)
                             .build())
                     .build();
-        } else if (!Arrays.equals(resource.getSpec().getAllowedStrimziVersions(), allowedVersions)) {
-            resource.getSpec().setAllowedStrimziVersions(allowedVersions);
-            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", RESOURCE_NAME);
-        } else {
-            return; //nothing to do
+            update = true;
         }
-        var agentClient = kubeClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
-        agentClient.inNamespace(namespace).createOrReplace(resource);
+
+        if (!Arrays.equals(resource.getSpec().getAllowedStrimziVersions(), allowedVersions)) {
+            resource.getSpec().setAllowedStrimziVersions(allowedVersions);
+            update = true;
+        }
+
+        if (!resource.getSpec().getObservability().equals(observabilityConfig)) {
+            resource.getSpec().setObservability(observabilityConfig);
+            update = true;
+        }
+
+        if (update) {
+            var agentClient = kubeClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
+            agentClient.inNamespace(namespace).createOrReplace(resource);
+            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", RESOURCE_NAME);
+        }
     }
 }

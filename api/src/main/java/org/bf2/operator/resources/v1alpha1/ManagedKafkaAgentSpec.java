@@ -17,6 +17,7 @@ public class ManagedKafkaAgentSpec {
      */
     String clusterId;
     String[] allowedStrimziVersions;
+    ObservabilityConfiguration observability;
 
     public String getClusterId() {
         return clusterId;
@@ -32,5 +33,13 @@ public class ManagedKafkaAgentSpec {
 
     public void setAllowedStrimziVersions(String[] allowedStrimziVersions) {
         this.allowedStrimziVersions = allowedStrimziVersions;
+    }
+
+    public ObservabilityConfiguration getObservability() {
+        return observability;
+    }
+
+    public void setObservability(ObservabilityConfiguration observability) {
+        this.observability = observability;
     }
 }
