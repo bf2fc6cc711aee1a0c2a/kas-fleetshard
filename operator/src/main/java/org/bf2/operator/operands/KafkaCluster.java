@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
@@ -145,30 +146,83 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
-        kubernetesClient.configMaps()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(kafkaMetricsConfigMapName(managedKafka))
-                .delete();
-        kubernetesClient.configMaps()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(zookeeperMetricsConfigMapName(managedKafka))
-                .delete();
+
+        kafkaMetricsResource(managedKafka).delete();
+        zookeeperMetricsResource(managedKafka).delete();
+
         if (isKafkaExternalCertificateEnabled) {
-            kubernetesClient.secrets()
-                    .inNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(kafkaTlsSecretName(managedKafka))
-                    .delete();
+            tlsSecretResource(managedKafka).delete();
         }
         if (isKafkaAuthenticationEnabled) {
-            kubernetesClient.secrets()
-                    .inNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(ssoClientSecretName(managedKafka))
-                    .delete();
-            kubernetesClient.secrets()
-                    .inNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(ssoTlsSecretName(managedKafka))
-                    .delete();
+            ssoSecretResource(managedKafka).delete();
+            ssoTlsSecretResource(managedKafka).delete();
         }
+    }
+
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        Kafka kafka = kafkaResourceClient.getByName(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+        if (kafka != null) {
+            return false;
+        }
+
+        ConfigMap configMap = kafkaMetricsResource(managedKafka).get();
+        if (configMap != null) {
+            return false;
+        }
+
+        configMap = zookeeperMetricsResource(managedKafka).get();
+        if (configMap != null) {
+            return false;
+        }
+
+        if (isKafkaExternalCertificateEnabled) {
+            Secret secret = tlsSecretResource(managedKafka).get();
+            if (secret != null ) {
+                return false;
+            }
+        }
+        if (isKafkaAuthenticationEnabled) {
+            Secret secret = ssoSecretResource(managedKafka).get();
+            if (secret != null) {
+                return false;
+            }
+            secret = ssoTlsSecretResource(managedKafka).get();
+            if (secret != null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Resource<Secret> ssoTlsSecretResource(ManagedKafka managedKafka) {
+        return kubernetesClient.secrets()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(ssoTlsSecretName(managedKafka));
+    }
+
+    private Resource<Secret> ssoSecretResource(ManagedKafka managedKafka) {
+        return kubernetesClient.secrets()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(ssoClientSecretName(managedKafka));
+    }
+
+    private Resource<Secret> tlsSecretResource(ManagedKafka managedKafka) {
+        return kubernetesClient.secrets()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(kafkaTlsSecretName(managedKafka));
+    }
+
+    private Resource<ConfigMap> zookeeperMetricsResource(ManagedKafka managedKafka) {
+        return kubernetesClient.configMaps()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(zookeeperMetricsConfigMapName(managedKafka));
+    }
+
+    private Resource<ConfigMap> kafkaMetricsResource(ManagedKafka managedKafka) {
+        return kubernetesClient.configMaps()
+                .inNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(kafkaMetricsConfigMapName(managedKafka));
     }
 
     private void createOrUpdate(Kafka kafka) {

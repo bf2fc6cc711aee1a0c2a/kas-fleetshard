@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -58,11 +59,23 @@ public class Canary implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        kubernetesClient.apps()
+        canaryDeploymentResource(managedKafka).delete();
+    }
+
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        Deployment deployment = canaryDeploymentResource(managedKafka).get();
+        if (deployment != null ) {
+            return false;
+        }
+        return true;
+    }
+
+    private Resource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {
+        return kubernetesClient.apps()
                 .deployments()
                 .inNamespace(canaryNamespace(managedKafka))
-                .withName(canaryName(managedKafka))
-                .delete();
+                .withName(canaryName(managedKafka));
     }
 
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {

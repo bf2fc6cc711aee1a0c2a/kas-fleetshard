@@ -84,7 +84,6 @@ public class ManagedKafkaSync {
 
                     ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
                     statusBuilder.withConditions(ConditionUtils.buildCondition(Type.Deleted, "True"));
-
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
