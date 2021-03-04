@@ -4,8 +4,8 @@ import java.util.Arrays;
 
 import javax.inject.Inject;
 
-import org.bf2.operator.ConditionUtils;
-import org.bf2.operator.clients.AgentResourceClient;
+import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;

@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.common;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;

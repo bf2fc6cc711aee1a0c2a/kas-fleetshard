@@ -28,10 +28,12 @@
         <log4j2.version>2.13.3</log4j2.version>
         <sundrio.version>0.24.1</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
+        <jandex-plugin.version>1.0.7</jandex-plugin.version>
     </properties>
 
     <modules>
         <module>api</module>
+        <module>common</module>
         <module>operator</module>
         <module>sync</module>
         <module>test</module>
@@ -51,6 +53,11 @@
             <dependency>
                 <groupId>org.bf2</groupId>
                 <artifactId>kas-fleetshard-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bf2</groupId>
+                <artifactId>kas-fleetshard-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

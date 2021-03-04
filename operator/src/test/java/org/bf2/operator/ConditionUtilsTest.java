@@ -2,6 +2,8 @@ package org.bf2.operator;
 
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;

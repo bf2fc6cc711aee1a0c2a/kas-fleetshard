@@ -15,9 +15,10 @@ import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.strimzi.api.kafka.model.Kafka;
+
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.events.ResourceEventSource;
-import org.bf2.operator.ConditionUtils;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;

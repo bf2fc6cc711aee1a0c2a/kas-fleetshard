@@ -16,6 +16,7 @@ public class ManagedKafkaCondition {
     public enum Type {
         Installing,
         Ready,
+        Deleted,
         Error;
     }
 
