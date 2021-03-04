@@ -1,5 +1,7 @@
 package org.bf2.systemtest;
 
+import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.strimzi.api.kafka.Crds;
 import org.bf2.systemtest.framework.ExtensionContextParameterResolver;
 import org.bf2.systemtest.framework.IndicativeSentences;
 import org.bf2.systemtest.framework.ResourceManager;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public abstract class AbstractST {
     protected KubeClient kube;
     protected ResourceManager resourceManager;
+    protected CustomResourceDefinitionContext kafkaCrdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
 
     @BeforeAll
     void init() {

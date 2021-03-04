@@ -40,7 +40,7 @@ public class RecoveryST extends AbstractST {
         String mkAppName = "mk-resource-recovery";
         String testNamespace = "mk-test-resources-recovery";
 
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
@@ -59,7 +59,7 @@ public class RecoveryST extends AbstractST {
             return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Installing));
         });
 
-        TestUtils.waitFor("Managed kafka status is again ready", 1_000, 500_000, () -> {
+        TestUtils.waitFor("Managed kafka status is again ready", 1_000, 800_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
             return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Ready));
         });

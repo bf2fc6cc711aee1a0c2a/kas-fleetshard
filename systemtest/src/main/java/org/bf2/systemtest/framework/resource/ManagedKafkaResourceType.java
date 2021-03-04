@@ -8,6 +8,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.test.Environment;
 import org.bf2.test.k8s.KubeClient;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
@@ -74,7 +75,13 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     public static List<Pod> getKafkaPods(ManagedKafka mk) {
         return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
-                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "kafka"))).collect(Collectors.toList());
+                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "kafka")) &&
+                        !pod.getMetadata().getName().contains("exporter")).collect(Collectors.toList());
+    }
+
+    public static List<Pod> getKafkaExporterPods(ManagedKafka mk) {
+        return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
+                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "kafka-exporter"))).collect(Collectors.toList());
     }
 
     public static List<Pod> getZookeeperPods(ManagedKafka mk) {
@@ -114,19 +121,18 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                                 .withNewEndpoint()
                                     .withNewBootstrapServerHost(appName)
                                     .withNewTls()
-                                        .withNewCert("cert")
-                                        .withNewKey("key")
+                                        .withNewCert(Environment.ENDPOINT_TLS_CERT)
+                                        .withNewKey(Environment.ENDPOINT_TLS_KEY)
                                     .endTls()
                                 .endEndpoint()
                                 .withNewOauth()
-                                    .withClientId("clientID")
-                                    .withNewTlsTrustedCertificate("cert")
-                                    .withClientSecret("secret")
-                                    .withUserNameClaim("userClaim")
-                                    .withNewTokenEndpointURI("tokenEndpointURI")
-                                    .withNewJwksEndpointURI("jwksEndpointURI")
-                                    .withNewTokenEndpointURI("tokenUri")
-                                    .withNewValidIssuerEndpointURI("issuer")
+                                    .withClientId(Environment.OAUTH_CLIENT_ID)
+                                    .withNewTlsTrustedCertificate(Environment.OAUTH_TLS_CERT)
+                                    .withClientSecret(Environment.OAUTH_CLIENT_SECRET)
+                                    .withUserNameClaim(Environment.OAUTH_USER_CLAIM)
+                                    .withNewJwksEndpointURI(Environment.OAUTH_JWKS_ENDPOINT)
+                                    .withNewTokenEndpointURI(Environment.OAUTH_TOKEN_ENDPOINT)
+                                    .withNewValidIssuerEndpointURI(Environment.OAUTH_ISSUER_ENDPOINT)
                                 .endOauth()
                                 .build())
                 .build();
