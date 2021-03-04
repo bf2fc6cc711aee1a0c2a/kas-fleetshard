@@ -166,8 +166,7 @@ public class MockControlPlane {
     @Path("/{id}/status")
     @Consumes(MediaType.APPLICATION_JSON)
     public void updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status){
-        log.info("control plane::updateAgentStatus (capacity) <- Received");
-        log.info(status);
+        log.infof("control plane::updateAgentStatus (capacity) <- Received %s", status);
     }
 
     @GET
