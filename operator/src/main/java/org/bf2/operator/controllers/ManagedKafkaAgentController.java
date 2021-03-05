@@ -83,6 +83,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         try {
             ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, AgentResourceClient.RESOURCE_NAME);
             if (resource != null) {
+                // check and reinstate if the observability config changed
+                this.observabilityManager.createOrUpdateObservabilityConfigMap(resource.getSpec().getObservability());
                 log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
                 resource.setStatus(buildStatus(resource));
                 this.agentClient.updateStatus(resource);

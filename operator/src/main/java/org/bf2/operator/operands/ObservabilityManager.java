@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -12,10 +13,16 @@ import javax.inject.Inject;
 
 @ApplicationScoped
 public class ObservabilityManager {
-    static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
+    static final String OBSERVABILITY_REPOSITORY = "repository";
+    static final String OBSERVABILITY_CHANNEL = "channel";
+    static final String OBSERVABILITY_ACCESS_TOKEN = "access_token";
+    public static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
 
     @Inject
     KubernetesClient client;
+
+    @Inject
+    InformerManager informerManager;
 
     static ConfigMap createObservabilityConfigMap(String namespace, ObservabilityConfiguration observability) {
         return createObservabilityConfigMapBuilder(namespace, observability).build();
@@ -29,31 +36,41 @@ public class ObservabilityManager {
                     .addToLabels("configures", "observability-operator")
                     .addToLabels("app.kubernetes.io/managed-by", "kas-fleetshard-operator")
                 .endMetadata()
-                .addToData("access_token", observability.getAccessToken())
-                .addToData("channel", observability.getChannel())
-                .addToData("repository", observability.getRepository());
+                .addToData(OBSERVABILITY_ACCESS_TOKEN, observability.getAccessToken())
+                .addToData(OBSERVABILITY_CHANNEL, observability.getChannel())
+                .addToData(OBSERVABILITY_REPOSITORY, observability.getRepository());
     }
 
-    Resource<ConfigMap> observabilityConfigMap() {
+    static boolean isObservabilityStatusAccepted(ConfigMap cm) {
+        String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
+        if (status != null && status.equalsIgnoreCase("accepted")) {
+            return true;
+        }
+        return false;
+    }
+
+    Resource<ConfigMap> observabilityConfigMapResource() {
         return this.client.configMaps().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_CONFIGMAP_NAME);
+    }
+
+    private ConfigMap cachedObservabilityConfigMap() {
+        return informerManager.getLocalConfigMap(this.client.getNamespace(),
+                ObservabilityManager.OBSERVABILITY_CONFIGMAP_NAME);
     }
 
     public void createOrUpdateObservabilityConfigMap(ObservabilityConfiguration observability) {
         ConfigMap configMap = createObservabilityConfigMap(this.client.getNamespace(), observability);
-        if (observabilityConfigMap().get() == null) {
-            observabilityConfigMap().createOrReplace(configMap);
+        if (cachedObservabilityConfigMap() == null) {
+            observabilityConfigMapResource().createOrReplace(configMap);
         } else {
-            observabilityConfigMap().patch(configMap);
+            observabilityConfigMapResource().patch(configMap);
         }
     }
 
     public boolean isObservabilityRunning() {
-        ConfigMap cm = observabilityConfigMap().get();
+        ConfigMap cm = cachedObservabilityConfigMap();
         if (cm != null) {
-            String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
-            if (status != null && status.equalsIgnoreCase("accepted")) {
-                return true;
-            }
+            return isObservabilityStatusAccepted(cm);
         }
         return false;
     }

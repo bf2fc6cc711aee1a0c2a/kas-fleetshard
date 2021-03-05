@@ -31,7 +31,7 @@ public class ObservabilityManagerTest {
     public void testConfigMap() {
         client.getConfiguration().setNamespace("test");
 
-        ConfigMap map = observabilityManager.observabilityConfigMap().get();
+        ConfigMap map = observabilityManager.observabilityConfigMapResource().get();
         assertNull(map);
 
         ObservabilityConfiguration config = new ObservabilityConfigurationBuilder()
@@ -43,19 +43,23 @@ public class ObservabilityManagerTest {
         this.observabilityManager.createOrUpdateObservabilityConfigMap(config);
 
         // lets call event handler
-        map = observabilityManager.observabilityConfigMap().get();
+        map = observabilityManager.observabilityConfigMapResource().get();
         assertNotNull(map);
 
+        ObservabilityConfiguration mapConfig = new ObservabilityConfigurationBuilder()
+                .withAccessToken(map.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))
+                .withChannel(map.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))
+                .withRepository(map.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))
+                .build();
+
         // map verification
-        assertEquals("test-token", map.getData().get("access_token"));
-        assertEquals("test", map.getData().get("channel"));
-        assertEquals("test-repo", map.getData().get("repository"));
+        assertTrue(config.equals(mapConfig));
         assertEquals("observability-operator", map.getMetadata().getLabels().get("configures"));
 
-        // status verification
+        // status verification, the Informers do not work in test framework thus direct verification
         map = ObservabilityManager.createObservabilityConfigMapBuilder(client.getNamespace(), config).editMetadata()
             .addToAnnotations("observability-operator/status", "accepted").endMetadata().build();
-        observabilityManager.observabilityConfigMap().createOrReplace(map);
-        assertTrue(this.observabilityManager.isObservabilityRunning());
+        observabilityManager.observabilityConfigMapResource().createOrReplace(map);
+        assertTrue(ObservabilityManager.isObservabilityStatusAccepted(map));
     }
 }
