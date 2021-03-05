@@ -67,14 +67,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        log.info("Deleting Kafka instance {}", managedKafka.getMetadata().getName());
+        log.info("Deleting Kafka instance {}/{}", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         kafkaInstance.delete(managedKafka, context);
         return DeleteControl.DEFAULT_DELETE;
     }
 
     public void handleUpdate(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        // if the ManagedKafka resource is "marked" as to be deleted
         if (managedKafka.getSpec().isDeleted()) {
-            kafkaInstance.delete(managedKafka, context);
+            // check that it's actually not deleted yet, so operands are gone
+            if (!kafkaInstance.isDeleted(managedKafka)) {
+                log.info("Deleting Kafka instance {}/{}", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                kafkaInstance.delete(managedKafka, context);
+            }
         } else {
             kafkaInstance.createOrUpdate(managedKafka);
         }
