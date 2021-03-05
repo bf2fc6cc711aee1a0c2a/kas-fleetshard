@@ -60,7 +60,7 @@ public class InformerManager {
     private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
     private SharedIndexInformer<Secret> secretSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
-    
+
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
@@ -140,5 +140,14 @@ public class InformerManager {
             log.warn("Not running on OpenShift cluster, Routes are not available");
             return null;
         }
+    }
+
+    public boolean isReady() {
+        return !kafkaSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+                && !deploymentSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+                && !serviceSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+                && !configMapSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+                && !secretSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+                && !routeSharedIndexInformer.lastSyncResourceVersion().isEmpty();
     }
 }
