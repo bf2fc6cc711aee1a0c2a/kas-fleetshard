@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -84,6 +85,7 @@ public class MockControlPlane {
                 .endEndpoint()
                 .build());
         mk.setId(clusterName(id));
+        mk.setPlacementId(UUID.randomUUID().toString());
         mk.getMetadata().setName("kluster-"+clusterName(id));
         return mk;
     }

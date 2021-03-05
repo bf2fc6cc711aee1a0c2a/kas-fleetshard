@@ -99,7 +99,6 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      */
     public static ManagedKafka getDefault(String namespace, String appName) {
         return new ManagedKafkaBuilder()
-                .withId(namespace)
                 .withMetadata(
                         new ObjectMetaBuilder()
                                 .withNamespace(namespace)

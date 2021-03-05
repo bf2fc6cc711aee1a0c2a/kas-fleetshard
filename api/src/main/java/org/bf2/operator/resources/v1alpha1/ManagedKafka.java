@@ -1,7 +1,13 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.dekorate.crd.annotation.Crd;
 import io.fabric8.kubernetes.api.model.Namespaced;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Version;
@@ -21,17 +27,33 @@ import io.sundr.builder.annotations.BuildableReference;
 @Crd(group = "managedkafka.bf2.org", version = "v1alpha1")
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 
-    private String id;
+    public final static String ID = "id";
+    public final static String PLACEMENT_ID = "placementId";
 
-    /**
-     * The id of the ManagedKafka, aka the placement id
-     * @return
-     */
+    @JsonIgnore
     public String getId() {
-        return id;
+        return getOrCreateAnnotations().get(ID);
+    }
+
+    private Map<String, String> getOrCreateAnnotations() {
+        ObjectMeta metadata = getMetadata();
+        if (metadata.getAnnotations() == null) {
+            metadata.setAnnotations(new LinkedHashMap<>());
+        }
+        return metadata.getAnnotations();
     }
 
     public void setId(String id) {
-        this.id = id;
+        getOrCreateAnnotations().put(ID, id);
     }
+
+    @JsonIgnore
+    public String getPlacementId() {
+        return getOrCreateAnnotations().get(PLACEMENT_ID);
+    }
+
+    public void setPlacementId(String placementId) {
+        getOrCreateAnnotations().put(PLACEMENT_ID, placementId);
+    }
+
 }
