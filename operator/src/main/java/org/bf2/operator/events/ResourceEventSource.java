@@ -12,6 +12,8 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 import javax.enterprise.context.ApplicationScoped;
 
 public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
@@ -26,6 +28,9 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
     @Override
     public void onUpdate(T oldResource, T newResource) {
+        if (Objects.equals(oldResource.getMetadata().getResourceVersion(), newResource.getMetadata().getResourceVersion())) {
+            return; // no need to handle an event where nothing has changed
+        }
         log.info("Update event received for {} {}/{}", oldResource.getClass().getName(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
         handleEvent(newResource);
     }
