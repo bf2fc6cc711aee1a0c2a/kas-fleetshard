@@ -67,11 +67,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        // ignore the delete event on ManagedKafka resource, just logging a warning is the Kafka instance is erroneously still in place
-        if (!kafkaInstance.isDeleted(managedKafka)) {
-            log.warn("Received a delete event on {}/{} but the Kafka instance is still in place",
-                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-        }
+        log.info("Deleting Kafka instance {}/{}", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        kafkaInstance.delete(managedKafka, context);
         return DeleteControl.DEFAULT_DELETE;
     }
 
