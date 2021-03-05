@@ -117,45 +117,6 @@ public class AdminServer implements Operand<ManagedKafka> {
         }
     }
 
-    private Resource<Route> adminRouteResource(ManagedKafka managedKafka) {
-        return openShiftClient.routes()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
-    private Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
-        return kubernetesClient.services()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
-    private Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
-        return kubernetesClient.apps().deployments()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
-    @Override
-    public boolean isDeleted(ManagedKafka managedKafka) {
-        Deployment deployment = adminDeploymentResource(managedKafka).get();
-        if (deployment != null ) {
-            return false;
-        }
-
-        Service service = adminServiceResource(managedKafka).get();
-        if (service != null) {
-            return false;
-        }
-
-        if (openShiftClient != null) {
-            Route route = adminRouteResource(managedKafka).get();
-            if (route != null) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /* test */
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String adminServerName = adminServerName(managedKafka);
@@ -314,6 +275,16 @@ public class AdminServer implements Operand<ManagedKafka> {
         return false;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
+        if (openShiftClient != null) {
+            isDeleted = isDeleted && cachedRoute(managedKafka) == null;
+        }
+        log.info("Admin Server isDeleted = {}", isDeleted);
+        return isDeleted;
+    }
+
     private Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
@@ -324,6 +295,24 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     private Route cachedRoute(ManagedKafka managedKafka) {
         return informerManager.getLocalRoute(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+    }
+
+    private Resource<Route> adminRouteResource(ManagedKafka managedKafka) {
+        return openShiftClient.routes()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
+    }
+
+    private Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
+        return kubernetesClient.services()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
+    }
+
+    private Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
+        return kubernetesClient.apps().deployments()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerName(managedKafka));
     }
 
     public String Uri(ManagedKafka managedKafka) {
