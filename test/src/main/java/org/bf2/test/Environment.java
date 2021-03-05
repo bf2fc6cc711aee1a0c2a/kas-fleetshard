@@ -38,6 +38,7 @@ public class Environment {
     /*
      * Vars for default managed kafka CR
      */
+    private static final String BOOTSTRAP_HOST_DOMAIN_ENV = "BOOTSTRAP_HOST_DOMAIN";
     private static final String OAUTH_CLIENT_SECRET_ENV = "OATH_CLIENT_SECRET";
     private static final String OAUTH_USER_CLAIM_ENV = "OAUTH_USER_CLAIM";
     private static final String OAUTH_JWKS_ENDPOINT_ENV = "OAUTH_JWKS_ENDPOINT";
@@ -59,6 +60,7 @@ public class Environment {
     public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
     public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
 
+    public static final String BOOTSTRAP_HOST_DOMAIN = getOrDefault(BOOTSTRAP_HOST_DOMAIN_ENV, "my-domain.com");
     public static final String OAUTH_CLIENT_SECRET = getOrDefault(OAUTH_CLIENT_SECRET_ENV, "client_secret");
     public static final String OAUTH_USER_CLAIM = getOrDefault(OAUTH_USER_CLAIM_ENV, "preferred_username");
     public static final String OAUTH_JWKS_ENDPOINT = getOrDefault(OAUTH_JWKS_ENDPOINT_ENV, "jwks_endpoint");
