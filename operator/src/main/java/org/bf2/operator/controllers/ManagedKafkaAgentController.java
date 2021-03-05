@@ -6,7 +6,7 @@ import javax.inject.Inject;
 
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
-import org.bf2.operator.operands.ObservabilityClient;
+import org.bf2.operator.operands.ObservabilityManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
@@ -22,7 +22,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -43,8 +42,6 @@ import io.quarkus.scheduler.Scheduled;
 @Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
-    private static final String RESOURCE_NAME = "managed-agent";
-
     @Inject
     Logger log;
 
@@ -58,7 +55,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     String clusterId;
 
     @Inject
-    KubernetesClient kubeClient;
+    ObservabilityManager observabilityManager;
 
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
@@ -72,8 +69,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
         context.getEvents().getLatestOfType(CustomResourceEvent.class);
-        ObservabilityClient.createOrUpdateObservabilityConfigMap(this.kubeClient, resource.getMetadata().getNamespace(),
-                resource.getSpec().getObservability());
+        this.observabilityManager.createOrUpdateObservabilityConfigMap(resource.getSpec().getObservability());
         return UpdateControl.noUpdate();
     }
 
@@ -85,7 +81,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         try {
-            ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, RESOURCE_NAME);
+            ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, AgentResourceClient.RESOURCE_NAME);
             if (resource != null) {
                 log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
                 resource.setStatus(buildStatus(resource));
@@ -96,7 +92,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         }
     }
 
-
     /**
      * TODO: this needs to be replaced with actual metrics
      * @return
@@ -104,8 +99,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     private ManagedKafkaAgentStatus buildStatus(ManagedKafkaAgent resource) {
         ManagedKafkaCondition readyCondition = new ManagedKafkaConditionBuilder()
                 .withType(ManagedKafkaCondition.Type.Ready.name())
-                .withStatus(ObservabilityClient.isObservabilityRunning(this.kubeClient,
-                        resource.getMetadata().getNamespace()) ? "True" : "False")
+                .withStatus(this.observabilityManager.isObservabilityRunning() ? "True" : "False")
                 .withLastTransitionTime(ConditionUtils.iso8601Now())
                 .build();
 

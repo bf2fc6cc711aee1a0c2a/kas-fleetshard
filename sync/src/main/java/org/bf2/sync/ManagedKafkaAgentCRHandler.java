@@ -1,12 +1,11 @@
 package org.bf2.sync;
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.scheduler.Scheduled;
 
+import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
@@ -17,22 +16,19 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.util.Arrays;
-
 /**
  * TODO: This is throw away code until the Control Plane API for ManagedkafkaAgent CR is defined.
  */
 @ApplicationScoped
 public class ManagedKafkaAgentCRHandler {
 
-    private static final String RESOURCE_NAME = "managed-agent";
     private static final String STRIMZI_VERSIONS = "strimzi.allowed_versions";
 
     @Inject
     Logger log;
 
     @Inject
-    KubernetesClient kubeClient;
+    AgentResourceClient agentClient;
 
     @Inject
     LocalLookup lookup;
@@ -58,7 +54,6 @@ public class ManagedKafkaAgentCRHandler {
     }
 
     private void createOrUpdateManagedKafkaAgentCR() {
-        String namespace = this.kubeClient.getNamespace();
 
         ManagedKafkaAgent resource = lookup.getLocalManagedKafkaAgent();
 
@@ -79,35 +74,20 @@ public class ManagedKafkaAgentCRHandler {
                 .withRepository(this.repository)
                 .build();
 
-        boolean update = false;
-        if (resource == null) {
-            resource = new ManagedKafkaAgentBuilder()
-                    .withSpec(new ManagedKafkaAgentSpecBuilder()
-                            .withClusterId(this.clusterId)
-                            .withAllowedStrimziVersions(allowedVersions)
-                            .withObservability(observabilityConfig)
-                            .build())
-                    .withMetadata(new ObjectMetaBuilder().withName(RESOURCE_NAME)
-                            .withNamespace(namespace)
-                            .build())
-                    .build();
-            update = true;
-        }
+        ManagedKafkaAgent newResource = new ManagedKafkaAgentBuilder()
+                .withSpec(new ManagedKafkaAgentSpecBuilder()
+                        .withClusterId(this.clusterId)
+                        .withAllowedStrimziVersions(allowedVersions)
+                        .withObservability(observabilityConfig)
+                        .build())
+                .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
+                        .withNamespace(agentClient.getNamespace())
+                        .build())
+                .build();
 
-        if (!Arrays.equals(resource.getSpec().getAllowedStrimziVersions(), allowedVersions)) {
-            resource.getSpec().setAllowedStrimziVersions(allowedVersions);
-            update = true;
-        }
-
-        if (!resource.getSpec().getObservability().equals(observabilityConfig)) {
-            resource.getSpec().setObservability(observabilityConfig);
-            update = true;
-        }
-
-        if (update) {
-            var agentClient = kubeClient.customResources(ManagedKafkaAgent.class, ManagedKafkaAgentList.class);
-            agentClient.inNamespace(namespace).createOrReplace(resource);
-            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", RESOURCE_NAME);
+        if (!newResource.getSpec().equals(resource.getSpec())) {
+            this.agentClient.createOrReplace(resource);
+            log.infof("ManagedKafkaAgent CR updated for allowed strmzi version with name %s", AgentResourceClient.RESOURCE_NAME);
         }
     }
 }

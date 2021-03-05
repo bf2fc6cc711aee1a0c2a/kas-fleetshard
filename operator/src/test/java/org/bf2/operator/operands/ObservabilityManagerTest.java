@@ -7,33 +7,31 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.test.mock.QuarkusKubeMockServer;
-import org.bf2.test.mock.QuarkusKubernetesMockServer;
 import org.junit.jupiter.api.Test;
+
+import javax.inject.Inject;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
 @QuarkusTest
-public class ObservabilityClientTest {
+public class ObservabilityManagerTest {
 
-    @QuarkusKubernetesMockServer
-    static KubernetesServer server;
+    @Inject
+    KubernetesClient client;
 
-    private Resource<ConfigMap> getConfigMapResource(){
-        return server.getClient().configMaps().inNamespace(server.getClient().getNamespace())
-                .withName(ObservabilityClient.OBSERVABILITY_CONFIGMAP_NAME);
-    }
+    @Inject
+    ObservabilityManager observabilityManager;
 
     @Test
     public void testConfigMap() {
-        KubernetesClient client = server.getClient();
-        ConfigMap map = getConfigMapResource().get();
+        client.getConfiguration().setNamespace("test");
+
+        ConfigMap map = observabilityManager.observabilityConfigMap().get();
         assertNull(map);
 
         ObservabilityConfiguration config = new ObservabilityConfigurationBuilder()
@@ -42,10 +40,10 @@ public class ObservabilityClientTest {
                 .withRepository("test-repo")
                 .build();
 
-        ObservabilityClient.createOrUpdateObservabilityConfigMap(client, client.getNamespace(), config);
+        this.observabilityManager.createOrUpdateObservabilityConfigMap(config);
 
         // lets call event handler
-        map = getConfigMapResource().get();
+        map = observabilityManager.observabilityConfigMap().get();
         assertNotNull(map);
 
         // map verification
@@ -55,9 +53,9 @@ public class ObservabilityClientTest {
         assertEquals("observability-operator", map.getMetadata().getLabels().get("configures"));
 
         // status verification
-        map = ObservabilityClient.createObservabilityConfigMapBuilder(client.getNamespace(), config).editMetadata()
+        map = ObservabilityManager.createObservabilityConfigMapBuilder(client.getNamespace(), config).editMetadata()
             .addToAnnotations("observability-operator/status", "accepted").endMetadata().build();
-        getConfigMapResource().createOrReplace(map);
-        assertTrue(ObservabilityClient.isObservabilityRunning(client, client.getNamespace()));
+        observabilityManager.observabilityConfigMap().createOrReplace(map);
+        assertTrue(this.observabilityManager.isObservabilityRunning());
     }
 }

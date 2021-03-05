@@ -7,22 +7,15 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
-public class ObservabilityClient {
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+@ApplicationScoped
+public class ObservabilityManager {
     static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
 
-    static Resource<ConfigMap> observabilityConfigMap(KubernetesClient client, String namespace) {
-        return client.configMaps().inNamespace(namespace).withName(OBSERVABILITY_CONFIGMAP_NAME);
-    }
-
-    public static void createOrUpdateObservabilityConfigMap(KubernetesClient client, String namespace,
-            ObservabilityConfiguration observability) {
-        ConfigMap configMap = createObservabilityConfigMap(namespace, observability);
-        if (observabilityConfigMap(client, namespace).get() == null) {
-            observabilityConfigMap(client, namespace).createOrReplace(configMap);
-        } else {
-            observabilityConfigMap(client, namespace).patch(configMap);
-        }
-    }
+    @Inject
+    KubernetesClient client;
 
     static ConfigMap createObservabilityConfigMap(String namespace, ObservabilityConfiguration observability) {
         return createObservabilityConfigMapBuilder(namespace, observability).build();
@@ -41,8 +34,21 @@ public class ObservabilityClient {
                 .addToData("repository", observability.getRepository());
     }
 
-    public static boolean isObservabilityRunning(KubernetesClient client, String namespace) {
-        ConfigMap cm = observabilityConfigMap(client, namespace).get();
+    Resource<ConfigMap> observabilityConfigMap() {
+        return this.client.configMaps().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_CONFIGMAP_NAME);
+    }
+
+    public void createOrUpdateObservabilityConfigMap(ObservabilityConfiguration observability) {
+        ConfigMap configMap = createObservabilityConfigMap(this.client.getNamespace(), observability);
+        if (observabilityConfigMap().get() == null) {
+            observabilityConfigMap().createOrReplace(configMap);
+        } else {
+            observabilityConfigMap().patch(configMap);
+        }
+    }
+
+    public boolean isObservabilityRunning() {
+        ConfigMap cm = observabilityConfigMap().get();
         if (cm != null) {
             String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
             if (status != null && status.equalsIgnoreCase("accepted")) {
