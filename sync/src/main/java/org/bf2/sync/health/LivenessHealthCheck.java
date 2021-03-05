@@ -1,4 +1,4 @@
-package org.bf2.sync;
+package org.bf2.sync.health;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;

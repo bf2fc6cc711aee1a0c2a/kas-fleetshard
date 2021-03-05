@@ -1,4 +1,4 @@
-package org.bf2.sync.client;
+package org.bf2.sync;
 
 import javax.enterprise.context.ApplicationScoped;
 

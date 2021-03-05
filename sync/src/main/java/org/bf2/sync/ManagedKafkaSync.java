@@ -14,7 +14,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
-import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;

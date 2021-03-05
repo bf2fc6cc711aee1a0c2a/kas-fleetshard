@@ -16,7 +16,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.sync.client.ManagedKafkaResourceClient;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
