@@ -22,8 +22,7 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -41,7 +40,8 @@ import java.util.Map;
 @ApplicationScoped
 public class AdminServer implements Operand<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(AdminServer.class);
+    @Inject
+    Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -256,7 +256,7 @@ public class AdminServer implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.info("Admin Server isInstalling = {}", isInstalling);
+        log.debugf("Admin Server isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -265,7 +265,7 @@ public class AdminServer implements Operand<ManagedKafka> {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.info("Admin Server isReady = {}", isReady);
+        log.debugf("Admin Server isReady = %s", isReady);
         return isReady;
     }
 
@@ -281,7 +281,7 @@ public class AdminServer implements Operand<ManagedKafka> {
         if (openShiftClient != null) {
             isDeleted = isDeleted && cachedRoute(managedKafka) == null;
         }
-        log.info("Admin Server isDeleted = {}", isDeleted);
+        log.debugf("Admin Server isDeleted = %s", isDeleted);
         return isDeleted;
     }
 

@@ -55,8 +55,7 @@ import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -75,8 +74,6 @@ import java.util.Map;
 @ApplicationScoped
 public class KafkaCluster implements Operand<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(KafkaCluster.class);
-
     private static final int KAFKA_BROKERS = 3;
     private static final int ZOOKEEPER_NODES = 3;
     private static final int PRODUCE_QUOTA = 4000000;
@@ -94,6 +91,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("500m");
 
     private static final Map<String, String> MANAGED_BY_LABELS = Collections.singletonMap("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
+
+    @Inject
+    Logger log;
 
     @Inject
     KafkaResourceClient kafkaResourceClient;
@@ -162,11 +162,11 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     private void createOrUpdate(Kafka kafka) {
         // Kafka resource doesn't exist, has to be created
         if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
-            log.info("Creating Kafka instance {}/{}", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+            log.infof("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
             // Kafka resource already exists, has to be updated
         } else {
-            log.info("Updating Kafka instance {}", kafka.getSpec().getKafka().getVersion());
+            log.infof("Updating Kafka instance %s", kafka.getSpec().getKafka().getVersion());
             kafkaResourceClient.patch(kafka);
         }
     }
@@ -590,7 +590,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 (kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
                 && kafkaCondition(kafka).getReason().equals("Creating"));
-        log.info("KafkaCluster isInstalling = {}", isInstalling);
+        log.debugf("KafkaCluster isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -599,7 +599,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReady = kafka != null && (kafka.getStatus() == null ||
                 (kafkaCondition(kafka).getType().equals("Ready") && kafkaCondition(kafka).getStatus().equals("True")));
-        log.info("KafkaCluster isReady = {}", isReady);
+        log.debugf("KafkaCluster isReady = %s", isReady);
         return isReady;
     }
 
@@ -610,7 +610,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 && kafkaCondition(kafka).getType().equals("NotReady")
                 && kafkaCondition(kafka).getStatus().equals("True")
                 && !kafkaCondition(kafka).getReason().equals("Creating");
-        log.info("KafkaCluster isError = {}", isError);
+        log.debugf("KafkaCluster isError = %s", isError);
         return isError;
     }
 
@@ -627,7 +627,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
             isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
                     cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
         }
-        log.info("KafkaCluster isDeleted = {}", isDeleted);
+        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
     }
 
