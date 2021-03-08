@@ -2,6 +2,9 @@ apiVersion: "managedkafka.bf2.org/v1alpha1"
 kind: ManagedKafka
 metadata:
   name: my-managedkafka
+  annotations:
+    bf2.org/id: "12345"
+    bf2.org/placement-id: "6789"
 spec:
   capacity:
     ingressEgressThroughputPerSec: 4Mi
