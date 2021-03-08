@@ -23,8 +23,7 @@ import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.events.ResourceEventSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
@@ -34,7 +33,8 @@ import java.util.Collections;
 @ApplicationScoped
 public class InformerManager {
 
-    private static final Logger log = LoggerFactory.getLogger(InformerManager.class);
+    @Inject
+    Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;

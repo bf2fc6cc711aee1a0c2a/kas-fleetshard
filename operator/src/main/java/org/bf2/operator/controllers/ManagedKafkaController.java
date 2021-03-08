@@ -26,8 +26,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 
@@ -39,7 +38,8 @@ import java.util.Optional;
 @Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedKafkaController.class);
+    @Inject
+    Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -67,7 +67,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Override
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        log.info("Deleting Kafka instance {}/{}", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        log.infof("Deleting Kafka instance %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         kafkaInstance.delete(managedKafka, context);
         return DeleteControl.DEFAULT_DELETE;
     }
@@ -77,7 +77,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (managedKafka.getSpec().isDeleted()) {
             // check that it's actually not deleted yet, so operands are gone
             if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.info("Deleting Kafka instance {}/{}", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                log.infof("Deleting Kafka instance %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
@@ -99,7 +99,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.KafkaEvent.class);
         if (latestKafkaEvent.isPresent()) {
             Kafka kafka = latestKafkaEvent.get().getResource();
-            log.info("Kafka resource {}/{} is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+            log.infof("Kafka resource %s/%s is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
             handleUpdate(managedKafka, context);
             return UpdateControl.updateStatusSubResource(managedKafka);
@@ -109,7 +109,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.DeploymentEvent.class);
         if (latestDeploymentEvent.isPresent()) {
             Deployment deployment = latestDeploymentEvent.get().getResource();
-            log.info("Deployment resource {}/{} is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+            log.infof("Deployment resource %s/%s is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
             updateManagedKafkaStatus(managedKafka);
             handleUpdate(managedKafka, context);
             return UpdateControl.updateStatusSubResource(managedKafka);
@@ -119,7 +119,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.ServiceEvent.class);
         if (latestServiceEvent.isPresent()) {
             Service service = latestServiceEvent.get().getResource();
-            log.info("Service resource {}/{} is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
+            log.infof("Service resource %s/%s is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
             handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
@@ -128,7 +128,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.ConfigMapEvent.class);
         if (latestConfigMapEvent.isPresent()) {
             ConfigMap configMap = latestConfigMapEvent.get().getResource();
-            log.info("ConfigMap resource {}/{} is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
+            log.infof("ConfigMap resource %s/%s is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
             handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
@@ -137,7 +137,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.SecretEvent.class);
         if (latestSecretEvent.isPresent()) {
             Secret secret = latestSecretEvent.get().getResource();
-            log.info("Secret resource {}/{} is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
+            log.infof("Secret resource %s/%s is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
             handleUpdate(managedKafka, context);
             return UpdateControl.noUpdate();
         }
@@ -146,7 +146,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 context.getEvents().getLatestOfType(ResourceEvent.RouteEvent.class);
         if (latestRouteEvent.isPresent()) {
             Route route = latestRouteEvent.get().getResource();
-            log.info("Route resource {}/{} is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
+            log.infof("Route resource %s/%s is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
             handleUpdate(managedKafka,context);
             return UpdateControl.noUpdate();
         }

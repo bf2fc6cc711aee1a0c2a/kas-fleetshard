@@ -9,20 +9,21 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jboss.logging.Logger;
 
 import java.util.Objects;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
 
-    private static final Logger log = LoggerFactory.getLogger(ResourceEventSource.class);
+    @Inject
+    Logger log;
 
     @Override
     public void onAdd(T resource) {
-        log.info("Add event received for {} {}/{}", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+        log.debugf("Add event received for %s %s/%s", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
         handleEvent(resource);
     }
 
@@ -31,13 +32,13 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
         if (Objects.equals(oldResource.getMetadata().getResourceVersion(), newResource.getMetadata().getResourceVersion())) {
             return; // no need to handle an event where nothing has changed
         }
-        log.info("Update event received for {} {}/{}", oldResource.getClass().getName(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
+        log.debugf("Update event received for %s %s/%s", oldResource.getClass().getName(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
         handleEvent(newResource);
     }
 
     @Override
     public void onDelete(T resource, boolean deletedFinalStateUnknown) {
-        log.info("Delete event received for {} {}/{}", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+        log.debugf("Delete event received for %s %s/%s", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
         handleEvent(resource);
     }
 
