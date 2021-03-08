@@ -27,8 +27,9 @@ import io.sundr.builder.annotations.BuildableReference;
 @Crd(group = "managedkafka.bf2.org", version = "v1alpha1")
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 
-    public final static String ID = "id";
-    public final static String PLACEMENT_ID = "placementId";
+    public final static String BF2_DOMAIN = "bf2.org/";
+    public final static String ID = BF2_DOMAIN + "id";
+    public final static String PLACEMENT_ID = BF2_DOMAIN + "placementId";
 
     @JsonIgnore
     public String getId() {
