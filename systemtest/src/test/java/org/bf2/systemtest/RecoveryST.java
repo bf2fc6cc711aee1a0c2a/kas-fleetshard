@@ -54,14 +54,14 @@ public class RecoveryST extends AbstractST {
         kube.client().apps().deployments().inNamespace(testNamespace).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
         kafkacli.inNamespace(testNamespace).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
 
-        TestUtils.waitFor("Managed kafka status is installing", 1_000, 60_000, () -> {
+        TestUtils.waitFor("Managed kafka status is installing", 1_000, 300_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
-            return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Installing));
+            return "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Installing));
         });
 
         TestUtils.waitFor("Managed kafka status is again ready", 1_000, 800_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
-            return "True".equals(ManagedKafkaResourceType.getConditionStatus(mk, ManagedKafkaCondition.Type.Ready));
+            return "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready));
         });
 
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get());
