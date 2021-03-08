@@ -147,7 +147,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (latestRouteEvent.isPresent()) {
             Route route = latestRouteEvent.get().getResource();
             log.info("Route resource {}/{} is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
-            kafkaInstance.createOrUpdate(managedKafka);
+            handleUpdate(managedKafka,context);
             return UpdateControl.noUpdate();
         }
 
