@@ -4,7 +4,7 @@ metadata:
   name: my-managedkafka
   annotations:
     bf2.org/id: "12345"
-    bf2.org/placement-id: "6789"
+    bf2.org/placementId: "6789"
 spec:
   capacity:
     ingressEgressThroughputPerSec: 4Mi
