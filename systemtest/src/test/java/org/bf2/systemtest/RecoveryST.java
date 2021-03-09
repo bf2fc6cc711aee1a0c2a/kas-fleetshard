@@ -56,7 +56,7 @@ public class RecoveryST extends AbstractST {
 
         TestUtils.waitFor("Managed kafka status is installing", 1_000, 300_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get();
-            return "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Installing));
+            return "False".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready));
         });
 
         TestUtils.waitFor("Managed kafka status is again ready", 1_000, 800_000, () -> {
