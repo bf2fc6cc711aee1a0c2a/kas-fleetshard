@@ -22,6 +22,7 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -48,6 +49,9 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Inject
     InformerManager informerManager;
+
+    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
+    boolean isKafkaExternalCertificateEnabled;
 
     OpenShiftClient openShiftClient;
 
@@ -183,6 +187,13 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         RouteBuilder builder = current != null ? new RouteBuilder(current) : new RouteBuilder();
 
+        String tlsCertificate = null;
+        String tlsKey = null;
+        if (isKafkaExternalCertificateEnabled) {
+            tlsCertificate = managedKafka.getSpec().getEndpoint().getTls().getCert();
+            tlsKey = managedKafka.getSpec().getEndpoint().getTls().getKey();
+        }
+
         Route route = builder
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
@@ -200,6 +211,8 @@ public class AdminServer implements Operand<ManagedKafka> {
                     .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
                     .withNewTls()
                         .withTermination("edge")
+                        .withCertificate(tlsCertificate)
+                        .withKey(tlsKey)
                     .endTls()
                 .endSpec()
                 .build();
@@ -216,7 +229,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
         Container container = new ContainerBuilder()
                 .withName(adminServerName)
-                .withImage("quay.io/sknot/strimzi-admin:0.0.3")
+                .withImage("quay.io/sknot/kafka-admin-api:0.0.4")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .build();
