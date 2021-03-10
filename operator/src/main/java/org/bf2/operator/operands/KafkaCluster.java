@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -586,10 +587,10 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
-        boolean isInstalling = kafka == null || kafka.getStatus() == null ||
-                (kafkaCondition(kafka).getType().equals("NotReady")
-                && kafkaCondition(kafka).getStatus().equals("True")
-                && kafkaCondition(kafka).getReason().equals("Creating"));
+        boolean isInstalling = kafka == null || kafka.getStatus() == null || 
+                kafkaCondition(kafka, c->c.getType().equals("NotReady")
+                && c.getStatus().equals("True")
+                && c.getReason().equals("Creating"));
         log.debugf("KafkaCluster isInstalling = %s", isInstalling);
         return isInstalling;
     }
@@ -597,8 +598,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
-        boolean isReady = kafka != null && (kafka.getStatus() == null ||
-                (kafkaCondition(kafka).getType().equals("Ready") && kafkaCondition(kafka).getStatus().equals("True")));
+        boolean isReady = kafka != null && (kafka.getStatus() == null || 
+                kafkaCondition(kafka, c->c.getType().equals("Ready") && c.getStatus().equals("True")));
         log.debugf("KafkaCluster isReady = %s", isReady);
         return isReady;
     }
@@ -607,9 +608,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     public boolean isError(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isError = kafka != null && kafka.getStatus() != null
-                && kafkaCondition(kafka).getType().equals("NotReady")
-                && kafkaCondition(kafka).getStatus().equals("True")
-                && !kafkaCondition(kafka).getReason().equals("Creating");
+            && kafkaCondition(kafka, c->c.getType().equals("NotReady")
+            && c.getStatus().equals("True")
+            && !c.getReason().equals("Creating"));
         log.debugf("KafkaCluster isError = %s", isError);
         return isError;
     }
@@ -631,8 +632,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return isDeleted;
     }
 
-    private Condition kafkaCondition(Kafka kafka) {
-        return kafka.getStatus().getConditions().get(0);
+    private boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
+        return kafka.getStatus().getConditions().stream().anyMatch(predicate);
     }
 
     private Kafka cachedKafka(ManagedKafka managedKafka) {
