@@ -19,7 +19,6 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
 import org.bf2.common.ConditionUtils;
@@ -31,12 +30,13 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
-
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
 @Path("/api/managed-services-api/v1/agent-clusters/")
+@UnlessBuildProfile("prod")
 public class MockControlPlane {
 
     private final int MAX_KAFKA = 3;
@@ -154,16 +154,14 @@ public class MockControlPlane {
     }
 
     private boolean isDeleted(ManagedKafkaStatus status) {
-        return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Deleted).isPresent();
+        return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Deleted)
+                .filter(c -> "True".equals(c.getStatus())).isPresent();
     }
 
     @PUT
     @Path("/{id}/status")
     @Consumes(MediaType.APPLICATION_JSON)
     public void updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status){
-        if (!runSimulation) {
-            throw new WebApplicationException(javax.ws.rs.core.Response.Status.FORBIDDEN);
-        }
         log.infof("control plane::updateAgentStatus (capacity) <- Received %s", status);
     }
 
@@ -171,9 +169,6 @@ public class MockControlPlane {
     @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
     public List<ManagedKafka> getKafkaClusters(String id) {
-        if (!runSimulation) {
-            throw new WebApplicationException(javax.ws.rs.core.Response.Status.FORBIDDEN);
-        }
         log.info("control plane::getKafkaClusters <- Received");
         return new ArrayList<ManagedKafka>(kafkas.values());
     }
@@ -182,10 +177,6 @@ public class MockControlPlane {
     @Path("/{id}/kafkas/status")
     @Consumes(MediaType.APPLICATION_JSON)
     public void updateKafkaClustersStatus(@PathParam(value = "id") String id, Map<String, ManagedKafkaStatus> statusMap) {
-        if (!runSimulation) {
-            throw new WebApplicationException(javax.ws.rs.core.Response.Status.FORBIDDEN);
-        }
-
         log.infof("control plane:: updateKafkaClustersStatus <- Received from cluster %s, %s", id, statusMap);
 
         // clean up the deleted
@@ -202,12 +193,9 @@ public class MockControlPlane {
     }
 
     @POST
-    @Path("/{id}/kafkas/create")
+    @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
     public ManagedKafka createCluster() {
-        if (!runSimulation) {
-            throw new WebApplicationException(javax.ws.rs.core.Response.Status.FORBIDDEN);
-        }
         ManagedKafka mk = createManagedKafka(clusterIdGenerator.getAndIncrement());
         this.kafkas.put(mk.getId(), mk);
         log.infof("control plane:: Received request to create a new client %s", mk.getId());
@@ -215,12 +203,9 @@ public class MockControlPlane {
     }
 
     @DELETE
-    @Path("/{id}/kafkas/delete/{clausterid}")
+    @Path("/{id}/kafkas/{clusterid}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void deleteCluster(@PathParam("clausterid") String clusterId) {
-        if (!runSimulation) {
-            throw new WebApplicationException(javax.ws.rs.core.Response.Status.FORBIDDEN);
-        }
+    public void deleteCluster(@PathParam("clusterid") String clusterId) {
         log.infof("control plane:: received request to delete client %s", clusterId);
         markForDeletion(clusterId);
     }
