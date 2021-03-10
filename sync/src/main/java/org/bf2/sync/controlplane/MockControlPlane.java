@@ -9,11 +9,10 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -23,21 +22,24 @@ import javax.ws.rs.core.MediaType;
 
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
+import org.bf2.sync.ManagedKafkaAgentSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
-@Path("/api/managed-services-api/v1/agent-clusters/")
 @UnlessBuildProfile("prod")
-public class MockControlPlane {
+@Path(ControlPlaneApi.BASE_PATH)
+public class MockControlPlane implements ControlPlaneApi {
 
     private final int MAX_KAFKA = 3;
 
@@ -51,6 +53,16 @@ public class MockControlPlane {
 
     // current active clusters
     Map<String, ManagedKafka> kafkas = Collections.synchronizedMap(new HashMap<>());
+
+    @Inject
+    ManagedKafkaAgentSync agentSync;
+
+    volatile ManagedKafkaAgent agent;
+
+    @PostConstruct
+    void initAgent() {
+        agent = agentSync.createAgentFromConfig();
+    }
 
     // Unique Id for the clusters
     private AtomicInteger clusterIdGenerator = new AtomicInteger(1);
@@ -154,28 +166,25 @@ public class MockControlPlane {
     }
 
     private boolean isDeleted(ManagedKafkaStatus status) {
+        if (status == null || status.getConditions() == null) {
+            return false;
+        }
         return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Deleted)
                 .filter(c -> "True".equals(c.getStatus())).isPresent();
     }
 
-    @PUT
-    @Path("/{id}/status")
-    @Consumes(MediaType.APPLICATION_JSON)
+    @Override
     public void updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status){
         log.infof("control plane::updateAgentStatus (capacity) <- Received %s", status);
     }
 
-    @GET
-    @Path("/{id}/kafkas")
-    @Produces(MediaType.APPLICATION_JSON)
+    @Override
     public List<ManagedKafka> getKafkaClusters(String id) {
         log.info("control plane::getKafkaClusters <- Received");
         return new ArrayList<ManagedKafka>(kafkas.values());
     }
 
-    @PUT
-    @Path("/{id}/kafkas/status")
-    @Consumes(MediaType.APPLICATION_JSON)
+    @Override
     public void updateKafkaClustersStatus(@PathParam(value = "id") String id, Map<String, ManagedKafkaStatus> statusMap) {
         log.infof("control plane:: updateKafkaClustersStatus <- Received from cluster %s, %s", id, statusMap);
 
@@ -192,21 +201,33 @@ public class MockControlPlane {
         });
     }
 
+    @Override
+    public ManagedKafkaAgent get(String id) {
+        return agent;
+    }
+
     @POST
     @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
-    public ManagedKafka createCluster() {
-        ManagedKafka mk = createManagedKafka(clusterIdGenerator.getAndIncrement());
+    public void createCluster(ManagedKafka mk) {
         this.kafkas.put(mk.getId(), mk);
-        log.infof("control plane:: Received request to create a new client %s", mk.getId());
-        return mk;
+        log.infof("control plane:: Received request to create/update ManagedKafka %s", mk.getId());
     }
 
     @DELETE
     @Path("/{id}/kafkas/{clusterid}")
     @Produces(MediaType.APPLICATION_JSON)
     public void deleteCluster(@PathParam("clusterid") String clusterId) {
-        log.infof("control plane:: received request to delete client %s", clusterId);
+        log.infof("control plane:: received request to delete ManagedKafka %s", clusterId);
         markForDeletion(clusterId);
     }
+
+    @PUT
+    @Path("/{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void createAgent(ManagedKafkaAgent agent) {
+        log.infof("control plane:: Received request to create agent %s", agent);
+        this.agent = agent;
+    }
+
 }

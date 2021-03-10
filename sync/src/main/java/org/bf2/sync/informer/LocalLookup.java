@@ -20,4 +20,6 @@ public interface LocalLookup {
     List<ManagedKafka> getLocalManagedKafkas();
 
     ManagedKafkaAgent getLocalManagedKafkaAgent();
+
+    boolean isReady();
 }

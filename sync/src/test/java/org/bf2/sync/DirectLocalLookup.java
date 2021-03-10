@@ -46,4 +46,9 @@ public class DirectLocalLookup implements LocalLookup {
         return items.get(0);
     }
 
+    @Override
+    public boolean isReady() {
+        return true;
+    }
+
 }

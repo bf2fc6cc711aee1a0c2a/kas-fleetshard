@@ -12,20 +12,8 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 public class ManagedKafkaAgentSpec {
-    /**
-     * Cluster ID given by the control plane
-     */
-    String clusterId;
     String[] allowedStrimziVersions;
     ObservabilityConfiguration observability;
-
-    public String getClusterId() {
-        return clusterId;
-    }
-
-    public void setClusterId(String clusterId) {
-        this.clusterId = clusterId;
-    }
 
     public String[] getAllowedStrimziVersions() {
         return allowedStrimziVersions;
