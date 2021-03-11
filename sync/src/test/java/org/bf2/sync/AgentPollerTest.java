@@ -1,10 +1,12 @@
 package org.bf2.sync;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import javax.inject.Inject;
+import javax.ws.rs.WebApplicationException;
 
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -46,17 +48,24 @@ public class AgentPollerTest {
     public void testAddDelete() {
         assertNull(lookup.getLocalManagedKafkaAgent());
 
-        managedKafkaAgentSync.setSpecEnabled(true);
+        Mockito.when(controlPlaneRestClient.get(CLUSTER_ID)).thenThrow(new WebApplicationException(404));
+
+        managedKafkaAgentSync.loop(); // pick up the agent from the secret
+
+        ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
+        assertNotNull(local);
+        assertArrayEquals(new String[] {"2.6"}, local.getSpec().getAllowedStrimziVersions());
 
         ManagedKafkaAgent managedKafkaAgent = new ManagedKafkaAgentBuilder()
                 .withSpec(new ManagedKafkaAgentSpecBuilder().withAllowedStrimziVersions("xyz").build())
                 .build();
 
+        Mockito.reset(controlPlaneRestClient);
         Mockito.when(controlPlaneRestClient.get(CLUSTER_ID)).thenReturn(managedKafkaAgent);
 
         managedKafkaAgentSync.loop(); // pick up the agent from the control plane
 
-        ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
+        local = lookup.getLocalManagedKafkaAgent();
         local.setStatus(new ManagedKafkaAgentStatusBuilder()
                 .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build()).build());
         client.updateStatus(local);

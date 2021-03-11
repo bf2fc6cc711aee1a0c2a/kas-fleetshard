@@ -14,8 +14,11 @@ import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.net.HttpURLConnection;
+
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.ws.rs.WebApplicationException;
 
 /**
  * TODO: This is throw away code until the Control Plane API for ManagedkafkaAgent CR is defined.
@@ -46,23 +49,22 @@ public class ManagedKafkaAgentSync {
     @ConfigProperty(name = "observability.repository")
     String repository;
 
-    @ConfigProperty(name = "control-plane.agent-spec-enabled")
-    boolean specEnabled;
-
     @Inject
     ControlPlane controlPlane;
 
     @Scheduled(every = "{poll.interval}")
     void loop() {
-        if (specEnabled) {
-            createOrUpdateManagedKafkaAgent(controlPlane.getManagedKafkaAgent());
-        } else {
-            createOrUpdateManagedKafkaAgentCRFromSecret();
+        ManagedKafkaAgent managedKafkaAgent = null;
+        try {
+            managedKafkaAgent = controlPlane.getManagedKafkaAgent();
+            // we're assuming non-null from the control plane
+        } catch (WebApplicationException e) {
+            if (e.getResponse().getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
+                throw e;
+            }
+            managedKafkaAgent = createAgentFromConfig();
         }
-    }
-
-    void setSpecEnabled(boolean specEnabled) {
-        this.specEnabled = specEnabled;
+        createOrUpdateManagedKafkaAgent(managedKafkaAgent);
     }
 
     private void createOrUpdateManagedKafkaAgent(ManagedKafkaAgent remoteAgent) {
@@ -84,12 +86,6 @@ public class ManagedKafkaAgentSync {
             });
             log.infof("ManagedKafkaAgent CR updated");
         }
-    }
-
-    private void createOrUpdateManagedKafkaAgentCRFromSecret() {
-        ManagedKafkaAgent newResource = createAgentFromConfig();
-
-        createOrUpdateManagedKafkaAgent(newResource);
     }
 
     public ManagedKafkaAgent createAgentFromConfig() {
