@@ -98,12 +98,18 @@ public class ControlPlane {
      * Get the current list of ManagedKafka clusters from the control plane
      * as a blocking call.
      * Also updates the cache of ManagedKafka instances
-     * @return
      */
     public List<ManagedKafka> getKafkaClusters() {
         List<ManagedKafka> result = controlPlaneClient.getKafkaClusters(id);
         result.forEach((mk)->addManagedKafka(mk));
         return result;
+    }
+
+    /**
+     * Get the ManagedKafkaAgent as a blocking call.
+     */
+    public ManagedKafkaAgent getManagedKafkaAgent() {
+        return controlPlaneClient.get(id);
     }
 
     /**

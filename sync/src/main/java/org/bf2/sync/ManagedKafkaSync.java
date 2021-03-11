@@ -1,6 +1,7 @@
 package org.bf2.sync;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -22,6 +23,7 @@ import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.scheduler.Scheduled;
 
@@ -170,7 +172,7 @@ public class ManagedKafkaSync {
                 return;
             }
             if (specChanged(remote.getSpec(), local)) {
-                log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(remote));
+                log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
                 ManagedKafkaSpec spec = remote.getSpec();
                 client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
                         mk.setSpec(spec);
@@ -204,11 +206,22 @@ public class ManagedKafkaSync {
         kubeClient.namespaces().createOrReplace(
                 new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
 
-        client.create(remote);
+        try {
+            client.create(remote);
+        } catch (KubernetesClientException e) {
+            if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
+                throw e;
+            }
+            log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
+        }
     }
 
-    @Scheduled(every = "{poll.interval}")
+    @Scheduled(every = "{poll.interval}", delayed = "5s")
     void pollKafkaClusters() {
+        if (!lookup.isReady()) {
+            log.debug("Not ready to poll, the lookup is not ready");
+            return;
+        }
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list

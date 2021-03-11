@@ -67,9 +67,14 @@ public class InformerManager implements LocalLookup {
         return managedKafkaInformer.getIndexer().list();
     }
 
+    static boolean hasLength(String value) {
+        return value != null && !value.isEmpty();
+    }
+
+    @Override
     public boolean isReady() {
-        return !managedAgentInformer.lastSyncResourceVersion().isEmpty()
-                && !managedAgentInformer.lastSyncResourceVersion().isEmpty();
+        return hasLength(managedKafkaInformer.lastSyncResourceVersion())
+                && hasLength(managedAgentInformer.lastSyncResourceVersion());
     }
 
     @Override

@@ -142,12 +142,16 @@ public class InformerManager {
         }
     }
 
+    static boolean hasLength(String value) {
+        return value != null && !value.isEmpty();
+    }
+
     public boolean isReady() {
-        return !kafkaSharedIndexInformer.lastSyncResourceVersion().isEmpty()
-                && !deploymentSharedIndexInformer.lastSyncResourceVersion().isEmpty()
-                && !serviceSharedIndexInformer.lastSyncResourceVersion().isEmpty()
-                && !configMapSharedIndexInformer.lastSyncResourceVersion().isEmpty()
-                && !secretSharedIndexInformer.lastSyncResourceVersion().isEmpty()
+        return hasLength(kafkaSharedIndexInformer.lastSyncResourceVersion())
+                && hasLength(deploymentSharedIndexInformer.lastSyncResourceVersion())
+                && hasLength(serviceSharedIndexInformer.lastSyncResourceVersion())
+                && hasLength(configMapSharedIndexInformer.lastSyncResourceVersion())
+                && hasLength(secretSharedIndexInformer.lastSyncResourceVersion())
                 && !routeSharedIndexInformer.lastSyncResourceVersion().isEmpty();
     }
 }
