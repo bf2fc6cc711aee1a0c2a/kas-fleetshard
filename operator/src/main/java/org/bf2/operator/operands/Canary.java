@@ -19,7 +19,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -111,9 +110,8 @@ public class Canary implements Operand<ManagedKafka> {
 
     private Map<String, String> getLabels(String canaryName) {
         // TODO: adding label about observability
-        Map<String, String> labels = new HashMap<>(2);
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", canaryName);
-        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
     }
 

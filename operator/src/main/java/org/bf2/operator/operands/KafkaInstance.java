@@ -13,7 +13,7 @@ import javax.inject.Inject;
 public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Inject
-    KafkaCluster kafkaCluster;
+    AbstractKafkaCluster kafkaCluster;
     @Inject
     Canary canary;
     @Inject
@@ -81,7 +81,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
                 && adminServer.isDeleted(managedKafka);
     }
 
-    public KafkaCluster getKafkaCluster() {
+    public AbstractKafkaCluster getKafkaCluster() {
         return kafkaCluster;
     }
 

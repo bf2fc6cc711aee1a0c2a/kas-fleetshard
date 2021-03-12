@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class OperandUtils {
 
@@ -23,5 +25,11 @@ public class OperandUtils {
                 .withUid(managedKafka.getMetadata().getUid())
                 .build();
         resource.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
+    }
+
+    public static Map<String, String> getDefaultLabels() {
+        LinkedHashMap<String, String> result = new LinkedHashMap<>(1);
+        result.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
+        return result;
     }
 }

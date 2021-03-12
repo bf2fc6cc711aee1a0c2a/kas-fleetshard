@@ -30,7 +30,6 @@ import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -238,16 +237,14 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     private Map<String, String> getLabels(String adminServerName) {
-        Map<String, String> labels = new HashMap<>(2);
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", adminServerName);
-        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
     }
 
     private Map<String, String> getRouteLabels() {
-        Map<String, String> labels = new HashMap<>(2);
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
-        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
     }
 

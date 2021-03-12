@@ -16,10 +16,6 @@ spec:
       containers:
         - name: kas-fleetshard-operator
           image: ##IMAGE##
-          env:
-            # needed just for OpenShift
-            - name: QUARKUS_KUBERNETES_CLIENT_TRUST_CERTS
-              value: "true"
   selector:
     matchLabels:
       app: kas-fleetshard-operator
