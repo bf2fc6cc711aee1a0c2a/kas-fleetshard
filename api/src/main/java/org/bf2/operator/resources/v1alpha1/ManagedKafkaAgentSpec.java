@@ -12,16 +12,7 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 public class ManagedKafkaAgentSpec {
-    String[] allowedStrimziVersions;
     ObservabilityConfiguration observability;
-
-    public String[] getAllowedStrimziVersions() {
-        return allowedStrimziVersions;
-    }
-
-    public void setAllowedStrimziVersions(String[] allowedStrimziVersions) {
-        this.allowedStrimziVersions = allowedStrimziVersions;
-    }
 
     public ObservabilityConfiguration getObservability() {
         return observability;

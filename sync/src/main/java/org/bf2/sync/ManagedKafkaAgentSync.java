@@ -26,8 +26,6 @@ import javax.ws.rs.WebApplicationException;
 @ApplicationScoped
 public class ManagedKafkaAgentSync {
 
-    private static final String STRIMZI_VERSIONS = "strimzi.allowed_versions";
-
     @Inject
     Logger log;
 
@@ -36,9 +34,6 @@ public class ManagedKafkaAgentSync {
 
     @Inject
     LocalLookup lookup;
-
-    @ConfigProperty(name=STRIMZI_VERSIONS)
-    String strimziVersions;
 
     @ConfigProperty(name = "observability.access_token")
     String accessToken;
@@ -89,15 +84,6 @@ public class ManagedKafkaAgentSync {
     }
 
     public ManagedKafkaAgent createAgentFromConfig() {
-        // allowed Strimzi versions by the control plane
-        String[] allowedVersions = new String[] {};
-        if (this.strimziVersions != null && this.strimziVersions.trim().length() > 0) {
-            allowedVersions = this.strimziVersions.trim().split("\\s*,\\s*");
-            if (allowedVersions.length == 0) {
-                log.errorf("The property %s is not configured", STRIMZI_VERSIONS);
-            }
-        }
-
         // Observability repository information
         ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
                 .withAccessToken(this.accessToken)
@@ -107,7 +93,6 @@ public class ManagedKafkaAgentSync {
 
         return new ManagedKafkaAgentBuilder()
                 .withSpec(new ManagedKafkaAgentSpecBuilder()
-                        .withAllowedStrimziVersions(allowedVersions)
                         .withObservability(observabilityConfig)
                         .build())
                 .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
