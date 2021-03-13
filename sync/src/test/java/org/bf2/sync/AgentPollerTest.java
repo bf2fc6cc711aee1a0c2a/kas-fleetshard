@@ -1,6 +1,5 @@
 package org.bf2.sync;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -54,10 +53,10 @@ public class AgentPollerTest {
 
         ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
         assertNotNull(local);
-        assertArrayEquals(new String[] {"2.6"}, local.getSpec().getAllowedStrimziVersions());
+        assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
 
         ManagedKafkaAgent managedKafkaAgent = new ManagedKafkaAgentBuilder()
-                .withSpec(new ManagedKafkaAgentSpecBuilder().withAllowedStrimziVersions("xyz").build())
+                .withSpec(new ManagedKafkaAgentSpecBuilder().withNewObservability().withAccessToken("xyz").endObservability().build())
                 .build();
 
         Mockito.reset(controlPlaneRestClient);
@@ -70,16 +69,16 @@ public class AgentPollerTest {
                 .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build()).build());
         client.updateStatus(local);
 
-        assertArrayEquals(new String[] {"xyz"}, local.getSpec().getAllowedStrimziVersions());
+        assertEquals("xyz", local.getSpec().getObservability().getAccessToken());
         assertEquals(AgentResourceClient.RESOURCE_NAME, local.getMetadata().getName());
 
-        managedKafkaAgent.getSpec().setAllowedStrimziVersions(new String[] {"abc"});
+        managedKafkaAgent.getSpec().getObservability().setAccessToken("abc");
 
         managedKafkaAgentSync.loop(); // pick up the update
 
         local = lookup.getLocalManagedKafkaAgent();
 
-        assertArrayEquals(new String[] {"abc"}, local.getSpec().getAllowedStrimziVersions());
+        assertEquals("abc", local.getSpec().getObservability().getAccessToken());
         assertEquals(1000, local.getStatus().getRemainingCapacity().getConnections());
     }
 
