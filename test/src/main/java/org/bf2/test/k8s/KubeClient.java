@@ -67,7 +67,7 @@ public class KubeClient {
         return this.cmdClient;
     }
 
-    private boolean isGenericKubernetes() {
+    public boolean isGenericKubernetes() {
         List<APIService> services = new DefaultKubernetesClient().apiServices().list().getItems();
         for (APIService apiService : services) {
             if (apiService.getMetadata().getName().contains("openshift.io")) {

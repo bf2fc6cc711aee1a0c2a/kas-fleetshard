@@ -23,12 +23,12 @@ import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.events.ResourceEventSource;
+import org.bf2.operator.operands.OperandUtils;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
-import java.util.Collections;
 
 @ApplicationScoped
 public class InformerManager {
@@ -66,7 +66,7 @@ public class InformerManager {
 
         OperationContext operationContext =
                 new OperationContext()
-                        .withLabels(Collections.singletonMap("app.kubernetes.io/managed-by", "kas-fleetshard-operator"))
+                        .withLabels(OperandUtils.getDefaultLabels())
                         .withIsNamespaceConfiguredFromGlobalConfig(true);
 
         // TODO: should we make the resync time configurable?

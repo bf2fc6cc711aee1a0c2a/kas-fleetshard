@@ -60,7 +60,9 @@ public class ManagedKafkaST extends AbstractST {
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
-        assertEquals(1, ManagedKafkaResourceType.getKafkaExporterPods(mk).size());
+        if (!kube.isGenericKubernetes()) {
+            assertEquals(1, ManagedKafkaResourceType.getKafkaExporterPods(mk).size());
+        }
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
     }
 

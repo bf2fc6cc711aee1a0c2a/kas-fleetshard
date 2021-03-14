@@ -13,10 +13,10 @@ import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
+import io.quarkus.arc.DefaultBean;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
 import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
 import io.strimzi.api.kafka.model.CertSecretSource;
@@ -40,7 +40,6 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBrokerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
-import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
@@ -50,8 +49,6 @@ import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
-import org.bf2.operator.InformerManager;
-import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -62,18 +59,17 @@ import javax.inject.Inject;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
  * and checking the corresponding status
  */
 @ApplicationScoped
-public class KafkaCluster implements Operand<ManagedKafka> {
+@DefaultBean
+public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final int KAFKA_BROKERS = 3;
     private static final int ZOOKEEPER_NODES = 3;
@@ -91,19 +87,8 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     private static final Quantity ZOOKEEPER_CONTAINER_MEMORY = new Quantity("1Gi");
     private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("500m");
 
-    private static final Map<String, String> MANAGED_BY_LABELS = Collections.singletonMap("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
-
     @Inject
     Logger log;
-
-    @Inject
-    KafkaResourceClient kafkaResourceClient;
-
-    @Inject
-    KubernetesClient kubernetesClient;
-
-    @Inject
-    InformerManager informerManager;
 
     @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
     boolean isKafkaAuthenticationEnabled;
@@ -139,14 +124,12 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
-        Kafka currentKafka = cachedKafka(managedKafka);
-        Kafka kafka = kafkaFrom(managedKafka, currentKafka);
-        createOrUpdate(kafka);
+        super.createOrUpdate(managedKafka);
     }
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        kafkaResourceClient.delete(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+        super.delete(managedKafka, context);
 
         configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
         configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
@@ -157,18 +140,6 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         if (isKafkaAuthenticationEnabled) {
             secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
             secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
-        }
-    }
-
-    private void createOrUpdate(Kafka kafka) {
-        // Kafka resource doesn't exist, has to be created
-        if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
-            log.infof("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
-            kafkaResourceClient.create(kafka);
-            // Kafka resource already exists, has to be updated
-        } else {
-            log.infof("Updating Kafka instance %s", kafka.getSpec().getKafka().getVersion());
-            kafkaResourceClient.patch(kafka);
         }
     }
 
@@ -202,6 +173,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     /* test */
+    @Override
     protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
@@ -257,7 +229,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         ConfigMap configMap = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withLabels(MANAGED_BY_LABELS)
+                    .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withData(template.getData())
                 .build();
@@ -281,7 +253,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(kafkaTlsSecretName(managedKafka))
-                    .withLabels(MANAGED_BY_LABELS)
+                    .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withType("kubernetes.io/tls")
                 .withData(certs)
@@ -305,7 +277,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoClientSecretName(managedKafka))
-                    .withLabels(MANAGED_BY_LABELS)
+                    .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withType("Opaque")
                 .withData(data)
@@ -326,7 +298,7 @@ public class KafkaCluster implements Operand<ManagedKafka> {
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(ssoTlsSecretName(managedKafka))
-                    .withLabels(MANAGED_BY_LABELS)
+                    .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withType("Opaque")
                 .withData(certs)
@@ -578,41 +550,9 @@ public class KafkaCluster implements Operand<ManagedKafka> {
     }
 
     private Map<String, String> getKafkaLabels() {
-        Map<String, String> labels = new HashMap<>(2);
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
-        labels.put("app.kubernetes.io/managed-by", "kas-fleetshard-operator");
         return labels;
-    }
-
-    @Override
-    public boolean isInstalling(ManagedKafka managedKafka) {
-        Kafka kafka = cachedKafka(managedKafka);
-        boolean isInstalling = kafka == null || kafka.getStatus() == null || 
-                kafkaCondition(kafka, c->c.getType().equals("NotReady")
-                && c.getStatus().equals("True")
-                && c.getReason().equals("Creating"));
-        log.debugf("KafkaCluster isInstalling = %s", isInstalling);
-        return isInstalling;
-    }
-
-    @Override
-    public boolean isReady(ManagedKafka managedKafka) {
-        Kafka kafka = cachedKafka(managedKafka);
-        boolean isReady = kafka != null && (kafka.getStatus() == null || 
-                kafkaCondition(kafka, c->c.getType().equals("Ready") && c.getStatus().equals("True")));
-        log.debugf("KafkaCluster isReady = %s", isReady);
-        return isReady;
-    }
-
-    @Override
-    public boolean isError(ManagedKafka managedKafka) {
-        Kafka kafka = cachedKafka(managedKafka);
-        boolean isError = kafka != null && kafka.getStatus() != null
-            && kafkaCondition(kafka, c->c.getType().equals("NotReady")
-            && c.getStatus().equals("True")
-            && !c.getReason().equals("Creating"));
-        log.debugf("KafkaCluster isError = %s", isError);
-        return isError;
     }
 
     @Override
@@ -630,14 +570,6 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         }
         log.debugf("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
-    }
-
-    private boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
-        return kafka.getStatus().getConditions().stream().anyMatch(predicate);
-    }
-
-    private Kafka cachedKafka(ManagedKafka managedKafka) {
-        return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
     private ConfigMap cachedConfigMap(ManagedKafka managedKafka, String name) {
@@ -658,14 +590,6 @@ public class KafkaCluster implements Operand<ManagedKafka> {
         return kubernetesClient.configMaps()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);
-    }
-
-    public static String kafkaClusterName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName();
-    }
-
-    public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getNamespace();
     }
 
     public static String kafkaTlsSecretName(ManagedKafka managedKafka) {

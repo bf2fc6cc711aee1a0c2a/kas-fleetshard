@@ -34,7 +34,7 @@ public class ObservabilityManager {
                     .withNamespace(namespace)
                     .withName(OBSERVABILITY_CONFIGMAP_NAME)
                     .addToLabels("configures", "observability-operator")
-                    .addToLabels("app.kubernetes.io/managed-by", "kas-fleetshard-operator")
+                    .addToLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .addToData(OBSERVABILITY_ACCESS_TOKEN, observability.getAccessToken())
                 .addToData(OBSERVABILITY_CHANNEL, observability.getChannel())
