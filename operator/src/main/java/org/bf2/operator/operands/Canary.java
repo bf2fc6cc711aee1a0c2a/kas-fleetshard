@@ -6,6 +6,9 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -28,6 +31,11 @@ import java.util.Map;
  */
 @ApplicationScoped
 public class Canary implements Operand<ManagedKafka> {
+
+    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("32Mi");
+    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("5m");
+    private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("64Mi");
+    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("10m");
 
     @Inject
     Logger log;
@@ -103,6 +111,7 @@ public class Canary implements Operand<ManagedKafka> {
                 .withImage("quay.io/ppatierno/strimzi-canary:0.0.2")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
+                .withResources(getResources())
                 .build();
 
         return Collections.singletonList(container);
@@ -124,6 +133,16 @@ public class Canary implements Operand<ManagedKafka> {
 
     private List<ContainerPort> getContainerPorts() {
         return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
+    }
+
+    private ResourceRequirements getResources() {
+        ResourceRequirements resources = new ResourceRequirementsBuilder()
+                .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
+                .addToRequests("cpu", CONTAINER_CPU_REQUEST)
+                .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
+                .addToLimits("cpu", CONTAINER_CPU_LIMIT)
+                .build();
+        return resources;
     }
 
     @Override
