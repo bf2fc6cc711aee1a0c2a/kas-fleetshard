@@ -27,7 +27,7 @@ jobs:
 
       - name: Build and push operator
         run: |
-          mvn clean package -pl kas-fleetshard-operator -am -DskipTests --no-transfer-progress \
+          mvn clean package -pl operator -am -DskipTests --no-transfer-progress \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.group=bf2 \
