@@ -20,9 +20,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.WebApplicationException;
 
-/**
- * TODO: This is throw away code until the Control Plane API for ManagedkafkaAgent CR is defined.
- */
 @ApplicationScoped
 public class ManagedKafkaAgentSync {
 
@@ -47,8 +44,12 @@ public class ManagedKafkaAgentSync {
     @Inject
     ControlPlane controlPlane;
 
-    @Scheduled(every = "{poll.interval}")
+    @Scheduled(every = "{poll.interval}", delayed = "5s")
     void loop() {
+        if (!lookup.isReady()) {
+            log.debug("Not ready to poll, the lookup is not ready");
+            return;
+        }
         ManagedKafkaAgent managedKafkaAgent = null;
         try {
             managedKafkaAgent = controlPlane.getManagedKafkaAgent();
