@@ -1,11 +1,13 @@
-name: Integration tests
+name: Smoke tests
 on:
+  push:
+    branches: [ main ]
   pull_request:
-    types: [ labeled ]
+    branches: [ main ]
+    types: [ opened, reopened, synchronize ]
 
 jobs:
-  test:
-    if: ${{ github.event.label.name == 'run-all-tests' }}
+  smoke:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,11 +34,12 @@ jobs:
           -Dquarkus.container-image.name=kas-fleetshard-operator \
           -Dquarkus.container-image.tag=latest \
           -Dquarkus.container-image.registry=localhost:5000 \
-          -Dquarkus.container-image.insecure=true
+          -Dquarkus.container-image.insecure=true \
+          -Dquarkus.profile=dev
 
-      - name: Run test
+      - name: Run smoke test
         run: |
-          mvn verify -P systemtest -pl systemtest -am --no-transfer-progress \
+          mvn verify -P systemtest -pl systemtest -Dgroups=smoke -am --no-transfer-progress \
             -Djunit.jupiter.execution.parallel.enabled=true \
             -Djunit.jupiter.execution.parallel.config.fixed.parallelism=2
 
