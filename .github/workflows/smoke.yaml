@@ -35,7 +35,7 @@ jobs:
           -Dquarkus.container-image.tag=latest \
           -Dquarkus.container-image.registry=localhost:5000 \
           -Dquarkus.container-image.insecure=true \
-          -Dquarkus.profile=dev
+          -Dkafka=dev
 
       - name: Run smoke test
         run: |
