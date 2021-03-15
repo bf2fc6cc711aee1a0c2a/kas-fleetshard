@@ -1,12 +1,11 @@
 package org.bf2.sync.controlplane;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.PostConstruct;
@@ -41,18 +40,19 @@ import io.quarkus.scheduler.Scheduled;
 @Path(ControlPlaneApi.BASE_PATH)
 public class MockControlPlane implements ControlPlaneApi {
 
-    private final int MAX_KAFKA = 3;
-
     private static final String CERT = "cert";
 
     @Inject
     Logger log;
 
-    @ConfigProperty(name="sync.run-control-plane-simulation", defaultValue = "false")
+    @ConfigProperty(name="sync.mock-control-plane.simulate", defaultValue = "false")
     boolean runSimulation;
 
+    @ConfigProperty(name="sync.mock-control-plane.max", defaultValue = "3")
+    int maxKafkas;
+
     // current active clusters
-    Map<String, ManagedKafka> kafkas = Collections.synchronizedMap(new HashMap<>());
+    Map<String, ManagedKafka> kafkas = new ConcurrentHashMap<String, ManagedKafka>();
 
     @Inject
     ManagedKafkaAgentSync agentSync;
@@ -119,7 +119,7 @@ public class MockControlPlane implements ControlPlaneApi {
 
         // feed the start of clusters
         if (this.kafkas.size() == 0) {
-            int max = Math.abs(random.nextInt(MAX_KAFKA));
+            int max = Math.abs(random.nextInt(maxKafkas));
             for (int i = 0; i < max; i++) {
                 ManagedKafka k = createManagedKafka(this.clusterIdGenerator.getAndIncrement());
                 log.infof("control plane::marking %s for addition", k.getId());
@@ -142,7 +142,7 @@ public class MockControlPlane implements ControlPlaneApi {
         }
 
         // selectively add
-        if (this.kafkas.size() < MAX_KAFKA && random.nextBoolean()) {
+        if (this.kafkas.size() < maxKafkas && random.nextBoolean()) {
             ManagedKafka k = createManagedKafka(this.clusterIdGenerator.getAndIncrement());
             log.infof("control plane:: creating a new cluster %s ", k.getId());
             this.kafkas.put(k.getId(), k);
