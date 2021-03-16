@@ -67,16 +67,19 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return isError;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = cachedKafka(managedKafka) == null;
+        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
+        return isDeleted;
+    }
+
     protected boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
         return kafka.getStatus().getConditions().stream().anyMatch(predicate);
     }
 
     protected Kafka cachedKafka(ManagedKafka managedKafka) {
         return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
-    }
-
-    protected Condition kafkaCondition(Kafka kafka) {
-        return kafka.getStatus().getConditions().get(0);
     }
 
     @Override
@@ -98,7 +101,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
             log.infof("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
-            // Kafka resource already exists, has to be updated
+        // Kafka resource already exists, has to be updated
         } else {
             log.infof("Updating Kafka instance %s", kafka.getSpec().getKafka().getVersion());
             kafkaResourceClient.patch(kafka);

@@ -19,6 +19,7 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
+import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -38,7 +39,8 @@ import java.util.Map;
  * and checking the corresponding status
  */
 @ApplicationScoped
-public class AdminServer implements Operand<ManagedKafka> {
+@DefaultBean
+public class AdminServer extends AbstractAdminServer {
 
     @Inject
     Logger log;
@@ -62,35 +64,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Deployment currentDeployment = cachedDeployment(managedKafka);
-        Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
-        // Admin Server deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments()
-                .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
-        // Admin Server deployment resource already exists, has to be updated
-        } else {
-            kubernetesClient.apps().deployments()
-                    .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName())
-                    .patch(deployment);
-        }
-
-        Service currentService = cachedService(managedKafka);
-        Service service = serviceFrom(managedKafka, currentService);
-        // Admin Server service resource doesn't exist, has to be created
-        if (kubernetesClient.services()
-                .inNamespace(service.getMetadata().getNamespace())
-                .withName(service.getMetadata().getName()).get() == null) {
-            kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).create(service);
-        // Admin Server service resource already exists, has to be updated
-        } else {
-            kubernetesClient.services()
-                    .inNamespace(service.getMetadata().getNamespace())
-                    .withName(service.getMetadata().getName())
-                    .patch(service);
-        }
+        super.createOrUpdate(managedKafka);
 
         if (openShiftClient != null) {
             Route currentRoute = cachedRoute(managedKafka);
@@ -112,8 +86,7 @@ public class AdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        adminDeploymentResource(managedKafka).delete();
-        adminServiceResource(managedKafka).delete();
+        super.delete(managedKafka, context);
 
         if (openShiftClient != null) {
             adminRouteResource(managedKafka).delete();
@@ -121,6 +94,7 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     /* test */
+    @Override
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String adminServerName = adminServerName(managedKafka);
 
@@ -156,6 +130,7 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     /* test */
+    @Override
     protected Service serviceFrom(ManagedKafka managedKafka, Service current) {
         String adminServerName = adminServerName(managedKafka);
 
@@ -263,29 +238,6 @@ public class AdminServer implements Operand<ManagedKafka> {
     }
 
     @Override
-    public boolean isInstalling(ManagedKafka managedKafka) {
-        Deployment deployment = cachedDeployment(managedKafka);
-        boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.debugf("Admin Server isInstalling = %s", isInstalling);
-        return isInstalling;
-    }
-
-    @Override
-    public boolean isReady(ManagedKafka managedKafka) {
-        Deployment deployment = cachedDeployment(managedKafka);
-        boolean isReady = deployment != null && (deployment.getStatus() == null ||
-                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.debugf("Admin Server isReady = %s", isReady);
-        return isReady;
-    }
-
-    @Override
-    public boolean isError(ManagedKafka managedKafka) {
-        // TODO: logic for check if it's error
-        return false;
-    }
-
-    @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
         if (openShiftClient != null) {
@@ -295,12 +247,10 @@ public class AdminServer implements Operand<ManagedKafka> {
         return isDeleted;
     }
 
-    private Deployment cachedDeployment(ManagedKafka managedKafka) {
-        return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
-    }
-
-    private Service cachedService(ManagedKafka managedKafka) {
-        return informerManager.getLocalService(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+    @Override
+    public String Uri(ManagedKafka managedKafka) {
+        Route route = cachedRoute(managedKafka);
+        return route != null ? route.getSpec().getHost() : null;
     }
 
     private Route cachedRoute(ManagedKafka managedKafka) {
@@ -311,30 +261,5 @@ public class AdminServer implements Operand<ManagedKafka> {
         return openShiftClient.routes()
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));
-    }
-
-    private Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
-        return kubernetesClient.services()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
-    private Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
-        return kubernetesClient.apps().deployments()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
-    public String Uri(ManagedKafka managedKafka) {
-        Route route = cachedRoute(managedKafka);
-        return route != null ? route.getSpec().getHost() : null;
-    }
-
-    public static String adminServerName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-admin-server";
-    }
-
-    public static String adminServerNamespace(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getNamespace();
     }
 }
