@@ -33,6 +33,7 @@ public class Canary extends AbstractCanary {
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("64Mi");
     private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("10m");
 
+    @Override
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
 

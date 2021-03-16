@@ -67,6 +67,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return isError;
     }
 
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = cachedKafka(managedKafka) == null;
+        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
+        return isDeleted;
+    }
+
     protected boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
         return kafka.getStatus().getConditions().stream().anyMatch(predicate);
     }

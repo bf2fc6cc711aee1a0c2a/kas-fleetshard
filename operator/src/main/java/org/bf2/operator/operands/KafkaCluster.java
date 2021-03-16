@@ -144,11 +144,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private void createOrUpdate(Secret secret) {
+        // Secret resource doesn't exist, has to be created
         if (kubernetesClient.secrets()
                 .inNamespace(secret.getMetadata().getNamespace())
                 .withName(secret.getMetadata().getName()).get() == null) {
             kubernetesClient.secrets().inNamespace(secret.getMetadata().getNamespace()).createOrReplace(secret);
-            // Secret resource already exists, has to be updated
+        // Secret resource already exists, has to be updated
         } else {
             kubernetesClient.secrets()
                     .inNamespace(secret.getMetadata().getNamespace())
@@ -163,7 +164,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .inNamespace(configMap.getMetadata().getNamespace())
                 .withName(configMap.getMetadata().getName()).get() == null) {
             kubernetesClient.configMaps().inNamespace(configMap.getMetadata().getNamespace()).createOrReplace(configMap);
-            // ConfigMap resource already exists, has to be updated
+        // ConfigMap resource already exists, has to be updated
         } else {
             kubernetesClient.configMaps()
                     .inNamespace(configMap.getMetadata().getNamespace())

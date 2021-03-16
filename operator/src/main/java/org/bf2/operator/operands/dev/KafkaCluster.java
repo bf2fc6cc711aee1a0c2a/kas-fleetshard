@@ -4,12 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.jboss.logging.Logger;
 
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
@@ -29,9 +27,6 @@ import io.strimzi.api.kafka.model.storage.Storage;
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "dev")
 public class KafkaCluster extends AbstractKafkaCluster {
-
-    @Inject
-    Logger log;
 
     /* test */
     @Override
@@ -96,13 +91,5 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, String> getLabels() {
         return OperandUtils.getDefaultLabels();
-    }
-
-    @Override
-    public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean isDeleted = cachedKafka(managedKafka) == null;
-
-        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
-        return isDeleted;
     }
 }
