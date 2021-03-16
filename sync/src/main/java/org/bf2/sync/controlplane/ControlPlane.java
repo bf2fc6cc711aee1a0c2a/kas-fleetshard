@@ -152,7 +152,7 @@ public class ControlPlane {
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
-        if (oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
+        if (newManagedKafka.getId() != null && oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
             // send a status update immediately (async)
             updateKafkaClusterStatus(Cache.metaNamespaceKeyFunc(newManagedKafka), newManagedKafka.getId());
         }
@@ -174,7 +174,7 @@ public class ControlPlane {
     @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
         updateKafkaClusterStatus(() -> {
-            return localLookup.getLocalManagedKafkas().stream().collect(Collectors.toMap(ManagedKafka::getId,
+            return localLookup.getLocalManagedKafkas().stream().filter(mk->mk.getId()!=null).collect(Collectors.toMap(ManagedKafka::getId,
                     (mk) -> requireNonNullElse(mk.getStatus(), EMPTY_MANAGED_KAFKA_STATUS)));
         });
         updateAgentStatus();

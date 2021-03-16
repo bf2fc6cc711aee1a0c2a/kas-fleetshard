@@ -17,7 +17,8 @@ public class ManagedKafkaCondition {
         Installing,
         Ready,
         Deleted,
-        Error;
+        Error,
+        Rejected;
     }
 
     private String type;
