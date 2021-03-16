@@ -1,10 +1,8 @@
-package org.bf2.operator.sync;
+package org.bf2.common;
 
-import org.bf2.common.AbstractCustomResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 
 /**
@@ -12,11 +10,6 @@ import javax.enterprise.context.ApplicationScoped;
  */
 @ApplicationScoped
 public class ManagedKafkaResourceClient extends AbstractCustomResourceClient<ManagedKafka, ManagedKafkaList> {
-
-    @PostConstruct
-    public void test() {
-        System.out.println("Hey");
-    }
 
     @Override
     protected Class<ManagedKafka> getCustomResourceClass() {
