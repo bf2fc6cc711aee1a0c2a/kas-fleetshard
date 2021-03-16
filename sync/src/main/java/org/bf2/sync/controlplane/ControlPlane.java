@@ -174,8 +174,9 @@ public class ControlPlane {
     @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
         updateKafkaClusterStatus(() -> {
-            return localLookup.getLocalManagedKafkas().stream().filter(mk->mk.getId()!=null).collect(Collectors.toMap(ManagedKafka::getId,
-                    (mk) -> requireNonNullElse(mk.getStatus(), EMPTY_MANAGED_KAFKA_STATUS)));
+            return localLookup.getLocalManagedKafkas().stream().filter(mk -> mk.getId() != null)
+                    .collect(Collectors.toMap(ManagedKafka::getId,
+                            (mk) -> requireNonNullElse(mk.getStatus(), EMPTY_MANAGED_KAFKA_STATUS)));
         });
         updateAgentStatus();
     }
