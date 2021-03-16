@@ -75,10 +75,6 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
-    protected Condition kafkaCondition(Kafka kafka) {
-        return kafka.getStatus().getConditions().get(0);
-    }
-
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Kafka current = cachedKafka(managedKafka);
@@ -98,7 +94,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
             log.infof("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
-            // Kafka resource already exists, has to be updated
+        // Kafka resource already exists, has to be updated
         } else {
             log.infof("Updating Kafka instance %s", kafka.getSpec().getKafka().getVersion());
             kafkaResourceClient.patch(kafka);
