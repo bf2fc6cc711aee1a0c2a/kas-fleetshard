@@ -220,16 +220,23 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return kafka;
     }
 
-    /* test */
-    protected ConfigMap configMapFrom(ManagedKafka managedKafka,  String name, ConfigMap current) {
-
-        InputStream is = this.getClass().getClassLoader().getResourceAsStream(name + ".yaml");
+    private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
+        String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
+        InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml");
         ConfigMap template = kubernetesClient.configMaps().load(is).get();
+        return template;
+    }
+
+    /* test */
+    protected ConfigMap configMapFrom(ManagedKafka managedKafka, String name, ConfigMap current) {
+
+        ConfigMap template = configMapTemplate(managedKafka, name);
 
         ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
         ConfigMap configMap = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
+                    .withName(name)
                     .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withData(template.getData())
@@ -340,7 +347,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private MetricsConfig getKafkaMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
                 .withName(kafkaMetricsConfigMapName(managedKafka))
-                .withKey("my-key")
+                .withKey("jmx-exporter-config")
                 .build();
 
         return new JmxPrometheusExporterMetricsBuilder()
@@ -351,7 +358,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private MetricsConfig getZooKeeperMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
                 .withName(zookeeperMetricsConfigMapName(managedKafka))
-                .withKey("my-key")
+                .withKey("jmx-exporter-config")
                 .build();
 
         return new JmxPrometheusExporterMetricsBuilder()
@@ -606,10 +613,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     public static String kafkaMetricsConfigMapName(ManagedKafka managedKafka) {
-        return "kafka-metrics";
+        return managedKafka.getMetadata().getName() + "-kafka-metrics";
     }
 
     public static String zookeeperMetricsConfigMapName(ManagedKafka managedKafka) {
-        return "zookeeper-metrics";
+        return managedKafka.getMetadata().getName() + "-zookeeper-metrics";
     }
 }
