@@ -91,9 +91,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     Logger log;
 
     @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
-    boolean isKafkaAuthenticationEnabled;
+    protected boolean isKafkaAuthenticationEnabled;
     @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
-    boolean isKafkaExternalCertificateEnabled;
+    protected boolean isKafkaExternalCertificateEnabled;
 
     Base64.Encoder encoder = Base64.getEncoder();
 
@@ -588,13 +588,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
     }
 
-    private Resource<Secret> secretResource(ManagedKafka managedKafka, String name) {
+    protected Resource<Secret> secretResource(ManagedKafka managedKafka, String name) {
         return kubernetesClient.secrets()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);
     }
 
-    private Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
         return kubernetesClient.configMaps()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);

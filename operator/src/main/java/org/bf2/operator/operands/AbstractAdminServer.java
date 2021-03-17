@@ -17,10 +17,10 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     Logger log;
 
     @Inject
-    KubernetesClient kubernetesClient;
+    protected KubernetesClient kubernetesClient;
 
     @Inject
-    InformerManager informerManager;
+    protected InformerManager informerManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -105,13 +105,13 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         return isDeleted;
     }
 
-    private Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
+    protected Resource<Service> adminServiceResource(ManagedKafka managedKafka) {
         return kubernetesClient.services()
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));
     }
 
-    private Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
+    protected Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
         return kubernetesClient.apps().deployments()
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));

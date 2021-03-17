@@ -13,7 +13,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
@@ -21,7 +20,6 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
-import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -44,12 +42,6 @@ public class AdminServer extends AbstractAdminServer {
 
     @Inject
     Logger log;
-
-    @Inject
-    KubernetesClient kubernetesClient;
-
-    @Inject
-    InformerManager informerManager;
 
     @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
     boolean isKafkaExternalCertificateEnabled;

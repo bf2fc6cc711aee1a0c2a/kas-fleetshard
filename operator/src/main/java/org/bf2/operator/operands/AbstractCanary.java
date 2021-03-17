@@ -16,10 +16,10 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     Logger log;
 
     @Inject
-    KubernetesClient kubernetesClient;
+    protected KubernetesClient kubernetesClient;
 
     @Inject
-    InformerManager informerManager;
+    protected InformerManager informerManager;
 
     protected abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
