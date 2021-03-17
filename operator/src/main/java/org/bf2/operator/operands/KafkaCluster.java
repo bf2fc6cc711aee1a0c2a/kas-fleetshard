@@ -458,7 +458,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
 
             plainOverOauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withClientId(managedKafka.getSpec().getOauth().getClientId())
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
@@ -470,7 +470,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .build();
 
             oauthAuthenticationListener = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withClientId(managedKafka.getSpec().getOauth().getClientId())
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
