@@ -11,6 +11,10 @@
     </parent>
     <artifactId>systemtest</artifactId>
 
+    <properties>
+        <it.skip>true</it.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.bf2</groupId>
@@ -69,6 +73,15 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>systemtest</id>
+            <properties>
+                <it.skip>false</it.skip>
+            </properties>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>
@@ -88,43 +101,44 @@
                 <executions>
                     <execution>
                         <goals>
-                            <goal>integration-test</goal>
                             <goal>verify</goal>
+                            <goal>integration-test</goal>
                         </goals>
-                        <configuration>
-                            <forkCount>0</forkCount>
-                            <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-                            <includes>
-                                <include>**/IT*.java</include>
-                                <include>**/*IT.java</include>
-                                <include>**/ST*.java</include>
-                                <include>**/*ST.java</include>
-                            </includes>
-                            <statelessTestsetReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
-                                <disable>false</disable>
-                                <version>3.0</version>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedTestSuiteClassName>true</usePhrasedTestSuiteClassName>
-                                <usePhrasedTestCaseClassName>true</usePhrasedTestCaseClassName>
-                                <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
-                            </statelessTestsetReporter>
-                            <consoleOutputReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5ConsoleOutputReporter">
-                                <disable>false</disable>
-                                <encoding>UTF-8</encoding>
-                                <usePhrasedFileName>true</usePhrasedFileName>
-                            </consoleOutputReporter>
-                            <statelessTestsetInfoReporter
-                                    implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoReporter">
-                                <disable>false</disable>
-                                <usePhrasedFileName>false</usePhrasedFileName>
-                                <usePhrasedClassNameInRunning>false</usePhrasedClassNameInRunning>
-                                <usePhrasedClassNameInTestCaseSummary>true</usePhrasedClassNameInTestCaseSummary>
-                            </statelessTestsetInfoReporter>
-                        </configuration>
                     </execution>
                 </executions>
+                <configuration>
+                    <forkCount>0</forkCount>
+                    <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
+                    <includes>
+                        <include>**/IT*.java</include>
+                        <include>**/*IT.java</include>
+                        <include>**/ST*.java</include>
+                        <include>**/*ST.java</include>
+                    </includes>
+                    <skipTests>${it.skip}</skipTests>
+                    <statelessTestsetReporter
+                            implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
+                        <disable>false</disable>
+                        <version>3.0</version>
+                        <usePhrasedFileName>false</usePhrasedFileName>
+                        <usePhrasedTestSuiteClassName>true</usePhrasedTestSuiteClassName>
+                        <usePhrasedTestCaseClassName>true</usePhrasedTestCaseClassName>
+                        <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
+                    </statelessTestsetReporter>
+                    <consoleOutputReporter
+                            implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5ConsoleOutputReporter">
+                        <disable>false</disable>
+                        <encoding>UTF-8</encoding>
+                        <usePhrasedFileName>true</usePhrasedFileName>
+                    </consoleOutputReporter>
+                    <statelessTestsetInfoReporter
+                            implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5StatelessTestsetInfoReporter">
+                        <disable>false</disable>
+                        <usePhrasedFileName>false</usePhrasedFileName>
+                        <usePhrasedClassNameInRunning>false</usePhrasedClassNameInRunning>
+                        <usePhrasedClassNameInTestCaseSummary>true</usePhrasedClassNameInTestCaseSummary>
+                    </statelessTestsetInfoReporter>
+                </configuration>
             </plugin>
         </plugins>
     </build>

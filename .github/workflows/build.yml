@@ -21,4 +21,4 @@ jobs:
       with:
         java-version: 11
     - name: Build and run Unit tests
-      run: mvn package --file pom.xml -Psystemtest --no-transfer-progress
+      run: mvn package --file pom.xml --no-transfer-progress
