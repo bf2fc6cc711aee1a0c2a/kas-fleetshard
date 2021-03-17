@@ -5,6 +5,7 @@ import java.util.List;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.sync.informer.LocalLookup;

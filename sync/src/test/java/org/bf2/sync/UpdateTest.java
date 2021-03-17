@@ -6,6 +6,7 @@ import java.util.Map;
 
 import javax.inject.Inject;
 
+import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;

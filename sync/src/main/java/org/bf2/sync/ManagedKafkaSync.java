@@ -12,6 +12,7 @@ import javax.inject.Inject;
 import javax.ws.rs.WebApplicationException;
 
 import org.bf2.common.ConditionUtils;
+import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
