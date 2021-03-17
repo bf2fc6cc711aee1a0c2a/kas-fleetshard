@@ -226,6 +226,7 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(1);
         envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095").build());
+        envVars.add(new EnvVarBuilder().withName("CORS_ALLOW_LIST_REGEX").withValue("(https?:\\/\\/localhost(:\\d*)?)|(https:\\/\\/(qaprodauth\\.)?cloud\\.redhat\\.com)|(https:\\/\\/(prod|qa|ci|stage)\\.foo\\.redhat\\.com:1337)").build());
         return envVars;
     }
 
