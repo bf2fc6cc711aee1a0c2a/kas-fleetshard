@@ -41,6 +41,9 @@ public class ManagedKafkaAgentSync {
     @ConfigProperty(name = "observability.repository")
     String repository;
 
+    @ConfigProperty(name = "observability.tag")
+    String tag;
+
     @Inject
     ControlPlane controlPlane;
 
@@ -89,6 +92,7 @@ public class ManagedKafkaAgentSync {
         ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
                 .withAccessToken(this.accessToken)
                 .withChannel(this.channel)
+                .withTag(this.tag)
                 .withRepository(this.repository)
                 .build();
 

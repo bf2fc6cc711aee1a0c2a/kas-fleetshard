@@ -5,7 +5,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -28,38 +28,40 @@ public class ObservabilityManagerTest {
     ObservabilityManager observabilityManager;
 
     @Test
-    public void testConfigMap() {
+    public void testObservabilitySecret() {
         client.getConfiguration().setNamespace("test");
 
-        ConfigMap map = observabilityManager.observabilityConfigMapResource().get();
-        assertNull(map);
+        Secret secret = observabilityManager.observabilitySecretResource().get();
+        assertNull(secret);
 
         ObservabilityConfiguration config = new ObservabilityConfigurationBuilder()
                 .withAccessToken("test-token")
                 .withChannel("test")
                 .withRepository("test-repo")
+                .withTag("tag")
                 .build();
 
-        this.observabilityManager.createOrUpdateObservabilityConfigMap(config);
+        this.observabilityManager.createOrUpdateObservabilitySecret(config);
 
         // lets call event handler
-        map = observabilityManager.observabilityConfigMapResource().get();
-        assertNotNull(map);
+        secret = observabilityManager.observabilitySecretResource().get();
+        assertNotNull(secret);
 
-        ObservabilityConfiguration mapConfig = new ObservabilityConfigurationBuilder()
-                .withAccessToken(map.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))
-                .withChannel(map.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))
-                .withRepository(map.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))
+        ObservabilityConfiguration secretConfig = new ObservabilityConfigurationBuilder()
+                .withAccessToken(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))
+                .withChannel(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))
+                .withTag(secret.getData().get(ObservabilityManager.OBSERVABILITY_TAG))
+                .withRepository(secret.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))
                 .build();
 
-        // map verification
-        assertTrue(config.equals(mapConfig));
-        assertEquals("observability-operator", map.getMetadata().getLabels().get("configures"));
+        // secret verification
+        assertTrue(config.equals(secretConfig));
+        assertEquals("observability-operator", secret.getMetadata().getLabels().get("configures"));
 
         // status verification, the Informers do not work in test framework thus direct verification
-        map = ObservabilityManager.createObservabilityConfigMapBuilder(client.getNamespace(), config).editMetadata()
+        secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config).editMetadata()
             .addToAnnotations("observability-operator/status", "accepted").endMetadata().build();
-        observabilityManager.observabilityConfigMapResource().createOrReplace(map);
-        assertTrue(ObservabilityManager.isObservabilityStatusAccepted(map));
+        observabilityManager.observabilitySecretResource().createOrReplace(secret);
+        assertTrue(ObservabilityManager.isObservabilityStatusAccepted(secret));
     }
 }
