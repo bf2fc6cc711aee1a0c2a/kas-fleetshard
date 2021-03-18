@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Provides same functionalities to get a AdminServer deployment from a ManagedKafka one
@@ -53,6 +54,9 @@ public class AdminServer extends AbstractAdminServer {
 
     @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
     boolean isKafkaExternalCertificateEnabled;
+
+    @ConfigProperty(name = "adminserver.cors.allowlist")
+    Optional<String> corsAllowList;
 
     OpenShiftClient openShiftClient;
 
@@ -227,6 +231,9 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(1);
         envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095").build());
+        if (corsAllowList.isPresent()) {
+            envVars.add(new EnvVarBuilder().withName("CORS_ALLOW_LIST_REGEX").withValue(corsAllowList.get()).build());
+        }
         return envVars;
     }
 
