@@ -17,6 +17,7 @@ import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -100,9 +101,9 @@ public class ControlPlane {
      * Also updates the cache of ManagedKafka instances
      */
     public List<ManagedKafka> getKafkaClusters() {
-        List<ManagedKafka> result = controlPlaneClient.getKafkaClusters(id);
-        result.forEach((mk)->addManagedKafka(mk));
-        return result;
+        ManagedKafkaList result = controlPlaneClient.getKafkaClusters(id);
+        result.getItems().forEach((mk)->addManagedKafka(mk));
+        return result.getItems();
     }
 
     /**
