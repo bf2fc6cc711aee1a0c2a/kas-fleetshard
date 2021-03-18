@@ -15,6 +15,7 @@ import javax.inject.Inject;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.controlplane.ControlPlane;
@@ -74,7 +75,7 @@ public class PollerTest {
 
         assertNull(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)));
 
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Arrays.asList(managedKafka));
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
         managedKafkaSync.syncKafkaClusters();
 
         items = lookup.getLocalManagedKafkas();
@@ -93,7 +94,7 @@ public class PollerTest {
         ManagedKafka nextPlacement = exampleManagedKafka();
         nextPlacement.setPlacementId("xyz");
         nextPlacement.getSpec().getVersions().setStrimzi("?");
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Arrays.asList(managedKafka, nextPlacement));
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka, nextPlacement)));
         managedKafkaSync.syncKafkaClusters();
         //should still be a single placement, and it should be the old one without a strimzi version
         items = lookup.getLocalManagedKafkas();
@@ -108,7 +109,7 @@ public class PollerTest {
         assertTrue(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
 
         // final removal
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Collections.emptyList());
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList());
         managedKafkaSync.syncKafkaClusters();
         items = lookup.getLocalManagedKafkas();
         assertEquals(0, items.size());
@@ -117,7 +118,7 @@ public class PollerTest {
         assertNull(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)));
 
         // if it shows up again need to inform the control plane delete is still needed
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(Arrays.asList(managedKafka));
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
         managedKafkaSync.syncKafkaClusters();
 
         // expect there to be a status about the deletion

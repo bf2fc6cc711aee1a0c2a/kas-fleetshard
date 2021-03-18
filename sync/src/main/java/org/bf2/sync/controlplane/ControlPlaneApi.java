@@ -1,6 +1,5 @@
 package org.bf2.sync.controlplane;
 
-import java.util.List;
 import java.util.Map;
 
 import javax.ws.rs.Consumes;
@@ -11,9 +10,9 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 
 public interface ControlPlaneApi {
@@ -33,7 +32,7 @@ public interface ControlPlaneApi {
     @GET
     @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
-    List<ManagedKafka> getKafkaClusters(@PathParam("id") String id);
+    ManagedKafkaList getKafkaClusters(@PathParam("id") String id);
 
     @PUT
     @Path("/{id}/kafkas/status")

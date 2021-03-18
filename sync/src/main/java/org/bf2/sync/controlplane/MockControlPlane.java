@@ -1,7 +1,5 @@
 package org.bf2.sync.controlplane;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -24,6 +22,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
@@ -179,9 +178,9 @@ public class MockControlPlane implements ControlPlaneApi {
     }
 
     @Override
-    public List<ManagedKafka> getKafkaClusters(String id) {
+    public ManagedKafkaList getKafkaClusters(String id) {
         log.info("control plane::getKafkaClusters <- Received");
-        return new ArrayList<ManagedKafka>(kafkas.values());
+        return new ManagedKafkaList(kafkas.values());
     }
 
     @Override
