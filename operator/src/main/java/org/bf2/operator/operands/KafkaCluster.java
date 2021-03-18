@@ -87,6 +87,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Quantity ZOOKEEPER_CONTAINER_MEMORY = new Quantity("1Gi");
     private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("500m");
 
+    private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = new Quantity("128Mi");
+    private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = new Quantity("500m");
+    private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = new Quantity("256Mi");
+    private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = new Quantity("1000m");
+
     @Inject
     Logger log;
 
@@ -209,6 +214,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewKafkaExporter()
                         .withTopicRegex(".*")
                         .withGroupRegex(".*")
+                        .withResources(getKafkaExporterResources(managedKafka))
                     .endKafkaExporter()
                 .endSpec()
                 .build();
@@ -412,6 +418,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .addToRequests("cpu", ZOOKEEPER_CONTAINER_CPU)
                 .addToLimits("memory", ZOOKEEPER_CONTAINER_MEMORY)
                 .addToLimits("cpu", ZOOKEEPER_CONTAINER_CPU)
+                .build();
+        return resources;
+    }
+
+    private ResourceRequirements getKafkaExporterResources(ManagedKafka managedKafka) {
+        ResourceRequirements resources = new ResourceRequirementsBuilder()
+                .addToRequests("memory", KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST)
+                .addToRequests("cpu", KAFKA_EXPORTER_CONTAINER_CPU_REQUEST)
+                .addToLimits("memory", KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT)
+                .addToLimits("cpu", KAFKA_EXPORTER_CONTAINER_CPU_LIMIT)
                 .build();
         return resources;
     }
