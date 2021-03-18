@@ -45,9 +45,9 @@ import java.util.Optional;
 public class AdminServer extends AbstractAdminServer {
 
     private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("256Mi");
-    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("50m");
+    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("250m");
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("512Mi");
-    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("100m");
+    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("500m");
 
     @Inject
     Logger log;
