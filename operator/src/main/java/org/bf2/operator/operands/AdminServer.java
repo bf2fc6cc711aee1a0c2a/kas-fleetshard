@@ -1,5 +1,8 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.Container;
@@ -39,6 +42,11 @@ import java.util.Map;
 @ApplicationScoped
 @DefaultBean
 public class AdminServer extends AbstractAdminServer {
+
+    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("256Mi");
+    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("50m");
+    private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("512Mi");
+    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("100m");
 
     @Inject
     Logger log;
@@ -198,6 +206,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withImage("quay.io/sknot/kafka-admin-api:0.0.4")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
+                .withResources(getResources())
                 .build();
 
         return Collections.singletonList(container);
@@ -227,6 +236,16 @@ public class AdminServer extends AbstractAdminServer {
 
     private List<ServicePort> getServicePorts() {
         return Collections.singletonList(new ServicePortBuilder().withName("http").withProtocol("TCP").withPort(8080).withTargetPort(new IntOrString("http")).build());
+    }
+
+    private ResourceRequirements getResources() {
+        ResourceRequirements resources = new ResourceRequirementsBuilder()
+                .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
+                .addToRequests("cpu", CONTAINER_CPU_REQUEST)
+                .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
+                .addToLimits("cpu", CONTAINER_CPU_LIMIT)
+                .build();
+        return resources;
     }
 
     @Override
