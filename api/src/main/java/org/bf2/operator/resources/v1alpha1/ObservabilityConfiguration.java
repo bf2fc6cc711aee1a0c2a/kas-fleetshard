@@ -16,11 +16,12 @@ public class ObservabilityConfiguration {
     private String accessToken;
     private String channel;
     private String repository;
-    
+    private String tag;
+
     public String getAccessToken() {
         return accessToken;
     }
-    
+
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
     }
@@ -39,5 +40,13 @@ public class ObservabilityConfiguration {
 
     public void setRepository(String repository) {
         this.repository = repository;
+    }
+
+    public String getTag() {
+        return tag;
+    }
+
+    public void setTag(String tag) {
+        this.tag = tag;
     }
 }

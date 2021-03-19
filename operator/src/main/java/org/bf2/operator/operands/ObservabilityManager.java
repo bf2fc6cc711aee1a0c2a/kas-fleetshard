@@ -1,7 +1,7 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
@@ -16,7 +16,8 @@ public class ObservabilityManager {
     static final String OBSERVABILITY_REPOSITORY = "repository";
     static final String OBSERVABILITY_CHANNEL = "channel";
     static final String OBSERVABILITY_ACCESS_TOKEN = "access_token";
-    public static final String OBSERVABILITY_CONFIGMAP_NAME = "fleetshard-observability";
+    static final String OBSERVABILITY_TAG = "tag";
+    public static final String OBSERVABILITY_SECRET_NAME = "fleetshard-observability";
 
     @Inject
     KubernetesClient client;
@@ -24,24 +25,25 @@ public class ObservabilityManager {
     @Inject
     InformerManager informerManager;
 
-    static ConfigMap createObservabilityConfigMap(String namespace, ObservabilityConfiguration observability) {
-        return createObservabilityConfigMapBuilder(namespace, observability).build();
+    static Secret createObservabilitySecret(String namespace, ObservabilityConfiguration observability) {
+        return createObservabilitySecretBuilder(namespace, observability).build();
     }
 
-    static ConfigMapBuilder createObservabilityConfigMapBuilder(String namespace, ObservabilityConfiguration observability) {
-        return new ConfigMapBuilder()
+    static SecretBuilder createObservabilitySecretBuilder(String namespace, ObservabilityConfiguration observability) {
+        return new SecretBuilder()
                 .withNewMetadata()
                     .withNamespace(namespace)
-                    .withName(OBSERVABILITY_CONFIGMAP_NAME)
+                    .withName(OBSERVABILITY_SECRET_NAME)
                     .addToLabels("configures", "observability-operator")
                     .addToLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .addToData(OBSERVABILITY_ACCESS_TOKEN, observability.getAccessToken())
                 .addToData(OBSERVABILITY_CHANNEL, observability.getChannel())
+                .addToData(OBSERVABILITY_TAG, observability.getTag())
                 .addToData(OBSERVABILITY_REPOSITORY, observability.getRepository());
     }
 
-    static boolean isObservabilityStatusAccepted(ConfigMap cm) {
+    static boolean isObservabilityStatusAccepted(Secret cm) {
         String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
         if (status != null && status.equalsIgnoreCase("accepted")) {
             return true;
@@ -49,28 +51,28 @@ public class ObservabilityManager {
         return false;
     }
 
-    Resource<ConfigMap> observabilityConfigMapResource() {
-        return this.client.configMaps().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_CONFIGMAP_NAME);
+    Resource<Secret> observabilitySecretResource() {
+        return this.client.secrets().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_SECRET_NAME);
     }
 
-    private ConfigMap cachedObservabilityConfigMap() {
-        return informerManager.getLocalConfigMap(this.client.getNamespace(),
-                ObservabilityManager.OBSERVABILITY_CONFIGMAP_NAME);
+    private Secret cachedObservabilitySecret() {
+        return informerManager.getLocalSecret(this.client.getNamespace(),
+                ObservabilityManager.OBSERVABILITY_SECRET_NAME);
     }
 
-    public void createOrUpdateObservabilityConfigMap(ObservabilityConfiguration observability) {
-        ConfigMap configMap = createObservabilityConfigMap(this.client.getNamespace(), observability);
-        if (cachedObservabilityConfigMap() == null) {
-            observabilityConfigMapResource().createOrReplace(configMap);
+    public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability) {
+        Secret secret = createObservabilitySecret(this.client.getNamespace(), observability);
+        if (cachedObservabilitySecret() == null) {
+            observabilitySecretResource().createOrReplace(secret);
         } else {
-            observabilityConfigMapResource().patch(configMap);
+            observabilitySecretResource().patch(secret);
         }
     }
 
     public boolean isObservabilityRunning() {
-        ConfigMap cm = cachedObservabilityConfigMap();
-        if (cm != null) {
-            return isObservabilityStatusAccepted(cm);
+        Secret secret = cachedObservabilitySecret();
+        if (secret != null) {
+            return isObservabilityStatusAccepted(secret);
         }
         return false;
     }
