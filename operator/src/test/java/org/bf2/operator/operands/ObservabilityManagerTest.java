@@ -16,6 +16,7 @@ import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
+import java.util.Base64;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
 @QuarkusTest
@@ -26,6 +27,8 @@ public class ObservabilityManagerTest {
 
     @Inject
     ObservabilityManager observabilityManager;
+
+    private Base64.Decoder decoder = Base64.getDecoder();
 
     @Test
     public void testObservabilitySecret() {
@@ -48,10 +51,10 @@ public class ObservabilityManagerTest {
         assertNotNull(secret);
 
         ObservabilityConfiguration secretConfig = new ObservabilityConfigurationBuilder()
-                .withAccessToken(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))
-                .withChannel(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))
-                .withTag(secret.getData().get(ObservabilityManager.OBSERVABILITY_TAG))
-                .withRepository(secret.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))
+                .withAccessToken(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))))
+                .withChannel(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))))
+                .withTag(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_TAG))))
+                .withRepository(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))))
                 .build();
 
         // secret verification

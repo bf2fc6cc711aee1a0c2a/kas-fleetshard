@@ -10,6 +10,9 @@ import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 @ApplicationScoped
 public class ObservabilityManager {
@@ -25,11 +28,22 @@ public class ObservabilityManager {
     @Inject
     InformerManager informerManager;
 
+    static Base64.Encoder encoder = Base64.getEncoder();
+
     static Secret createObservabilitySecret(String namespace, ObservabilityConfiguration observability) {
         return createObservabilitySecretBuilder(namespace, observability).build();
     }
 
     static SecretBuilder createObservabilitySecretBuilder(String namespace, ObservabilityConfiguration observability) {
+        Map<String, String> data = new HashMap<>(2);
+        data.put(OBSERVABILITY_ACCESS_TOKEN, encoder.encodeToString(observability.getAccessToken().getBytes()));
+        data.put(OBSERVABILITY_REPOSITORY, encoder.encodeToString(observability.getRepository().getBytes()));
+        if (observability.getChannel() != null) {
+            data.put(OBSERVABILITY_CHANNEL, encoder.encodeToString(observability.getChannel().getBytes()));
+        }
+        if (observability.getTag() != null) {
+            data.put(OBSERVABILITY_TAG, encoder.encodeToString(observability.getTag().getBytes()));
+        }
         return new SecretBuilder()
                 .withNewMetadata()
                     .withNamespace(namespace)
@@ -37,10 +51,7 @@ public class ObservabilityManager {
                     .addToLabels("configures", "observability-operator")
                     .addToLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
-                .addToData(OBSERVABILITY_ACCESS_TOKEN, observability.getAccessToken())
-                .addToData(OBSERVABILITY_CHANNEL, observability.getChannel())
-                .addToData(OBSERVABILITY_TAG, observability.getTag())
-                .addToData(OBSERVABILITY_REPOSITORY, observability.getRepository());
+                .addToData(data);
     }
 
     static boolean isObservabilityStatusAccepted(Secret cm) {
