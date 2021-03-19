@@ -20,7 +20,8 @@ public class ConditionUtils {
      */
     public static Optional<ManagedKafkaCondition> findManagedKafkaCondition(List<ManagedKafkaCondition> conditions,
                                                                             ManagedKafkaCondition.Type type) {
-        return conditions.stream().filter(c -> c.getType().equals(type.name())).findFirst();
+        return conditions == null ? Optional.empty()
+                : conditions.stream().filter(c -> c.getType().equals(type.name())).findFirst();
     }
 
     /**

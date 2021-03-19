@@ -97,20 +97,29 @@ public class ManagedKafkaSync {
 
         // process final removals
         for (ManagedKafka local : lookup.getLocalManagedKafkas()) {
-            if (remotes.get(ControlPlane.managedKafkaKey(local)) != null) {
+            if (remotes.get(ControlPlane.managedKafkaKey(local)) != null || !deleteAllowed(local)) {
                 continue;
-            }
-
-            // TODO: confirm full deletion
-            // also check for condition or whatever is signaling done
-            if (!local.getSpec().isDeleted()) {
-                // TODO: seems bad
-                log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted", Cache.metaNamespaceKeyFunc(local));
             }
 
             reconcileAsync(null, Cache.metaNamespaceKeyFunc(local));
         }
 
+    }
+
+    boolean deleteAllowed(ManagedKafka local) {
+        if (local.getId() == null) {
+            return false; // not a managed instance
+        }
+        if (!local.getSpec().isDeleted()) {
+            if (local.getStatus() != null
+                    && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Rejected)
+                            .filter(c -> "True".equals(c.getStatus())).isPresent()) {
+                return true;
+            }
+            log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted", Cache.metaNamespaceKeyFunc(local));
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -165,7 +174,7 @@ public class ManagedKafkaSync {
             if (!remote.getSpec().isDeleted()) {
                 create(remote);
             }
-        } else if (remote == null) {
+        } else if (remote == null && deleteAllowed(local)) {
             delete(local);
         } else {
             if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {

@@ -1,5 +1,6 @@
 package org.bf2.sync.informer;
 
+import java.util.Objects;
 import java.util.function.BiConsumer;
 
 import org.jboss.logging.Logger;
@@ -44,6 +45,9 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
 
     @Override
     public void onUpdate(T oldObj, T newObj) {
+        if (Objects.equals(oldObj.getMetadata().getResourceVersion(), newObj.getMetadata().getResourceVersion())) {
+            return;
+        }
         if (log.isTraceEnabled()) {
             log.tracef("Update event for %s", Cache.metaNamespaceKeyFunc(newObj));
         }
