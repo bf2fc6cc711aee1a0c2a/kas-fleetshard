@@ -1,9 +1,13 @@
 package org.bf2.systemtest.framework.resource;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -11,11 +15,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.test.Environment;
 import org.bf2.test.k8s.KubeClient;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
@@ -98,7 +99,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      * get common default managedkafka instance
      */
     public static ManagedKafka getDefault(String namespace, String appName) {
-        return new ManagedKafkaBuilder()
+        ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
                         new ObjectMetaBuilder()
                                 .withNamespace(namespace)
@@ -107,33 +108,40 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 .withSpec(
                         new ManagedKafkaSpecBuilder()
                                 .withNewVersions()
-                                    .withKafka("2.6.0")
-                                    .withStrimzi("0.21.1")
+                                .withKafka("2.7.0")
+                                .withStrimzi("0.22.0")
                                 .endVersions()
                                 .withNewCapacity()
-                                    .withNewIngressEgressThroughputPerSec("4Mi")
-                                    .withNewMaxDataRetentionPeriod("P14D")
-                                    .withNewMaxDataRetentionSize("100Gi")
-                                    .withTotalMaxConnections(500)
-                                    .withMaxPartitions(100)
+                                .withNewIngressEgressThroughputPerSec("4Mi")
+                                .withNewMaxDataRetentionPeriod("P14D")
+                                .withNewMaxDataRetentionSize("100Gi")
+                                .withTotalMaxConnections(500)
+                                .withMaxPartitions(100)
                                 .endCapacity()
                                 .withNewEndpoint()
-                                    .withNewBootstrapServerHost(String.format("%s.%s", appName, Environment.BOOTSTRAP_HOST_DOMAIN))
-                                    .withNewTls()
-                                        .withNewCert(Environment.ENDPOINT_TLS_CERT)
-                                        .withNewKey(Environment.ENDPOINT_TLS_KEY)
-                                    .endTls()
+                                .withNewBootstrapServerHost(String.format("%s.%s", appName, Environment.BOOTSTRAP_HOST_DOMAIN))
+                                .withNewTls()
+                                .withNewCert(Environment.ENDPOINT_TLS_CERT)
+                                .withNewKey(Environment.ENDPOINT_TLS_KEY)
+                                .endTls()
                                 .endEndpoint()
                                 .withNewOauth()
-                                    .withClientId(Environment.OAUTH_CLIENT_ID)
-                                    .withNewTlsTrustedCertificate(Environment.OAUTH_TLS_CERT)
-                                    .withClientSecret(Environment.OAUTH_CLIENT_SECRET)
-                                    .withUserNameClaim(Environment.OAUTH_USER_CLAIM)
-                                    .withNewJwksEndpointURI(Environment.OAUTH_JWKS_ENDPOINT)
-                                    .withNewTokenEndpointURI(Environment.OAUTH_TOKEN_ENDPOINT)
-                                    .withNewValidIssuerEndpointURI(Environment.OAUTH_ISSUER_ENDPOINT)
+                                .withClientId(Environment.OAUTH_CLIENT_ID)
+                                .withNewTlsTrustedCertificate(Environment.OAUTH_TLS_CERT)
+                                .withClientSecret(Environment.OAUTH_CLIENT_SECRET)
+                                .withUserNameClaim(Environment.OAUTH_USER_CLAIM)
+                                .withNewJwksEndpointURI(Environment.OAUTH_JWKS_ENDPOINT)
+                                .withNewTokenEndpointURI(Environment.OAUTH_TOKEN_ENDPOINT)
+                                .withNewValidIssuerEndpointURI(Environment.OAUTH_ISSUER_ENDPOINT)
                                 .endOauth()
                                 .build())
                 .build();
+        mk.setId(appName);
+        return mk;
+    }
+
+    public static String convertToJson(ManagedKafka kafka) throws JsonProcessingException {
+        ObjectWriter ow = new ObjectMapper().writer();
+        return ow.writeValueAsString(kafka);
     }
 }

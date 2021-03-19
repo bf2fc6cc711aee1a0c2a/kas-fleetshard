@@ -91,8 +91,9 @@ public class KubeClient {
 
     /**
      * Apply resources from files
+     *
      * @param namespace namessppace where to apply
-     * @param paths folders
+     * @param paths     folders
      */
     public void apply(String namespace, final Path... paths) throws Exception {
         apply(namespace, inputStream -> inputStream, paths);
@@ -132,7 +133,7 @@ public class KubeClient {
                     return FileVisitResult.CONTINUE;
                 }
 
-                if (!file.getFileName().toString().endsWith(".yaml")) {
+                if (!file.getFileName().toString().endsWith(".yaml") && !file.getFileName().toString().endsWith(".yml")) {
                     LOGGER.info("Skipping file: does not end with '.yaml': {}", file);
                     return FileVisitResult.CONTINUE;
                 }

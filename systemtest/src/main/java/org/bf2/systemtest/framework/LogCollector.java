@@ -2,6 +2,7 @@ package org.bf2.systemtest.framework;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
@@ -43,10 +44,12 @@ public class LogCollector {
         Files.writeString(logpath.resolve("pvs.log"), kube.cmdClient().exec(false, false, "describe", "pv").out());
         Files.writeString(logpath.resolve("routes.yml"), kube.cmdClient().exec(false, false, "get", "routes", "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("ingress.yml"), kube.cmdClient().exec(false, false, "get", "ingress", "--all-namespaces", "-o", "yaml").out());
-        Files.writeString(logpath.resolve("kas-fleetshard-operator-pods.yml"), kube.cmdClient().exec(false, false, "get", "pod", "-l", "app=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("kas-fleetshard-operator-pods.yml"), kube.cmdClient().exec(false, false, "get", "pod", "-l", "app=" + FleetShardOperatorManager.OPERATOR_NAME, "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("strimzi-kafka-pods.yml"), kube.cmdClient().exec(false, false, "get", "pod", "-l", "app.kubernetes.io/managed-by=strimzi-cluster-operator", "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("managedkafkas.yml"), kube.cmdClient().exec(false, false, "get", "managedkafka", "--all-namespaces", "-o", "yaml").out());
-        Files.writeString(logpath.resolve("kafkas.yml"), kube.cmdClient().exec(false, false, "get", "kafka", "-l", "app.kubernetes.io/managed-by=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("kafkas.yml"), kube.cmdClient().exec(false, false, "get", "kafka", "-l", "app.kubernetes.io/managed-by=" + FleetShardOperatorManager.OPERATOR_NAME, "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("pods-managed-by-operator.yml"), kube.cmdClient().exec(false, false, "get", "pods", "-l", "app.kubernetes.io/managed-by=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
+        Files.writeString(logpath.resolve("operator-log.yml"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
+        Files.writeString(logpath.resolve("sync-log.yml"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
     }
 }

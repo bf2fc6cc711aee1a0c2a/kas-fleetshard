@@ -32,14 +32,15 @@ public class Environment {
      */
     private static final String LOG_DIR_ENV = "LOG_DIR";
     private static final String CONFIG_FILE_PATH_ENV = "CONFIG_PATH";
-    private static final String YAML_BUNDLE_PATH_ENV = "YAML_BUNDLE_PATH";
+    private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
+    private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
     private static final String FLEET_SHARD_OPERATOR_IMAGE_ENV = "FLEET_SHARD_OPERATOR_IMAGE";
 
     /*
      * Vars for default managed kafka CR
      */
     private static final String BOOTSTRAP_HOST_DOMAIN_ENV = "BOOTSTRAP_HOST_DOMAIN";
-    private static final String OAUTH_CLIENT_SECRET_ENV = "OATH_CLIENT_SECRET";
+    private static final String OAUTH_CLIENT_SECRET_ENV = "OAUTH_CLIENT_SECRET";
     private static final String OAUTH_USER_CLAIM_ENV = "OAUTH_USER_CLAIM";
     private static final String OAUTH_JWKS_ENDPOINT_ENV = "OAUTH_JWKS_ENDPOINT";
     private static final String OAUTH_TOKEN_ENDPOINT_ENV = "OAUTH_TOKEN_ENDPOINT";
@@ -56,7 +57,8 @@ public class Environment {
     public static final String SUITE_ROOT = System.getProperty("user.dir");
     public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
     public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
-    public static final Path YAML_BUNDLE_PATH = getOrDefault(YAML_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "src", "main", "kubernetes"));
+    public static final Path YAML_OPERATOR_BUNDLE_PATH = getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "src", "main", "kubernetes"));
+    public static final Path YAML_SYNC_BUNDLE_PATH = getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
     public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
     public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
 
