@@ -1,6 +1,5 @@
 package org.bf2.operator.clients;
 
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 
 import org.bf2.common.AbstractCustomResourceClient;

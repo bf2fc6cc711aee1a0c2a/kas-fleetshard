@@ -73,10 +73,9 @@ public class ControlPlane {
      * newAgent is expected to be non-null
      */
     public void updateAgentStatus(ManagedKafkaAgent oldAgent, ManagedKafkaAgent newAgent) {
-        if (oldAgent != null
-                // as long as there are no spec changes, only a status change is updating the resource version
-                && !oldAgent.getMetadata().getResourceVersion().equals(newAgent.getMetadata().getResourceVersion())) {
-            // send a status update immediately (async)
+        if (oldAgent != null) {
+            // this is an update event in which the resourceVersion has changed
+            // it may be due to a spec change, but those happen infrequently
             updateAgentStatus();
         }
     }
