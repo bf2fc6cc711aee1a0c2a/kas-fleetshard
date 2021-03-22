@@ -45,15 +45,15 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
 
     @Override
     public void onUpdate(T oldObj, T newObj) {
+        // an update will also be generated for each resyncPeriodInMillis
+        // which is a way to ensure the consumer has an up-to-date state
+        // even if something is missed - we don't need to consider these
         if (Objects.equals(oldObj.getMetadata().getResourceVersion(), newObj.getMetadata().getResourceVersion())) {
             return;
         }
         if (log.isTraceEnabled()) {
             log.tracef("Update event for %s", Cache.metaNamespaceKeyFunc(newObj));
         }
-        // an update will also be generated for each resyncPeriodInMillis
-        // which is a way to ensure the consumer has an up-to-date state
-        // even if something is missed
         consumer.accept(oldObj, newObj);
     }
 

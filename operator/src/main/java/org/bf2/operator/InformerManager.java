@@ -152,6 +152,6 @@ public class InformerManager {
                 && hasLength(serviceSharedIndexInformer.lastSyncResourceVersion())
                 && hasLength(configMapSharedIndexInformer.lastSyncResourceVersion())
                 && hasLength(secretSharedIndexInformer.lastSyncResourceVersion())
-                && !routeSharedIndexInformer.lastSyncResourceVersion().isEmpty();
+                && hasLength(routeSharedIndexInformer.lastSyncResourceVersion());
     }
 }
