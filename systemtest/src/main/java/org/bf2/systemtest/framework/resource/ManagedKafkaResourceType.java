@@ -1,8 +1,5 @@
 package org.bf2.systemtest.framework.resource;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -138,10 +135,5 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 .build();
         mk.setId(appName);
         return mk;
-    }
-
-    public static String convertToJson(ManagedKafka kafka) throws JsonProcessingException {
-        ObjectWriter ow = new ObjectMapper().writer();
-        return ow.writeValueAsString(kafka);
     }
 }
