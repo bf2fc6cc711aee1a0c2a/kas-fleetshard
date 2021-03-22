@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.systemtest.framework.ThrowableSupplier;
 
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -50,10 +51,15 @@ public class SyncApiClient {
      *
      * @param apiRequest api request method
      */
-    private static <T> T retry(ThrowableSupplier<T> apiRequest) throws Exception {
+    private static <T> HttpResponse<T> retry(ThrowableSupplier<HttpResponse<T>> apiRequest) throws Exception {
         for (int i = 1; i < MAX_RESEND; i++) {
             try {
-                return apiRequest.get();
+                var res = apiRequest.get();
+                if (res.statusCode() >= HttpURLConnection.HTTP_OK && res.statusCode() <= HttpURLConnection.HTTP_PARTIAL) {
+                    return res;
+                } else {
+                    throw new Exception("Status code is " + res.statusCode());
+                }
             } catch (Exception ex) {
                 LOGGER.warn("Request failed {}, going to retry {}/{}", ex.getMessage(), i, MAX_RESEND);
                 Thread.sleep(1_000);
