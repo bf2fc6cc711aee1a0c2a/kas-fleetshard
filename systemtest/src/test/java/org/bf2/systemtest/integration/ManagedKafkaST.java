@@ -1,4 +1,4 @@
-package org.bf2.systemtest;
+package org.bf2.systemtest.integration;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.strimzi.api.kafka.KafkaList;
@@ -34,29 +34,28 @@ public class ManagedKafkaST extends AbstractST {
 
     @AfterAll
     void clean() throws InterruptedException {
-        FleetShardOperatorManager.deleteFleetShardOperator(kube);
+        FleetShardOperatorManager.deleteFleetShard(kube);
         StrimziOperatorManager.uninstallStrimziClusterWideResources(kube);
     }
 
     @Tag(TestTags.SMOKE)
     @ParallelTest
     void testDeployManagedKafka(ExtensionContext extensionContext) {
-        String mkAppName = "mk-create";
-        String testNamespace = "mk-test-create-check";
+        String mkAppName = "mk-test-create";
 
         var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
+        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(testNamespace, mkAppName);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
 
         resourceManager.createResource(extensionContext, mk);
 
-        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get());
-        assertNotNull(kafkacli.inNamespace(testNamespace).withName(mkAppName).get());
-        assertTrue(kube.client().pods().inNamespace(testNamespace).list().getItems().size() > 0);
+        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
+        assertNotNull(kafkacli.inNamespace(mkAppName).withName(mkAppName).get());
+        assertTrue(kube.client().pods().inNamespace(mkAppName).list().getItems().size() > 0);
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
@@ -68,16 +67,15 @@ public class ManagedKafkaST extends AbstractST {
 
     @ParallelTest
     void testCreateDeleteCreateSameManagedKafka(ExtensionContext extensionContext) throws Exception {
-        String mkAppName = "mk-create-delete";
-        String testNamespace = "mk-test-create-delete";
+        String mkAppName = "mk-test-create-delete";
 
         var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(testNamespace).endMetadata().build());
+        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(testNamespace, mkAppName);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
         resourceManager.createResource(extensionContext, mk);
 
         LOGGER.info("Remove managedKafka");
@@ -89,9 +87,9 @@ public class ManagedKafkaST extends AbstractST {
 
         assertTrue(ManagedKafkaResourceType.getOperation().inAnyNamespace().list().getItems().size() > 0);
 
-        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(testNamespace).withName(mkAppName).get());
-        assertNotNull(kafkacli.inNamespace(testNamespace).withName(mkAppName).get());
-        assertTrue(kube.client().pods().inNamespace(testNamespace).list().getItems().size() > 0);
+        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
+        assertNotNull(kafkacli.inNamespace(mkAppName).withName(mkAppName).get());
+        assertTrue(kube.client().pods().inNamespace(mkAppName).list().getItems().size() > 0);
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());

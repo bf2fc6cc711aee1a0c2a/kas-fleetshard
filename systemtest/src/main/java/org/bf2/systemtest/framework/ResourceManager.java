@@ -67,6 +67,16 @@ public class ResourceManager {
     };
 
     @SafeVarargs
+    public final <T extends HasMetadata> void addAlreadyCreatedResources(ExtensionContext testContext, T... resources) {
+        for (T resource : resources) {
+            synchronized (this) {
+                storedResources.computeIfAbsent(testContext.getDisplayName(), k -> new Stack<>());
+                storedResources.get(testContext.getDisplayName()).push(() -> deleteResource(resource));
+            }
+        }
+    }
+
+    @SafeVarargs
     public final <T extends HasMetadata> void createResource(ExtensionContext testContext, TimeoutBudget waitDuration, T... resources) {
         createResource(testContext, true, waitDuration, resources);
     }

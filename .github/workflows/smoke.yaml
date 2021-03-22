@@ -27,7 +27,7 @@ jobs:
 
       - name: Build and push operator
         run: |
-          mvn clean package -pl operator -am -DskipTests --no-transfer-progress \
+          mvn package -pl operator -am -DskipTests --no-transfer-progress \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.group=bf2 \
@@ -36,6 +36,19 @@ jobs:
           -Dquarkus.container-image.registry=localhost:5000 \
           -Dquarkus.container-image.insecure=true \
           -Dkafka=dev
+
+      - name: Build and push sync
+        run: |
+          mvn package -pl sync -am -DskipTests --no-transfer-progress \
+          -Dquarkus.container-image.build=true \
+          -Dquarkus.container-image.push=true \
+          -Dquarkus.container-image.group=bf2 \
+          -Dquarkus.container-image.name=kas-fleetshard-sync \
+          -Dquarkus.container-image.tag=latest \
+          -Dquarkus.container-image.registry=localhost:5000 \
+          -Dquarkus.container-image.insecure=true \
+          -Dkafka=dev \
+          -Dquarkus.profile=test
 
       - name: Run smoke test
         run: |

@@ -6,6 +6,7 @@
 * kubectl/oc client installed
 * connected to a running kubernetes/openshift cluster
 * image of operator is built and stored in any container registry
+* image of sync is built with `quarkus.profile=test` and stored in any container registry
 
 ### Information
 * suite installs latest released strimzi operator

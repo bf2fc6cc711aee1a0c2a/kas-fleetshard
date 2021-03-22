@@ -1,4 +1,4 @@
-package org.bf2.systemtest.suite;
+package org.bf2.systemtest.unit;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
@@ -10,7 +10,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.AbstractST;
+import org.bf2.systemtest.integration.AbstractST;
 import org.bf2.test.executor.Exec;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.executor.ExecResult;
