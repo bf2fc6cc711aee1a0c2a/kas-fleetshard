@@ -50,6 +50,6 @@ public class LogCollector {
         Files.writeString(logpath.resolve("kafkas.yml"), kube.cmdClient().exec(false, false, "get", "kafka", "-l", "app.kubernetes.io/managed-by=" + FleetShardOperatorManager.OPERATOR_NAME, "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("pods-managed-by-operator.yml"), kube.cmdClient().exec(false, false, "get", "pods", "-l", "app.kubernetes.io/managed-by=kas-fleetshard-operator", "--all-namespaces", "-o", "yaml").out());
         Files.writeString(logpath.resolve("operator-log.yml"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
-        Files.writeString(logpath.resolve("sync-log.yml"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
+        Files.writeString(logpath.resolve("sync-log.yml"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.SYNC_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
     }
 }
