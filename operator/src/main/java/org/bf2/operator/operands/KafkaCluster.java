@@ -129,7 +129,27 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
+        // delete "old" Kafka and ZooKeeper metrics ConfigMaps
+        deleteOldMetricsConfigMaps(managedKafka);
+
         super.createOrUpdate(managedKafka);
+    }
+
+    /**
+     * Delete "old" Kafka and ZooKeeper metrics ConfigMaps
+     * NOTE:
+     * Fleetshard 0.0.1 version was using Kafka and ZooKeeper metrics ConfigMaps without Kafka instance name prefixed.
+     * Going to delete them, because the new ones are created in the new format.
+     *
+     * @param managedKafka
+     */
+    private void deleteOldMetricsConfigMaps(ManagedKafka managedKafka) {
+        if (cachedConfigMap(managedKafka, "kafka-metrics") != null) {
+            configMapResource(managedKafka, "kafka-metrics").delete();
+        }
+        if (cachedConfigMap(managedKafka, "zookeeper-metrics") != null) {
+            configMapResource(managedKafka, "zookeeper-metrics").delete();
+        }
     }
 
     @Override
