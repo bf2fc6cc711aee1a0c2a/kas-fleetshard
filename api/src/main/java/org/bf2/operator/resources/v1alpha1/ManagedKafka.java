@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.dekorate.crd.annotation.Crd;
 import io.fabric8.kubernetes.api.model.Namespaced;
@@ -25,6 +26,7 @@ import io.sundr.builder.annotations.BuildableReference;
 @Group("managedkafka.bf2.org")
 @Version("v1alpha1")
 @Crd(group = "managedkafka.bf2.org", version = "v1alpha1")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 
     public final static String BF2_DOMAIN = "bf2.org/";

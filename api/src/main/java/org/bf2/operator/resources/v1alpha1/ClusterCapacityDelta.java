@@ -1,0 +1,44 @@
+package org.bf2.operator.resources.v1alpha1;
+
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.sundr.builder.annotations.Buildable;
+
+@Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
+public class ClusterCapacityDelta {
+    private Quantity ingressEgressThroughputPerSec;
+    private Integer connections;
+    private Quantity dataRetentionSize;
+    private Integer maxPartitions;
+
+    public Quantity getIngressEgressThroughputPerSec() {
+        return ingressEgressThroughputPerSec;
+    }
+
+    public void setIngressEgressThroughputPerSec(Quantity ingressEgressThroughputPerSec) {
+        this.ingressEgressThroughputPerSec = ingressEgressThroughputPerSec;
+    }
+
+    public Integer getConnections() {
+        return connections;
+    }
+
+    public void setConnections(Integer connections) {
+        this.connections = connections;
+    }
+
+    public Quantity getDataRetentionSize() {
+        return dataRetentionSize;
+    }
+
+    public void setDataRetentionSize(Quantity dataRetentionSize) {
+        this.dataRetentionSize = dataRetentionSize;
+    }
+
+    public Integer getMaxPartitions() {
+        return maxPartitions;
+    }
+
+    public void setMaxPartitions(Integer partitions) {
+        this.maxPartitions = partitions;
+    }
+}

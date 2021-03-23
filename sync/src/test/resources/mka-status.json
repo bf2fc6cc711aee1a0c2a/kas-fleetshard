@@ -1,0 +1,36 @@
+{
+       "conditions": [{
+           "type": "Ready",
+           "reason": "AgentReady",
+           "message": "agent ready to process managedkafka resources",
+           "status": "True",
+           "lastTransitionTime": "2021-03-03T00:00:00Z"
+       }],
+       "total": {
+           "ingressEgressThroughputPerSec": "40Gi",
+           "connections": 10000,
+           "dataRetentionSize": "40Gi",
+           "partitions": 10000
+       },
+       "remaining": {
+           "ingressEgressThroughputPerSec": "34Gi",
+           "connections": 800,
+           "dataRetentionSize": "36Gi",
+           "partitions": 2000
+       },
+       "nodeInfo": {
+           "ceiling": 15,
+           "floor": 3,
+           "current": 3,
+           "currentWorkLoadMinimum": 3
+       },
+       "resizeInfo": {
+           "nodeDelta": 3,
+           "delta":{
+               "ingressEgressThroughputPerSec": "12Gi",
+               "connections": 1000,
+               "dataRetentionSize": "10Gi",
+               "maxPartitions": 3000
+           }
+       }
+}
