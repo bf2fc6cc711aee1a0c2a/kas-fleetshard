@@ -196,3 +196,18 @@ data:
           kafka.network<type=RequestMetrics, name=TotalTimeMs,
           (.+)=(.+)><>(\d+)thPercentile
         type: GAUGE
+      - pattern: kafka.server<type=socket-server-metrics, listener=(.+), networkProcessor=(.+)><>connection-count
+        name: kafka_server_socket_listener_connection_count
+        type: GAUGE
+        labels:
+          listener: "$1"
+          networkProcessor: "$2"
+      - pattern: kafka.server<type=socket-server-metrics, listener=(.+), networkProcessor=(.+)><>connection-creation-rate
+        name: kafka_server_socket_listener_connection_creation_rate
+        type: GAUGE
+        labels:
+          listener: "$1"
+          networkProcessor: "$2"
+      - pattern: kafka.server<type=socket-server-metrics><>broker-connection-accept-rate
+        name: kafka_server_socket_broker_connection_accept_rate
+        type: GAUGE
