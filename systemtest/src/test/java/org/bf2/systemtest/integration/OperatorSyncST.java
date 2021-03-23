@@ -57,6 +57,7 @@ public class OperatorSyncST extends AbstractST {
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
+        //Create mk using api
         resourceManager.addAlreadyCreatedResources(extensionContext, mk);
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
@@ -73,6 +74,15 @@ public class OperatorSyncST extends AbstractST {
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
 
+        //get created mk using api
+        res = SyncApiClient.getKafkas(syncEndpoint);
+        assertEquals(HttpURLConnection.HTTP_OK, res.statusCode());
+        List<ManagedKafka> kafkas = SyncApiClient.getKafkasFromResponse(res).getItems();
+        assertEquals(1, kafkas.size());
+        assertEquals(mk.getId(), kafkas.get(0).getId());
+        assertEquals(mk.getMetadata().getName(), kafkas.get(0).getMetadata().getName());
+
+        //delete mk using api
         res = SyncApiClient.deleteManagedKafka(mkAppName, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
