@@ -3,6 +3,7 @@ package org.bf2.systemtest.operator;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -63,15 +64,26 @@ public class FleetShardOperatorManager {
     }
 
     public static String createEndpoint(KubeClient kubeClient) {
+        String externalEndpointName = SYNC_NAME + "-external";
         if (kubeClient.isGenericKubernetes()) {
-            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME, "--type=LoadBalancer", "--name", SYNC_NAME + "-external");
+            if (kubeClient.client().services().inNamespace(OPERATOR_NS).list().getItems().stream().anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
+                kubeClient.client().services().inNamespace(OPERATOR_NS).withName(externalEndpointName).delete();
+            }
+            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME, "--type=LoadBalancer", "--name", externalEndpointName);
             return new ExecBuilder()
-                    .withCommand("minikube", "service", "--url", SYNC_NAME + "-external", "-n", "kas-fleetshard")
+                    .withCommand("minikube", "service", "--url", externalEndpointName, "-n", OPERATOR_NS)
                     .logToOutput(false)
                     .exec().out().trim();
         } else {
-            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME);
-            return "http://" + kubeClient.client().adapt(OpenShiftClient.class).routes().inNamespace(OPERATOR_NS).withName(SYNC_NAME).get().getSpec().getHost() + ":80";
+            OpenShiftClient openShiftClient = kubeClient.client().adapt(OpenShiftClient.class);
+            if (openShiftClient.routes().inNamespace(OPERATOR_NS).list().getItems().stream().anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
+                openShiftClient.routes().inNamespace(OPERATOR_NS).withName(externalEndpointName).delete();
+            }
+            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME, "--name", externalEndpointName);
+            Route r = openShiftClient.routes().inNamespace(OPERATOR_NS).withName(externalEndpointName).get();
+            return String.format("%s://%s:%d", r.getSpec().getPort().getTargetPort().getStrVal(),
+                    r.getSpec().getHost(),
+                    r.getSpec().getPort().getTargetPort().getStrVal().equals("http") ? 80 : 443);
         }
     }
 
