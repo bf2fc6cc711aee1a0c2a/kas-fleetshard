@@ -1,11 +1,9 @@
 package org.bf2.systemtest.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.systemtest.framework.ThrowableSupplier;
 
 import java.net.HttpURLConnection;
@@ -46,24 +44,6 @@ public class SyncApiClient {
                 .timeout(Duration.ofMinutes(2))
                 .build();
         return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
-    }
-
-    public static HttpResponse<String> getKafkas(String endpoint) throws Exception {
-        LOGGER.info("Get managed kafkas");
-        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/");
-        LOGGER.info("Sending GET request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
-
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .GET()
-                .timeout(Duration.ofMinutes(2))
-                .build();
-        return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
-    }
-
-    public static ManagedKafkaList getKafkasFromResponse(HttpResponse<String> response) throws JsonProcessingException {
-        return Serialization.jsonMapper().readValue(response.body(), ManagedKafkaList.class);
     }
 
     /**
