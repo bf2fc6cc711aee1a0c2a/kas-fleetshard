@@ -47,14 +47,6 @@ public class AgentPollerTest {
     public void testAddDelete() {
         assertNull(lookup.getLocalManagedKafkaAgent());
 
-        Mockito.when(controlPlaneRestClient.get(CLUSTER_ID)).thenThrow(new WebApplicationException(404));
-
-        managedKafkaAgentSync.loop(); // pick up the agent from the secret
-
-        ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
-        assertNotNull(local);
-        assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
-
         ManagedKafkaAgent managedKafkaAgent = new ManagedKafkaAgentBuilder()
                 .withSpec(new ManagedKafkaAgentSpecBuilder().withNewObservability().withAccessToken("xyz").endObservability().build())
                 .build();
@@ -64,7 +56,7 @@ public class AgentPollerTest {
 
         managedKafkaAgentSync.loop(); // pick up the agent from the control plane
 
-        local = lookup.getLocalManagedKafkaAgent();
+        ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
         local.setStatus(new ManagedKafkaAgentStatusBuilder()
                 .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build()).build());
         client.updateStatus(local);

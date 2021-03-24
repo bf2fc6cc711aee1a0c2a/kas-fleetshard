@@ -17,19 +17,25 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
+import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.bf2.sync.ManagedKafkaAgentSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
@@ -60,7 +66,21 @@ public class MockControlPlane implements ControlPlaneApi {
 
     @PostConstruct
     void initAgent() {
-        agent = agentSync.createAgentFromConfig();
+     // Observability repository information
+        ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
+                .withAccessToken("test-token")
+                .withChannel("test")
+                .withTag("test-tag")
+                .withRepository("test-repo")
+                .build();
+
+        agent = new ManagedKafkaAgentBuilder()
+                .withSpec(new ManagedKafkaAgentSpecBuilder()
+                        .withObservability(observabilityConfig)
+                        .build())
+                .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
+                        .build())
+                .build();
     }
 
     // Unique Id for the clusters

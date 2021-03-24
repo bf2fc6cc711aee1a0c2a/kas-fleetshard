@@ -1,24 +1,15 @@
 package org.bf2.sync;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.quarkus.scheduler.Scheduled;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
-import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
-import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import java.net.HttpURLConnection;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-import javax.ws.rs.WebApplicationException;
+import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
 public class ManagedKafkaAgentSync {
@@ -32,18 +23,6 @@ public class ManagedKafkaAgentSync {
     @Inject
     LocalLookup lookup;
 
-    @ConfigProperty(name = "observability.access-token")
-    String accessToken;
-
-    @ConfigProperty(name = "observability.channel")
-    String channel;
-
-    @ConfigProperty(name = "observability.repository")
-    String repository;
-
-    @ConfigProperty(name = "observability.tag")
-    String tag;
-
     @Inject
     ControlPlane controlPlane;
 
@@ -53,16 +32,7 @@ public class ManagedKafkaAgentSync {
             log.debug("Not ready to poll, the lookup is not ready");
             return;
         }
-        ManagedKafkaAgent managedKafkaAgent = null;
-        try {
-            managedKafkaAgent = controlPlane.getManagedKafkaAgent();
-            // we're assuming non-null from the control plane
-        } catch (WebApplicationException e) {
-            if (e.getResponse().getStatus() != HttpURLConnection.HTTP_NOT_FOUND) {
-                throw e;
-            }
-            managedKafkaAgent = createAgentFromConfig();
-        }
+        ManagedKafkaAgent managedKafkaAgent = controlPlane.getManagedKafkaAgent();
         createOrUpdateManagedKafkaAgent(managedKafkaAgent);
     }
 
@@ -87,22 +57,4 @@ public class ManagedKafkaAgentSync {
         }
     }
 
-    public ManagedKafkaAgent createAgentFromConfig() {
-        // Observability repository information
-        ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
-                .withAccessToken(this.accessToken)
-                .withChannel(this.channel)
-                .withTag(this.tag)
-                .withRepository(this.repository)
-                .build();
-
-        return new ManagedKafkaAgentBuilder()
-                .withSpec(new ManagedKafkaAgentSpecBuilder()
-                        .withObservability(observabilityConfig)
-                        .build())
-                .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
-                        .withNamespace(agentClient.getNamespace())
-                        .build())
-                .build();
-    }
 }
