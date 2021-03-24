@@ -2,7 +2,6 @@ package org.bf2.sync.controlplane;
 
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,14 +25,11 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.bf2.sync.ManagedKafkaAgentSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
 
@@ -41,8 +37,6 @@ import io.quarkus.scheduler.Scheduled;
 @UnlessBuildProfile("prod")
 @Path(ControlPlaneApi.BASE_PATH)
 public class MockControlPlane implements ControlPlaneApi {
-
-    private static final String CERT = "cert";
 
     @Inject
     Logger log;
@@ -66,45 +60,6 @@ public class MockControlPlane implements ControlPlaneApi {
     // Unique Id for the clusters
     private AtomicInteger clusterIdGenerator = new AtomicInteger(1);
 
-    private ManagedKafka createManagedKafka(int id) {
-        ManagedKafka mk = new ManagedKafka();
-        mk.setSpec(new ManagedKafkaSpecBuilder()
-                .withVersions(new VersionsBuilder().withKafka("2.6.0").withStrimzi("0.21.1").build())
-                .withNewCapacity()
-                    .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
-                    .withTotalMaxConnections(100)
-                    .withMaxDataRetentionPeriod("P14D")
-                    .withMaxDataRetentionSize(Quantity.parse("50Gi"))
-                    .withMaxPartitions(100)
-                .endCapacity()
-                .withNewOauth()
-                    .withClientId("clientId")
-                    .withClientSecret("secret")
-                    .withUserNameClaim("claim")
-                    .withJwksEndpointURI("http://jwks")
-                    .withTokenEndpointURI("https://token")
-                    .withValidIssuerEndpointURI("http://issuer")
-                    .withUserNameClaim("claim")
-                    .withTlsTrustedCertificate(CERT)
-                .endOauth()
-                .withNewEndpoint()
-                    .withBootstrapServerHost("xyz.com")
-                    .withNewTls()
-                        .withCert(CERT)
-                        .withKey(CERT)
-                    .endTls()
-                .endEndpoint()
-                .build());
-        mk.setId(clusterName(id));
-        mk.setPlacementId(UUID.randomUUID().toString());
-        mk.getMetadata().setName("kluster-"+clusterName(id));
-        return mk;
-    }
-
-    private String clusterName(int i) {
-        return "user-"+i;
-    }
-
     @Scheduled(every = "{poll.interval}")
     void loop() {
 
@@ -120,7 +75,7 @@ public class MockControlPlane implements ControlPlaneApi {
         if (this.kafkas.size() == 0) {
             int max = Math.abs(random.nextInt(maxKafkas));
             for (int i = 0; i < max; i++) {
-                ManagedKafka k = createManagedKafka(this.clusterIdGenerator.getAndIncrement());
+                ManagedKafka k = ManagedKafka.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
                 log.infof("control plane::marking %s for addition", k.getId());
                 this.kafkas.put(k.getId(), k);
             }
@@ -142,7 +97,7 @@ public class MockControlPlane implements ControlPlaneApi {
 
         // selectively add
         if (this.kafkas.size() < maxKafkas && random.nextBoolean()) {
-            ManagedKafka k = createManagedKafka(this.clusterIdGenerator.getAndIncrement());
+            ManagedKafka k = ManagedKafka.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
             log.infof("control plane:: creating a new cluster %s ", k.getId());
             this.kafkas.put(k.getId(), k);
         }
