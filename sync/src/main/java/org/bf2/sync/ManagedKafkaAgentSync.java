@@ -32,7 +32,7 @@ public class ManagedKafkaAgentSync {
     @Inject
     LocalLookup lookup;
 
-    @ConfigProperty(name = "observability.access_token")
+    @ConfigProperty(name = "observability.access-token")
     String accessToken;
 
     @ConfigProperty(name = "observability.channel")
