@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>org.bf2</groupId>
-            <artifactId>kas-fleetshard-api</artifactId>
+            <artifactId>kas-fleetshard-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
@@ -30,8 +30,8 @@
             <artifactId>quarkus-kubernetes-client</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-openshift-client</artifactId>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-client</artifactId>
         </dependency>
         <dependency>
             <groupId>io.strimzi</groupId>

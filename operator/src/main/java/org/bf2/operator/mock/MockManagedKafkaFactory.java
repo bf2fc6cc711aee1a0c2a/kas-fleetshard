@@ -44,7 +44,7 @@ public class MockManagedKafkaFactory {
         if (this.kafkas.size() == 0) {
             int max = Math.abs(random.nextInt(maxKafkas));
             for (int i = 0; i < max; i++) {
-                ManagedKafka k = ManagedKafka.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+                ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
                 log.infof("Mock ManagedKafka Factory::marking %s for addition", k.getId());
                 this.kafkas.put(k.getId(), k);
                 mkClient.create(k);
@@ -67,7 +67,7 @@ public class MockManagedKafkaFactory {
 
         // selectively add
         if (this.kafkas.size() < maxKafkas && random.nextBoolean()) {
-            ManagedKafka k = ManagedKafka.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+            ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
             log.infof("Mock ManagedKafka Factory:: creating a new cluster %s ", k.getId());
             this.kafkas.put(k.getId(), k);
             mkClient.create(k);
