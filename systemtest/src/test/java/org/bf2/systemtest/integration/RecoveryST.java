@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.systemtest.framework.TimeoutBudget;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -56,7 +59,7 @@ public class RecoveryST extends AbstractST {
                 "False".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)));
 
         resourceManager.waitResourceCondition(mk, m ->
-                "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)));
+                "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)), TimeoutBudget.ofDuration(Duration.ofMinutes(10)));
 
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
         assertNotNull(kafkacli.inNamespace(mkAppName).withName(mkAppName).get());
