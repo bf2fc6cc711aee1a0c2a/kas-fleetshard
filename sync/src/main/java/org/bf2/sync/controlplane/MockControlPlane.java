@@ -8,7 +8,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -31,6 +33,7 @@ import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.sync.ManagedKafkaAgentSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
@@ -51,15 +54,16 @@ public class MockControlPlane implements ControlPlaneApi {
 
     // current active clusters
     Map<String, ManagedKafka> kafkas = new ConcurrentHashMap<String, ManagedKafka>();
+    Map<String, ManagedKafkaStatus> kafkaStatus = new ConcurrentHashMap<String, ManagedKafkaStatus>();
 
     @Inject
     ManagedKafkaAgentSync agentSync;
 
     volatile ManagedKafkaAgent agent;
+    volatile ManagedKafkaAgentStatus agentStatus;
 
     @PostConstruct
     void initAgent() {
-     // Observability repository information
         ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
                 .withAccessToken("test-token")
                 .withChannel("test")
@@ -149,6 +153,7 @@ public class MockControlPlane implements ControlPlaneApi {
     @Override
     public void updateStatus(@PathParam("id") String id, ManagedKafkaAgentStatus status){
         log.infof("control plane::updateAgentStatus (capacity) <- Received %s", status);
+        this.agentStatus = status;
     }
 
     @Override
@@ -169,6 +174,9 @@ public class MockControlPlane implements ControlPlaneApi {
                 if (mk.getSpec().isDeleted() && isDeleted(v)) {
                     log.infof("control plane:: Removing cluster %s as it is deleted", mk.getId());
                     this.kafkas.remove(k);
+                    this.kafkaStatus.remove(k);
+                } else {
+                    this.kafkaStatus.put(k, v);
                 }
             }
         });
@@ -182,6 +190,7 @@ public class MockControlPlane implements ControlPlaneApi {
     @POST
     @Path("/{id}/kafkas")
     @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     public void createCluster(ManagedKafka mk) {
         this.kafkas.put(mk.getId(), mk);
         log.infof("control plane:: Received request to create/update ManagedKafka %s", mk.getId());
@@ -198,9 +207,24 @@ public class MockControlPlane implements ControlPlaneApi {
     @PUT
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
     public void createAgent(ManagedKafkaAgent agent) {
         log.infof("control plane:: Received request to create agent %s", agent);
         this.agent = agent;
+    }
+
+    @GET
+    @Path("/{id}/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    public ManagedKafkaAgentStatus getStatus() {
+        return this.agentStatus;
+    }
+
+    @GET
+    @Path("/{id}/kafkas/{clusterid}/status")
+    @Produces(MediaType.APPLICATION_JSON)
+    public ManagedKafkaStatus getClusterStatus(@PathParam("clusterid") String clusterId) {
+        return this.kafkaStatus.get(clusterId);
     }
 
 }
