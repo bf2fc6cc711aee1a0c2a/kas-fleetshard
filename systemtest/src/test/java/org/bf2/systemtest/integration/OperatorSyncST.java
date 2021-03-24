@@ -54,11 +54,10 @@ public class OperatorSyncST extends AbstractST {
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
         var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
 
-        LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
-
         //Create mk using api
-        resourceManager.addAlreadyCreatedResources(extensionContext, mk);
+        resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.addResource(extensionContext, mk);
+
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 

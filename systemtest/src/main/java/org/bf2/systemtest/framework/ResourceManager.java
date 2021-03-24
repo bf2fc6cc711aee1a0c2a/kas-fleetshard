@@ -67,7 +67,7 @@ public class ResourceManager {
     };
 
     @SafeVarargs
-    public final <T extends HasMetadata> void addAlreadyCreatedResources(ExtensionContext testContext, T... resources) {
+    public final <T extends HasMetadata> void addResource(ExtensionContext testContext, T... resources) {
         for (T resource : resources) {
             synchronized (this) {
                 storedResources.computeIfAbsent(testContext.getDisplayName(), k -> new Stack<>());
