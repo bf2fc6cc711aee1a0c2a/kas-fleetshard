@@ -9,6 +9,8 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.operator.operands.ObservabilityManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
+import org.bf2.operator.resources.v1alpha1.ClusterCapacityDelta;
+import org.bf2.operator.resources.v1alpha1.ClusterCapacityDeltaBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -119,11 +121,11 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .withPartitions(10000)
                 .build();
 
-        ClusterCapacity delta = new ClusterCapacityBuilder()
+        ClusterCapacityDelta delta = new ClusterCapacityDeltaBuilder()
                 .withConnections(10000)
                 .withDataRetentionSize(Quantity.parse("40Gi"))
                 .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
-                .withPartitions(10000)
+                .withMaxPartitions(10000)
                 .build();
 
         NodeCounts nodeInfo = new NodeCountsBuilder()
