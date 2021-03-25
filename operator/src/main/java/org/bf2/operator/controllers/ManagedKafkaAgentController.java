@@ -50,9 +50,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     AgentResourceClient agentClient;
 
-    @ConfigProperty(name = "kubernetes.namespace", defaultValue = "test")
-    String namespace;
-
     @ConfigProperty(name = "cluster.id", defaultValue = "testing")
     String clusterId;
 
@@ -61,7 +58,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
-        log.infof("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.namespace);
+        log.infof("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.agentClient.getNamespace());
 
         // nothing to do as resource cleanup, just ack.
         return DeleteControl.DEFAULT_DELETE;
@@ -83,11 +80,11 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         try {
-            ManagedKafkaAgent resource = this.agentClient.getByName(this.namespace, AgentResourceClient.RESOURCE_NAME);
+            ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
             if (resource != null) {
                 // check and reinstate if the observability config changed
                 this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
-                log.debugf("Tick to update Kafka agent Status in namespace %s", this.namespace);
+                log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
                 resource.setStatus(buildStatus(resource));
                 this.agentClient.updateStatus(resource);
             }
@@ -125,7 +122,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .withConnections(10000)
                 .withDataRetentionSize(Quantity.parse("40Gi"))
                 .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
-                .withMaxPartitions(10000)
+                .withPartitions(10000)
                 .build();
 
         NodeCounts nodeInfo = new NodeCountsBuilder()

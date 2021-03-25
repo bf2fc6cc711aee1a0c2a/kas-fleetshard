@@ -11,8 +11,10 @@ import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @ApplicationScoped
 public class ObservabilityManager {
@@ -55,11 +57,9 @@ public class ObservabilityManager {
     }
 
     static boolean isObservabilityStatusAccepted(Secret cm) {
-        String status = cm.getMetadata().getAnnotations().get("observability-operator/status");
-        if (status != null && status.equalsIgnoreCase("accepted")) {
-            return true;
-        }
-        return false;
+        Map<String, String> annotations = Objects.requireNonNullElse(cm.getMetadata().getAnnotations(), Collections.emptyMap());
+        String status = annotations.get("observability-operator/status");
+        return "accepted".equalsIgnoreCase(status);
     }
 
     Resource<Secret> observabilitySecretResource() {
