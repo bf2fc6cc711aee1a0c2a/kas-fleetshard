@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.SimpleManagedKafkaFactory;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.test.Environment;
@@ -95,7 +96,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      * get common default managedkafka instance
      */
     public static ManagedKafka getDefault(String namespace, String appName) {
-        return ManagedKafkaResourceClient.getDefault(appName, namespace, Environment.BOOTSTRAP_HOST_DOMAIN,
+        return new SimpleManagedKafkaFactory().getDefault(appName, namespace, Environment.BOOTSTRAP_HOST_DOMAIN,
                 Environment.ENDPOINT_TLS_CERT, Environment.ENDPOINT_TLS_KEY, Environment.OAUTH_CLIENT_ID,
                 Environment.OAUTH_TLS_CERT, Environment.OAUTH_CLIENT_SECRET, Environment.OAUTH_USER_CLAIM,
                 Environment.OAUTH_JWKS_ENDPOINT, Environment.OAUTH_TOKEN_ENDPOINT, Environment.OAUTH_ISSUER_ENDPOINT);

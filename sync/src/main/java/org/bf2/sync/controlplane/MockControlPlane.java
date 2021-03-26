@@ -21,6 +21,7 @@ import javax.ws.rs.core.MediaType;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.SimpleManagedKafkaFactory;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
@@ -46,6 +47,9 @@ public class MockControlPlane implements ControlPlaneApi {
 
     @Inject
     Logger log;
+
+    @Inject
+    SimpleManagedKafkaFactory simpleManagedKafkaFactory;
 
     @ConfigProperty(name="sync.mock-control-plane.simulate", defaultValue = "false")
     boolean runSimulation;
@@ -99,7 +103,7 @@ public class MockControlPlane implements ControlPlaneApi {
         if (this.kafkas.size() == 0) {
             int max = Math.abs(random.nextInt(maxKafkas));
             for (int i = 0; i < max; i++) {
-                ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+                ManagedKafka k = simpleManagedKafkaFactory.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
                 log.infof("control plane::marking %s for addition", k.getId());
                 this.kafkas.put(k.getId(), k);
             }
@@ -121,7 +125,7 @@ public class MockControlPlane implements ControlPlaneApi {
 
         // selectively add
         if (this.kafkas.size() < maxKafkas && random.nextBoolean()) {
-            ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+            ManagedKafka k = simpleManagedKafkaFactory.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
             log.infof("control plane:: creating a new cluster %s ", k.getId());
             this.kafkas.put(k.getId(), k);
         }

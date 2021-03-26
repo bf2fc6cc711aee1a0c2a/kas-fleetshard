@@ -4,6 +4,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.SimpleManagedKafkaFactory;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -25,6 +26,9 @@ public class MockManagedKafkaFactory {
     @Inject
     ManagedKafkaResourceClient mkClient;
 
+    @Inject
+    SimpleManagedKafkaFactory simpleManagedKafkaFactory;
+
     @ConfigProperty(name="mock.factory.max-managedkafka", defaultValue = "3")
     int maxKafkas;
 
@@ -44,7 +48,7 @@ public class MockManagedKafkaFactory {
         if (this.kafkas.size() == 0) {
             int max = Math.abs(random.nextInt(maxKafkas));
             for (int i = 0; i < max; i++) {
-                ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+                ManagedKafka k = simpleManagedKafkaFactory.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
                 log.infof("Mock ManagedKafka Factory::marking %s for addition", k.getId());
                 this.kafkas.put(k.getId(), k);
                 mkClient.create(k);
@@ -67,7 +71,7 @@ public class MockManagedKafkaFactory {
 
         // selectively add
         if (this.kafkas.size() < maxKafkas && random.nextBoolean()) {
-            ManagedKafka k = ManagedKafkaResourceClient.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
+            ManagedKafka k = simpleManagedKafkaFactory.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
             log.infof("Mock ManagedKafka Factory:: creating a new cluster %s ", k.getId());
             this.kafkas.put(k.getId(), k);
             mkClient.create(k);
