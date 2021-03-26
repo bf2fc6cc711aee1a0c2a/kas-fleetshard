@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +51,11 @@ public class ObservabilityManagerTest {
         secret = observabilityManager.observabilitySecretResource().get();
         assertNotNull(secret);
 
+        // the mock informermanager should be immediately updated, but it should
+        // not be seen as running
+        assertNotNull(observabilityManager.cachedObservabilitySecret());
+        assertFalse(observabilityManager.isObservabilityRunning());
+
         ObservabilityConfiguration secretConfig = new ObservabilityConfigurationBuilder()
                 .withAccessToken(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))))
                 .withChannel(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))))
@@ -63,7 +69,7 @@ public class ObservabilityManagerTest {
 
         // status verification, the Informers do not work in test framework thus direct verification
         secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config).editMetadata()
-            .addToAnnotations("observability-operator/status", "accepted").endMetadata().build();
+            .addToAnnotations(ObservabilityManager.OBSERVABILITY_OPERATOR_STATUS, ObservabilityManager.ACCEPTED).endMetadata().build();
         observabilityManager.observabilitySecretResource().createOrReplace(secret);
         assertTrue(ObservabilityManager.isObservabilityStatusAccepted(secret));
     }

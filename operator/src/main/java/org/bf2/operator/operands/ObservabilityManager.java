@@ -23,6 +23,8 @@ public class ObservabilityManager {
     static final String OBSERVABILITY_ACCESS_TOKEN = "access_token";
     static final String OBSERVABILITY_TAG = "tag";
     public static final String OBSERVABILITY_SECRET_NAME = "fleetshard-observability";
+    public static final String OBSERVABILITY_OPERATOR_STATUS = "observability-operator/status";
+    public static final String ACCEPTED = "accepted";
 
     @Inject
     KubernetesClient client;
@@ -58,15 +60,15 @@ public class ObservabilityManager {
 
     static boolean isObservabilityStatusAccepted(Secret cm) {
         Map<String, String> annotations = Objects.requireNonNullElse(cm.getMetadata().getAnnotations(), Collections.emptyMap());
-        String status = annotations.get("observability-operator/status");
-        return "accepted".equalsIgnoreCase(status);
+        String status = annotations.get(OBSERVABILITY_OPERATOR_STATUS);
+        return ACCEPTED.equalsIgnoreCase(status);
     }
 
     Resource<Secret> observabilitySecretResource() {
         return this.client.secrets().inNamespace(this.client.getNamespace()).withName(OBSERVABILITY_SECRET_NAME);
     }
 
-    private Secret cachedObservabilitySecret() {
+    Secret cachedObservabilitySecret() {
         return informerManager.getLocalSecret(this.client.getNamespace(),
                 ObservabilityManager.OBSERVABILITY_SECRET_NAME);
     }
@@ -82,9 +84,6 @@ public class ObservabilityManager {
 
     public boolean isObservabilityRunning() {
         Secret secret = cachedObservabilitySecret();
-        if (secret != null) {
-            return isObservabilityStatusAccepted(secret);
-        }
-        return false;
+        return secret != null && isObservabilityStatusAccepted(secret);
     }
 }
