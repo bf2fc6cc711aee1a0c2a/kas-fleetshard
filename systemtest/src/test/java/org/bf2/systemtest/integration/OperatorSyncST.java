@@ -2,12 +2,14 @@ package org.bf2.systemtest.integration;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.api.SyncApiClient;
 import org.bf2.systemtest.framework.TestTags;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
@@ -63,8 +65,25 @@ public class OperatorSyncST extends AbstractST {
 
         resourceManager.waitResourceCondition(mk, m ->
                 "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)));
-
         LOGGER.info("ManagedKafka {} created", mkAppName);
+
+        //Get status and compare with CR status
+        ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
+                .readValue(SyncApiClient.getManagedKafkaStatus(mkAppName, syncEndpoint).body(), ManagedKafkaStatus.class);
+        ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
+
+        assertEquals(managedKafka.getStatus().getAdminServerURI(), apiStatus.getAdminServerURI());
+        assertEquals(managedKafka.getStatus().getCapacity().getTotalMaxConnections(), apiStatus.getCapacity().getTotalMaxConnections());
+        assertEquals(managedKafka.getStatus().getCapacity().getIngressEgressThroughputPerSec(), apiStatus.getCapacity().getIngressEgressThroughputPerSec());
+        assertEquals(managedKafka.getStatus().getCapacity().getMaxDataRetentionPeriod(), apiStatus.getCapacity().getMaxDataRetentionPeriod());
+        assertEquals(managedKafka.getStatus().getCapacity().getMaxPartitions(), apiStatus.getCapacity().getMaxPartitions());
+        assertEquals(managedKafka.getStatus().getCapacity().getMaxDataRetentionSize(), apiStatus.getCapacity().getMaxDataRetentionSize());
+        apiStatus.getConditions().forEach(condition ->
+                assertEquals(condition.getStatus(),
+                        ManagedKafkaResourceType.getConditionStatus(managedKafka, ManagedKafkaCondition.Type.valueOf(condition.getType()))));
+
+
+        //Check if managed kafka deployed all components
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
         assertNotNull(kafkacli.inNamespace(mkAppName).withName(mkAppName).get());
         assertTrue(kube.client().pods().inNamespace(mkAppName).list().getItems().size() > 0);
