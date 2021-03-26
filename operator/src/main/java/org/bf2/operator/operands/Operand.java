@@ -7,7 +7,7 @@ import io.javaoperatorsdk.operator.api.Context;
  * Define common behaviour across operands related to a controller handling a specific custom resource
  * @param <T> custom resource type handled by corresponding controller
  */
-public interface Operand<T extends CustomResource> {
+public interface Operand<T extends CustomResource<?, ?>> {
 
     /**
      * Create or update the operand based on the provided custom resource
