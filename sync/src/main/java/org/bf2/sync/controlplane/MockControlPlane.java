@@ -5,7 +5,6 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -22,19 +21,14 @@ import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
-import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import org.bf2.sync.ManagedKafkaAgentSync;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
 
@@ -59,26 +53,8 @@ public class MockControlPlane implements ControlPlaneApi {
     @Inject
     ManagedKafkaAgentSync agentSync;
 
-    volatile ManagedKafkaAgent agent;
+    volatile ManagedKafkaAgent agent = AgentResourceClient.getDummyInstance();
     volatile ManagedKafkaAgentStatus agentStatus;
-
-    @PostConstruct
-    void initAgent() {
-        ObservabilityConfiguration observabilityConfig = new ObservabilityConfigurationBuilder()
-                .withAccessToken("test-token")
-                .withChannel("test")
-                .withTag("test-tag")
-                .withRepository("test-repo")
-                .build();
-
-        agent = new ManagedKafkaAgentBuilder()
-                .withSpec(new ManagedKafkaAgentSpecBuilder()
-                        .withObservability(observabilityConfig)
-                        .build())
-                .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
-                        .build())
-                .build();
-    }
 
     // Unique Id for the clusters
     private AtomicInteger clusterIdGenerator = new AtomicInteger(1);

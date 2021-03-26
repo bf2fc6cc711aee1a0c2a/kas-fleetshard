@@ -8,7 +8,7 @@ public class ClusterCapacityDelta {
     private Quantity ingressEgressThroughputPerSec;
     private Integer connections;
     private Quantity dataRetentionSize;
-    private Integer maxPartitions;
+    private Integer partitions;
 
     public Quantity getIngressEgressThroughputPerSec() {
         return ingressEgressThroughputPerSec;
@@ -34,11 +34,11 @@ public class ClusterCapacityDelta {
         this.dataRetentionSize = dataRetentionSize;
     }
 
-    public Integer getMaxPartitions() {
-        return maxPartitions;
+    public Integer getPartitions() {
+        return partitions;
     }
 
-    public void setMaxPartitions(Integer partitions) {
-        this.maxPartitions = partitions;
+    public void setPartitions(Integer partitions) {
+        this.partitions = partitions;
     }
 }
