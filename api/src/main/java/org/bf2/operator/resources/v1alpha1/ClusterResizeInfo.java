@@ -5,7 +5,7 @@ import io.sundr.builder.annotations.Buildable;
 @Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class ClusterResizeInfo {
     private int nodeDelta;
-    private ClusterCapacityDelta delta;
+    private ClusterCapacity delta;
 
     public int getNodeDelta() {
         return nodeDelta;
@@ -15,11 +15,11 @@ public class ClusterResizeInfo {
         this.nodeDelta = nodeDelta;
     }
 
-    public ClusterCapacityDelta getDelta() {
+    public ClusterCapacity getDelta() {
         return delta;
     }
 
-    public void setDelta(ClusterCapacityDelta delta) {
+    public void setDelta(ClusterCapacity delta) {
         this.delta = delta;
     }
 }

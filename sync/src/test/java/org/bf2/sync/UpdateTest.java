@@ -45,7 +45,7 @@ public class UpdateTest {
     }
 
     @Test
-    public void testControlPlanUpdates() {
+    public void testControlPlaneUpdates() {
         ManagedKafka managedKafka = PollerTest.exampleManagedKafka();
         managedKafka.getMetadata().setNamespace(managedKafka.getId());
         managedKafka.setStatus(
@@ -59,10 +59,10 @@ public class UpdateTest {
         // for now we're just looking for equality
         Mockito.clearInvocations(controlPlaneRestClient);
         controlPlane.updateKafkaClusterStatus(managedKafka, managedKafka);
-        // should be batched
+        // should not be sent
         Mockito.verifyNoInteractions(controlPlaneRestClient);
 
-        // clear the batch
+        // send everything
         controlPlane.sendResync();
         ArgumentCaptor<Map<String, ManagedKafkaStatus>> statusCaptor = getUpdates();
         assertEquals("Installed", statusCaptor.getValue().get(PollerTest.PLACEMENT_ID).getConditions().get(0).getStatus());
