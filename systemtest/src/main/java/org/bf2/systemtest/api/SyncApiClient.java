@@ -32,15 +32,43 @@ public class SyncApiClient {
         return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
     }
 
-    public static HttpResponse<String> deleteManagedKafka(String name, String endpoint) throws Exception {
-        LOGGER.info("Delete managed kafka {}", name);
-        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + name);
+    public static HttpResponse<String> deleteManagedKafka(String id, String endpoint) throws Exception {
+        LOGGER.info("Delete managed kafka {}", id);
+        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + id);
         LOGGER.info("Sending DELETE request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
                 .DELETE()
+                .timeout(Duration.ofMinutes(2))
+                .build();
+        return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+    }
+
+    public static HttpResponse<String> getManagedKafkaAgentStatus(String endpoint) throws Exception {
+        LOGGER.info("Get managed kafka agent status");
+        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/status");
+        LOGGER.info("Sending GET request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .GET()
+                .timeout(Duration.ofMinutes(2))
+                .build();
+        return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+    }
+
+    public static HttpResponse<String> getManagedKafkaStatus(String id, String endpoint) throws Exception {
+        LOGGER.info("Get managed kafka status of {}", id);
+        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + id + "/status");
+        LOGGER.info("Sending GET request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
+
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .GET()
                 .timeout(Duration.ofMinutes(2))
                 .build();
         return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
