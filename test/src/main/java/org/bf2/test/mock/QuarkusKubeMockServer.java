@@ -28,6 +28,7 @@ public class QuarkusKubeMockServer implements QuarkusTestResourceLifecycleManage
         systemProps.put(Config.KUBERNETES_AUTH_TRYKUBECONFIG_SYSTEM_PROPERTY, "false");
         systemProps.put(Config.KUBERNETES_AUTH_TRYSERVICEACCOUNT_SYSTEM_PROPERTY, "false");
         systemProps.put(Config.KUBERNETES_HTTP2_DISABLE, "true");
+        systemProps.put(Config.KUBERNETES_NAMESPACE_SYSTEM_PROPERTY, "test");
 
         server = createServer();
         server.before();
@@ -70,6 +71,7 @@ public class QuarkusKubeMockServer implements QuarkusTestResourceLifecycleManage
      * Find annotation @KubernetesMockServer and pass mock server into annotated property
      * @param testInstance
      */
+    @Override
     public void inject(Object testInstance) {
         for (Class c = testInstance.getClass(); c != Object.class; c = c.getSuperclass()) {
             Field[] var3 = c.getDeclaredFields();

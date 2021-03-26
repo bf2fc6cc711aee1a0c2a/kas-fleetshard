@@ -1,17 +1,13 @@
 package org.bf2.sync;
 
-import static org.junit.Assert.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import javax.inject.Inject;
-import javax.ws.rs.WebApplicationException;
 
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -47,9 +43,7 @@ public class AgentPollerTest {
     public void testAddDelete() {
         assertNull(lookup.getLocalManagedKafkaAgent());
 
-        ManagedKafkaAgent managedKafkaAgent = new ManagedKafkaAgentBuilder()
-                .withSpec(new ManagedKafkaAgentSpecBuilder().withNewObservability().withAccessToken("xyz").endObservability().build())
-                .build();
+        ManagedKafkaAgent managedKafkaAgent = AgentResourceClient.getDummyInstance();
 
         Mockito.reset(controlPlaneRestClient);
         Mockito.when(controlPlaneRestClient.get(CLUSTER_ID)).thenReturn(managedKafkaAgent);
@@ -61,7 +55,7 @@ public class AgentPollerTest {
                 .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build()).build());
         client.updateStatus(local);
 
-        assertEquals("xyz", local.getSpec().getObservability().getAccessToken());
+        assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
         assertEquals(AgentResourceClient.RESOURCE_NAME, local.getMetadata().getName());
 
         managedKafkaAgent.getSpec().getObservability().setAccessToken("abc");

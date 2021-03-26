@@ -30,7 +30,7 @@
                "ingressEgressThroughputPerSec": "12Gi",
                "connections": 1000,
                "dataRetentionSize": "10Gi",
-               "maxPartitions": 3000
+               "partitions": 3000
            }
        }
 }
