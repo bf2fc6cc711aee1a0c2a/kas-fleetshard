@@ -9,23 +9,23 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ConditionUtilsTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"Installing", "Error", "Ready"})
+    @ValueSource(strings = {"Ready"})
     void testBuildUpdateCondition(String type) {
-        ManagedKafkaCondition mkcondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), "True");
+        ManagedKafkaCondition mkcondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), Status.True);
         assertEquals("True", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());
-        ConditionUtils.updateConditionStatus(mkcondition, "False");
+        ConditionUtils.updateConditionStatus(mkcondition, Status.False, null);
         assertEquals("False", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());
     }
@@ -48,19 +48,13 @@ public class ConditionUtilsTest {
                 .withStatus(
                         new ManagedKafkaStatusBuilder()
                                 .addNewCondition()
-                                .withStatus("False")
-                                .withType(ManagedKafkaCondition.Type.Installing.name())
-                                .endCondition()
-                                .addNewCondition()
-                                .withStatus("True")
+                                .withStatus(Status.True.name())
                                 .withType(ManagedKafkaCondition.Type.Ready.name())
                                 .endCondition()
                                 .build()
                 )
                 .build();
 
-        assertFalse(ConditionUtils.findManagedKafkaCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Error).isPresent());
-        assertNotNull(ConditionUtils.findManagedKafkaCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Installing).get());
         assertNotNull(ConditionUtils.findManagedKafkaCondition(mk.getStatus().getConditions(), ManagedKafkaCondition.Type.Ready).get());
     }
 }

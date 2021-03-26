@@ -65,7 +65,7 @@ public class OperatorSyncST extends AbstractST {
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
         resourceManager.waitResourceCondition(mk, m ->
-                "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)));
+                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True));
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
         //Get status and compare with CR status
@@ -79,9 +79,10 @@ public class OperatorSyncST extends AbstractST {
         assertEquals(managedKafka.getStatus().getCapacity().getMaxDataRetentionPeriod(), apiStatus.getCapacity().getMaxDataRetentionPeriod());
         assertEquals(managedKafka.getStatus().getCapacity().getMaxPartitions(), apiStatus.getCapacity().getMaxPartitions());
         assertEquals(managedKafka.getStatus().getCapacity().getMaxDataRetentionSize(), apiStatus.getCapacity().getMaxDataRetentionSize());
-        apiStatus.getConditions().forEach(condition ->
-                assertEquals(condition.getStatus(),
-                        ManagedKafkaResourceType.getConditionStatus(managedKafka, ManagedKafkaCondition.Type.valueOf(condition.getType()))));
+        apiStatus.getConditions()
+                .forEach(condition -> assertTrue(ManagedKafkaResourceType.hasConditionStatus(managedKafka,
+                        ManagedKafkaCondition.Type.valueOf(condition.getType()),
+                        ManagedKafkaCondition.Status.valueOf(condition.getStatus()))));
 
         //Get agent status
         ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()

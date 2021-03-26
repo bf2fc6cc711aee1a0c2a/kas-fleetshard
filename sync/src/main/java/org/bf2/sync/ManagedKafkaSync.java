@@ -16,6 +16,8 @@ import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
@@ -86,7 +88,7 @@ public class ManagedKafkaSync {
                     // we need to send another status update to let them know
 
                     ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                    statusBuilder.withConditions(ConditionUtils.buildCondition(Type.Deleted, "True"));
+                    statusBuilder.withConditions(ConditionUtils.buildCondition(Type.Ready, Status.False).reason(Reason.Deleted));
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
@@ -112,8 +114,8 @@ public class ManagedKafkaSync {
         }
         if (!local.getSpec().isDeleted()) {
             if (local.getStatus() != null
-                    && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Rejected)
-                            .filter(c -> "True".equals(c.getStatus())).isPresent()) {
+                    && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Ready)
+                            .filter(c -> Reason.Rejected.name().equals(c.getReason())).isPresent()) {
                 return true;
             }
             log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted", Cache.metaNamespaceKeyFunc(local));

@@ -23,6 +23,8 @@ import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
@@ -187,44 +189,24 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions = new ArrayList<>();
             status.setConditions(managedKafkaConditions);
         }
-        Optional<ManagedKafkaCondition> optInstalling =
-                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Installing);
         Optional<ManagedKafkaCondition> optReady =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Ready);
-        Optional<ManagedKafkaCondition> optError =
-                ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Error);
+
+        ManagedKafkaCondition ready = null;
+
+        if (optReady.isPresent()) {
+            ready = optReady.get();
+        } else {
+            ready = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, Status.Unknown);
+            managedKafkaConditions.add(ready);
+        }
 
         if (managedKafka.getSpec().isDeleted() && kafkaInstance.isDeleted(managedKafka)) {
-            managedKafkaConditions.clear();
-            ManagedKafkaCondition deleted = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Deleted, "True");
-            managedKafkaConditions.add(deleted);
+            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Deleted);
         } else if (kafkaInstance.isInstalling(managedKafka)) {
-            if (optInstalling.isPresent()) {
-                ConditionUtils.updateConditionStatus(optInstalling.get(), "True");
-            } else {
-                ManagedKafkaCondition installing = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Installing, "True");
-                managedKafkaConditions.add(installing);
-            }
-            // TODO: should we really have even Ready and Error condition type as "False" while installing, so creating them if not exist?
-            if (optReady.isPresent()) {
-                ConditionUtils.updateConditionStatus(optReady.get(), "False");
-            }
-            if (optError.isPresent()) {
-                ConditionUtils.updateConditionStatus(optError.get(), "False");
-            }
+            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Installing);
         } else if (kafkaInstance.isReady(managedKafka)) {
-            if (optInstalling.isPresent()) {
-                ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
-            }
-            if (optReady.isPresent()) {
-                ConditionUtils.updateConditionStatus(optReady.get(), "True");
-            } else {
-                ManagedKafkaCondition ready = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, "True");
-                managedKafkaConditions.add(ready);
-            }
-            if (optError.isPresent()) {
-                ConditionUtils.updateConditionStatus(optError.get(), "False");
-            }
+            ConditionUtils.updateConditionStatus(ready, Status.True, null);
 
             // TODO: just reflecting for now what was defined in the spec
             managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
@@ -232,18 +214,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().Uri(managedKafka));
 
         } else if (kafkaInstance.isError(managedKafka)) {
-            if (optInstalling.isPresent()) {
-                ConditionUtils.updateConditionStatus(optInstalling.get(), "False");
-            }
-            if (optReady.isPresent()) {
-                ConditionUtils.updateConditionStatus(optReady.get(), "False");
-            }
-            if (optError.isPresent()) {
-                ConditionUtils.updateConditionStatus(optError.get(), "True");
-            } else {
-                ManagedKafkaCondition error = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Error, "True");
-                managedKafkaConditions.add(error);
-            }
+            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Error);
+        } else {
+            ConditionUtils.updateConditionStatus(ready, Status.Unknown, null);
         }
     }
 }
