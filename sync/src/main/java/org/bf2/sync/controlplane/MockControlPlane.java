@@ -124,7 +124,7 @@ public class MockControlPlane implements ControlPlaneApi {
             return false;
         }
         return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Ready)
-                .filter(c -> Reason.Rejected.name().equals(c.getStatus())).isPresent();
+                .filter(c -> Reason.Deleted.name().equals(c.getReason())).isPresent();
     }
 
     @Override
