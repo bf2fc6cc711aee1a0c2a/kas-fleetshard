@@ -48,21 +48,16 @@ public class SyncApiClient {
 
     public static HttpResponse<String> getManagedKafkaAgentStatus(String endpoint) throws Exception {
         LOGGER.info("Get managed kafka agent status");
-        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/status");
-        LOGGER.info("Sending GET request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
-
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(uri)
-                .GET()
-                .timeout(Duration.ofMinutes(2))
-                .build();
-        return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+        return getRequest("/api/managed-services-api/v1/agent-clusters/pepa/status", endpoint);
     }
 
     public static HttpResponse<String> getManagedKafkaStatus(String id, String endpoint) throws Exception {
         LOGGER.info("Get managed kafka status of {}", id);
-        URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + id + "/status");
+        return getRequest("/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + id + "/status", endpoint);
+    }
+
+    private static HttpResponse<String> getRequest(String path, String endpoint) throws Exception {
+        URI uri = URI.create(endpoint + path);
         LOGGER.info("Sending GET request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
 
         HttpClient client = HttpClient.newHttpClient();
@@ -90,7 +85,7 @@ public class SyncApiClient {
                 }
             } catch (Exception ex) {
                 LOGGER.warn("Request failed {}, going to retry {}/{}", ex.getMessage(), i, MAX_RESEND);
-                Thread.sleep(1_000);
+                Thread.sleep(5_000);
             }
         }
         //last try
