@@ -26,7 +26,7 @@ public class RecoveryST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(RecoveryST.class);
 
     @BeforeAll
-    void deployStrimzi() throws Exception {
+    void deploy() throws Exception {
         StrimziOperatorManager.installStrimzi(kube);
         FleetShardOperatorManager.deployFleetShardOperator(kube);
     }

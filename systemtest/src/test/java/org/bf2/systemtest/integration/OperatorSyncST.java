@@ -8,6 +8,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.api.SyncApiClient;
@@ -35,7 +36,7 @@ public class OperatorSyncST extends AbstractST {
     private String syncEndpoint;
 
     @BeforeAll
-    void deployStrimzi() throws Exception {
+    void deploy() throws Exception {
         StrimziOperatorManager.installStrimzi(kube);
         FleetShardOperatorManager.deployFleetShardOperator(kube);
         FleetShardOperatorManager.deployFleetShardSync(kube);
@@ -82,6 +83,14 @@ public class OperatorSyncST extends AbstractST {
                 assertEquals(condition.getStatus(),
                         ManagedKafkaResourceType.getConditionStatus(managedKafka, ManagedKafkaCondition.Type.valueOf(condition.getType()))));
 
+        //Get agent status
+        ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
+                .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
+        assertEquals(1, agentStatus.getConditions().size());
+        assertNotNull(agentStatus.getTotalCapacity());
+        assertNotNull(agentStatus.getRemainingCapacity());
+        assertNotNull(agentStatus.getResizeInfo());
+        assertNotNull(agentStatus.getRequiredNodeSizes());
 
         //Check if managed kafka deployed all components
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
