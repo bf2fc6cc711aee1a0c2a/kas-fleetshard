@@ -152,8 +152,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions.add(ready);
         }
 
-        if (managedKafka.getSpec().isDeleted() && kafkaInstance.isDeleted(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Deleted);
+        if (managedKafka.getSpec().isDeleted()) {
+            ConditionUtils.updateConditionStatus(ready,
+                    kafkaInstance.isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted);
         } else if (kafkaInstance.isInstalling(managedKafka)) {
             ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Installing);
         } else if (kafkaInstance.isReady(managedKafka)) {
