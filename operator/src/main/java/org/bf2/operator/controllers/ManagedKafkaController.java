@@ -1,20 +1,16 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
-import io.strimzi.api.kafka.model.Kafka;
 
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.events.ResourceEvent;
@@ -90,69 +86,24 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Override
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
 
-        Optional<CustomResourceEvent> latestManagedKafkaEvent =
-                context.getEvents().getLatestOfType(CustomResourceEvent.class);
-
-        if (latestManagedKafkaEvent.isPresent()) {
-            handleUpdate(managedKafka, context);
+        boolean updateStatus = false;
+        for (Event event : context.getEvents().getList()) {
+            if (event instanceof ResourceEvent) {
+                ResourceEvent<?> resourceEvent = (ResourceEvent)event;
+                HasMetadata resource = resourceEvent.getResource();
+                log.infof("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+                updateStatus |= managedKafka.getSpec().isDeleted() || resourceEvent.shouldUpdateStatus();
+            } else if (event instanceof CustomResourceEvent) {
+                log.infof("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                updateStatus = managedKafka.getStatus() == null || managedKafka.getStatus().getConditions() == null;
+            }
         }
 
-        Optional<ResourceEvent.KafkaEvent> latestKafkaEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.KafkaEvent.class);
-        if (latestKafkaEvent.isPresent()) {
-            Kafka kafka = latestKafkaEvent.get().getResource();
-            log.infof("Kafka resource %s/%s is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+        handleUpdate(managedKafka, context);
+        if (updateStatus) {
             updateManagedKafkaStatus(managedKafka);
-            handleUpdate(managedKafka, context);
             return UpdateControl.updateStatusSubResource(managedKafka);
         }
-
-        Optional<ResourceEvent.DeploymentEvent> latestDeploymentEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.DeploymentEvent.class);
-        if (latestDeploymentEvent.isPresent()) {
-            Deployment deployment = latestDeploymentEvent.get().getResource();
-            log.infof("Deployment resource %s/%s is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
-            updateManagedKafkaStatus(managedKafka);
-            handleUpdate(managedKafka, context);
-            return UpdateControl.updateStatusSubResource(managedKafka);
-        }
-
-        Optional<ResourceEvent.ServiceEvent> latestServiceEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.ServiceEvent.class);
-        if (latestServiceEvent.isPresent()) {
-            Service service = latestServiceEvent.get().getResource();
-            log.infof("Service resource %s/%s is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.ConfigMapEvent> latestConfigMapEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.ConfigMapEvent.class);
-        if (latestConfigMapEvent.isPresent()) {
-            ConfigMap configMap = latestConfigMapEvent.get().getResource();
-            log.infof("ConfigMap resource %s/%s is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.SecretEvent> latestSecretEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.SecretEvent.class);
-        if (latestSecretEvent.isPresent()) {
-            Secret secret = latestSecretEvent.get().getResource();
-            log.infof("Secret resource %s/%s is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.RouteEvent> latestRouteEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.RouteEvent.class);
-        if (latestRouteEvent.isPresent()) {
-            Route route = latestRouteEvent.get().getResource();
-            log.infof("Route resource %s/%s is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
-            handleUpdate(managedKafka,context);
-            return UpdateControl.noUpdate();
-        }
-
         return UpdateControl.noUpdate();
     }
 

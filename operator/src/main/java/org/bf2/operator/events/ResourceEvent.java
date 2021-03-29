@@ -34,12 +34,22 @@ public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
         public DeploymentEvent(Deployment resource, ResourceEventSource<Deployment> resourceEventSource) {
             super(resource, resourceEventSource);
         }
+
+        @Override
+        public boolean shouldUpdateStatus() {
+            return true;
+        }
     }
 
     public static class KafkaEvent extends ResourceEvent<Kafka> {
 
         public KafkaEvent(Kafka resource, ResourceEventSource<Kafka> resourceEventSource) {
             super(resource, resourceEventSource);
+        }
+
+        @Override
+        public boolean shouldUpdateStatus() {
+            return true;
         }
     }
 
@@ -62,5 +72,9 @@ public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
         public SecretEvent(Secret resource, ResourceEventSource<Secret> resourceEventSource) {
             super(resource, resourceEventSource);
         }
+    }
+
+    public boolean shouldUpdateStatus() {
+        return false;
     }
 }

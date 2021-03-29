@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.sundr.builder.annotations.Buildable;
+import lombok.ToString;
 
 /**
  * Defines the current status with related conditions of a ManagedKafka instance
@@ -13,6 +14,7 @@ import io.sundr.builder.annotations.Buildable;
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
 )
+@ToString
 public class ManagedKafkaStatus {
 
     private List<ManagedKafkaCondition> conditions;
