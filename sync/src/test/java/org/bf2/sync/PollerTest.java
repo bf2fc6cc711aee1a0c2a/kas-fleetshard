@@ -132,6 +132,7 @@ public class PollerTest {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
                         new ObjectMetaBuilder()
+                                .withNamespace("namespace")
                                 .withName("name")
                                 .build())
                 .withSpec(
