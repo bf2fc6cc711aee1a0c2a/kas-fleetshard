@@ -61,6 +61,10 @@ public class InformerManager {
     private SharedIndexInformer<Secret> secretSharedIndexInformer;
     private SharedIndexInformer<Route> routeSharedIndexInformer;
 
+    boolean isOpenShift() {
+        return kubernetesClient.isAdaptable(OpenShiftClient.class);
+    }
+
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
@@ -100,7 +104,7 @@ public class InformerManager {
                 sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 60 * 1000L);
         secretSharedIndexInformer.addEventHandler(secretEventSource);
 
-        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+        if (isOpenShift()) {
             routeSharedIndexInformer =
                     sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
             routeSharedIndexInformer.addEventHandler(routeEventSource);
@@ -134,7 +138,7 @@ public class InformerManager {
     }
 
     public Route getLocalRoute(String namespace, String name) {
-        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
+        if (isOpenShift()) {
             return routeSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
         } else {
             log.warn("Not running on OpenShift cluster, Routes are not available");
@@ -152,6 +156,6 @@ public class InformerManager {
                 && hasLength(serviceSharedIndexInformer.lastSyncResourceVersion())
                 && hasLength(configMapSharedIndexInformer.lastSyncResourceVersion())
                 && hasLength(secretSharedIndexInformer.lastSyncResourceVersion())
-                && hasLength(routeSharedIndexInformer.lastSyncResourceVersion());
+                && (!isOpenShift() || hasLength(routeSharedIndexInformer.lastSyncResourceVersion()));
     }
 }
