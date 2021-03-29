@@ -81,6 +81,7 @@ public class ControlPlane {
     }
 
     private void updateAgentStatus() {
+        log.debug("Updating agnet status");
         executorService.execute(() -> {
             try {
                 ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
@@ -132,6 +133,7 @@ public class ControlPlane {
      * A {@link Supplier} is used to defer the map construction.
      */
     public void updateKafkaClusterStatus(Supplier<Map<String, ManagedKafkaStatus>> statusSupplier) {
+        log.debug("Updating managedkafka(s) status");
         executorService.execute(() -> {
             Map<String, ManagedKafkaStatus> status = statusSupplier.get();
             if (status.isEmpty()) {
@@ -173,6 +175,7 @@ public class ControlPlane {
      */
     @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
+        log.debug("Updating status on resync interval");
         updateKafkaClusterStatus(() -> {
             return localLookup.getLocalManagedKafkas().stream().filter(mk -> mk.getId() != null)
                     .collect(Collectors.toMap(ManagedKafka::getId,
