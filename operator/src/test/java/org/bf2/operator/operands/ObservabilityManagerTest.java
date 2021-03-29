@@ -71,6 +71,14 @@ public class ObservabilityManagerTest {
         secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config).editMetadata()
             .addToAnnotations(ObservabilityManager.OBSERVABILITY_OPERATOR_STATUS, ObservabilityManager.ACCEPTED).endMetadata().build();
         observabilityManager.observabilitySecretResource().createOrReplace(secret);
+
+        secret = observabilityManager.observabilitySecretResource().get();
+        assertTrue(ObservabilityManager.isObservabilityStatusAccepted(secret));
+
+        this.observabilityManager.createOrUpdateObservabilitySecret(config);
+
+        // no-op update and make sure the flag is not flipped
+        secret = observabilityManager.observabilitySecretResource().get();
         assertTrue(ObservabilityManager.isObservabilityStatusAccepted(secret));
     }
 }

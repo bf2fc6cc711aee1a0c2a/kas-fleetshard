@@ -78,7 +78,10 @@ public class ObservabilityManager {
         if (cachedObservabilitySecret() == null) {
             observabilitySecretResource().createOrReplace(secret);
         } else {
-            observabilitySecretResource().patch(secret);
+            observabilitySecretResource().edit(s -> {
+                s.setData(secret.getData());
+                return s;
+            });
         }
     }
 
