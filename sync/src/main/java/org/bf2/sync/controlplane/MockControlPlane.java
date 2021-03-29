@@ -23,6 +23,7 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
@@ -167,8 +168,8 @@ public class MockControlPlane implements ControlPlaneApi {
         if (status == null || status.getConditions() == null) {
             return false;
         }
-        return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Deleted)
-                .filter(c -> "True".equals(c.getStatus())).isPresent();
+        return ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Ready)
+                .filter(c -> Reason.Deleted.name().equals(c.getReason())).isPresent();
     }
 
     @Override

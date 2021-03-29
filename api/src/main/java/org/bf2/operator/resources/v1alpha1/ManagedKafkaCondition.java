@@ -14,11 +14,20 @@ import io.sundr.builder.annotations.Buildable;
 public class ManagedKafkaCondition {
 
     public enum Type {
+        Ready
+    }
+
+    public enum Reason {
         Installing,
-        Ready,
         Deleted,
         Error,
         Rejected;
+    }
+
+    public enum Status {
+        True,
+        False,
+        Unknown
     }
 
     private String type;
@@ -35,6 +44,11 @@ public class ManagedKafkaCondition {
         this.type = type;
     }
 
+    public ManagedKafkaCondition type(Type type) {
+        this.type = (type == null ? null : type.name());
+        return this;
+    }
+
     @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getReason() {
         return reason;
@@ -42,6 +56,11 @@ public class ManagedKafkaCondition {
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    public ManagedKafkaCondition reason(Reason reason) {
+        this.reason = (reason == null ? null : reason.name());
+        return this;
     }
 
     @JsonInclude(value = JsonInclude.Include.NON_NULL)
@@ -59,6 +78,10 @@ public class ManagedKafkaCondition {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public void setStatus(Status status) {
+        this.status = (status == null ? null : status.name());
     }
 
     public String getLastTransitionTime() {

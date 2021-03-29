@@ -43,7 +43,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     @Override
     public boolean isReady(ManagedKafka mk) {
-        return "True".equals(getConditionStatus(mk, ManagedKafkaCondition.Type.Ready));
+        return hasConditionStatus(mk, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True);
     }
 
     @Override
@@ -53,17 +53,19 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         existing.setStatus(newResource.getStatus());
     }
 
-    public static String getConditionStatus(ManagedKafka mk, ManagedKafkaCondition.Type type) {
+    /**
+     * @return true if and only if there is a condition of the given type with the given status
+     */
+    public static boolean hasConditionStatus(ManagedKafka mk, ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
         if (mk == null || mk.getStatus() == null || mk.getStatus().getConditions() == null) {
-            return null;
+            return false;
         }
-
         for (ManagedKafkaCondition condition : mk.getStatus().getConditions()) {
             if (type.name().equals(condition.getType())) {
-                return condition.getStatus();
+                return status.name().equals(condition.getStatus());
             }
         }
-        return null;
+        return false;
     }
 
     public static Pod getCanaryPod(ManagedKafka mk) {

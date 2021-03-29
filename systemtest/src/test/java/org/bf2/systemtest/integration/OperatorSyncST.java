@@ -63,7 +63,7 @@ public class OperatorSyncST extends AbstractST {
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
         resourceManager.waitResourceCondition(mk, m ->
-                "True".equals(ManagedKafkaResourceType.getConditionStatus(m, ManagedKafkaCondition.Type.Ready)));
+                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True));
 
         LOGGER.info("ManagedKafka {} created", mkAppName);
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
