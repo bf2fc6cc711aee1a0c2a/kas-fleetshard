@@ -70,7 +70,7 @@ public class ManagedKafkaSync {
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
 
-            String localKey = Cache.namespaceKeyFunc(determineNamespace(remoteManagedKafka), remoteManagedKafka.getMetadata().getName());
+            String localKey = Cache.namespaceKeyFunc(remoteManagedKafka.getMetadata().getNamespace(), remoteManagedKafka.getMetadata().getName());
             ManagedKafka existing = lookup.getLocalManagedKafka(localKey);
 
             // take action based upon differences
@@ -120,14 +120,6 @@ public class ManagedKafkaSync {
             return false;
         }
         return true;
-    }
-
-    /**
-     * Determine what local namespace the remote instance should be in
-     * Will effectively be name
-     */
-    String determineNamespace(ManagedKafka remoteManagedKafka) {
-        return remoteManagedKafka.getMetadata().getName();
     }
 
     public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
@@ -206,15 +198,11 @@ public class ManagedKafkaSync {
     }
 
     void create(ManagedKafka remote) {
-        String namespace = determineNamespace(remote);
-
-        remote.getMetadata().setNamespace(namespace);
-
         // log after the namespace is set
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
 
         kubeClient.namespaces().createOrReplace(
-                new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
+                new NamespaceBuilder().withNewMetadata().withName(remote.getMetadata().getNamespace()).endMetadata().build());
 
         try {
             client.create(remote);
