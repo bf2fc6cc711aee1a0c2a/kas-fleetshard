@@ -7,6 +7,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class ConditionUtils {
@@ -25,48 +26,16 @@ public class ConditionUtils {
     }
 
     /**
-     * Set a condition into the provided conditions list.
-     * If the provided condition type doesn't exist, it's just added to the list.
-     * If the provided condition type already exists, it's updated with the data from the new provided condition.
-     *
-     * @param conditions
-     * @param newCondition
-     */
-    public static void setManagedKafkaCondition(List<ManagedKafkaCondition> conditions, ManagedKafkaCondition newCondition) {
-        if (conditions == null)
-            return;
-        Optional<ManagedKafkaCondition> optCurrentCondition = findManagedKafkaCondition(conditions, ManagedKafkaCondition.Type.valueOf(newCondition.getType()));
-        if (optCurrentCondition.isEmpty()) {
-            if (newCondition.getLastTransitionTime() == null) {
-                newCondition.setLastTransitionTime(iso8601Now());
-            }
-            conditions.add(newCondition);
-            return;
-        }
-        ManagedKafkaCondition currentCondition = optCurrentCondition.get();
-        if (!currentCondition.getStatus().equals(newCondition.getStatus())) {
-            currentCondition.setStatus(newCondition.getStatus());
-            if (newCondition.getLastTransitionTime() == null) {
-                currentCondition.setLastTransitionTime(iso8601Now());
-            } else {
-                currentCondition.setLastTransitionTime(newCondition.getLastTransitionTime());
-            }
-        }
-        currentCondition.setReason(newCondition.getReason());
-        currentCondition.setMessage(newCondition.getMessage());
-    }
-
-    /**
      * Build and return a ManagedKafkaCondition with provided type and status
      *
      * @param type condition type
      * @param status condition status
      * @return created ManagedKafkaCondition
      */
-    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type, String status) {
+    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
         return new ManagedKafkaConditionBuilder()
                 .withType(type.name())
-                .withStatus(status)
+                .withStatus(status.name())
                 .withLastTransitionTime(ConditionUtils.iso8601Now())
                 .build();
     }
@@ -76,11 +45,13 @@ public class ConditionUtils {
      *
      * @param condition condition on which updating the status
      * @param newStatus new status to update
+     * @param newReason new reason to update
      */
-    public static void updateConditionStatus(ManagedKafkaCondition condition, String newStatus) {
-        if (!condition.getStatus().equals(newStatus)) {
+    public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus, ManagedKafkaCondition.Reason newReason) {
+        if (!Objects.equals(condition.getStatus(), newStatus) || !Objects.equals(condition.getReason(), newReason)) {
             condition.setStatus(newStatus);
             condition.setLastTransitionTime(ConditionUtils.iso8601Now());
+            condition.reason(newReason).setMessage(null);
         }
     }
 
