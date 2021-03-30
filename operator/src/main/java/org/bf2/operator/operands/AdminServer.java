@@ -207,7 +207,7 @@ public class AdminServer extends AbstractAdminServer {
 
         Container container = new ContainerBuilder()
                 .withName(adminServerName)
-                .withImage("quay.io/sknot/kafka-admin-api:0.0.5")
+                .withImage("quay.io/mk-ci-cd/kafka-admin-api:0.0.5")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())

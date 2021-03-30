@@ -43,7 +43,7 @@ public class ManagedKafkaST extends AbstractST {
     void testDeployManagedKafka(ExtensionContext extensionContext) {
         String mkAppName = "mk-test-create";
 
-        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
@@ -69,7 +69,7 @@ public class ManagedKafkaST extends AbstractST {
     void testCreateDeleteCreateSameManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create-delete";
 
-        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());

@@ -71,17 +71,8 @@ public class InformerManager {
 
         // TODO: should we make the resync time configurable?
 
-        // Disabling v1beta2 until Strimzi 0.23.0 will be available and shipped.
-        /*
         kafkaSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
-        kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
-        */
-
-        // creating a CRD context which is based on v1beta1 (returned by the Crds.kafka() method)
-        var crdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
-        kafkaSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerForCustomResource(crdContext, Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
         kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
 
         deploymentSharedIndexInformer =

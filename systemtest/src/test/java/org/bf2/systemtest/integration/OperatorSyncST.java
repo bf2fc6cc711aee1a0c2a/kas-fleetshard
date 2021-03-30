@@ -52,7 +52,7 @@ public class OperatorSyncST extends AbstractST {
     void testCreateManagedKafkaUsingSync(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-deploy-api";
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
-        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
