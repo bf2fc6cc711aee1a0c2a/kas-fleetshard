@@ -83,28 +83,28 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         }
     }
 
+    /**
+     * This logic handles events (edge triggers) using level logic.
+     * On any modification to the ManagedKafka or it's owned resources,
+     * perform a full update to the desired state.
+     * This strategy is straight-forward and works well as long as few events are expected.
+     */
     @Override
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-
-        boolean updateStatus = false;
-        for (Event event : context.getEvents().getList()) {
-            if (event instanceof ResourceEvent) {
-                ResourceEvent<?> resourceEvent = (ResourceEvent)event;
-                HasMetadata resource = resourceEvent.getResource();
-                log.debugf("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-                updateStatus |= managedKafka.getSpec().isDeleted() || resourceEvent.shouldUpdateStatus();
-            } else if (event instanceof CustomResourceEvent) {
-                log.debugf("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-                updateStatus |= managedKafka.getStatus() == null || managedKafka.getStatus().getConditions() == null;
+        if (log.isDebugEnabled()) {
+            for (Event event : context.getEvents().getList()) {
+                if (event instanceof ResourceEvent) {
+                    ResourceEvent<?> resourceEvent = (ResourceEvent<?>)event;
+                    HasMetadata resource = resourceEvent.getResource();
+                    log.debugf("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+                } else if (event instanceof CustomResourceEvent) {
+                    log.debugf("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                }
             }
         }
-
         handleUpdate(managedKafka, context);
-        if (updateStatus) {
-            updateManagedKafkaStatus(managedKafka);
-            return UpdateControl.updateStatusSubResource(managedKafka);
-        }
-        return UpdateControl.noUpdate();
+        updateManagedKafkaStatus(managedKafka);
+        return UpdateControl.updateStatusSubResource(managedKafka);
     }
 
     @Override
