@@ -6,7 +6,7 @@
            "href": "serviceapi",
            "metadata": {
                "name": "serviceapi",
-               "annotation": {
+               "annotations": {
                    "bf2.org/id": "1pqimGdaGe3hT5GrPUYK4hegckT"
                }
            },

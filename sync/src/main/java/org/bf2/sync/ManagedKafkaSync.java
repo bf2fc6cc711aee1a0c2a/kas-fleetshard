@@ -68,6 +68,10 @@ public class ManagedKafkaSync {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
         for (ManagedKafka remoteManagedKafka : controlPlane.getKafkaClusters()) {
+            assert remoteManagedKafka.getId() != null;
+            assert remoteManagedKafka.getPlacementId() != null;
+            assert remoteManagedKafka.getMetadata().getNamespace() != null;
+
             remotes.put(ControlPlane.managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             assert remoteSpec != null;
