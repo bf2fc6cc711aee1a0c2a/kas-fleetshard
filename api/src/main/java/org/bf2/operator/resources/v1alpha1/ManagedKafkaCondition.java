@@ -3,6 +3,7 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import io.sundr.builder.annotations.Buildable;
+import lombok.ToString;
 
 /**
  * Defines a condition related to the ManagedKafka instance status
@@ -11,6 +12,7 @@ import io.sundr.builder.annotations.Buildable;
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
 )
+@ToString
 public class ManagedKafkaCondition {
 
     public enum Type {

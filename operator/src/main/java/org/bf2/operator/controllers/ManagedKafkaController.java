@@ -1,20 +1,16 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
-import io.strimzi.api.kafka.model.Kafka;
 
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.events.ResourceEvent;
@@ -87,73 +83,28 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         }
     }
 
+    /**
+     * This logic handles events (edge triggers) using level logic.
+     * On any modification to the ManagedKafka or it's owned resources,
+     * perform a full update to the desired state.
+     * This strategy is straight-forward and works well as long as few events are expected.
+     */
     @Override
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-
-        Optional<CustomResourceEvent> latestManagedKafkaEvent =
-                context.getEvents().getLatestOfType(CustomResourceEvent.class);
-
-        if (latestManagedKafkaEvent.isPresent()) {
-            handleUpdate(managedKafka, context);
+        if (log.isDebugEnabled()) {
+            for (Event event : context.getEvents().getList()) {
+                if (event instanceof ResourceEvent) {
+                    ResourceEvent<?> resourceEvent = (ResourceEvent<?>)event;
+                    HasMetadata resource = resourceEvent.getResource();
+                    log.debugf("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+                } else if (event instanceof CustomResourceEvent) {
+                    log.debugf("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                }
+            }
         }
-
-        Optional<ResourceEvent.KafkaEvent> latestKafkaEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.KafkaEvent.class);
-        if (latestKafkaEvent.isPresent()) {
-            Kafka kafka = latestKafkaEvent.get().getResource();
-            log.infof("Kafka resource %s/%s is changed", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
-            updateManagedKafkaStatus(managedKafka);
-            handleUpdate(managedKafka, context);
-            return UpdateControl.updateStatusSubResource(managedKafka);
-        }
-
-        Optional<ResourceEvent.DeploymentEvent> latestDeploymentEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.DeploymentEvent.class);
-        if (latestDeploymentEvent.isPresent()) {
-            Deployment deployment = latestDeploymentEvent.get().getResource();
-            log.infof("Deployment resource %s/%s is changed", deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
-            updateManagedKafkaStatus(managedKafka);
-            handleUpdate(managedKafka, context);
-            return UpdateControl.updateStatusSubResource(managedKafka);
-        }
-
-        Optional<ResourceEvent.ServiceEvent> latestServiceEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.ServiceEvent.class);
-        if (latestServiceEvent.isPresent()) {
-            Service service = latestServiceEvent.get().getResource();
-            log.infof("Service resource %s/%s is changed", service.getMetadata().getNamespace(), service.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.ConfigMapEvent> latestConfigMapEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.ConfigMapEvent.class);
-        if (latestConfigMapEvent.isPresent()) {
-            ConfigMap configMap = latestConfigMapEvent.get().getResource();
-            log.infof("ConfigMap resource %s/%s is changed", configMap.getMetadata().getNamespace(), configMap.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.SecretEvent> latestSecretEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.SecretEvent.class);
-        if (latestSecretEvent.isPresent()) {
-            Secret secret = latestSecretEvent.get().getResource();
-            log.infof("Secret resource %s/%s is changed", secret.getMetadata().getNamespace(), secret.getMetadata().getName());
-            handleUpdate(managedKafka, context);
-            return UpdateControl.noUpdate();
-        }
-
-        Optional<ResourceEvent.RouteEvent> latestRouteEvent =
-                context.getEvents().getLatestOfType(ResourceEvent.RouteEvent.class);
-        if (latestRouteEvent.isPresent()) {
-            Route route = latestRouteEvent.get().getResource();
-            log.infof("Route resource %s/%s is changed", route.getMetadata().getNamespace(), route.getMetadata().getName());
-            handleUpdate(managedKafka,context);
-            return UpdateControl.noUpdate();
-        }
-
-        return UpdateControl.noUpdate();
+        handleUpdate(managedKafka, context);
+        updateManagedKafkaStatus(managedKafka);
+        return UpdateControl.updateStatusSubResource(managedKafka);
     }
 
     @Override
@@ -201,8 +152,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions.add(ready);
         }
 
-        if (managedKafka.getSpec().isDeleted() && kafkaInstance.isDeleted(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Deleted);
+        if (managedKafka.getSpec().isDeleted()) {
+            ConditionUtils.updateConditionStatus(ready,
+                    kafkaInstance.isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted);
         } else if (kafkaInstance.isInstalling(managedKafka)) {
             ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Installing);
         } else if (kafkaInstance.isReady(managedKafka)) {
