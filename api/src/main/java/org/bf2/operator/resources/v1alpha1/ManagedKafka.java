@@ -71,7 +71,12 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
             String oauthClientSecret, String oauthUserClaim, String oauthJwksEndpoint, String oauthTokenEndpoint,
             String oauthIssuerEndpoint) {
         ManagedKafka mk = new ManagedKafkaBuilder()
-                .withMetadata(new ObjectMetaBuilder().withNamespace(namespace).withName(name).build())
+                .withMetadata(new ObjectMetaBuilder()
+                        .withNamespace(namespace)
+                        .withName(name)
+                        .addToAnnotations(ID, name)
+                        .addToAnnotations(PLACEMENT_ID, name)
+                        .build())
                 .withSpec(new ManagedKafkaSpecBuilder().withNewVersions()
                         .withKafka("2.6.0")
                         .withStrimzi("0.21.1")
@@ -110,7 +115,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      * Creates a dummy / test ManagedKafka with mostly invalid values in the default namespace
      */
     public static ManagedKafka getDummyInstance(int name) {
-        return getDefault(String.valueOf(name), null, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
+        return getDefault(String.valueOf(name), String.valueOf(name), "xyz.com", CERT, CERT, "clientId", CERT, "secret",
                 "claim", "http://jwks", "https://token", "http://issuer");
     }
 

@@ -1,6 +1,7 @@
 package org.bf2.sync;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.quarkus.test.junit.QuarkusTest;
 
@@ -26,7 +27,10 @@ public class RequestResponseTest {
     @Test
     public void testManagedKafkaList() throws Exception {
         File data = new File("src/test/resources/mk-list.json");
-        assertNotNull(objMapper.readValue(data, ManagedKafkaList.class));
+        ManagedKafkaList list = objMapper.readValue(data, ManagedKafkaList.class);
+        assertNotNull(list);
+        assertEquals(1, list.getItems().size());
+        assertNotNull(list.getItems().get(0).getId());
     }
 
     @Test
