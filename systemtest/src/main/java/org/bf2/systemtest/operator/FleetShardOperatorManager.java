@@ -26,10 +26,12 @@ public class FleetShardOperatorManager {
 
     public static void deployFleetShardOperator(KubeClient kubeClient) throws Exception {
         LOGGER.info("Installing {}", OPERATOR_NAME);
-        LOGGER.info("Installing CRD");
+        LOGGER.info("Installing CRDs");
         installedCrds = kubeClient.client().load(new FileInputStream(Environment.CRD_PATH.toString())).get();
-        installedCrds.forEach(crd ->
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd));
+        installedCrds.forEach(crd -> {
+            LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
+            kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+        });
 
         kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         LOGGER.info("Installing operator from files: {}", Environment.YAML_OPERATOR_BUNDLE_PATH.toString());
@@ -92,9 +94,12 @@ public class FleetShardOperatorManager {
         var mkCli = kubeClient.client().customResources(ManagedKafka.class);
         mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
         Thread.sleep(10_000);
-        installedCrds.forEach(crd -> kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete());
+        installedCrds.forEach(crd -> {
+            LOGGER.info("Delete CRD {}", crd.getMetadata().getName());
+            kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete();
+        });
         LOGGER.info("Crds deleted");
-        kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
+        kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
         TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         LOGGER.info("kas-fleetshard is deleted");
     }

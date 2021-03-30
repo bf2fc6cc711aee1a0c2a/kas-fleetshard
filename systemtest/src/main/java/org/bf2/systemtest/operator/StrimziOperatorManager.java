@@ -34,8 +34,8 @@ public class StrimziOperatorManager {
 
     public static void installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
-                !kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                        .anyMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
+                kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
             LOGGER.info("Installing Strimzi : {}", OPERATOR_NS);
 
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());

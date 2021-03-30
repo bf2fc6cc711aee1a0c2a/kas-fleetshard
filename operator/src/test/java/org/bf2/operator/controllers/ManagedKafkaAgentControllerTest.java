@@ -1,17 +1,16 @@
 package org.bf2.operator.controllers;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-
-import javax.inject.Inject;
-
+import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusTest;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.junit.jupiter.api.Test;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
+import javax.inject.Inject;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
 @QuarkusTest
@@ -37,6 +36,8 @@ public class ManagedKafkaAgentControllerTest {
         mkaController.statusUpdateLoop();
         ManagedKafkaAgent agent = agentClient.getByName(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
         assertNotNull(agent.getStatus());
+
+        agentClient.delete(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
     }
 
 }
