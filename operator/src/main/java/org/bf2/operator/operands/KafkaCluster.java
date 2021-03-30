@@ -430,7 +430,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 ).build();
 
         return new KafkaClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder().withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build()).build())
+                .withPod(new PodTemplateBuilder()
+                        .withAffinity(new AffinityBuilder()
+                                .withPodAntiAffinity(podAntiAffinity)
+                                .build())
+                        .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                        .build())
                 .build();
     }
 
@@ -442,7 +447,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 ).build();
 
         return new ZookeeperClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder().withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build()).build())
+                .withPod(new PodTemplateBuilder()
+                        .withAffinity(new AffinityBuilder()
+                                .withPodAntiAffinity(podAntiAffinity)
+                                .build())
+                        .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                        .build())
                 .build();
     }
 

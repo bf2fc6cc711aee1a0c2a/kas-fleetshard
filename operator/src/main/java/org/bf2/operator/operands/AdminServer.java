@@ -142,6 +142,7 @@ public class AdminServer extends AbstractAdminServer {
                         .endMetadata()
                         .editOrNewSpec()
                             .withContainers(getContainers(managedKafka))
+                            .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
                             .withVolumes(getVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
@@ -228,7 +229,7 @@ public class AdminServer extends AbstractAdminServer {
         return route;
     }
 
-    private List<Container> getContainers(ManagedKafka managedKafka) {
+    protected List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
                 .withImage(adminApiImage)

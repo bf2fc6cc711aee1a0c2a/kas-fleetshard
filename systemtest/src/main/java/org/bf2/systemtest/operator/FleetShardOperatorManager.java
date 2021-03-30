@@ -15,6 +15,7 @@ import org.bf2.test.k8s.KubeClient;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
@@ -25,11 +26,14 @@ import java.util.concurrent.CompletableFuture;
 public class FleetShardOperatorManager {
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
     private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
+    private static final String FLEET_SHARD_PULL_SECRET_PATH_ENV = "FLEET_SHARD_PULL_SECRET_PATH";
 
     public static final Path ROOT_PATH = Objects.requireNonNullElseGet(Paths.get(System.getProperty("user.dir")).getParent(), () -> Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
     public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
     public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
     public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+
+    public static final String FLEET_SHARD_PULL_SECRET_PATH = Environment.getOrDefault(FLEET_SHARD_PULL_SECRET_PATH_ENV, "");
 
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
@@ -74,6 +78,9 @@ public class FleetShardOperatorManager {
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         }
+        if (!FLEET_SHARD_PULL_SECRET_PATH.isBlank()) {
+            deployPullSecrets(kubeClient);
+        }
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
@@ -88,6 +95,18 @@ public class FleetShardOperatorManager {
         kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
         return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
+    }
+
+    static void deployPullSecrets(KubeClient kubeClient) throws Exception {
+        Path secretResourcePath;
+
+        try {
+            secretResourcePath = Path.of(FLEET_SHARD_PULL_SECRET_PATH);
+            LOGGER.info("Deploying secrets for image pull from {}", FLEET_SHARD_PULL_SECRET_PATH);
+            kubeClient.apply(OPERATOR_NS, secretResourcePath);
+        } catch (InvalidPathException e) {
+            LOGGER.warn("Invalid path for {} - {}", FLEET_SHARD_PULL_SECRET_PATH_ENV, e.getMessage());
+        }
     }
 
     public static boolean isOperatorInstalled() {

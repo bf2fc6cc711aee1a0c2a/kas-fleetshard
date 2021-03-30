@@ -66,6 +66,7 @@ public class Canary extends AbstractCanary {
                         .endMetadata()
                         .editOrNewSpec()
                             .withContainers(getContainers(managedKafka))
+                            .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
                         .endSpec()
                     .endTemplate()
                 .endSpec()
@@ -78,7 +79,7 @@ public class Canary extends AbstractCanary {
         return deployment;
     }
 
-    private List<Container> getContainers(ManagedKafka managedKafka) {
+    protected List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("canary")
                 .withImage(canaryImage)
