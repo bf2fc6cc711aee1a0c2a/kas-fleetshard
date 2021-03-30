@@ -26,11 +26,4 @@ public class KafkaResourceClient extends AbstractCustomResourceClient<Kafka, Kaf
     protected Class<KafkaList> getCustomResourceListClass() {
         return KafkaList.class;
     }
-
-    @Override
-    protected MixedOperation<Kafka, KafkaList, Resource<Kafka>> getResourceClient() {
-        // creating a CRD context which is based on v1beta1 (returned by the Crds.kafka() method)
-        var crdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
-        return kubernetesClient.customResources(crdContext, getCustomResourceClass(), getCustomResourceListClass());
-    }
 }
