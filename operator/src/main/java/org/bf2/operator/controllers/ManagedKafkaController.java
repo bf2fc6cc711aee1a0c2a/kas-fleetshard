@@ -91,11 +91,11 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (event instanceof ResourceEvent) {
                 ResourceEvent<?> resourceEvent = (ResourceEvent)event;
                 HasMetadata resource = resourceEvent.getResource();
-                log.infof("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+                log.debugf("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
                 updateStatus |= managedKafka.getSpec().isDeleted() || resourceEvent.shouldUpdateStatus();
             } else if (event instanceof CustomResourceEvent) {
-                log.infof("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-                updateStatus = managedKafka.getStatus() == null || managedKafka.getStatus().getConditions() == null;
+                log.debugf("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                updateStatus |= managedKafka.getStatus() == null || managedKafka.getStatus().getConditions() == null;
             }
         }
 
