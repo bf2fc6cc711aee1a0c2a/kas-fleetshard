@@ -64,8 +64,7 @@ class KafkaClusterTest {
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-        var crdContext = CustomResourceDefinitionContext.fromCrd(Crds.kafka());
-        var kafkaCli = server.getClient().customResources(crdContext, Kafka.class, KafkaList.class);
+        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
         kafkaCli.create(kafka);
         assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }

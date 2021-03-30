@@ -41,7 +41,7 @@ public class RecoveryST extends AbstractST {
     void testDeleteDeployedResources(ExtensionContext extensionContext) {
         String mkAppName = "mk-test-resource-recovery";
 
-        var kafkacli = kube.client().customResources(kafkaCrdContext, Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
