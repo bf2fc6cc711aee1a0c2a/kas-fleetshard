@@ -64,8 +64,8 @@ public class OperatorSyncST extends AbstractST {
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
-        resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True));
+        assertTrue(resourceManager.waitResourceCondition(mk, m ->
+                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
         //Get status and compare with CR status
