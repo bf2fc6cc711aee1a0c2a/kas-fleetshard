@@ -74,7 +74,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                 .withMetadata(new ObjectMetaBuilder()
                         .withNamespace(namespace)
                         .withName(name)
-                        .addToAnnotations(ID, name)
+                        .addToAnnotations(ID, UUID.randomUUID().toString())
                         .addToAnnotations(PLACEMENT_ID, name)
                         .build())
                 .withSpec(new ManagedKafkaSpecBuilder().withNewVersions()
@@ -106,8 +106,6 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                         .endOauth()
                         .build())
                 .build();
-        mk.setPlacementId(UUID.randomUUID().toString());
-        mk.setId(name);
         return mk;
     }
 
