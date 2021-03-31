@@ -73,8 +73,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final int KAFKA_BROKERS = 3;
     private static final int ZOOKEEPER_NODES = 3;
-    private static final int PRODUCE_QUOTA = 4000000;
-    private static final int CONSUME_QUOTA = 4000000;
+    private static final int PRODUCE_QUOTA = Math.round(4000000 / KAFKA_BROKERS);
+    private static final int CONSUME_QUOTA = Math.round(4000000 / KAFKA_BROKERS);
     private static final String KAFKA_STORAGE_CLASS = "mk-storageclass";
     private static final boolean DELETE_CLAIM = false;
     private static final int JBOD_VOLUME_ID = 0;
