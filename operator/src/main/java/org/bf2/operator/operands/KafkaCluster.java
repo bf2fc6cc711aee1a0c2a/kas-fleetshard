@@ -30,6 +30,8 @@ import io.strimzi.api.kafka.model.JvmOptionsBuilder;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.MetricsConfig;
+import io.strimzi.api.kafka.model.Rack;
+import io.strimzi.api.kafka.model.RackBuilder;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
@@ -219,6 +221,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
                         .withStorage(getKafkaStorage())
                         .withListeners(getKafkaListeners(managedKafka))
+                        .withRack(getKafkaRack(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                     .endKafka()
@@ -391,6 +394,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
+    private Rack getKafkaRack(ManagedKafka managedKafka) {
+        return new RackBuilder()
+                .withNewTopologyKey("topology.kubernetes.io/zone")
+                .build();
+    }
+
     private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
                 .withRequiredDuringSchedulingIgnoredDuringExecution(
@@ -405,7 +414,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private ZookeeperClusterTemplate getZookeeperTemplate(ManagedKafka managedKafka) {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
                 .withRequiredDuringSchedulingIgnoredDuringExecution(
-                        new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
+                        new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build(),
+                        new PodAffinityTermBuilder().withTopologyKey("topology.kubernetes.io/zone").build()
                 ).build();
 
         return new ZookeeperClusterTemplateBuilder()
