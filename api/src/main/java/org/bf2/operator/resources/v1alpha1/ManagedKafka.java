@@ -115,7 +115,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      * Creates a dummy / test ManagedKafka with mostly invalid values in the default namespace
      */
     public static ManagedKafka getDummyInstance(int name) {
-        return getDefault(String.valueOf(name), String.valueOf(name), "xyz.com", CERT, CERT, "clientId", CERT, "secret",
+        return getDefault("mk-" + name, "mk-" + name, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
                 "claim", "http://jwks", "https://token", "http://issuer");
     }
 
