@@ -1,7 +1,7 @@
 # kas-fleetshard
 
-![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/workflows/Build%20and%20Unit%20tests/badge.svg)
-![Integration tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/workflows/Integration%20tests/badge.svg)
+[![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/build.yml/badge.svg)](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/build.yml)
+[![Smoke tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/smoke.yaml/badge.svg)](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/smoke.yaml)
 
 ## Running
 
