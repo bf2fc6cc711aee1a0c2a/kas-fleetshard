@@ -33,7 +33,8 @@ jobs:
           -Dquarkus.container-image.tag=latest \
           -Dquarkus.container-image.registry=localhost:5000 \
           -Dquarkus.container-image.insecure=true \
-          -Dkafka=dev
+          -Dkafka=dev \
+          -Dquarkus.profile=test
 
       - name: Build and push sync
         run: |
