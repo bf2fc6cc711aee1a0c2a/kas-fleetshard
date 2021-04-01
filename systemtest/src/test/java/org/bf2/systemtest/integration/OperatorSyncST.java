@@ -68,9 +68,24 @@ public class OperatorSyncST extends AbstractST {
                 ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
+        // wait for the sync to be up-to-date
+        TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, ()->{
+            try {
+                String statusBody = SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body();
+                if (statusBody.isEmpty()) {
+                    return false;
+                }
+                ManagedKafkaStatus apiStatus = Serialization.jsonMapper().readValue(statusBody, ManagedKafkaStatus.class);
+                return ManagedKafkaResourceType.hasConditionStatus(apiStatus, ManagedKafkaCondition.Type.Ready,
+                        ManagedKafkaCondition.Status.True);
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+        });
+
         //Get status and compare with CR status
         ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaStatus(mkAppName, syncEndpoint).body(), ManagedKafkaStatus.class);
+                .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(), ManagedKafkaStatus.class);
         ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
 
         assertEquals(managedKafka.getStatus().getAdminServerURI(), apiStatus.getAdminServerURI());
@@ -103,7 +118,7 @@ public class OperatorSyncST extends AbstractST {
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
 
         //delete mk using api
-        res = SyncApiClient.deleteManagedKafka(mkAppName, syncEndpoint);
+        res = SyncApiClient.deleteManagedKafka(mk.getId(), syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
         TestUtils.waitFor("Managed kafka is removed", 1_000, 300_000, () -> {
@@ -114,4 +129,5 @@ public class OperatorSyncST extends AbstractST {
 
         LOGGER.info("ManagedKafka {} deleted", mkAppName);
     }
+
 }

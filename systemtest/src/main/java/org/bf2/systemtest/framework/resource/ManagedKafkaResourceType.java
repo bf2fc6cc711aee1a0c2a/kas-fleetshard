@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.test.Environment;
 import org.bf2.test.k8s.KubeClient;
 
@@ -54,10 +55,17 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      * @return true if and only if there is a condition of the given type with the given status
      */
     public static boolean hasConditionStatus(ManagedKafka mk, ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
-        if (mk == null || mk.getStatus() == null || mk.getStatus().getConditions() == null) {
+        if (mk == null) {
             return false;
         }
-        for (ManagedKafkaCondition condition : mk.getStatus().getConditions()) {
+        return hasConditionStatus(mk.getStatus(), type, status);
+    }
+
+    public static boolean hasConditionStatus(ManagedKafkaStatus mks, ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
+        if (mks == null || mks.getConditions() == null) {
+            return false;
+        }
+        for (ManagedKafkaCondition condition : mks.getConditions()) {
             if (type.name().equals(condition.getType())) {
                 return status.name().equals(condition.getStatus());
             }
