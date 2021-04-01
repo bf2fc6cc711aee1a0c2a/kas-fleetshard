@@ -7,7 +7,6 @@ import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.TestProfile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.integration.AbstractST;
@@ -17,7 +16,6 @@ import org.bf2.test.executor.ExecResult;
 import org.bf2.test.k8s.KubeClusterException;
 import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.bf2.test.mock.QuarkusKubernetesMockServer;
-import org.bf2.test.mock.MockSyncProfile;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +31,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @QuarkusTest
 @QuarkusTestResource(QuarkusKubeMockServer.class)
-@TestProfile(MockSyncProfile.class)
 public class SuiteUnitTest extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
     private static final String TEST_NS = "default";
