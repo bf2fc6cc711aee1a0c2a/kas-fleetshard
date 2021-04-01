@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.ws.rs.WebApplicationException;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -25,6 +24,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.micrometer.core.annotation.Counted;
 import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
@@ -83,15 +83,11 @@ public class ControlPlane {
     private void updateAgentStatus() {
         log.debug("Updating agnet status");
         executorService.execute(() -> {
-            try {
-                ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
-                if (localManagedKafkaAgent != null) {
-                    controlPlaneClient.updateStatus(id, localManagedKafkaAgent.getStatus());
-                }
-                // TODO if it's null we could still send an empty status
-            } catch (WebApplicationException e) {
-                log.errorf(e, "Could not update status for ManagedKafkaAgent");
+            ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
+            if (localManagedKafkaAgent != null) {
+                controlPlaneClient.updateStatus(id, localManagedKafkaAgent.getStatus());
             }
+            // TODO if it's null we could still send an empty status
         });
     }
 
@@ -139,11 +135,7 @@ public class ControlPlane {
             if (status.isEmpty()) {
                 return;
             }
-            try {
-                controlPlaneClient.updateKafkaClustersStatus(id, status);
-            } catch (WebApplicationException e) {
-                log.errorf(e, "Could not update status for %s", status.keySet());
-            }
+            controlPlaneClient.updateKafkaClustersStatus(id, status);
         });
     }
 
@@ -173,6 +165,7 @@ public class ControlPlane {
     /**
      * On the resync interval, send everything
      */
+    @Counted(value = "status_resync") // no need to be timed as the actions are async
     @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
         log.debug("Updating status on resync interval");

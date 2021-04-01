@@ -12,6 +12,9 @@ import javax.inject.Inject;
 
 import org.jboss.logging.Logger;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+
 @ApplicationScoped
 public class ExecutorServiceProvider {
 
@@ -27,6 +30,10 @@ public class ExecutorServiceProvider {
         }
 
     });
+
+    public ExecutorServiceProvider(MeterRegistry meterRegistry) {
+        ExecutorServiceMetrics.monitor(meterRegistry, executor, "sync_threadpool");
+    }
 
     @Produces
     public ExecutorService executorService() {

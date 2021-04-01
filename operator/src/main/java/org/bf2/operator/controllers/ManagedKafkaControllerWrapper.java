@@ -11,6 +11,9 @@ import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 
+/**
+ * Workaround for https://github.com/java-operator-sdk/java-operator-sdk/issues/393
+ */
 @Controller
 public class ManagedKafkaControllerWrapper implements ResourceController<ManagedKafka> {
 

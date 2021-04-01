@@ -2,7 +2,6 @@ package org.bf2.operator.controllers;
 
 import javax.inject.Inject;
 
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 
 import io.javaoperatorsdk.operator.api.Context;
@@ -12,6 +11,9 @@ import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 
+/**
+ * Workaround for https://github.com/java-operator-sdk/java-operator-sdk/issues/393
+ */
 @Controller
 public class ManagedKafkaAgentControllerWrapper implements ResourceController<ManagedKafkaAgent> {
 

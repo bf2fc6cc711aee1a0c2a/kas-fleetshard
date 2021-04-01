@@ -9,6 +9,8 @@ import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.jboss.logging.Logger;
 
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 
 @ApplicationScoped
@@ -26,6 +28,8 @@ public class ManagedKafkaAgentSync {
     @Inject
     ControlPlane controlPlane;
 
+    @Timed(value = "managed_kafka_agent_poll")
+    @Counted(value = "managed_kafka_agent_poll")
     @Scheduled(every = "{poll.interval}", delayed = "5s")
     void loop() {
         if (!lookup.isReady()) {
