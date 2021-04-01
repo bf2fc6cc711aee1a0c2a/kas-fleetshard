@@ -18,6 +18,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
@@ -30,6 +31,9 @@ public class InformerManager implements LocalLookup {
 
     @Inject
     ControlPlane controlPlane;
+
+    @Inject
+    MeterRegistry meterRegistry;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -50,6 +54,13 @@ public class InformerManager implements LocalLookup {
         managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         sharedInformerFactory.startAllRegisteredInformers();
+
+        meterRegistry.gauge("managedkafkas", this, (informer) -> {
+            if (!informer.isReady()) {
+                throw new IllegalStateException();
+            }
+            return informer.getLocalManagedKafkas().size();
+        });
     }
 
     @PreDestroy

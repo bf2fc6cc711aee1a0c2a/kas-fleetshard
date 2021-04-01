@@ -165,7 +165,7 @@ public class ControlPlane {
     /**
      * On the resync interval, send everything
      */
-    @Counted(value = "status_resync") // no need to be timed as the actions are async
+    @Counted(value = "status.resync") // no need to be timed as the actions are async
     @Scheduled(every = "{resync.interval}", delayed = "10s")
     public void sendResync() {
         log.debug("Updating status on resync interval");

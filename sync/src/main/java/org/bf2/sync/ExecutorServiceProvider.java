@@ -68,7 +68,7 @@ public class ExecutorServiceProvider implements UncaughtExceptionHandler {
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        Counter.Builder builder = Counter.builder("executor_failed_tasks")
+        Counter.Builder builder = Counter.builder("executor.failed.tasks")
                 .tag("name", NAME)
                 .tag("exception", getExceptionTag(e))
                 .tag("result", "failure");

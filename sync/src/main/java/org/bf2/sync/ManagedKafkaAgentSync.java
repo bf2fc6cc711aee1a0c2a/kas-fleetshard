@@ -28,8 +28,8 @@ public class ManagedKafkaAgentSync {
     @Inject
     ControlPlane controlPlane;
 
-    @Timed(value = "managed_kafka_agent_poll")
-    @Counted(value = "managed_kafka_agent_poll")
+    @Timed(value = "managedkafkaagent.poll")
+    @Counted(value = "managedkafkaagent.poll")
     @Scheduled(every = "{poll.interval}", delayed = "5s")
     void loop() {
         if (!lookup.isReady()) {
