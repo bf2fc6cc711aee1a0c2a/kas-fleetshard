@@ -4,13 +4,14 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
-import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.events.ResourceEvent;
@@ -26,6 +27,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -33,7 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@Controller
+@ApplicationScoped
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     @Inject
@@ -64,6 +66,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     KafkaInstance kafkaInstance;
 
     @Override
+    @Timed(value = "managed_kafka_delete")
+    @Counted(value = "managed_kafka_delete")
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         return DeleteControl.DEFAULT_DELETE;
@@ -89,6 +93,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * This strategy is straight-forward and works well as long as few events are expected.
      */
     @Override
+    @Timed(value = "managed_kafka_update")
+    @Counted(value = "managed_kafka_update")
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         if (log.isDebugEnabled()) {
             for (Event event : context.getEvents().getList()) {
