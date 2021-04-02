@@ -64,8 +64,8 @@ public class ManagedKafkaSync {
      * Then execute that deferred work using the {@link ManagedExecutor} but with
      * a refresh of the state to ensure we're still acting appropriately.
      */
-    @Timed(value = "managedkafka.poll")
-    @Counted(value = "managedkafka.poll")
+    @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"})
+    @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"})
     public void syncKafkaClusters() {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 

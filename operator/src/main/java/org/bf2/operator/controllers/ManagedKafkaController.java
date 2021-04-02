@@ -66,8 +66,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     KafkaInstance kafkaInstance;
 
     @Override
-    @Timed(value = "managed_kafka_delete")
-    @Counted(value = "managed_kafka_delete")
+    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"})
+    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"})
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         return DeleteControl.DEFAULT_DELETE;
@@ -93,8 +93,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * This strategy is straight-forward and works well as long as few events are expected.
      */
     @Override
-    @Timed(value = "managed_kafka_update")
-    @Counted(value = "managed_kafka_update")
+    @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafka"})
+    @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafka"})
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         if (log.isDebugEnabled()) {
             for (Event event : context.getEvents().getList()) {

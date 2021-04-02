@@ -19,7 +19,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -28,7 +27,6 @@ import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
-import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
@@ -50,14 +48,11 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     AgentResourceClient agentClient;
 
-    @ConfigProperty(name = "cluster.id", defaultValue = "testing")
-    String clusterId;
-
     @Inject
     ObservabilityManager observabilityManager;
 
-    @Timed(value = "managed_kafka_agent_delete")
-    @Counted(value = "managed_kafka_agent_delete") // not expected to be called
+    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"})
+    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}) // not expected to be called
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
         log.warnf("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.agentClient.getNamespace());
@@ -66,8 +61,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         return DeleteControl.DEFAULT_DELETE;
     }
 
-    @Timed(value = "managed_kafka_agent_update")
-    @Counted(value = "managed_kafka_agent_update")
+    @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"})
+    @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"})
     @Override
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
@@ -80,8 +75,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         log.info("Managed Kafka Agent started");
     }
 
-    @Timed(value = "managed_kafka_agent_status_update")
-    @Counted(value = "managed_kafka_agent_status_update")
+    @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"})
+    @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"})
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
         ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
