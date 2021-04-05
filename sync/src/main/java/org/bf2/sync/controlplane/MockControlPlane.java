@@ -38,8 +38,7 @@ import io.quarkus.scheduler.Scheduled;
 @Path(ControlPlaneApi.BASE_PATH)
 public class MockControlPlane implements ControlPlaneApi {
 
-    @Inject
-    Logger log;
+    static Logger log = Logger.getLogger(MockControlPlane.class);
 
     @ConfigProperty(name="sync.mock-control-plane.simulate", defaultValue = "false")
     boolean runSimulation;

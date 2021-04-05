@@ -81,7 +81,7 @@ public class ControlPlane {
     }
 
     private void updateAgentStatus() {
-        log.debug("Updating agnet status");
+        log.debug("Updating agent status");
         executorService.execute(() -> {
             try {
                 ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
