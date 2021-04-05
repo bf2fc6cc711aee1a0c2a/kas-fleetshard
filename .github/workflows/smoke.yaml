@@ -31,7 +31,7 @@ jobs:
 
       - name: Build and push operator
         run: |
-          mvn package -pl operator -am -DskipTests --no-transfer-progress \
+          mvn package -pl operator -am -P quickly --no-transfer-progress \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.group=bf2 \
@@ -44,7 +44,7 @@ jobs:
 
       - name: Build and push sync
         run: |
-          mvn package -pl sync -am -DskipTests --no-transfer-progress \
+          mvn package -pl sync -am -P quickly --no-transfer-progress \
           -Dquarkus.container-image.build=true \
           -Dquarkus.container-image.push=true \
           -Dquarkus.container-image.group=bf2 \

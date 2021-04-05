@@ -3,6 +3,12 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.basepom</groupId>
+        <artifactId>basepom-oss</artifactId>
+        <version>36</version>
+    </parent>
 
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
@@ -10,23 +16,42 @@
     <version>999-SNAPSHOT</version>
 
     <properties>
-        <surefire-plugin.version>3.0.0-M5</surefire-plugin.version>
-        <maven.compiler.target>11</maven.compiler.target>
-        <quarkus.platform.version>1.11.1.Final</quarkus.platform.version>
-        <maven.compiler.source>11</maven.compiler.source>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- things we don't need from basepom -->
+        <basepom.check.skip-license>true</basepom.check.skip-license>
+        <!-- quarkus pick -->
+        <basepom.check.skip-dependency>true</basepom.check.skip-dependency>
+        
+        <!-- things that we could eventually turn on -->
+        <basepom.check.skip-duplicate-finder>true</basepom.check.skip-duplicate-finder>
+        
+        <!-- we may want to disable this in github actions
+        <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check> 
+        -->
+        
+        <basepom.test.fork-count>1</basepom.test.fork-count>
+        <basepom.failsafe.fork-count>1</basepom.failsafe.fork-count>
+        <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
+        <basepom.test.timeout>150</basepom.test.timeout>
+        
+        <maven.compiler.release>11</maven.compiler.release>
+        <project.build.systemJdk>${maven.compiler.release}</project.build.systemJdk>
+        <project.build.targetJdk>${maven.compiler.release}</project.build.targetJdk>
+        
+        <!-- systemtests seem to suffer from https://issues.apache.org/jira/browse/SUREFIRE-1800 -->
+        <dep.plugin.surefire.version>3.0.0-M4</dep.plugin.surefire.version>
+        
         <maven.compiler.parameters>true</maven.compiler.parameters>
+        
+        <quarkus.platform.version>1.11.1.Final</quarkus.platform.version>
+        <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>1.11.1.Final</quarkus-plugin.version>
-        <compiler-plugin.version>3.8.1</compiler-plugin.version>
         <dekorate.version>2.0.0.beta8</dekorate.version>
         <strimzi.version>0.22.0</strimzi.version>
         <quarkus.operator.extension>1.7.1</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <log4j2.version>2.13.3</log4j2.version>
-        <sundrio.version>0.24.1</sundrio.version>
+        <sundrio.version>0.24.2</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
     </properties>
@@ -98,6 +123,13 @@
                 <groupId>io.strimzi</groupId>
                 <artifactId>api</artifactId>
                 <version>${strimzi.version}</version>
+                <exclusions>
+                    <!-- Quarkus logging system requiring it for avoiding multiple bindings problem: https://quarkus.io/guides/logging#logging-adapters -->
+                    <exclusion>
+                        <groupId>org.apache.logging.log4j</groupId>
+                        <artifactId>log4j-slf4j-impl</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
@@ -130,5 +162,61 @@
       </snapshots>
     </repository>
   </repositories>
-
+  
+    <build>
+        <plugins>
+            <!-- make root resources available to child modules -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <!-- don't propagate to child poms -->
+                <!-- this will only execute in root pom -->
+                <inherited>false</inherited>
+                <configuration>
+                    <descriptors>
+                        <descriptor>assembly.xml</descriptor>
+                    </descriptors>
+                    <!-- don't add classifier -->
+                    <appendAssemblyId>false</appendAssemblyId>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <configuration>
+                        <excludeFilterFile>/spotbugs-exclude.xml</excludeFilterFile>
+                    </configuration>
+                    <dependencies>
+                        <dependency>
+                            <groupId>org.bf2</groupId>
+                            <artifactId>kas-fleetshard</artifactId>
+                            <version>${project.version}</version>
+                        </dependency>                    
+                    </dependencies>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+    
+    <profiles>
+        <profile>
+            <id>quickly</id>
+            <properties>
+                <basepom.check.skip-all>true</basepom.check.skip-all>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
+  
 </project>
