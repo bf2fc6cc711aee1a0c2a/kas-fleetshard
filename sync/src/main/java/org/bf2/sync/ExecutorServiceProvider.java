@@ -22,7 +22,7 @@ import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
 @ApplicationScoped
 public class ExecutorServiceProvider implements UncaughtExceptionHandler {
 
-    private static final String NAME = "sync_threadpool";
+    private static final String NAME = "sync.threadpool";
 
     @Inject
     Logger log;
@@ -71,7 +71,8 @@ public class ExecutorServiceProvider implements UncaughtExceptionHandler {
         Counter.Builder builder = Counter.builder("executor.failed.tasks")
                 .tag("name", NAME)
                 .tag("exception", getExceptionTag(e))
-                .tag("result", "failure");
+                .tag("result", "failure")
+                .description("The number of tasks that have failed");
         builder.register(meterRegistry).increment();
     }
 

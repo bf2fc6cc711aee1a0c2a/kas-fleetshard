@@ -28,8 +28,8 @@ public class ManagedKafkaAgentSync {
     @Inject
     ControlPlane controlPlane;
 
-    @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"})
-    @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"})
+    @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The time spent processing polling calls")
+    @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of polling calls")
     @Scheduled(every = "{poll.interval}", delayed = "5s")
     void loop() {
         if (!lookup.isReady()) {
