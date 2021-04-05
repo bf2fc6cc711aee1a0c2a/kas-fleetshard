@@ -8,9 +8,12 @@ import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -60,6 +63,19 @@ public class InformerManager implements LocalLookup {
                 throw new IllegalStateException();
             }
             return informer.getLocalManagedKafkas().size();
+        });
+
+        meterRegistry.gauge("managedkafkas.ready", this, (informer) -> {
+            if (!informer.isReady()) {
+                throw new IllegalStateException();
+            }
+            return informer.getLocalManagedKafkas()
+                    .stream()
+                    .filter(mk -> mk.getStatus() != null && ConditionUtils
+                            .findManagedKafkaCondition(mk.getStatus().getConditions(), Type.Ready)
+                            .filter(mkc -> ManagedKafkaCondition.Status.True.name().equals(mkc.getStatus()))
+                            .isPresent())
+                    .count();
         });
     }
 
