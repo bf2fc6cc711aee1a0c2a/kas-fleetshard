@@ -32,3 +32,7 @@ mvn -pl operator quarkus:dev
 ```
 
 > NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
+
+## Contributing
+
+Use mvn process-sources or almost any mvn command to automatically format your code contribution prior to creating a pull request.
