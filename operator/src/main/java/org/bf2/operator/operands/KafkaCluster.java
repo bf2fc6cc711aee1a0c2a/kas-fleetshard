@@ -28,6 +28,9 @@ import io.strimzi.api.kafka.model.JmxPrometheusExporterMetricsBuilder;
 import io.strimzi.api.kafka.model.JvmOptions;
 import io.strimzi.api.kafka.model.JvmOptionsBuilder;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaAuthorization;
+import io.strimzi.api.kafka.model.KafkaAuthorizationCustom;
+import io.strimzi.api.kafka.model.KafkaAuthorizationCustomBuilder;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.MetricsConfig;
 import io.strimzi.api.kafka.model.Rack;
@@ -85,6 +88,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final double SOFT_PERCENT = 0.9;
     private static final String KAFKA_STORAGE_CLASS = "mk-storageclass";
     private static final boolean DELETE_CLAIM = true;
+    private static final String KAFKA_AUTHORIZER_CLASS = "io.bf2.kafka.authorizer.GlobalAclAuthorizer";
+    private static final String KAFKA_AUTHORIZER_CONFIG_PREFIX = "strimzi.authorization.global-authorizer.";
+    private static final String KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS = KAFKA_AUTHORIZER_CONFIG_PREFIX + "allowed-listeners";
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
@@ -235,6 +241,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withRack(getKafkaRack(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
+                        .withAuthorization(getKafkaAuthorization(managedKafka))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(ZOOKEEPER_NODES)
@@ -515,6 +522,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
         config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
 
+        // custom authorizer configuration
+        addKafkaAuthorizerConfig(config);
+
         return config;
     }
 
@@ -588,6 +598,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(false)
                                 .withAuth(oauthAuthenticationListener)
+                                .build(),
+                        new GenericKafkaListenerBuilder()
+                                .withName("sre")
+                                .withPort(9096)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(false)
                                 .build()
                 ).build();
     }
@@ -662,6 +678,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withDeleteClaim(DELETE_CLAIM)
                 .withStorageClass(KAFKA_STORAGE_CLASS)
                 .build();
+    }
+
+    private KafkaAuthorization getKafkaAuthorization(ManagedKafka managedKafka) {
+        KafkaAuthorizationCustom authorization = new KafkaAuthorizationCustomBuilder()
+                .withAuthorizerClass(KAFKA_AUTHORIZER_CLASS)
+                .build();
+        return authorization;
+    }
+
+    private void addKafkaAuthorizerConfig(Map<String, Object> config) {
+        config.put(KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS, "PLAIN-9092,SRE-9096");
+        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 1, "permission=allow;topic=*;operations=all");
+        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 2, "permission=allow;group=*;operations=all");
+        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
+        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 4, "permission=allow;cluster=*;operations=describe,describe_configs");
     }
 
     private Map<String, String> getKafkaLabels() {

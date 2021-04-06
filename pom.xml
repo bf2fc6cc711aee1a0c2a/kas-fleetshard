@@ -53,7 +53,7 @@
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <dekorate.version>2.0.0.beta8</dekorate.version>
-        <strimzi.version>0.22.0</strimzi.version>
+        <strimzi.version>0.23.0-SNAPSHOT</strimzi.version>
         <quarkus.operator.extension>1.7.1</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
