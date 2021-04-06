@@ -1,17 +1,7 @@
 package org.bf2.systemtest.framework;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
-import org.bf2.systemtest.framework.resource.NamespaceResourceType;
-import org.bf2.systemtest.framework.resource.ResourceType;
-import org.bf2.test.k8s.KubeClient;
-import org.junit.jupiter.api.extension.ExtensionContext;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -20,8 +10,20 @@ import java.util.Objects;
 import java.util.Stack;
 import java.util.function.Predicate;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
+import org.bf2.systemtest.framework.resource.NamespaceResourceType;
+import org.bf2.systemtest.framework.resource.ResourceType;
+import org.bf2.test.k8s.KubeClient;
+import org.junit.jupiter.api.extension.ExtensionContext;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 
 /**
  * Managing resources

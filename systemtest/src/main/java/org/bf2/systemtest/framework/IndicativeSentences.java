@@ -1,8 +1,8 @@
 package org.bf2.systemtest.framework;
 
-import org.junit.jupiter.api.DisplayNameGenerator;
-
 import java.lang.reflect.Method;
+
+import org.junit.jupiter.api.DisplayNameGenerator;
 
 public class IndicativeSentences extends DisplayNameGenerator.ReplaceUnderscores {
 

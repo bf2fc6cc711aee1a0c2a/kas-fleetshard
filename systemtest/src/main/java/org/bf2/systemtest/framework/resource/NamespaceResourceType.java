@@ -1,8 +1,8 @@
 package org.bf2.systemtest.framework.resource;
 
+import org.bf2.test.k8s.KubeClient;
 
 import io.fabric8.kubernetes.api.model.Namespace;
-import org.bf2.test.k8s.KubeClient;
 
 public class NamespaceResourceType implements ResourceType<Namespace> {
     @Override

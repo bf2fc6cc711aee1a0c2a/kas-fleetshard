@@ -4,16 +4,17 @@
  */
 package org.bf2.test.k8s.cmdClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.bf2.test.executor.ExecResult;
+import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
+import org.bf2.test.executor.ExecResult;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 /**
  * Abstraction for a kubernetes client.

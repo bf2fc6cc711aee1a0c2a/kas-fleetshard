@@ -1,10 +1,9 @@
 package org.bf2.systemtest.operator;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
-import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.client.OpenShiftClient;
+import java.io.FileInputStream;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -13,9 +12,11 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
-import java.io.FileInputStream;
-import java.util.List;
-import java.util.Map;
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.client.OpenShiftClient;
 
 public class FleetShardOperatorManager {
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);

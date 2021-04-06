@@ -4,12 +4,12 @@
  */
 package org.bf2.test.k8s.cmdClient;
 
+import java.util.List;
+import java.util.Map;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.test.executor.Exec;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * A {@link KubeCmdClient} implementation wrapping {@code oc}.

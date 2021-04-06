@@ -1,14 +1,15 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.javaoperatorsdk.operator.api.Context;
+import javax.inject.Inject;
+
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
-import javax.inject.Inject;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.javaoperatorsdk.operator.api.Context;
 
 public abstract class AbstractCanary implements Operand<ManagedKafka> {
 

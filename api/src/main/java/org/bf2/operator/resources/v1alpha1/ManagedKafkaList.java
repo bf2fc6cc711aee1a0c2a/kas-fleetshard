@@ -1,6 +1,7 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import java.util.Collection;
+
 import io.fabric8.kubernetes.client.CustomResourceList;
 
 public class ManagedKafkaList extends CustomResourceList<ManagedKafka> {

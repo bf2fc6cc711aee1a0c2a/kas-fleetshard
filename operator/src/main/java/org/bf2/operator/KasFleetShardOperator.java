@@ -2,12 +2,13 @@ package org.bf2.operator;
 
 import javax.inject.Inject;
 
+import org.bf2.operator.controllers.ManagedKafkaController;
+import org.jboss.logging.Logger;
+
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
-import org.bf2.operator.controllers.ManagedKafkaController;
-import org.jboss.logging.Logger;
 
 public class KasFleetShardOperator implements QuarkusApplication {
 

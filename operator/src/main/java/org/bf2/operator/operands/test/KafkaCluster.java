@@ -1,18 +1,20 @@
 package org.bf2.operator.operands.test;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Collections;
+
+import javax.enterprise.context.ApplicationScoped;
+
+import org.bf2.operator.operands.OperandUtils;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.operator.operands.OperandUtils;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-
-import javax.enterprise.context.ApplicationScoped;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.Collections;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one

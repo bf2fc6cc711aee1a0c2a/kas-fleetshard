@@ -4,14 +4,8 @@
  */
 package org.bf2.test.k8s.cmdClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bf2.test.TestUtils;
-import org.bf2.test.executor.Exec;
-import org.bf2.test.executor.ExecResult;
-import org.bf2.test.k8s.KubeClusterException;
+import static java.lang.String.join;
+import static java.util.Arrays.asList;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,8 +19,15 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static java.lang.String.join;
-import static java.util.Arrays.asList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bf2.test.TestUtils;
+import org.bf2.test.executor.Exec;
+import org.bf2.test.executor.ExecResult;
+import org.bf2.test.k8s.KubeClusterException;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implements KubeCmdClient<K> {
 

@@ -1,17 +1,18 @@
 package org.bf2.systemtest.api;
 
-import io.fabric8.kubernetes.client.utils.Serialization;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.systemtest.framework.ThrowableSupplier;
-
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.systemtest.framework.ThrowableSupplier;
+
+import io.fabric8.kubernetes.client.utils.Serialization;
 
 public class SyncApiClient {
     private static final Logger LOGGER = LogManager.getLogger(SyncApiClient.class);

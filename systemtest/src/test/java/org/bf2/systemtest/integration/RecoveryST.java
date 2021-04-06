@@ -1,8 +1,11 @@
 package org.bf2.systemtest.integration;
 
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.Kafka;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.Duration;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -16,11 +19,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import java.time.Duration;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.strimzi.api.kafka.KafkaList;
+import io.strimzi.api.kafka.model.Kafka;
 
 public class RecoveryST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(RecoveryST.class);

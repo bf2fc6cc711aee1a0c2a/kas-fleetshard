@@ -1,15 +1,16 @@
 package org.bf2.operator.operands;
 
+import javax.inject.Inject;
+
+import org.bf2.operator.InformerManager;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.jboss.logging.Logger;
+
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
-import org.bf2.operator.InformerManager;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.jboss.logging.Logger;
-
-import javax.inject.Inject;
 
 public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 

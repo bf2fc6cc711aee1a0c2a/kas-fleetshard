@@ -1,5 +1,9 @@
 package org.bf2.systemtest.framework;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -7,10 +11,6 @@ import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.ExtensionContext;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 public class LogCollector {
     private static final Logger LOGGER = LogManager.getLogger(LogCollector.class);

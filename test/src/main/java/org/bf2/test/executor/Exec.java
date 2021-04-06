@@ -1,9 +1,6 @@
 package org.bf2.test.executor;
 
-import io.fabric8.kubernetes.api.model.EnvVar;
-import org.bf2.test.k8s.KubeClusterException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import static java.lang.String.join;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,7 +26,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.lang.String.join;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.KubeClusterException;
+
+import io.fabric8.kubernetes.api.model.EnvVar;
 
 public class Exec {
     private static final Logger LOGGER = LogManager.getLogger(Exec.class);

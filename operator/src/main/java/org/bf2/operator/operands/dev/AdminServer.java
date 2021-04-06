@@ -1,8 +1,8 @@
 package org.bf2.operator.operands.dev;
 
-import io.quarkus.arc.properties.IfBuildProperty;
-
 import javax.enterprise.context.ApplicationScoped;
+
+import io.quarkus.arc.properties.IfBuildProperty;
 
 /**
  * Provides same functionalities to get a AdminServer deployment from a ManagedKafka one

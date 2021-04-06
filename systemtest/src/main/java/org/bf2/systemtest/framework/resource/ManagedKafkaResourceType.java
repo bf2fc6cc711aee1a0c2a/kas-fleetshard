@@ -1,9 +1,5 @@
 package org.bf2.systemtest.framework.resource;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,6 +8,11 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.test.Environment;
 import org.bf2.test.k8s.KubeClient;
+
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 

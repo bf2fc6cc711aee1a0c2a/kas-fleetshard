@@ -1,5 +1,24 @@
 package org.bf2.systemtest.unit;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.integration.AbstractST;
+import org.bf2.test.executor.Exec;
+import org.bf2.test.executor.ExecBuilder;
+import org.bf2.test.executor.ExecResult;
+import org.bf2.test.k8s.KubeClusterException;
+import org.bf2.test.mock.MockSyncProfile;
+import org.bf2.test.mock.QuarkusKubeMockServer;
+import org.bf2.test.mock.QuarkusKubernetesMockServer;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
@@ -8,24 +27,6 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.integration.AbstractST;
-import org.bf2.test.executor.Exec;
-import org.bf2.test.executor.ExecBuilder;
-import org.bf2.test.executor.ExecResult;
-import org.bf2.test.k8s.KubeClusterException;
-import org.bf2.test.mock.QuarkusKubeMockServer;
-import org.bf2.test.mock.QuarkusKubernetesMockServer;
-import org.bf2.test.mock.MockSyncProfile;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Class for storing all unit tests of test suite

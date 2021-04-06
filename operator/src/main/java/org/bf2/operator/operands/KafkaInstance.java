@@ -1,10 +1,11 @@
 package org.bf2.operator.operands;
 
-import io.javaoperatorsdk.operator.api.Context;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+
+import io.javaoperatorsdk.operator.api.Context;
 
 /**
  * Represents an overall Kafka instance made by Kafka, Canary and AdminServer resources
