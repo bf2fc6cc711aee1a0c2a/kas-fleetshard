@@ -1,6 +1,5 @@
 package org.bf2.sync;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,7 +8,6 @@ import java.util.concurrent.ExecutorService;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import javax.ws.rs.WebApplicationException;
 
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
@@ -28,6 +26,8 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -64,6 +64,8 @@ public class ManagedKafkaSync {
      * Then execute that deferred work using the {@link ManagedExecutor} but with
      * a refresh of the state to ensure we're still acting appropriately.
      */
+    @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafka"}, description = "The time spent processing polling calls")
+    @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafka"}, description = "The number of polling calls")
     public void syncKafkaClusters() {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
@@ -229,17 +231,7 @@ public class ManagedKafkaSync {
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list
-        executorService.execute(()->{
-            try {
-                syncKafkaClusters();
-            } catch (RuntimeException e) {
-                if (e.getCause() instanceof IOException || e instanceof WebApplicationException) {
-                    log.infof("Could not poll for managed kafkas %s", e.getMessage());
-                } else {
-                    log.errorf(e, "Could not poll for managed kafkas");
-                }
-            }
-        });
+        executorService.execute(() -> syncKafkaClusters());
     }
 
 }

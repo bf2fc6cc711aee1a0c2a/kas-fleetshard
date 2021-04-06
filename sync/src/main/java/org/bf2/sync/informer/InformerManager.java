@@ -8,9 +8,12 @@ import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -18,6 +21,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
@@ -30,6 +34,9 @@ public class InformerManager implements LocalLookup {
 
     @Inject
     ControlPlane controlPlane;
+
+    @Inject
+    MeterRegistry meterRegistry;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -50,6 +57,26 @@ public class InformerManager implements LocalLookup {
         managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         sharedInformerFactory.startAllRegisteredInformers();
+
+        meterRegistry.gauge("managedkafkas", this, (informer) -> {
+            if (!informer.isReady()) {
+                throw new IllegalStateException();
+            }
+            return informer.getLocalManagedKafkas().size();
+        });
+
+        meterRegistry.gauge("managedkafkas.ready", this, (informer) -> {
+            if (!informer.isReady()) {
+                throw new IllegalStateException();
+            }
+            return informer.getLocalManagedKafkas()
+                    .stream()
+                    .filter(mk -> mk.getStatus() != null && ConditionUtils
+                            .findManagedKafkaCondition(mk.getStatus().getConditions(), Type.Ready)
+                            .filter(mkc -> ManagedKafkaCondition.Status.True.name().equals(mkc.getStatus()))
+                            .isPresent())
+                    .count();
+        });
     }
 
     @PreDestroy

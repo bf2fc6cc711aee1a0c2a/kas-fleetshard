@@ -2,6 +2,7 @@ package org.bf2.operator.controllers;
 
 import java.util.Arrays;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import org.bf2.common.AgentResourceClient;
@@ -18,17 +19,16 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.javaoperatorsdk.operator.api.Context;
-import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
-import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 
 /**
@@ -39,7 +39,7 @@ import io.quarkus.scheduler.Scheduled;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@Controller
+@ApplicationScoped
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     @Inject
@@ -48,24 +48,24 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     AgentResourceClient agentClient;
 
-    @ConfigProperty(name = "cluster.id", defaultValue = "testing")
-    String clusterId;
-
     @Inject
     ObservabilityManager observabilityManager;
 
+    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
+    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
     @Override
     public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
-        log.infof("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.agentClient.getNamespace());
+        log.warnf("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.agentClient.getNamespace());
 
         // nothing to do as resource cleanup, just ack.
         return DeleteControl.DEFAULT_DELETE;
     }
 
+    @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing createOrUpdate calls")
+    @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of createOrUpdate calls processed")
     @Override
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
-        context.getEvents().getLatestOfType(CustomResourceEvent.class);
         this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
         return UpdateControl.noUpdate();
     }
@@ -75,19 +75,17 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         log.info("Managed Kafka Agent started");
     }
 
+    @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
+    @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
     @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
     void statusUpdateLoop() {
-        try {
-            ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
-            if (resource != null) {
-                // check and reinstate if the observability config changed
-                this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
-                log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
-                resource.setStatus(buildStatus(resource));
-                this.agentClient.updateStatus(resource);
-            }
-        } catch(RuntimeException e) {
-            log.error("failed to invoke process to calculate the capacity of the cluster in kafka agent", e);
+        ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+        if (resource != null) {
+            // check and reinstate if the observability config changed
+            this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
+            log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
+            resource.setStatus(buildStatus(resource));
+            this.agentClient.updateStatus(resource);
         }
     }
 
