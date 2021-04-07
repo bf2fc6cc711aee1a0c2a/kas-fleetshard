@@ -32,9 +32,6 @@ public class Environment {
      */
     private static final String LOG_DIR_ENV = "LOG_DIR";
     private static final String CONFIG_FILE_PATH_ENV = "CONFIG_PATH";
-    private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
-    private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
-    private static final String FLEET_SHARD_OPERATOR_IMAGE_ENV = "FLEET_SHARD_OPERATOR_IMAGE";
 
     /*
      * Vars for default managed kafka CR
@@ -56,11 +53,6 @@ public class Environment {
      */
     public static final String SUITE_ROOT = System.getProperty("user.dir");
     public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
-    public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
-    public static final Path YAML_OPERATOR_BUNDLE_PATH = getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "src", "main", "kubernetes"));
-    public static final Path YAML_SYNC_BUNDLE_PATH = getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
-    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
-    public static final String FLEET_SHARD_IMAGE = getOrDefault(FLEET_SHARD_OPERATOR_IMAGE_ENV, "localhost:5000/bf2/kas-fleetshard-operator:latest");
 
     public static final String BOOTSTRAP_HOST_DOMAIN = getOrDefault(BOOTSTRAP_HOST_DOMAIN_ENV, "my-domain.com");
     public static final String OAUTH_CLIENT_SECRET = getOrDefault(OAUTH_CLIENT_SECRET_ENV, "client_secret");
@@ -93,7 +85,7 @@ public class Environment {
      * @param defaultValue default string value
      * @return value of variable
      */
-    private static String getOrDefault(String varName, String defaultValue) {
+    public static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
     }
 
@@ -105,7 +97,7 @@ public class Environment {
      * @param defaultValue default value if variable is not set in env or config
      * @return value of variable fin defined data type
      */
-    private static <T> T getOrDefault(String var, Function<String, T> converter, T defaultValue) {
+    public static <T> T getOrDefault(String var, Function<String, T> converter, T defaultValue) {
         String value = System.getenv(var) != null ?
                 System.getenv(var) :
                 (Objects.requireNonNull(JSON_DATA).get(var) != null ?

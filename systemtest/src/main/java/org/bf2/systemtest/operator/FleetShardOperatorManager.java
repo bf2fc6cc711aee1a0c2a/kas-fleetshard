@@ -14,10 +14,19 @@ import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.FileInputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
 
 public class FleetShardOperatorManager {
+    private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
+    private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
+
+    public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
+    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
+    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
+    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
     public static final String OPERATOR_NAME = "kas-fleetshard-operator";
@@ -27,15 +36,15 @@ public class FleetShardOperatorManager {
     public static void deployFleetShardOperator(KubeClient kubeClient) throws Exception {
         LOGGER.info("Installing {}", OPERATOR_NAME);
         LOGGER.info("Installing CRDs");
-        installedCrds = kubeClient.client().load(new FileInputStream(Environment.CRD_PATH.toString())).get();
+        installedCrds = kubeClient.client().load(new FileInputStream(CRD_PATH.toString())).get();
         installedCrds.forEach(crd -> {
             LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
             kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
         });
 
         kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
-        LOGGER.info("Installing operator from files: {}", Environment.YAML_OPERATOR_BUNDLE_PATH.toString());
-        kubeClient.apply(OPERATOR_NS, TestUtils.replacer(Map.of("##IMAGE##", Environment.FLEET_SHARD_IMAGE)), Environment.YAML_OPERATOR_BUNDLE_PATH);
+        LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
+        kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
 
         TestUtils.waitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
         LOGGER.info("Fleetshard operator is deployed");
@@ -43,7 +52,7 @@ public class FleetShardOperatorManager {
 
     public static void deployFleetShardSync(KubeClient kubeClient) throws Exception {
         LOGGER.info("Installing {}", SYNC_NAME);
-        kubeClient.apply(OPERATOR_NS, in -> in, Environment.YAML_SYNC_BUNDLE_PATH);
+        kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
 
         TestUtils.waitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
         LOGGER.info("Fleetshard sync is deployed");
