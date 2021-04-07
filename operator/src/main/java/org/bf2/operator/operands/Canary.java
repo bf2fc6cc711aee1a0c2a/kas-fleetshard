@@ -83,9 +83,9 @@ public class Canary extends AbstractCanary {
     }
 
     private Map<String, String> getLabels(String canaryName) {
-        // TODO: adding label about observability
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", canaryName);
+        labels.put("app.kubernetes.io/component", "canary");
         return labels;
     }
 
