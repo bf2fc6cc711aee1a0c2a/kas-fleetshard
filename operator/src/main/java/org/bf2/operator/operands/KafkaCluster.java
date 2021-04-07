@@ -73,7 +73,7 @@ import java.util.Map;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
-    private static final int KAFKA_BROKERS = 3;
+    public static final int KAFKA_BROKERS = 3;
     private static final int ZOOKEEPER_NODES = 3;
     private static final int PRODUCE_QUOTA = 4000000;
     private static final int CONSUME_QUOTA = 4000000;
