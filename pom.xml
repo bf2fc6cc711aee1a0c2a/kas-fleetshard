@@ -120,15 +120,31 @@
         </dependencies>
     </dependencyManagement>
 
-   <repositories>
-    <repository>
-      <id>oss-sonatype</id>
-      <name>oss-sonatype</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
+    <profiles>
+        <profile>
+            <id>image-push</id>
+            <properties>
+                <skipTests>true</skipTests>
+                <quarkus.container-image.build>true</quarkus.container-image.build>
+                <quarkus.container-image.push>true</quarkus.container-image.push>
+                <quarkus.container-image.insecure>true</quarkus.container-image.insecure>
+                <quarkus.container-image.group>bf2</quarkus.container-image.group>
+                <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>
+                <quarkus.profile>test</quarkus.profile>
+                <kafka>dev</kafka>
+            </properties>
+        </profile>
+    </profiles>
+
+    <repositories>
+        <repository>
+            <id>oss-sonatype</id>
+            <name>oss-sonatype</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
 </project>
