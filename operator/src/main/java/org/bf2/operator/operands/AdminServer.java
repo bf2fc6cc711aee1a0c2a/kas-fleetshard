@@ -219,6 +219,7 @@ public class AdminServer extends AbstractAdminServer {
     private Map<String, String> getLabels(String adminServerName) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", adminServerName);
+        labels.put("app.kubernetes.io/component", "adminserver");
         return labels;
     }
 
