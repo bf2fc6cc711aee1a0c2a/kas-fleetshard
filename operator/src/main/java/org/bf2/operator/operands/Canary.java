@@ -73,7 +73,7 @@ public class Canary extends AbstractCanary {
 
         Container container = new ContainerBuilder()
                 .withName(canaryName)
-                .withImage("quay.io/mk-ci-cd/strimzi-canary:0.0.2")
+                .withImage("quay.io/mk-ci-cd/strimzi-canary:0.0.3")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())
@@ -90,9 +90,10 @@ public class Canary extends AbstractCanary {
     }
 
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(2);
+        List<EnvVar> envVars = new ArrayList<>(3);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9092").build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
+        envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(KafkaCluster.KAFKA_BROKERS)).build());
         return envVars;
     }
 
