@@ -33,7 +33,14 @@ public class FleetShardOperatorManager {
     public static final String SYNC_NAME = "kas-fleetshard-sync";
     private static List<HasMetadata> installedCrds;
 
+    private static void printVar() {
+        LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
+        LOGGER.info("Sync bundle install files: {}", YAML_SYNC_BUNDLE_PATH);
+        LOGGER.info("Crds path: {}", CRD_PATH);
+    }
+
     public static void deployFleetShardOperator(KubeClient kubeClient) throws Exception {
+        printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
         LOGGER.info("Installing CRDs");
         installedCrds = kubeClient.client().load(new FileInputStream(CRD_PATH.toString())).get();

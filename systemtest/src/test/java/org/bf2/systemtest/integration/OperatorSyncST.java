@@ -69,7 +69,7 @@ public class OperatorSyncST extends AbstractST {
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
         // wait for the sync to be up-to-date
-        TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, ()->{
+        TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, () -> {
             try {
                 String statusBody = SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body();
                 if (statusBody.isEmpty()) {
