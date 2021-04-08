@@ -14,15 +14,17 @@ import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 
 public class FleetShardOperatorManager {
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
     private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
 
-    public static final Path ROOT_PATH = Paths.get(System.getProperty("user.dir")).getParent();
+    public static final Path ROOT_PATH = Objects.requireNonNullElse(Paths.get(System.getProperty("user.dir")).getParent(), Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
     public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
     public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
     public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
@@ -43,12 +45,13 @@ public class FleetShardOperatorManager {
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
         LOGGER.info("Installing CRDs");
-        installedCrds = kubeClient.client().load(new FileInputStream(CRD_PATH.toString())).get();
-        installedCrds.forEach(crd -> {
-            LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
-            kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
-        });
-
+        try (InputStream is = new FileInputStream(CRD_PATH.toString())) {
+            installedCrds = kubeClient.client().load(is).get();
+            installedCrds.forEach(crd -> {
+                LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
+                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+            });
+        }
         kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);

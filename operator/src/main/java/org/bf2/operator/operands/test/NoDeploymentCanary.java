@@ -12,20 +12,21 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import javax.enterprise.context.ApplicationScoped;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 /**
- * Provides same functionalities to get a AdminServer deployment from a ManagedKafka one
+ * Provides same functionalities to get a Canary deployment from a ManagedKafka one
  * and checking the corresponding status
  * For testing purpose only, it puts the Deployment declaration into a ConfigMap so the actual pod is not created
  */
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "test")
-public class AdminServer extends org.bf2.operator.operands.AdminServer {
+public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
 
     @Override
     protected void createOrUpdate(Deployment deployment) {
-        // Admin Server deployment resource doesn't exist, has to be created
+        // Canary deployment resource doesn't exist, has to be created
         if (kubernetesClient.configMaps()
                 .inNamespace(deployment.getMetadata().getNamespace())
                 .withName(deployment.getMetadata().getName()).get() == null) {
@@ -41,7 +42,7 @@ public class AdminServer extends org.bf2.operator.operands.AdminServer {
                     .build();
 
             kubernetesClient.configMaps().inNamespace(deployment.getMetadata().getNamespace()).create(cm);
-        // Admin Server deployment resource already exists, has to be updated
+        // Canary deployment resource already exists, has to be updated
         } else {
             ConfigMap cm = kubernetesClient.configMaps()
                     .inNamespace(deployment.getMetadata().getNamespace())
@@ -57,18 +58,18 @@ public class AdminServer extends org.bf2.operator.operands.AdminServer {
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         kubernetesClient.configMaps()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka))
+                .inNamespace(canaryNamespace(managedKafka))
+                .withName(canaryName(managedKafka))
                 .delete();
-        adminServiceResource(managedKafka).delete();
     }
 
     @Override
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
-        ConfigMap cm = informerManager.getLocalConfigMap(adminServerNamespace(managedKafka), adminServerName(managedKafka));
-        if (cm == null)
+        ConfigMap cm = informerManager.getLocalConfigMap(canaryNamespace(managedKafka), canaryName(managedKafka));
+        if (cm == null) {
             return null;
-        InputStream is = new ByteArrayInputStream(cm.getData().get("deployment").getBytes());
+        }
+        InputStream is = new ByteArrayInputStream(cm.getData().get("deployment").getBytes(StandardCharsets.UTF_8));
         return kubernetesClient.apps().deployments().load(is).get();
     }
 }

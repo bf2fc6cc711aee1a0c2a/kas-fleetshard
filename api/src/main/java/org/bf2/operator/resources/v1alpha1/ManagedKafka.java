@@ -33,9 +33,9 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
 
     private static final String CERT = "cert";
 
-    public final static String BF2_DOMAIN = "bf2.org/";
-    public final static String ID = BF2_DOMAIN + "id";
-    public final static String PLACEMENT_ID = BF2_DOMAIN + "placementId";
+    public static final String BF2_DOMAIN = "bf2.org/";
+    public static final String ID = BF2_DOMAIN + "id";
+    public static final String PLACEMENT_ID = BF2_DOMAIN + "placementId";
 
     @JsonIgnore
     public String getId() {

@@ -100,6 +100,13 @@ public class PollerTest {
         assertEquals(1, items.size());
         assertNull(items.get(0).getSpec().getVersions().getStrimzi());
 
+        // try to remove before marked as deleted, should not be successful
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList());
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(1, items.size());
+
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka, nextPlacement)));
         managedKafka.getSpec().setDeleted(true);
         managedKafkaSync.syncKafkaClusters();
         items = lookup.getLocalManagedKafkas();

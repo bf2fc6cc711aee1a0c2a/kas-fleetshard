@@ -206,13 +206,4 @@ public class ResourceManager {
         return null;
     }
 
-    @SuppressWarnings(value = "unchecked")
-    private <T extends HasMetadata> ResourceType<T> findResourceType(String kind) {
-        for (ResourceType<?> type : resourceTypes) {
-            if (type.getKind().equals(kind)) {
-                return (ResourceType<T>) type;
-            }
-        }
-        return null;
-    }
 }

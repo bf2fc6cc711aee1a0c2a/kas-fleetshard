@@ -174,8 +174,10 @@ public class ManagedKafkaSync {
             if (!remote.getSpec().isDeleted()) {
                 create(remote);
             }
-        } else if (remote == null && deleteAllowed(local)) {
-            delete(local);
+        } else if (remote == null) {
+            if (deleteAllowed(local)) {
+                delete(local);
+            }
         } else {
             if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {
                 log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
