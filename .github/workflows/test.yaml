@@ -25,7 +25,7 @@ jobs:
 
       - name: Build and push images
         run: |
-          mvn package -pl operator,sync -am -Pimage-push --no-transfer-progress
+          mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress
 
       - name: Run test
         run: |

@@ -10,12 +10,12 @@
 
 example how to build and generate deployment files for your minikube
 ```bash
-mvn package -pl operator,sync -am -Pimage-push --no-transfer-progress
+mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress
 ```
 
 you can also override image registry etc by mvn in case you cant to push images somewhere else
 ```bash
-mvn package -pl operator,sync -am -Pimage-push --no-transfer-progress \
+mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress \
   -Dquarkus.container-image.registry=some-registry.com \
   -Dquarkus.container-image.group=my-org \
   -Dquarkus.container-image.tag=latest
