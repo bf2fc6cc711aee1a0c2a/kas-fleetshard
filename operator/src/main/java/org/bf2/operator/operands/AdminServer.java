@@ -147,7 +147,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withLabels(getLabels(adminServerName))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withSelector(getLabels(adminServerName))
+                    .withSelector(getSelectorLabels(adminServerName))
                     .withPorts(getServicePorts())
                 .endSpec()
                 .build();
