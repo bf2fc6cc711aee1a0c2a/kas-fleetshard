@@ -29,31 +29,9 @@ jobs:
           kubernetes version: 'latest'
           start args: '--addons=registry --insecure-registry "10.0.0.0/24" --insecure-registry "localhost:5000" --extra-config=kubeadm.ignore-preflight-errors=SystemVerification --extra-config=apiserver.authorization-mode=RBAC,Node'
 
-      - name: Build and push operator
+      - name: Build and push images
         run: |
-          mvn package -pl operator -am -DskipTests --no-transfer-progress \
-          -Dquarkus.container-image.build=true \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.group=bf2 \
-          -Dquarkus.container-image.name=kas-fleetshard-operator \
-          -Dquarkus.container-image.tag=latest \
-          -Dquarkus.container-image.registry=localhost:5000 \
-          -Dquarkus.container-image.insecure=true \
-          -Dkafka=dev \
-          -Dquarkus.profile=test
-
-      - name: Build and push sync
-        run: |
-          mvn package -pl sync -am -DskipTests --no-transfer-progress \
-          -Dquarkus.container-image.build=true \
-          -Dquarkus.container-image.push=true \
-          -Dquarkus.container-image.group=bf2 \
-          -Dquarkus.container-image.name=kas-fleetshard-sync \
-          -Dquarkus.container-image.tag=latest \
-          -Dquarkus.container-image.registry=localhost:5000 \
-          -Dquarkus.container-image.insecure=true \
-          -Dkafka=dev \
-          -Dquarkus.profile=test
+          mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress
 
       - name: Run smoke test
         run: |

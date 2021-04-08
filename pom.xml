@@ -29,6 +29,7 @@
         <sundrio.version>0.24.1</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
+        <properties-plugin.version>1.0.0</properties-plugin.version>
     </properties>
 
     <modules>
@@ -120,15 +121,59 @@
         </dependencies>
     </dependencyManagement>
 
-   <repositories>
-    <repository>
-      <id>oss-sonatype</id>
-      <name>oss-sonatype</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
+    <profiles>
+        <profile>
+            <id>image-test-push</id>
+            <properties>
+                <skipTests>true</skipTests>
+                <quarkus.container-image.build>true</quarkus.container-image.build>
+                <quarkus.container-image.push>true</quarkus.container-image.push>
+                <quarkus.container-image.insecure>true</quarkus.container-image.insecure>
+                <quarkus.container-image.group>bf2</quarkus.container-image.group>
+                <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>
+                <quarkus.profile>test</quarkus.profile>
+                <kafka>dev</kafka>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>properties-maven-plugin</artifactId>
+                        <version>${properties-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>set-system-properties</goal>
+                                </goals>
+                                <configuration>
+                                    <properties>
+                                        <property>
+                                            <name>quarkus.profile</name>
+                                            <value>${quarkus.profile}</value>
+                                        </property>
+                                        <property>
+                                            <name>kafka</name>
+                                            <value>${kafka}</value>
+                                        </property>
+                                    </properties>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <repositories>
+        <repository>
+            <id>oss-sonatype</id>
+            <name>oss-sonatype</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
 </project>

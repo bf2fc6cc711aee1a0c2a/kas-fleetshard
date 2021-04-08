@@ -8,29 +8,17 @@
 * image of operator is built with `quarkus.profile=test` and stored in any container registry
 * image of sync is built with `quarkus.profile=test` and stored in any container registry
 
-example how to build and generate deployment files
-
+example how to build and generate deployment files for your minikube
 ```bash
-mvn package -pl operator -am -DskipTests --no-transfer-progress \
--Dquarkus.container-image.build=true \
--Dquarkus.container-image.push=true \
--Dquarkus.container-image.group=bf2 \
--Dquarkus.container-image.name=kas-fleetshard-operator \
--Dquarkus.container-image.tag=latest \
--Dquarkus.container-image.registry=localhost:5000 \
--Dquarkus.container-image.insecure=true \
--Dkafka=dev \
--Dquarkus.profile=test
+mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress
+```
 
-mvn package -pl sync -am -DskipTests --no-transfer-progress \
--Dquarkus.container-image.build=true \
--Dquarkus.container-image.push=true \
--Dquarkus.container-image.group=bf2 \
--Dquarkus.container-image.name=kas-fleetshard-sync \
--Dquarkus.container-image.tag=latest \
--Dquarkus.container-image.registry=localhost:5000 \
--Dquarkus.container-image.insecure=true \
--Dquarkus.profile=test
+you can also override image registry etc by mvn in case you cant to push images somewhere else
+```bash
+mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress \
+  -Dquarkus.container-image.registry=some-registry.com \
+  -Dquarkus.container-image.group=my-org \
+  -Dquarkus.container-image.tag=latest
 ```
 
 ### Information
@@ -41,20 +29,20 @@ mvn package -pl sync -am -DskipTests --no-transfer-progress \
 
 #### Running full suite
 ```bash
-mvn clean verify -P systemtest -pl systemtest -am
+mvn verify -P systemtest -pl systemtest -am
 ```
 
 #### Running smoke tests
 ```bash
-mvn clean verify -P systemtest -pl systemtest -Dgroups=smoke -am
+mvn verify -P systemtest -pl systemtest -Dgroups=smoke -am
 ```
 
 #### Running single test or subset of tests
 ```bash
-mvn clean verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST#testDeployManagedKafka
+mvn verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST#testDeployManagedKafka
 ```
 ```bash
-mvn clean verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST,RecoveryST
+mvn verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST,RecoveryST
 ```
 
 ### Running testsuite in parallel
