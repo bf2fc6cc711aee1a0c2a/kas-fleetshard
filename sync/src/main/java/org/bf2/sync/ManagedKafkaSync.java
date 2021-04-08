@@ -214,7 +214,7 @@ public class ManagedKafkaSync {
                 new NamespaceBuilder()
                         .withNewMetadata()
                             .withName(remote.getMetadata().getNamespace())
-                            .withLabels(Collections.singletonMap("mas-managed", "true"))
+                            .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
                         .endMetadata()
                         .build());
 
