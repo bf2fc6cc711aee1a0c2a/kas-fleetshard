@@ -113,7 +113,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(getLabels(adminServerName))
+                        .withMatchLabels(getSelectorLabels(adminServerName))
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
@@ -216,9 +216,14 @@ public class AdminServer extends AbstractAdminServer {
         return Collections.singletonList(container);
     }
 
-    private Map<String, String> getLabels(String adminServerName) {
+    private Map<String, String> getSelectorLabels(String adminServerName) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", adminServerName);
+        return labels;
+    }
+
+    private Map<String, String> getLabels(String adminServerName) {
+        Map<String, String> labels = getSelectorLabels(adminServerName);
         labels.put("app.kubernetes.io/component", "adminserver");
         return labels;
     }
