@@ -48,7 +48,7 @@ public class Canary extends AbstractCanary {
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(getLabels(canaryName))
+                        .withMatchLabels(getSelectorLabels(canaryName))
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
@@ -82,9 +82,14 @@ public class Canary extends AbstractCanary {
         return Collections.singletonList(container);
     }
 
-    private Map<String, String> getLabels(String canaryName) {
+    private Map<String, String> getSelectorLabels(String canaryName) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", canaryName);
+        return labels;
+    }
+
+    private Map<String, String> getLabels(String canaryName) {
+        Map<String, String> labels = getSelectorLabels(canaryName);
         labels.put("app.kubernetes.io/component", "canary");
         return labels;
     }
