@@ -65,6 +65,7 @@ class KafkaClusterTest {
                                 )
                                 .withNewCapacity()
                                 .withMaxDataRetentionSize(Quantity.parse("60Gi"))
+                                .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
                                 .endCapacity()
                                 .withNewVersions()
                                 .withKafka("2.6.0")

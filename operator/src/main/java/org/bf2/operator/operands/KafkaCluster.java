@@ -484,9 +484,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.protocol", "TLSv1.3");
 
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
-        // Throttle at Ingress/Egress MB/sec
+        // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC)).doubleValue();
+        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC)).doubleValue() / KAFKA_BROKERS);
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
