@@ -1,0 +1,171 @@
+---
+kind: "Kafka"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    ingressType: "sharded"
+  name: "test-mk"
+  namespace: "test"
+  ownerReferences:
+  - apiVersion: "managedkafka.bf2.org/v1alpha1"
+    kind: "ManagedKafka"
+    name: "test-mk"
+spec:
+  kafka:
+    version: "2.6.0"
+    replicas: 3
+    listeners:
+    - name: "plain"
+      port: 9092
+      type: "internal"
+      tls: false
+    - name: "tls"
+      port: 9093
+      type: "internal"
+      tls: true
+    - name: "external"
+      port: 9094
+      type: "ingress"
+      tls: true
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+        - secretName: "test-mk-sso-cert"
+          certificate: "keycloak.crt"
+        enablePlain: true
+        tokenEndpointUri: "https://tokenEndpointURI"
+        enableOauthBearer: true
+        type: "oauth"
+      configuration:
+        brokerCertChainAndKey:
+          secretName: "test-mk-tls-secret"
+          certificate: "tls.crt"
+          key: "tls.key"
+        bootstrap:
+          host: "xxx.yyy.zzz"
+        brokers:
+        - broker: 0
+          host: "broker-0-xxx.yyy.zzz"
+        - broker: 1
+          host: "broker-1-xxx.yyy.zzz"
+        - broker: 2
+          host: "broker-2-xxx.yyy.zzz"
+    - name: "oauth"
+      port: 9095
+      type: "internal"
+      tls: false
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+        - secretName: "test-mk-sso-cert"
+          certificate: "keycloak.crt"
+        enableOauthBearer: true
+        type: "oauth"
+    config:
+      ssl.protocol: "TLSv1.3"
+      client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
+      transaction.state.log.replication.factor: 3
+      auto.create.topics.enable: "false"
+      log.message.format.version: "2.6.0"
+      ssl.enabled.protocols: "TLSv1.3"
+      min.insync.replicas: 2
+      offsets.topic.replication.factor: 3
+      quota.window.size.seconds: "2"
+      transaction.state.log.min.isr: 2
+      client.quota.callback.static.storage.soft: "67645734912"
+      quota.window.num: "30"
+      client.quota.callback.static.consume: "31457280"
+      client.quota.callback.static.storage.hard: "71403831296"
+      client.quota.callback.static.storage.check-interval: "30"
+      default.replication.factor: 3
+      max.connections.creation.rate: "100"
+      max.connections: "166"
+      inter.broker.protocol.version: "2.6.0"
+      client.quota.callback.static.produce: "31457280"
+    storage: !<jbod>
+      volumes:
+      - !<persistent-claim>
+        type: "persistent-claim"
+        size: "75161927680"
+        class: "mk-storageclass"
+        id: 0
+      type: "jbod"
+    rack:
+      topologyKey: "topology.kubernetes.io/zone"
+    jvmOptions:
+      "-Xmx": "512m"
+      "-Xms": "512m"
+    resources:
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+      requests:
+        memory: "1Gi"
+        cpu: "1000m"
+    metricsConfig: !<jmxPrometheusExporter>
+      type: "jmxPrometheusExporter"
+      valueFrom:
+        configMapKeyRef:
+          key: "jmx-exporter-config"
+          name: "test-mk-kafka-metrics"
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+  zookeeper:
+    replicas: 3
+    storage: !<persistent-claim>
+      type: "persistent-claim"
+      size: "10Gi"
+      class: "mk-storageclass"
+    jvmOptions:
+      "-Xmx": "512m"
+      "-Xms": "512m"
+    resources:
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+    metricsConfig: !<jmxPrometheusExporter>
+      type: "jmxPrometheusExporter"
+      valueFrom:
+        configMapKeyRef:
+          key: "jmx-exporter-config"
+          name: "test-mk-zookeeper-metrics"
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+            - topologyKey: "topology.kubernetes.io/zone"
+  kafkaExporter:
+    resources:
+      limits:
+        memory: "256Mi"
+        cpu: "1000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"

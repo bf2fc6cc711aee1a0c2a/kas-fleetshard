@@ -1,5 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
@@ -14,6 +15,7 @@ import lombok.ToString;
 )
 @ToString
 @EqualsAndHashCode
+@JsonInclude(value = JsonInclude.Include.NON_NULL)
 public class ManagedKafkaCapacity {
 
     private Quantity ingressEgressThroughputPerSec;
@@ -21,6 +23,7 @@ public class ManagedKafkaCapacity {
     private Quantity maxDataRetentionSize;
     private Integer maxPartitions;
     private String maxDataRetentionPeriod;
+    private Integer maxConnectionAttemptsPerSec;
 
     public Quantity getIngressEgressThroughputPerSec() {
         return ingressEgressThroughputPerSec;
@@ -61,4 +64,13 @@ public class ManagedKafkaCapacity {
     public void setMaxDataRetentionPeriod(String maxDataRetentionPeriod) {
         this.maxDataRetentionPeriod = maxDataRetentionPeriod;
     }
+
+    public Integer getMaxConnectionAttemptsPerSec() {
+        return maxConnectionAttemptsPerSec;
+    }
+
+    public void setMaxConnectionAttemptsPerSec(Integer maxConnectionAttemptsPerSec) {
+        this.maxConnectionAttemptsPerSec = maxConnectionAttemptsPerSec;
+    }
+
 }

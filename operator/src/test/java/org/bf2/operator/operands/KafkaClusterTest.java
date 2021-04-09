@@ -1,7 +1,13 @@
 package org.bf2.operator.operands;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.strimzi.api.kafka.KafkaList;
@@ -17,6 +23,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
@@ -30,7 +39,7 @@ class KafkaClusterTest {
     KafkaCluster kafkaCluster;
 
     @Test
-    void testManagedKafkaToKafka() {
+    void testManagedKafkaToKafka() throws IOException {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
                         new ObjectMetaBuilder()
@@ -54,6 +63,9 @@ class KafkaClusterTest {
                                                 .withUserNameClaim("userNameClaim")
                                                 .build()
                                 )
+                                .withNewCapacity()
+                                .withMaxDataRetentionSize(Quantity.parse("60Gi"))
+                                .endCapacity()
                                 .withNewVersions()
                                 .withKafka("2.6.0")
                                 .endVersions()
@@ -61,6 +73,12 @@ class KafkaClusterTest {
                 .build();
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+        JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream("/expected/strimzi.yml"));
+        JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
+        JsonNode patch = JsonDiff.asJson(file1, file2);
+        assertEquals("[]", patch.toString());
 
         var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
         kafkaCli.create(kafka);
