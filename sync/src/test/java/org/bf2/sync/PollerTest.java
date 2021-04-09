@@ -1,6 +1,5 @@
 package org.bf2.sync;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -8,9 +7,7 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
@@ -26,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestProfile(MockSyncProfile.class)
 public class PollerTest {
 
-    static final String PLACEMENT_ID = "pid";
+    static final String ID = "id";
     static final String CLUSTER_ID = "007";
 
     @Inject
@@ -71,7 +69,7 @@ public class PollerTest {
         List<ManagedKafka> items = lookup.getLocalManagedKafkas();
         assertEquals(0, items.size());
 
-        assertNull(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)));
+        assertNull(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)));
 
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
         managedKafkaSync.syncKafkaClusters();
@@ -86,7 +84,7 @@ public class PollerTest {
         assertEquals(1, items.size());
 
         // make sure the remote tracking is there and not marked as deleted
-        assertFalse(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
+        assertFalse(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
 
         // try another placement - this shouldn't actually happen, should reject first and the original won't be there
         ManagedKafka nextPlacement = exampleManagedKafka();
@@ -94,10 +92,10 @@ public class PollerTest {
         nextPlacement.getSpec().getVersions().setStrimzi("?");
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka, nextPlacement)));
         managedKafkaSync.syncKafkaClusters();
-        //should still be a single placement, and it should be the old one without a strimzi version
+        //should still be a single placement, and it should be the old one
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
-        assertNull(items.get(0).getSpec().getVersions().getStrimzi());
+        assertNotEquals("?", items.get(0).getSpec().getVersions().getStrimzi());
 
         // try to remove before marked as deleted, should not be successful
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList());
@@ -111,7 +109,7 @@ public class PollerTest {
         items = lookup.getLocalManagedKafkas();
         assertTrue(items.get(0).getSpec().isDeleted());
         // now the remote tracking should be marked as deleted
-        assertTrue(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
+        assertTrue(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
 
         // final removal
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList());
@@ -120,7 +118,7 @@ public class PollerTest {
         assertEquals(0, items.size());
 
         // remote tracking should be gone
-        assertNull(controlPlane.getManagedKafka(ControlPlane.managedKafkaKey(managedKafka)));
+        assertNull(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)));
 
         // if it shows up again need to inform the control plane delete is still needed
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
@@ -131,24 +129,12 @@ public class PollerTest {
         Mockito.verify(controlPlaneRestClient).updateKafkaClustersStatus(Mockito.eq(CLUSTER_ID), statusCaptor.capture());
         Map<String, ManagedKafkaStatus> status = statusCaptor.getValue();
         assertEquals(1, status.size());
-        assertEquals(1, status.get(PLACEMENT_ID).getConditions().size());
+        assertEquals(1, status.get(ID).getConditions().size());
     }
 
     static ManagedKafka exampleManagedKafka() {
-        ManagedKafka mk = new ManagedKafkaBuilder()
-                .withMetadata(
-                        new ObjectMetaBuilder()
-                                .withNamespace("namespace")
-                                .withName("name")
-                                .build())
-                .withSpec(
-                        new ManagedKafkaSpecBuilder()
-                                .withNewVersions()
-                                .withKafka("2.6.0")
-                                .endVersions()
-                                .build())
-                .build();
-        mk.setId(PLACEMENT_ID);
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.setId(ID);
         return mk;
     }
 

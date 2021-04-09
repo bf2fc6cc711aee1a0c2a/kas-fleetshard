@@ -15,6 +15,7 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,21 +48,44 @@ public class ControlPlane {
     @Inject
     LocalLookup localLookup;
 
-    /* holds a copy of the remote state */
-    private ConcurrentHashMap<String, ManagedKafka> managedKafkas = new ConcurrentHashMap<>();
+    /* holds a copy of the remote desired state */
+    private ConcurrentHashMap<String, ManagedKafka> desiredState = new ConcurrentHashMap<>();
 
-    void addManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.put(managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
+    void addDesiredState(ManagedKafka remoteManagedKafka) {
+        desiredState.put(managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
     }
 
-    public void removeManagedKafka(ManagedKafka remoteManagedKafka) {
-        managedKafkas.remove(managedKafkaKey(remoteManagedKafka));
+    /**
+     * Remove the desired state
+     * @param remoteManagedKafka
+     */
+    public void removeDesiredState(ManagedKafka remoteManagedKafka) {
+        desiredState.remove(managedKafkaKey(remoteManagedKafka));
     }
 
-    public ManagedKafka getManagedKafka(String id) {
-        return managedKafkas.get(id);
+    /**
+     * Get the latest known desired state of the managed kafka
+     * @param managedKafkaKey
+     * @return
+     */
+    public ManagedKafka getDesiredState(String managedKafkaKey) {
+        return desiredState.get(managedKafkaKey);
     }
 
+    /**
+     * Get all known desired states.  May include orphan entries
+     * not in {@link #getKafkaClusters()} and entries that have not
+     * yet been created locally.
+     */
+    public Collection<ManagedKafka> getDesiredStates() {
+        return desiredState.values();
+    }
+
+    /**
+     * Get the string key that uniquely identifies this managed kafka placement
+     * @param kafka
+     * @return
+     */
     public static String managedKafkaKey(ManagedKafka kafka) {
         return kafka.getId() + "/" + kafka.getPlacementId();
     }
@@ -93,11 +117,15 @@ public class ControlPlane {
     /**
      * Get the current list of ManagedKafka clusters from the control plane
      * as a blocking call.
-     * Also updates the cache of ManagedKafka instances
+     * Also updates the cache of desired state ManagedKafka instances.  May include
+     * entries that have not yet been created locally.
+     *
+     * @see {@link #getDesiredStates()} to get the full cache, rather than making a
+     * remote call
      */
     public List<ManagedKafka> getKafkaClusters() {
         ManagedKafkaList result = controlPlaneClient.getKafkaClusters(id);
-        result.getItems().forEach((mk)->addManagedKafka(mk));
+        result.getItems().forEach((mk)->addDesiredState(mk));
         return result.getItems();
     }
 

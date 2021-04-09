@@ -52,7 +52,7 @@ public class UpdateTest {
         managedKafkaClient.create(managedKafka);
 
         controlPlane.updateKafkaClusterStatus(PollerTest.exampleManagedKafka(), managedKafka);
-        assertEquals("Installed", getUpdates().getValue().get(PollerTest.PLACEMENT_ID).getConditions().get(0).getStatus());
+        assertEquals("Installed", getUpdates().getValue().get(PollerTest.ID).getConditions().get(0).getStatus());
 
         // simulate a resync
         // for now we're just looking for equality
@@ -64,7 +64,7 @@ public class UpdateTest {
         // send everything
         controlPlane.sendResync();
         ArgumentCaptor<Map<String, ManagedKafkaStatus>> statusCaptor = getUpdates();
-        assertEquals("Installed", statusCaptor.getValue().get(PollerTest.PLACEMENT_ID).getConditions().get(0).getStatus());
+        assertEquals("Installed", statusCaptor.getValue().get(PollerTest.ID).getConditions().get(0).getStatus());
     }
 
     private ArgumentCaptor<Map<String, ManagedKafkaStatus>> getUpdates() {
