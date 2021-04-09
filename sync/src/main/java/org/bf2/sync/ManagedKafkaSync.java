@@ -70,13 +70,12 @@ public class ManagedKafkaSync {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
         for (ManagedKafka remoteManagedKafka : controlPlane.getKafkaClusters()) {
-            assert remoteManagedKafka.getId() != null;
-            assert remoteManagedKafka.getPlacementId() != null;
-            assert remoteManagedKafka.getMetadata().getNamespace() != null;
+            Objects.requireNonNull(remoteManagedKafka.getId());
+            Objects.requireNonNull(remoteManagedKafka.getMetadata().getNamespace());
 
             remotes.put(ControlPlane.managedKafkaKey(remoteManagedKafka), remoteManagedKafka);
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
-            assert remoteSpec != null;
+            Objects.requireNonNull(remoteSpec);
 
             String localKey = Cache.namespaceKeyFunc(remoteManagedKafka.getMetadata().getNamespace(), remoteManagedKafka.getMetadata().getName());
             ManagedKafka existing = lookup.getLocalManagedKafka(localKey);
@@ -163,7 +162,7 @@ public class ManagedKafkaSync {
         ManagedKafka remote = null;
         if (remoteId != null) {
             //refresh the remote
-            remote = controlPlane.getManagedKafka(remoteId);
+            remote = controlPlane.getDesiredState(remoteId);
         }
 
         if (local == null && remote == null) {
@@ -204,7 +203,7 @@ public class ManagedKafkaSync {
 
         // only remove the local after we're fully cleaned up, so that
         // we'll keep retrying if there is a failure
-        controlPlane.removeManagedKafka(local);
+        controlPlane.removeDesiredState(local);
     }
 
     void create(ManagedKafka remote) {
