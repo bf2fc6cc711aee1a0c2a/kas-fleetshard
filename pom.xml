@@ -17,11 +17,17 @@
 
     <properties>
         <!-- things we don't need from basepom -->
+        
         <basepom.check.skip-license>true</basepom.check.skip-license>
-        <!-- quarkus pick -->
-        <basepom.check.skip-dependency>true</basepom.check.skip-dependency>
+        <!-- quarkus picks up functionality via unused, but we don't want to fully skip to keep dependency tree enabled -->
+        <basepom.check.fail-dependency>false</basepom.check.fail-dependency>
+        
         
         <!-- things that we could eventually turn on -->
+        
+        <!-- currently there is a lot of duplicate classes in the dependencies
+             overlaps between javax and jakarta, io.sundr, io.fabric8, etc.
+         -->
         <basepom.check.skip-duplicate-finder>true</basepom.check.skip-duplicate-finder>
         
         <!-- we may want to disable this in github actions
