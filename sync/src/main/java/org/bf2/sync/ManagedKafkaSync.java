@@ -1,28 +1,5 @@
 package org.bf2.sync;
 
-import java.net.HttpURLConnection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
-import org.bf2.common.ConditionUtils;
-import org.bf2.common.ManagedKafkaResourceClient;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
-import org.bf2.sync.controlplane.ControlPlane;
-import org.bf2.sync.informer.LocalLookup;
-import org.eclipse.microprofile.context.ManagedExecutor;
-import org.jboss.logging.Logger;
-
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -30,6 +7,28 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
+import org.bf2.common.ConditionUtils;
+import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.sync.controlplane.ControlPlane;
+import org.bf2.sync.informer.LocalLookup;
+import org.eclipse.microprofile.context.ManagedExecutor;
+import org.jboss.logging.Logger;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+import java.net.HttpURLConnection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Has the responsibility of processing the remote list of ManagedKafka from the

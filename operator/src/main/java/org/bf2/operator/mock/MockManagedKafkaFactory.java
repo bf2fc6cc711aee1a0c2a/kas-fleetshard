@@ -2,7 +2,6 @@ package org.bf2.operator.mock;
 
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
-
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -10,6 +9,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;

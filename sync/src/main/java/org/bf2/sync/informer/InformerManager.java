@@ -1,13 +1,9 @@
 package org.bf2.sync.informer;
 
-import java.time.Duration;
-import java.util.List;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -18,10 +14,13 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
-import io.micrometer.core.instrument.MeterRegistry;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+import java.time.Duration;
+import java.util.List;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {

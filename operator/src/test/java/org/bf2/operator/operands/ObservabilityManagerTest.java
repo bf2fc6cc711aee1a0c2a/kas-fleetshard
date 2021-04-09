@@ -10,6 +10,7 @@ import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
+
 import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

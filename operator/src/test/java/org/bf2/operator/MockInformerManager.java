@@ -1,10 +1,5 @@
 package org.bf2.operator;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
-import org.bf2.operator.clients.KafkaResourceClient;
-
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
@@ -13,6 +8,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.Route;
 import io.quarkus.test.Mock;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.clients.KafkaResourceClient;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 /**
  * To bypass the informer async update, we can lookup directly

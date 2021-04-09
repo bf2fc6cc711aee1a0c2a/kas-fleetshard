@@ -1,6 +1,5 @@
 package org.bf2.test.k8s;
 
-
 import org.bf2.test.executor.ExecResult;
 
 public class KubeClusterException extends RuntimeException {

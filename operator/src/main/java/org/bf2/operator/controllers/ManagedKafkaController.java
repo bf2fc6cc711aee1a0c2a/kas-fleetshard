@@ -12,7 +12,6 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
-
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.events.ResourceEventSource;

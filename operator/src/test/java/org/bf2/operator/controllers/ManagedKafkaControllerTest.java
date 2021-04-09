@@ -1,19 +1,5 @@
 package org.bf2.operator.controllers;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.Arrays;
-import java.util.UUID;
-
-import javax.inject.Inject;
-
-import org.bf2.operator.events.ResourceEvent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.test.mock.QuarkusKubeMockServer;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.Watcher.Action;
@@ -22,6 +8,19 @@ import io.javaoperatorsdk.operator.processing.event.EventList;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import org.bf2.operator.events.ResourceEvent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.test.mock.QuarkusKubeMockServer;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import javax.inject.Inject;
+
+import java.util.Arrays;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
 @QuarkusTest

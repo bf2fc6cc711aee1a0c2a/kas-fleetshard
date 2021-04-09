@@ -15,6 +15,7 @@ import io.quarkus.arc.DefaultBean;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.enterprise.context.ApplicationScoped;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

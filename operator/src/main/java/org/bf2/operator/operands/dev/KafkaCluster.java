@@ -1,14 +1,5 @@
 package org.bf2.operator.operands.dev;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.enterprise.context.ApplicationScoped;
-
-import org.bf2.operator.operands.AbstractKafkaCluster;
-import org.bf2.operator.operands.OperandUtils;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
@@ -19,6 +10,14 @@ import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
+import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.operands.OperandUtils;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+
+import javax.enterprise.context.ApplicationScoped;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one

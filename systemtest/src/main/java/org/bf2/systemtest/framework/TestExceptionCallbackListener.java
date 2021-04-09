@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
 import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 
-
 /**
  * jUnit5 specific class which listening on test exception callbacks
  */

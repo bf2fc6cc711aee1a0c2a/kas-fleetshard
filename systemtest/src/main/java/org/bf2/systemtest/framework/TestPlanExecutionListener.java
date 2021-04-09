@@ -1,12 +1,11 @@
 package org.bf2.systemtest.framework;
 
-import org.bf2.test.Environment;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.Environment;
 import org.junit.platform.launcher.TestExecutionListener;
 import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
-
 
 import java.io.IOException;
 import java.nio.file.Files;

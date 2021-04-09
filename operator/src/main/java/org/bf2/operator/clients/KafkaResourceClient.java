@@ -1,15 +1,10 @@
 package org.bf2.operator.clients;
 
-import javax.enterprise.context.ApplicationScoped;
-
-import org.bf2.common.AbstractCustomResourceClient;
-
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.AbstractCustomResourceClient;
+
+import javax.enterprise.context.ApplicationScoped;
 
 /**
  * Represents a wrapper around a Kubernetes client for handling operations on a Kafka custom resource

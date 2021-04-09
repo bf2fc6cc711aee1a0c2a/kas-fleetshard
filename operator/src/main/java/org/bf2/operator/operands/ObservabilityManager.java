@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 

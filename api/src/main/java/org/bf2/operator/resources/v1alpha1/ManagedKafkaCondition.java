@@ -1,7 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import io.sundr.builder.annotations.Buildable;
 import lombok.ToString;
 

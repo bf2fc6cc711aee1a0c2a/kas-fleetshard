@@ -1,6 +1,5 @@
 package org.bf2.systemtest.framework.resource;
 
-
 import io.fabric8.kubernetes.api.model.HasMetadata;
 
 public interface ResourceType<T extends HasMetadata> {

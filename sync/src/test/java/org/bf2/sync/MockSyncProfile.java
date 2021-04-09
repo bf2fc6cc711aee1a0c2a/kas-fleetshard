@@ -1,9 +1,9 @@
 package org.bf2.sync;
 
+import io.quarkus.test.junit.QuarkusTestProfile;
+
 import java.util.Collections;
 import java.util.Map;
-
-import io.quarkus.test.junit.QuarkusTestProfile;
 
 public class MockSyncProfile implements QuarkusTestProfile {
 
