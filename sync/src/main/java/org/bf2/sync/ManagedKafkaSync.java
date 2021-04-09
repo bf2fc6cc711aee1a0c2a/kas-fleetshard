@@ -1,6 +1,7 @@
 package org.bf2.sync;
 
 import java.net.HttpURLConnection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -210,7 +211,12 @@ public class ManagedKafkaSync {
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
 
         kubeClient.namespaces().createOrReplace(
-                new NamespaceBuilder().withNewMetadata().withName(remote.getMetadata().getNamespace()).endMetadata().build());
+                new NamespaceBuilder()
+                        .withNewMetadata()
+                            .withName(remote.getMetadata().getNamespace())
+                            .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
+                        .endMetadata()
+                        .build());
 
         try {
             client.create(remote);
