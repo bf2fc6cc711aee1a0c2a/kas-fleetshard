@@ -1,6 +1,19 @@
 package org.bf2.sync.controlplane;
 
-import static java.util.Objects.requireNonNullElse;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.micrometer.core.annotation.Counted;
+import io.quarkus.scheduler.Scheduled;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.sync.informer.LocalLookup;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import org.jboss.logging.Logger;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import java.util.Collections;
 import java.util.List;
@@ -11,21 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.sync.informer.LocalLookup;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
-import org.jboss.logging.Logger;
-
-import io.fabric8.kubernetes.client.informers.cache.Cache;
-import io.micrometer.core.annotation.Counted;
-import io.quarkus.scheduler.Scheduled;
+import static java.util.Objects.requireNonNullElse;
 
 @ApplicationScoped
 public class ControlPlane {

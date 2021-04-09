@@ -10,6 +10,7 @@ import org.bf2.operator.operands.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.enterprise.context.ApplicationScoped;
+
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

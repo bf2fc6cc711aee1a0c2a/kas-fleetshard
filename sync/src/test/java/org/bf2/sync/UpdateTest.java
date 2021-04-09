@@ -1,11 +1,9 @@
 package org.bf2.sync;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.Map;
-
-import javax.inject.Inject;
-
+import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
+import io.quarkus.test.junit.mockito.InjectMock;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
@@ -18,10 +16,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.TestProfile;
-import io.quarkus.test.junit.mockito.InjectMock;
+import javax.inject.Inject;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest

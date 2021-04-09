@@ -1,13 +1,12 @@
 package org.bf2.sync;
 
-import java.util.concurrent.ExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import io.quarkus.test.Mock;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 
-import com.google.common.util.concurrent.MoreExecutors;
-
-import io.quarkus.test.Mock;
+import java.util.concurrent.ExecutorService;
 
 @Mock
 @ApplicationScoped

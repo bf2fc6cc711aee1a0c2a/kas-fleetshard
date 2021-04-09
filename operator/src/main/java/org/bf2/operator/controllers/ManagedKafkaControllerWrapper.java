@@ -1,15 +1,14 @@
 package org.bf2.operator.controllers;
 
-import javax.inject.Inject;
-
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+
+import javax.inject.Inject;
 
 /**
  * Workaround for https://github.com/java-operator-sdk/java-operator-sdk/issues/393

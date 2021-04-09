@@ -1,11 +1,10 @@
 package org.bf2.operator.resources.v1alpha1;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
-
 import io.sundr.builder.annotations.Buildable;
 import lombok.ToString;
+
+import java.util.List;
 
 /**
  * Defines the current status with related conditions of a ManagedKafka instance

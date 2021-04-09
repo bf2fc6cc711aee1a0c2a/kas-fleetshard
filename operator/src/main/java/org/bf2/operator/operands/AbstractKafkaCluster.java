@@ -1,18 +1,17 @@
 package org.bf2.operator.operands;
 
-import java.util.function.Predicate;
-
-import javax.inject.Inject;
-
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.javaoperatorsdk.operator.api.Context;
+import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.status.Condition;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.api.Context;
-import io.strimzi.api.kafka.model.Kafka;
-import io.strimzi.api.kafka.model.status.Condition;
+import javax.inject.Inject;
+
+import java.util.function.Predicate;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 

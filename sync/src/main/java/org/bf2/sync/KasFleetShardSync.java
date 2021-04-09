@@ -1,12 +1,11 @@
 package org.bf2.sync;
 
-import javax.inject.Inject;
-
+import io.quarkus.runtime.Quarkus;
+import io.quarkus.runtime.QuarkusApplication;
 import org.bf2.sync.informer.LocalLookup;
 import org.jboss.logging.Logger;
 
-import io.quarkus.runtime.Quarkus;
-import io.quarkus.runtime.QuarkusApplication;
+import javax.inject.Inject;
 
 public class KasFleetShardSync implements QuarkusApplication {
 

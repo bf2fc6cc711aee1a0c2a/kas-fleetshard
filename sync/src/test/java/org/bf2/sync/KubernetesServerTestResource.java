@@ -1,13 +1,13 @@
 package org.bf2.sync;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * KubernetesMockServerTestResource is not useful for crud tests, so we need to

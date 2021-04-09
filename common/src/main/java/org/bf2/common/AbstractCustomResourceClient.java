@@ -1,16 +1,16 @@
 package org.bf2.common;
 
-import java.util.List;
-import java.util.function.UnaryOperator;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
+
+import java.util.List;
+import java.util.function.UnaryOperator;
 
 public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?>, L extends CustomResourceList<T>> {
 

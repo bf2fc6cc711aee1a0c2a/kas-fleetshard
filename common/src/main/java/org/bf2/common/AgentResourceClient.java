@@ -1,7 +1,6 @@
 package org.bf2.common;
 
-import javax.enterprise.context.ApplicationScoped;
-
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
@@ -9,7 +8,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import javax.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
 public class AgentResourceClient extends AbstractCustomResourceClient<ManagedKafkaAgent, ManagedKafkaAgentList> {

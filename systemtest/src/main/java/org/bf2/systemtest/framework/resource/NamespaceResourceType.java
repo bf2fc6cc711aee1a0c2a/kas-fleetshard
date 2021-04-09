@@ -1,6 +1,5 @@
 package org.bf2.systemtest.framework.resource;
 
-
 import io.fabric8.kubernetes.api.model.Namespace;
 import org.bf2.test.k8s.KubeClient;
 

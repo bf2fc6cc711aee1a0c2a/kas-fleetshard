@@ -1,13 +1,12 @@
 package org.bf2.sync.informer;
 
-import java.util.Objects;
-import java.util.function.BiConsumer;
-
-import org.jboss.logging.Logger;
-
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import org.jboss.logging.Logger;
+
+import java.util.Objects;
+import java.util.function.BiConsumer;
 
 /**
  * Simple generic handler.  The consumer should be non-blocking.

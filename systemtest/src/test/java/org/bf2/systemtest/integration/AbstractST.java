@@ -1,7 +1,5 @@
 package org.bf2.systemtest.integration;
 
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
-import io.strimzi.api.kafka.Crds;
 import org.bf2.systemtest.framework.ExtensionContextParameterResolver;
 import org.bf2.systemtest.framework.IndicativeSentences;
 import org.bf2.systemtest.framework.ResourceManager;

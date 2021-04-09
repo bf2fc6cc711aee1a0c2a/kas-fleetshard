@@ -1,17 +1,16 @@
 package org.bf2.sync;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.jboss.logging.Logger;
 
-import io.micrometer.core.annotation.Counted;
-import io.micrometer.core.annotation.Timed;
-import io.quarkus.scheduler.Scheduled;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 @ApplicationScoped
 public class ManagedKafkaAgentSync {

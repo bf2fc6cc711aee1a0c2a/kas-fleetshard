@@ -1,12 +1,12 @@
 package org.bf2.sync.health;
 
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
 import org.bf2.sync.informer.InformerManager;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Liveness;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 @Liveness
 @ApplicationScoped

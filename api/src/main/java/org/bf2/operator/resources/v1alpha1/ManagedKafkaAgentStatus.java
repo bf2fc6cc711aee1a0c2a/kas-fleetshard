@@ -1,10 +1,9 @@
 package org.bf2.operator.resources.v1alpha1;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.sundr.builder.annotations.Buildable;
+
+import java.util.List;
 
 @Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class ManagedKafkaAgentStatus {

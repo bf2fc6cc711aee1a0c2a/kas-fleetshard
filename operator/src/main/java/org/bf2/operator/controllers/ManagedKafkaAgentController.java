@@ -1,10 +1,14 @@
 package org.bf2.operator.controllers;
 
-import java.util.Arrays;
-
-import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
-
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.DeleteControl;
+import io.javaoperatorsdk.operator.api.ResourceController;
+import io.javaoperatorsdk.operator.api.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
+import io.micrometer.core.annotation.Counted;
+import io.micrometer.core.annotation.Timed;
+import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.operands.ObservabilityManager;
@@ -21,15 +25,10 @@ import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.jboss.logging.Logger;
 
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.javaoperatorsdk.operator.api.Context;
-import io.javaoperatorsdk.operator.api.DeleteControl;
-import io.javaoperatorsdk.operator.api.ResourceController;
-import io.javaoperatorsdk.operator.api.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
-import io.micrometer.core.annotation.Counted;
-import io.micrometer.core.annotation.Timed;
-import io.quarkus.scheduler.Scheduled;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
+
+import java.util.Arrays;
 
 /**
  * The controller for {@link ManagedKafkaAgent}.  However there is currently

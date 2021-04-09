@@ -1,7 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import io.sundr.builder.annotations.Buildable;
-
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 

@@ -11,10 +11,10 @@ import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
 import org.jboss.logging.Logger;
 
-import java.util.Objects;
-
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
+import java.util.Objects;
 
 public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
 

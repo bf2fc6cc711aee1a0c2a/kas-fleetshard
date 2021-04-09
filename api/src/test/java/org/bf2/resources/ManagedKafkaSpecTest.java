@@ -1,11 +1,11 @@
 package org.bf2.resources;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class ManagedKafkaSpecTest {
 
