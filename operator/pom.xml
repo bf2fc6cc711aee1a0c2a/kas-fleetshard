@@ -10,6 +10,10 @@
         <version>999-SNAPSHOT</version>
     </parent>
     <artifactId>kas-fleetshard-operator</artifactId>
+    <properties>
+        <!-- skipping until strimzi adds missing crd-annotations and test jars -->
+        <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
+    </properties>
 
     <dependencies>
         <dependency>
