@@ -617,8 +617,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return DEFAULT_KAFKA_VOLUME_SIZE;
         }
         long bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
-        long margin = Math.max(Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes * (1-SOFT_PERCENT)));
-        return new Quantity(String.valueOf(bytes + margin));
+        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
+        return new Quantity(String.valueOf(bytes));
     }
 
     private Storage getZooKeeperStorage() {
