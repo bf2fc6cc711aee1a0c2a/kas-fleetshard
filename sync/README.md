@@ -42,7 +42,7 @@ To directly use the minikube registry, run:
 ```shell
 eval $(minikube docker-env)
 
-mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard
+mvn package -P quickly -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard
 ```
 
 Be default the image will run in prod mode.  Add -Dquarkus.profile=dev to run in dev mode - which does not expect sso nor the addon secret
@@ -62,5 +62,5 @@ docker login -u developer -p $(oc whoami -t) default-route-openshift-image-regis
 now to deploy the agent-sync run
 
 ```shell
-mvn package -DskipTests -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard -Dquarkus.kubernetes-client.trust-certs=true
+mvn package -P quickly -Dquarkus.kubernetes.deploy=true -Dquarkus.container-image.build=true -Dquarkus.kubernetes.image-pull-policy=IfNotPresent -Dquarkus.kubernetes.namespace=kas-fleetshard -Dquarkus.kubernetes-client.trust-certs=true
 ```

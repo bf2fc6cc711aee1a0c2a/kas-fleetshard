@@ -73,7 +73,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     protected abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
 
-    public abstract String Uri(ManagedKafka managedKafka);
+    public abstract String uri(ManagedKafka managedKafka);
 
     @Override
     public boolean isInstalling(ManagedKafka managedKafka) {

@@ -270,7 +270,7 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     @Override
-    public String Uri(ManagedKafka managedKafka) {
+    public String uri(ManagedKafka managedKafka) {
         Route route = cachedRoute(managedKafka);
         return route != null ? route.getSpec().getHost() : null;
     }

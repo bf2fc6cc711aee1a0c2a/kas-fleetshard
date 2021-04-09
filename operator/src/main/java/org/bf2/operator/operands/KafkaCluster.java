@@ -59,6 +59,7 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -283,8 +284,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
         Map<String, String> certs = new HashMap<>(2);
-        certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes()));
-        certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes()));
+        certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes(StandardCharsets.UTF_8)));
+        certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes(StandardCharsets.UTF_8)));
         Secret secret = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -308,7 +309,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
         Map<String, String> data = new HashMap<>(1);
-        data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes()));
+        data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes(StandardCharsets.UTF_8)));
         Secret secret = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -329,7 +330,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     /* test */
     protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         Map<String, String> certs = new HashMap<>(1);
-        certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes()));
+        certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes(StandardCharsets.UTF_8)));
         Secret secret = new SecretBuilder()
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))

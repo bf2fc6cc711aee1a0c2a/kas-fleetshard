@@ -48,7 +48,7 @@ public class ConditionUtils {
      * @param newReason new reason to update
      */
     public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus, ManagedKafkaCondition.Reason newReason) {
-        if (!Objects.equals(condition.getStatus(), newStatus) || !Objects.equals(condition.getReason(), newReason)) {
+        if (!Objects.equals(condition.getStatus(), newStatus == null ? null : newStatus.name()) || !Objects.equals(condition.getReason(), newReason == null ? null : newReason.name())) {
             condition.setStatus(newStatus);
             condition.setLastTransitionTime(ConditionUtils.iso8601Now());
             condition.reason(newReason).setMessage(null);

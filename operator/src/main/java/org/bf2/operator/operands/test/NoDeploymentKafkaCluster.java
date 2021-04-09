@@ -12,6 +12,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import javax.enterprise.context.ApplicationScoped;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 
 /**
@@ -21,7 +22,7 @@ import java.util.Collections;
  */
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "test")
-public class KafkaCluster extends org.bf2.operator.operands.KafkaCluster {
+public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaCluster {
 
     @Override
     protected void createOrUpdate(Kafka kafka) {
@@ -76,9 +77,10 @@ public class KafkaCluster extends org.bf2.operator.operands.KafkaCluster {
     @Override
     protected Kafka cachedKafka(ManagedKafka managedKafka) {
         ConfigMap cm = informerManager.getLocalConfigMap(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
-        if (cm == null)
+        if (cm == null) {
             return null;
-        InputStream is = new ByteArrayInputStream(cm.getData().get("kafka").getBytes());
+        }
+        InputStream is = new ByteArrayInputStream(cm.getData().get("kafka").getBytes(StandardCharsets.UTF_8));
         return Serialization.unmarshal(is, Kafka.class);
     }
 }
