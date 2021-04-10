@@ -219,6 +219,24 @@
                     <removeUnused>true</removeUnused>
                 </configuration>
             </plugin>
+            <plugin>
+	            <groupId>org.apache.maven.plugins</groupId>
+	            <artifactId>maven-dependency-plugin</artifactId>
+	            <executions>
+	                <!-- remove analyze-only and analyze-dep-mgt - they generate a lot of warnings, that we are unlikely to resolve -->
+	                <execution>
+	                    <id>basepom.default</id>
+	                    <phase/>
+	                </execution>
+	                <execution>
+	                    <id>dep-goals</id>
+	                    <phase>${basepom.check.phase-dependency}</phase>
+	                    <goals>
+	                        <goal>analyze-duplicate</goal>
+	                    </goals>
+	                </execution>
+	            </executions>
+	        </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
