@@ -32,6 +32,7 @@ public class NoDeploymentAdminServer extends org.bf2.operator.operands.AdminServ
                 .inNamespace(deployment.getMetadata().getNamespace())
                 .withName(deployment.getMetadata().getName()).get() == null) {
 
+            // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()
                     .withNewMetadata()
                         .withNamespace(deployment.getMetadata().getNamespace())
@@ -41,6 +42,7 @@ public class NoDeploymentAdminServer extends org.bf2.operator.operands.AdminServ
                     .endMetadata()
                     .withData(Collections.singletonMap("deployment", Serialization.asYaml(deployment)))
                     .build();
+            // @formatter:on
 
             kubernetesClient.configMaps().inNamespace(deployment.getMetadata().getNamespace()).create(cm);
         // Admin Server deployment resource already exists, has to be updated

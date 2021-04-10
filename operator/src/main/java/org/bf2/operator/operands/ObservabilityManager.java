@@ -49,6 +49,7 @@ public class ObservabilityManager {
         if (observability.getTag() != null) {
             data.put(OBSERVABILITY_TAG, encoder.encodeToString(observability.getTag().getBytes(StandardCharsets.UTF_8)));
         }
+        // @formatter:off
         return new SecretBuilder()
                 .withNewMetadata()
                     .withNamespace(namespace)
@@ -57,6 +58,7 @@ public class ObservabilityManager {
                     .addToLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .addToData(data);
+        // @formatter:on
     }
 
     static boolean isObservabilityStatusAccepted(Secret cm) {

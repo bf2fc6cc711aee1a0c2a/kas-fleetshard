@@ -32,6 +32,7 @@ public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
                 .inNamespace(deployment.getMetadata().getNamespace())
                 .withName(deployment.getMetadata().getName()).get() == null) {
 
+            // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()
                     .withNewMetadata()
                         .withNamespace(deployment.getMetadata().getNamespace())
@@ -41,6 +42,7 @@ public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
                     .endMetadata()
                     .withData(Collections.singletonMap("deployment", Serialization.asYaml(deployment)))
                     .build();
+            // @formatter:on
 
             kubernetesClient.configMaps().inNamespace(deployment.getMetadata().getNamespace()).create(cm);
         // Canary deployment resource already exists, has to be updated

@@ -32,6 +32,7 @@ public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaClu
                 .inNamespace(kafka.getMetadata().getNamespace())
                 .withName(kafka.getMetadata().getName()).get() == null) {
 
+            // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()
                     .withNewMetadata()
                         .withNamespace(kafka.getMetadata().getNamespace())
@@ -41,6 +42,7 @@ public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaClu
                     .endMetadata()
                     .withData(Collections.singletonMap("kafka", kafka.toString()))
                     .build();
+            // @formatter:off
 
             kubernetesClient.configMaps().inNamespace(kafka.getMetadata().getNamespace()).create(cm);
         // Kafka resource already exists, has to be updated

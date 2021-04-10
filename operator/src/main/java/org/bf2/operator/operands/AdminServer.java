@@ -119,7 +119,7 @@ public class AdminServer extends AbstractAdminServer {
         String adminServerName = adminServerName(managedKafka);
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
-
+        // @formatter:off
         Deployment deployment = builder
                 .editOrNewMetadata()
                     .withName(adminServerName)
@@ -141,7 +141,8 @@ public class AdminServer extends AbstractAdminServer {
                     .endTemplate()
                 .endSpec()
                 .build();
-
+        // @formatter:on
+        
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
         OperandUtils.setAsOwner(managedKafka, deployment);
@@ -155,7 +156,7 @@ public class AdminServer extends AbstractAdminServer {
         String adminServerName = adminServerName(managedKafka);
 
         ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
-
+        // @formatter:off
         Service service = builder
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
@@ -167,6 +168,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withPorts(getServicePorts())
                 .endSpec()
                 .build();
+        // @formatter:on
 
         // setting the ManagedKafka has owner of the Admin Server service resource is needed
         // by the operator sdk to handle events on the Service resource properly
@@ -191,6 +193,7 @@ public class AdminServer extends AbstractAdminServer {
             tlsKey = managedKafka.getSpec().getEndpoint().getTls().getKey();
         }
 
+        // @formatter:off
         Route route = builder
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
@@ -214,6 +217,7 @@ public class AdminServer extends AbstractAdminServer {
                     .endTls()
                 .endSpec()
                 .build();
+        // @formatter:on
 
         // setting the ManagedKafka has owner of the Admin Server route resource is needed
         // by the operator sdk to handle events on the Route resource properly
