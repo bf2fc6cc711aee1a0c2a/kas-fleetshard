@@ -38,6 +38,7 @@ public class LogCollector {
     }
 
     private static void saveClusterState(Path logpath) throws IOException {
+        // @formatter:off
         KubeClient kube = KubeClient.getInstance();
         Files.writeString(logpath.resolve("describe-cluster-nodes.log"), kube.cmdClient().exec(false, false, "describe", "nodes").out());
         Files.writeString(logpath.resolve("all-events.log"), kube.cmdClient().exec(false, false, "get", "events", "--all-namespaces").out());
@@ -52,5 +53,6 @@ public class LogCollector {
         Files.writeString(logpath.resolve("operator-namespace-events.yml"), kube.cmdClient().exec(false, false, "get", "events", "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("operator.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("sync.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.SYNC_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
+        // @formatter:on
     }
 }

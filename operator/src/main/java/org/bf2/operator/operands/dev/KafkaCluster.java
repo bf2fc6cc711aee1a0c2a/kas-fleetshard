@@ -33,6 +33,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
+        // @formatter:off
         Kafka kafka = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
@@ -55,6 +56,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .endZookeeper()
                 .endSpec()
                 .build();
+        // @formatter:off
 
         // setting the ManagedKafka has owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly

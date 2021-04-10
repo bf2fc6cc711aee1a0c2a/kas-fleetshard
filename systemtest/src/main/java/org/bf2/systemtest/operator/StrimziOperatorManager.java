@@ -33,9 +33,11 @@ public class StrimziOperatorManager {
     private static final List<Consumer<Void>> CLUSTER_WIDE_RESOURCE_DELETERS = new LinkedList<>();
 
     public static void installStrimzi(KubeClient kubeClient) throws Exception {
+        // @formatter:off
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
                         .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
+        // @formatter:on
             LOGGER.info("Installing Strimzi : {}", OPERATOR_NS);
 
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
@@ -81,10 +83,12 @@ public class StrimziOperatorManager {
             });
 
             opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(OPERATOR_NS).createOrReplace());
+            // @formatter:off
             TestUtils.waitFor("Strimzi operator ready", 1_000, 120_000, () ->
                     TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                             .list().getItems().stream().filter(pod ->
                                     pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
+            // @formatter:on
             LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
         } else {
             LOGGER.info("Strimzi operator is installed no need to install it");
@@ -96,10 +100,12 @@ public class StrimziOperatorManager {
             LOGGER.info("Deleting Strimzi : {}", OPERATOR_NS);
             kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
             CLUSTER_WIDE_RESOURCE_DELETERS.forEach(delete -> delete.accept(null));
+            // @formatter:off
             TestUtils.waitFor("Delete strimzi", 2_000, 120_000, () ->
                     kubeClient.client().pods().inNamespace(OPERATOR_NS).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
                             !kubeClient.namespaceExists(OPERATOR_NS));
+            // @formatter:on
         } else {
             LOGGER.info("No need to uninstall strimzi operator");
         }

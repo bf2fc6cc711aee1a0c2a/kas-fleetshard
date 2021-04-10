@@ -224,7 +224,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
-
+        // @formatter:off
         Kafka kafka = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
@@ -262,7 +262,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .endKafkaExporter()
                 .endSpec()
                 .build();
-
+        // @formatter:on
+        
         // setting the ManagedKafka has owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly
         OperandUtils.setAsOwner(managedKafka, kafka);
@@ -307,6 +308,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> certs = new HashMap<>(2);
         certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes(StandardCharsets.UTF_8)));
         certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes(StandardCharsets.UTF_8)));
+        // @formatter:off
         Secret secret = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -316,7 +318,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withType("kubernetes.io/tls")
                 .withData(certs)
                 .build();
-
+        // @formatter:on
+        
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);
@@ -331,6 +334,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         Map<String, String> data = new HashMap<>(1);
         data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes(StandardCharsets.UTF_8)));
+        // @formatter:off
         Secret secret = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -340,7 +344,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withType("Opaque")
                 .withData(data)
                 .build();
-
+        // @formatter:on
+        
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);
@@ -352,6 +357,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         Map<String, String> certs = new HashMap<>(1);
         certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes(StandardCharsets.UTF_8)));
+        // @formatter:off
         Secret secret = new SecretBuilder()
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -361,7 +367,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withType("Opaque")
                 .withData(certs)
                 .build();
-
+        // @formatter:on
+        
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);

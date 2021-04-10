@@ -47,7 +47,7 @@ public class Canary extends AbstractCanary {
         String canaryName = canaryName(managedKafka);
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
-
+        // @formatter:off
         Deployment deployment = builder
                 .editOrNewMetadata()
                     .withName(canaryName)
@@ -69,7 +69,7 @@ public class Canary extends AbstractCanary {
                     .endTemplate()
                 .endSpec()
                 .build();
-
+        // @formatter:on
         // setting the ManagedKafka has owner of the Canary deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
         OperandUtils.setAsOwner(managedKafka, deployment);
