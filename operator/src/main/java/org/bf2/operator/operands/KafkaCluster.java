@@ -66,6 +66,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -77,13 +78,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static final int KAFKA_BROKERS = 3;
     private static final int ZOOKEEPER_NODES = 3;
-    private static final int PRODUCE_QUOTA = 4000000;
-    private static final int CONSUME_QUOTA = 4000000;
+    // storage related constants
+    private static final double HARD_PERCENT = 0.95;
+    private static final double SOFT_PERCENT = 0.9;
     private static final String KAFKA_STORAGE_CLASS = "mk-storageclass";
     private static final boolean DELETE_CLAIM = false;
     private static final int JBOD_VOLUME_ID = 0;
+    private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
-    private static final Quantity KAFKA_VOLUME_SIZE = new Quantity("225Gi");
     private static final Quantity KAFKA_CONTAINER_MEMORY = new Quantity("1Gi");
     private static final Quantity KAFKA_CONTAINER_CPU = new Quantity("1000m");
 
@@ -95,6 +97,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = new Quantity("500m");
     private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = new Quantity("256Mi");
     private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = new Quantity("1000m");
+
+    private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
+    private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
+    private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
+    private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
 
     @Inject
     Logger log;
@@ -221,7 +228,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withReplicas(KAFKA_BROKERS)
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
-                        .withStorage(getKafkaStorage())
+                        .withStorage(getKafkaStorage(managedKafka))
                         .withListeners(getKafkaListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
@@ -477,21 +484,29 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.protocol", "TLSv1.3");
 
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
-        // Throttle at 4 MB/sec
-        config.put("client.quota.callback.static.produce", String.valueOf(PRODUCE_QUOTA));
-        config.put("client.quota.callback.static.consume", String.valueOf(CONSUME_QUOTA));
+        // Throttle at Ingress/Egress MB/sec per broker
+        Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
+        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC)).doubleValue() / KAFKA_BROKERS);
+        config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
+        config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
         // Start throttling when disk is above 90%. Full stop at 95%.
-        config.put("client.quota.callback.static.storage.soft", String.valueOf((long)(0.9 * Quantity.getAmountInBytes(KAFKA_VOLUME_SIZE).doubleValue())));
-        config.put("client.quota.callback.static.storage.hard", String.valueOf((long)(0.95 * Quantity.getAmountInBytes(KAFKA_VOLUME_SIZE).doubleValue())));
+        Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka);
+        double dataRetentionBytes = Quantity.getAmountInBytes(maxDataRetentionSize).doubleValue();
+        config.put("client.quota.callback.static.storage.soft", String.valueOf((long)(SOFT_PERCENT * dataRetentionBytes)));
+        config.put("client.quota.callback.static.storage.hard", String.valueOf((long)(HARD_PERCENT * dataRetentionBytes)));
 
         // Check storage every 30 seconds
         config.put("client.quota.callback.static.storage.check-interval", "30");
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
 
-        // Limit client connections to 500 per broker
-        config.put("max.connections", "500");
+        // Limit client connections per broker
+        Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+        config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
+        // Limit connection attempts per broker
+        Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+        config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
 
         return config;
     }
@@ -583,17 +598,27 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return brokerOverrides;
     }
 
-    private Storage getKafkaStorage() {
+    private Storage getKafkaStorage(ManagedKafka managedKafka) {
         return new JbodStorageBuilder()
                 .withVolumes(
                         new PersistentClaimStorageBuilder()
                                 .withId(JBOD_VOLUME_ID)
-                                .withSize(KAFKA_VOLUME_SIZE.toString())
+                                .withSize(getAdjustedMaxDataRetentionSize(managedKafka).getAmount())
                                 .withDeleteClaim(DELETE_CLAIM)
                                 .withStorageClass(KAFKA_STORAGE_CLASS)
                                 .build()
                 )
                 .build();
+    }
+
+    private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka) {
+        Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
+        if (maxDataRetentionSize == null) {
+            return DEFAULT_KAFKA_VOLUME_SIZE;
+        }
+        long bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
+        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
+        return new Quantity(String.valueOf(bytes));
     }
 
     private Storage getZooKeeperStorage() {
