@@ -22,7 +22,6 @@
         <!-- quarkus picks up functionality via unused, but we don't want to fully skip to keep dependency tree enabled -->
         <basepom.check.fail-dependency>false</basepom.check.fail-dependency>
         
-        
         <!-- things that we could eventually turn on -->
         
         <!-- currently there is a lot of duplicate classes in the dependencies
@@ -33,6 +32,8 @@
         <!-- we may want to disable this in github actions
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check> 
         -->
+        <!-- we don't currently care about these warnings - this could be enabled on a per module basis -->
+        <maven.compiler.showWarnings>false</maven.compiler.showWarnings>
         
         <basepom.test.fork-count>1</basepom.test.fork-count>
         <basepom.failsafe.fork-count>1</basepom.failsafe.fork-count>
@@ -50,13 +51,12 @@
         
         <quarkus.platform.version>1.11.1.Final</quarkus.platform.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
-        <quarkus-plugin.version>1.11.1.Final</quarkus-plugin.version>
+        <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <dekorate.version>2.0.0.beta8</dekorate.version>
         <strimzi.version>0.22.0</strimzi.version>
         <quarkus.operator.extension>1.7.1</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
-        <log4j2.version>2.13.3</log4j2.version>
         <sundrio.version>0.24.2</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
@@ -253,6 +253,13 @@
                             <version>${project.version}</version>
                         </dependency>                    
                     </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <showWarnings>${maven.compiler.showWarnings}</showWarnings>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>

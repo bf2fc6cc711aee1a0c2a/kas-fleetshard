@@ -14,6 +14,7 @@
     <properties>
         <basepom.check.skip-spotbugs>true</basepom.check.skip-spotbugs>
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
+        <log4j2.version>2.13.3</log4j2.version>
     </properties>
 
     <dependencies>
