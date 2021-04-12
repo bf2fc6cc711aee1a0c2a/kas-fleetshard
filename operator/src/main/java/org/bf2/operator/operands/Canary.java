@@ -72,7 +72,7 @@ public class Canary extends AbstractCanary {
     private List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("canary")
-                .withImage("quay.io/mk-ci-cd/strimzi-canary:0.0.3")
+                .withImage("quay.io/mk-ci-cd/strimzi-canary:0.0.4")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())
