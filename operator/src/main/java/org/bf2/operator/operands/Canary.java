@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
 
@@ -33,6 +34,9 @@ public class Canary extends AbstractCanary {
     private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("5m");
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("64Mi");
     private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("10m");
+
+    @ConfigProperty(name = "image.canary")
+    String canaryImage;
 
     @Override
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
@@ -72,7 +76,7 @@ public class Canary extends AbstractCanary {
     private List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("canary")
-                .withImage("quay.io/mk-ci-cd/strimzi-canary:0.0.4")
+                .withImage(canaryImage)
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())

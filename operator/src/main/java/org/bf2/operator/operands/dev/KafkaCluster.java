@@ -46,10 +46,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withListeners(getListeners())
                         .withStorage(getStorage())
                         .withConfig(getKafkaConfig(managedKafka))
+                        .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(3)
                         .withStorage((SingleVolumeStorage)getStorage())
+                        .withImage(zookeeperImage.orElse(null))
                     .endZookeeper()
                 .endSpec()
                 .build();

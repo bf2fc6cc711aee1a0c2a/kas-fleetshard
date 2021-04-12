@@ -59,6 +59,9 @@ public class AdminServer extends AbstractAdminServer {
     @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
     boolean isKafkaExternalCertificateEnabled;
 
+    @ConfigProperty(name = "image.admin-api")
+    String adminApiImage;
+
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
@@ -209,7 +212,7 @@ public class AdminServer extends AbstractAdminServer {
     private List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
-                .withImage("quay.io/mk-ci-cd/kafka-admin-api:0.0.7")
+                .withImage(adminApiImage)
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())
