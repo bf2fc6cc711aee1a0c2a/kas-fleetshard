@@ -100,6 +100,7 @@ spec:
       max.connections: "166"
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "699050"
+      leader.imbalance.per.broker.percentage: 0
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
