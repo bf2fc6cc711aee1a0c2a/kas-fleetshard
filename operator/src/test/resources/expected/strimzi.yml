@@ -79,6 +79,13 @@ spec:
           certificate: "keycloak.crt"
         enableOauthBearer: true
         type: "oauth"
+    - name: "sre"
+      port: 9096
+      type: "internal"
+      tls: false        
+    authorization:
+      type: custom
+      authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
     config:
       ssl.protocol: "TLSv1.3"
       client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
@@ -101,6 +108,10 @@ spec:
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "699050"
       leader.imbalance.per.broker.percentage: 0
+      strimzi.authorization.global-authorizer.allowed-listeners: PLAIN-9092,SRE-9096
+      strimzi.authorization.global-authorizer.acl.1: permission=allow;topic=*;operations=all
+      strimzi.authorization.global-authorizer.acl.2: permission=allow;group=*;operations=all
+      strimzi.authorization.global-authorizer.acl.3: permission=allow;transactional_id=*;operations=all
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
