@@ -206,7 +206,7 @@ public class AdminServer extends AbstractAdminServer {
     private List<Container> getContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
-                .withImage("quay.io/mk-ci-cd/kafka-admin-api:0.0.5")
+                .withImage("quay.io/mk-ci-cd/kafka-admin-api:0.0.6")
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())
