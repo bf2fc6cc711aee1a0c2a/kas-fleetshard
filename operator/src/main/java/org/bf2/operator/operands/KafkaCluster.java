@@ -485,6 +485,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.enabled.protocols", "TLSv1.3");
         config.put("ssl.protocol", "TLSv1.3");
 
+        // forcing the preferred leader election as soon as possible
+        // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected
+        //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
+        config.put("leader.imbalance.per.broker.percentage", 0);
+
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
