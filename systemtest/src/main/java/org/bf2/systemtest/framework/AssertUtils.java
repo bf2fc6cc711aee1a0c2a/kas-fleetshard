@@ -31,20 +31,20 @@ public class AssertUtils {
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
     }
 
-    public static void assertSyncManagedKafkaStatus(ManagedKafka mk, ManagedKafkaStatus syncStatus) {
-        assertEquals(mk.getStatus().getAdminServerURI(), syncStatus.getAdminServerURI());
-        assertEquals(mk.getStatus().getCapacity().getTotalMaxConnections(), syncStatus.getCapacity().getTotalMaxConnections());
-        assertEquals(mk.getStatus().getCapacity().getIngressEgressThroughputPerSec(), syncStatus.getCapacity().getIngressEgressThroughputPerSec());
-        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionPeriod(), syncStatus.getCapacity().getMaxDataRetentionPeriod());
-        assertEquals(mk.getStatus().getCapacity().getMaxPartitions(), syncStatus.getCapacity().getMaxPartitions());
-        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionSize(), syncStatus.getCapacity().getMaxDataRetentionSize());
-        syncStatus.getConditions()
+    public static void assertManagedKafkaStatus(ManagedKafka mk, ManagedKafkaStatus mkStatus) {
+        assertEquals(mk.getStatus().getAdminServerURI(), mkStatus.getAdminServerURI());
+        assertEquals(mk.getStatus().getCapacity().getTotalMaxConnections(), mkStatus.getCapacity().getTotalMaxConnections());
+        assertEquals(mk.getStatus().getCapacity().getIngressEgressThroughputPerSec(), mkStatus.getCapacity().getIngressEgressThroughputPerSec());
+        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionPeriod(), mkStatus.getCapacity().getMaxDataRetentionPeriod());
+        assertEquals(mk.getStatus().getCapacity().getMaxPartitions(), mkStatus.getCapacity().getMaxPartitions());
+        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionSize(), mkStatus.getCapacity().getMaxDataRetentionSize());
+        mkStatus.getConditions()
                 .forEach(condition -> assertTrue(ManagedKafkaResourceType.hasConditionStatus(mk,
                         ManagedKafkaCondition.Type.valueOf(condition.getType()),
                         ManagedKafkaCondition.Status.valueOf(condition.getStatus()))));
     }
 
-    public static void assertSyncAgentStatus(ManagedKafkaAgentStatus agentStatus) {
+    public static void assertAgentStatus(ManagedKafkaAgentStatus agentStatus) {
         assertEquals(1, agentStatus.getConditions().size());
         assertNotNull(agentStatus.getTotalCapacity());
         assertNotNull(agentStatus.getRemainingCapacity());
