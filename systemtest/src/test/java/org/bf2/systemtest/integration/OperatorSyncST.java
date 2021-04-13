@@ -91,7 +91,7 @@ public class OperatorSyncST extends AbstractST {
         ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
 
-        AssertUtils.assertAgentStatus(agentStatus);
+        AssertUtils.assertManagedKafkaAgentStatus(agentStatus);
 
         //Check if managed kafka deployed all components
         AssertUtils.assertManagedKafka(mk);

@@ -44,7 +44,7 @@ public class AssertUtils {
                         ManagedKafkaCondition.Status.valueOf(condition.getStatus()))));
     }
 
-    public static void assertAgentStatus(ManagedKafkaAgentStatus agentStatus) {
+    public static void assertManagedKafkaAgentStatus(ManagedKafkaAgentStatus agentStatus) {
         assertEquals(1, agentStatus.getConditions().size());
         assertNotNull(agentStatus.getTotalCapacity());
         assertNotNull(agentStatus.getRemainingCapacity());
