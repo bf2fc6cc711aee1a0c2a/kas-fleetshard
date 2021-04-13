@@ -692,7 +692,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 1, "permission=allow;topic=*;operations=all");
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 2, "permission=allow;group=*;operations=all");
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
-        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 4, "permission=allow;cluster=*;operations=describe,describe_configs");
     }
 
     private Map<String, String> getKafkaLabels() {
