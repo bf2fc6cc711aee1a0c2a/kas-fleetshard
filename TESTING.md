@@ -1,4 +1,10 @@
-## Testing kaf-fleetshard-operator
+## Testing kas-fleetshard
+
+### Running unit test
+
+```bash
+mvn test
+```
 
 ### Running systemtest
 
