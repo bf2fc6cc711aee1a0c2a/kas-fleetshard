@@ -7,6 +7,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.TimeoutBudget;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -18,8 +19,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.time.Duration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RecoveryST extends AbstractST {
@@ -51,6 +50,8 @@ public class RecoveryST extends AbstractST {
 
         resourceManager.createResource(extensionContext, mk);
 
+        AssertUtils.assertManagedKafka(mk);
+
         LOGGER.info("Delete resources in namespace {}", mkAppName);
         kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
         kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
@@ -62,12 +63,6 @@ public class RecoveryST extends AbstractST {
                         ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
                 TimeoutBudget.ofDuration(Duration.ofMinutes(15))));
 
-        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get());
-        assertNotNull(kafkacli.inNamespace(mkAppName).withName(mkAppName).get());
-        assertTrue(kube.client().pods().inNamespace(mkAppName).list().getItems().size() > 0);
-        assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
-        assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
-        assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
-        assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());
+        AssertUtils.assertManagedKafka(mk);
     }
 }
