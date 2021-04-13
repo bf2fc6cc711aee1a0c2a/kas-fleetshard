@@ -1,5 +1,7 @@
 package org.bf2.operator.operands;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -40,6 +42,19 @@ class KafkaClusterTest {
 
     @Test
     void testManagedKafkaToKafka() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        JsonNode patch = diffToExpected(kafka);
+        assertEquals("[]", patch.toString());
+
+        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
+        kafkaCli.create(kafka);
+        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
+    }
+
+    private ManagedKafka exampleManagedKafka(String size) {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withMetadata(
                         new ObjectMetaBuilder()
@@ -64,7 +79,7 @@ class KafkaClusterTest {
                                                 .build()
                                 )
                                 .withNewCapacity()
-                                .withMaxDataRetentionSize(Quantity.parse("60Gi"))
+                                .withMaxDataRetentionSize(Quantity.parse(size))
                                 .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
                                 .endCapacity()
                                 .withNewVersions()
@@ -72,17 +87,33 @@ class KafkaClusterTest {
                                 .endVersions()
                                 .build())
                 .build();
+        return mk;
+    }
+
+    @Test
+    void testManagedKafkaToKafkaWithSizeChanges() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
+        Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
+
+        // should not change to a smaller size
+        JsonNode patch = diffToExpected(reduced);
+        assertEquals("[]", patch.toString());
+
+        Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
+
+        // should change to a larger size
+        patch = diffToExpected(larger);
+        assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"86973087744\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"91804925952\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"96636764160\"}]", patch.toString());
+    }
+
+    private JsonNode diffToExpected(Kafka kafka) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream("/expected/strimzi.yml"));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
         JsonNode patch = JsonDiff.asJson(file1, file2);
-        assertEquals("[]", patch.toString());
-
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
-        kafkaCli.create(kafka);
-        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
+        return patch;
     }
 }

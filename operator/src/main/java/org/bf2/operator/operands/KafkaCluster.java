@@ -42,7 +42,9 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBrokerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
+import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
@@ -224,11 +226,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                        .withConfig(getKafkaConfig(managedKafka))
+                        .withConfig(getKafkaConfig(managedKafka, current))
                         .withReplicas(KAFKA_BROKERS)
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
-                        .withStorage(getKafkaStorage(managedKafka))
+                        .withStorage(getKafkaStorage(managedKafka, current))
                         .withListeners(getKafkaListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
@@ -470,7 +472,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return resources;
     }
 
-    private Map<String, Object> getKafkaConfig(ManagedKafka managedKafka) {
+    private Map<String, Object> getKafkaConfig(ManagedKafka managedKafka, Kafka current) {
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);
         config.put("transaction.state.log.min.isr", 2);
@@ -491,7 +493,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
         // Start throttling when disk is above 90%. Full stop at 95%.
-        Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka);
+        Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
         double dataRetentionBytes = Quantity.getAmountInBytes(maxDataRetentionSize).doubleValue();
         config.put("client.quota.callback.static.storage.soft", String.valueOf((long)(SOFT_PERCENT * dataRetentionBytes)));
         config.put("client.quota.callback.static.storage.hard", String.valueOf((long)(HARD_PERCENT * dataRetentionBytes)));
@@ -598,12 +600,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return brokerOverrides;
     }
 
-    private Storage getKafkaStorage(ManagedKafka managedKafka) {
+    private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {
         return new JbodStorageBuilder()
                 .withVolumes(
                         new PersistentClaimStorageBuilder()
                                 .withId(JBOD_VOLUME_ID)
-                                .withSize(getAdjustedMaxDataRetentionSize(managedKafka).getAmount())
+                                .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
                                 .withDeleteClaim(DELETE_CLAIM)
                                 .withStorageClass(KAFKA_STORAGE_CLASS)
                                 .build()
@@ -611,13 +613,36 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka) {
+    /**
+     * Get the effective volume size considering extra padding and the existing size
+     */
+    private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka, Kafka current) {
         Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
+        long bytes;
         if (maxDataRetentionSize == null) {
-            return DEFAULT_KAFKA_VOLUME_SIZE;
+            bytes = Quantity.getAmountInBytes(DEFAULT_KAFKA_VOLUME_SIZE).longValue();
+        } else {
+            bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
+            bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
         }
-        long bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
-        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
+
+        // strimzi won't allow the size to be reduced so scrape the size if possible
+        if (current != null) {
+            Storage storage = current.getSpec().getKafka().getStorage();
+            if (storage instanceof JbodStorage) {
+                JbodStorage jbodStorage = (JbodStorage)storage;
+                for (SingleVolumeStorage singleVolumeStorage : jbodStorage.getVolumes()) {
+                    if (singleVolumeStorage instanceof PersistentClaimStorage && Integer.valueOf(JBOD_VOLUME_ID).equals(singleVolumeStorage.getId())) {
+                        String existingSize = ((PersistentClaimStorage)singleVolumeStorage).getSize();
+                        long existingBytes = Quantity.getAmountInBytes(Quantity.parse(existingSize)).longValue();
+                        // TODO: if not changed a warning may be appropriate, but it would be best as a status condition
+                        bytes = Math.max(existingBytes, bytes);
+                        break;
+                    }
+                }
+            }
+        }
+
         return new Quantity(String.valueOf(bytes));
     }
 
