@@ -84,7 +84,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
     private static final String KAFKA_STORAGE_CLASS = "mk-storageclass";
-    private static final boolean DELETE_CLAIM = false;
+    private static final boolean DELETE_CLAIM = true;
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 

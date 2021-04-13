@@ -108,6 +108,7 @@ spec:
         size: "75161927680"
         class: "mk-storageclass"
         id: 0
+        deleteClaim: true
       type: "jbod"
     rack:
       topologyKey: "topology.kubernetes.io/zone"
@@ -139,6 +140,7 @@ spec:
       type: "persistent-claim"
       size: "10Gi"
       class: "mk-storageclass"
+      deleteClaim: true
     jvmOptions:
       "-Xmx": "512m"
       "-Xms": "512m"
