@@ -628,8 +628,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
             bytes = Quantity.getAmountInBytes(DEFAULT_KAFKA_VOLUME_SIZE).longValue();
         } else {
             bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
-            bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
         }
+
+        // this is per broker
+        bytes /= KAFKA_BROKERS;
+
+        // pad to give a margin before soft/hard limits kick in
+        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
 
         // strimzi won't allow the size to be reduced so scrape the size if possible
         if (current != null) {
