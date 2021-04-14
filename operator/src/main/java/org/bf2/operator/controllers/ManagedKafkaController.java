@@ -1,19 +1,15 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
-import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
-import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -73,26 +69,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     }
 
     public void handleUpdate(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        List<String> modified = new ArrayList<String>(context.getEvents().getList().size());
-        for (Event event : context.getEvents().getList()) {
-            if (event instanceof ResourceEvent) {
-                ResourceEvent<?> resourceEvent = (ResourceEvent<?>)event;
-                HasMetadata resource = resourceEvent.getResource();
-                modified.add(String.format("%s resource %s/%s", resource.getKind(), managedKafka.getMetadata().getNamespace(), resource.getMetadata().getName()));
-            } else if (event instanceof CustomResourceEvent) {
-                modified.add(String.format("ManagedKafka resource %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName()));
-            }
-        }
-
         // if the ManagedKafka resource is "marked" as to be deleted
         if (managedKafka.getSpec().isDeleted()) {
             // check that it's actually not deleted yet, so operands are gone
             if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.infof("Deleting Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), modified);
+                log.infof("Deleting Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), context.getEvents().getList());
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
-            log.infof("Updating Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), modified);
+            log.infof("Updating Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), context.getEvents().getList());
             kafkaInstance.createOrUpdate(managedKafka);
         }
     }
