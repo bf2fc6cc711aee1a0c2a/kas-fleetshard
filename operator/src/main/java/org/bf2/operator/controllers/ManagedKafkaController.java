@@ -73,14 +73,26 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     }
 
     public void handleUpdate(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        List<String> modified = new ArrayList<String>(context.getEvents().getList().size());
+        for (Event event : context.getEvents().getList()) {
+            if (event instanceof ResourceEvent) {
+                ResourceEvent<?> resourceEvent = (ResourceEvent<?>)event;
+                HasMetadata resource = resourceEvent.getResource();
+                modified.add(String.format("%s resource %s/%s", resource.getKind(), managedKafka.getMetadata().getNamespace(), resource.getMetadata().getName()));
+            } else if (event instanceof CustomResourceEvent) {
+                modified.add(String.format("ManagedKafka resource %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName()));
+            }
+        }
+
         // if the ManagedKafka resource is "marked" as to be deleted
         if (managedKafka.getSpec().isDeleted()) {
             // check that it's actually not deleted yet, so operands are gone
             if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.infof("Deleting Kafka instance %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                log.infof("Deleting Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), modified);
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
+            log.infof("Updating Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), modified);
             kafkaInstance.createOrUpdate(managedKafka);
         }
     }
@@ -95,17 +107,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing createOrUpdate calls")
     @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "The number of createOrUpdate calls")
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        if (log.isDebugEnabled()) {
-            for (Event event : context.getEvents().getList()) {
-                if (event instanceof ResourceEvent) {
-                    ResourceEvent<?> resourceEvent = (ResourceEvent<?>)event;
-                    HasMetadata resource = resourceEvent.getResource();
-                    log.debugf("%s resource %s/%s is changed", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-                } else if (event instanceof CustomResourceEvent) {
-                    log.debugf("ManagedKafka resource %s/%s is changed", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-                }
-            }
-        }
         handleUpdate(managedKafka, context);
         updateManagedKafkaStatus(managedKafka);
         return UpdateControl.updateStatusSubResource(managedKafka);
