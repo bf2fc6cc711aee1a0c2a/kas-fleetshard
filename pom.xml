@@ -43,10 +43,7 @@
         <maven.compiler.release>11</maven.compiler.release>
         <project.build.systemJdk>${maven.compiler.release}</project.build.systemJdk>
         <project.build.targetJdk>${maven.compiler.release}</project.build.targetJdk>
-        
-        <!-- systemtests seem to suffer from https://issues.apache.org/jira/browse/SUREFIRE-1800 -->
-        <dep.plugin.surefire.version>3.0.0-M6-SNAPSHOT</dep.plugin.surefire.version>
-        
+                
         <maven.compiler.parameters>true</maven.compiler.parameters>
         
         <quarkus.platform.version>1.11.1.Final</quarkus.platform.version>
@@ -160,20 +157,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
-    <pluginRepositories>
-        <pluginRepository>
-            <id>apache-snapshot</id>
-            <name>apache-snapshot</name>
-            <url>https://repository.apache.org/content/repositories/snapshots/</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </pluginRepository>
-    </pluginRepositories>
 
     <repositories>
         <repository>

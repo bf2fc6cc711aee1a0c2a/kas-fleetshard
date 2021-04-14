@@ -67,10 +67,7 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-                    <systemPropertyVariables>
-                        <maven.home>${maven.home}</maven.home>
-                    </systemPropertyVariables>
+                    <skipTests>!${it.skip}</skipTests>
                 </configuration>
             </plugin>
             <plugin>
