@@ -22,6 +22,17 @@ public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
         return resource;
     }
 
+    @Override
+    public String toString() {
+        return "{ "
+                + resource.getKind()
+                + " "
+                + resource.getMetadata().getNamespace() + "/" + resource.getMetadata().getName()
+                + " relatedCustomResourceUid="
+                + getRelatedCustomResourceUid()
+                + " }";
+    }
+
     public static class ConfigMapEvent extends ResourceEvent<ConfigMap> {
 
         public ConfigMapEvent(ConfigMap resource, ResourceEventSource<ConfigMap> resourceEventSource) {
