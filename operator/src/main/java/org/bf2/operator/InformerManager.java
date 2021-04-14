@@ -76,27 +76,33 @@ public class InformerManager {
         kafkaSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
         kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
+        kafkaEventSource.setIndexer(kafkaSharedIndexInformer.getIndexer());
 
         deploymentSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 60 * 1000L);
         deploymentSharedIndexInformer.addEventHandler(deploymentEventSource);
+        deploymentEventSource.setIndexer(deploymentSharedIndexInformer.getIndexer());
 
         serviceSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 60 * 1000L);
         serviceSharedIndexInformer.addEventHandler(serviceEventSource);
+        serviceEventSource.setIndexer(serviceSharedIndexInformer.getIndexer());
 
         configMapSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 60 * 1000L);
         configMapSharedIndexInformer.addEventHandler(configMapEventSource);
+        configMapEventSource.setIndexer(configMapSharedIndexInformer.getIndexer());
 
         secretSharedIndexInformer =
                 sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 60 * 1000L);
         secretSharedIndexInformer.addEventHandler(secretEventSource);
+        secretEventSource.setIndexer(secretSharedIndexInformer.getIndexer());
 
         if (isOpenShift()) {
             routeSharedIndexInformer =
                     sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
             routeSharedIndexInformer.addEventHandler(routeEventSource);
+            routeEventSource.setIndexer(routeSharedIndexInformer.getIndexer());
         }
 
         sharedInformerFactory.startAllRegisteredInformers();

@@ -3,6 +3,7 @@ package org.bf2.sync.informer;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.kubernetes.client.informers.cache.Indexer;
 import org.jboss.logging.Logger;
 
 import java.util.Objects;
@@ -16,13 +17,16 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
     static Logger log = Logger.getLogger(CustomResourceEventHandler.class);
 
     private BiConsumer<T, T> consumer;
+    private Indexer<T> indexer;
 
-    public CustomResourceEventHandler(BiConsumer<T, T> consumer) {
+    public CustomResourceEventHandler(BiConsumer<T, T> consumer, Indexer<T> indexer) {
         this.consumer = consumer;
+        this.indexer = indexer;
     }
 
-    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer) {
-        return new CustomResourceEventHandler<T>(consumer);
+    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer,
+            Indexer<T> indexer) {
+        return new CustomResourceEventHandler<T>(consumer, indexer);
     }
 
     @Override
@@ -40,6 +44,9 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         }
         // this will depend upon the delete strategy chosen
         // currently there is nothing for sync to do on delete
+        if (deletedFinalStateUnknown) {
+            this.indexer.delete(obj);
+        }
     }
 
     @Override
