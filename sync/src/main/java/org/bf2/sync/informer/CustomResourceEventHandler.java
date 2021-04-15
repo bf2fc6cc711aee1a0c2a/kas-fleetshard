@@ -40,10 +40,16 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
     @Override
     public void onDelete(T obj, boolean deletedFinalStateUnknown) {
         if (log.isTraceEnabled()) {
-            log.tracef("Delete event for %s", Cache.metaNamespaceKeyFunc(obj));
+            log.tracef("Delete event for %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj),
+                    deletedFinalStateUnknown);
         }
         // this will depend upon the delete strategy chosen
         // currently there is nothing for sync to do on delete
+
+        // TODO: remove when below issue is resolved and in the quarkus version being used
+        // This is workaround for bug in the fabric8 around missed delete event
+        // failure to reconcile during resync in DefaultSharedIndexInformer#handleDeltas
+        // https://github.com/fabric8io/kubernetes-client/issues/2994
         if (deletedFinalStateUnknown) {
             this.indexer.delete(obj);
         }

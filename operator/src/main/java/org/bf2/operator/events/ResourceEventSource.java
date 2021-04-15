@@ -41,11 +41,14 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
     @Override
     public void onDelete(T resource, boolean deletedFinalStateUnknown) {
-        log.debugf("Delete event received for %s %s/%s", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+        log.debugf("Delete event received for %s %s/%s with deletedFinalStateUnknown %s", resource.getClass().getName(),
+                resource.getMetadata().getNamespace(), resource.getMetadata().getName(), deletedFinalStateUnknown);
         handleEvent(resource);
 
-        // this is workaround for bug in the fabric8 around missed delete event
+        // TODO: remove when below issue is resolved and in the quarkus version being used
+        // This is workaround for bug in the fabric8 around missed delete event
         // failure to reconcile during resync in DefaultSharedIndexInformer#handleDeltas
+        // https://github.com/fabric8io/kubernetes-client/issues/2994
         if (deletedFinalStateUnknown) {
             this.indexer.delete(resource);
         }
