@@ -22,6 +22,8 @@ public class ManagedKafkaAgentStatus {
     @JsonProperty(value = "resizeInfo")
     private ClusterResizeInfo resizeInfo;
 
+    private String updatedTimestamp;
+
     public List<ManagedKafkaCondition> getConditions() {
         return conditions;
     }
@@ -60,5 +62,13 @@ public class ManagedKafkaAgentStatus {
 
     public void setResizeInfo(ClusterResizeInfo resizeInfo) {
         this.resizeInfo = resizeInfo;
+    }
+
+    public String getUpdatedTimestamp() {
+        return updatedTimestamp;
+    }
+
+    public void setUpdatedTimestamp(String updatedTimestamp) {
+        this.updatedTimestamp = updatedTimestamp;
     }
 }
