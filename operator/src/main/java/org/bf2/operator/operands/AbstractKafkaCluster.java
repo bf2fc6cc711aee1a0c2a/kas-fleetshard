@@ -7,10 +7,12 @@ import io.strimzi.api.kafka.model.status.Condition;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 
+import java.util.Optional;
 import java.util.function.Predicate;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
@@ -26,6 +28,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @Inject
     protected InformerManager informerManager;
+
+    @ConfigProperty(name = "image.kafka")
+    protected Optional<String> kafkaImage;
+
+    @ConfigProperty(name = "image.zookeeper")
+    protected Optional<String> zookeeperImage;
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
