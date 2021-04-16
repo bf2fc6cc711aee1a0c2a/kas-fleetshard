@@ -37,6 +37,10 @@ mvn -pl operator quarkus:dev
 
 Read [Testing guide](TESTING.md)
 
+## Releasing
+
+Read [Releasing guide](RELEASING.md)
+
 ## Contributing
 
 Use mvn clean process-sources or almost any mvn command to automatically format your code contribution prior to creating a pull request.
