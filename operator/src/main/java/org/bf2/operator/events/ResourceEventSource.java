@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.cache.Indexer;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
@@ -20,6 +21,8 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
     @Inject
     Logger log;
+
+    Indexer<T> indexer;
 
     @Override
     public void onAdd(T resource) {
@@ -38,11 +41,25 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
     @Override
     public void onDelete(T resource, boolean deletedFinalStateUnknown) {
-        log.debugf("Delete event received for %s %s/%s", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+        log.debugf("Delete event received for %s %s/%s with deletedFinalStateUnknown %s", resource.getClass().getName(),
+                resource.getMetadata().getNamespace(), resource.getMetadata().getName(), deletedFinalStateUnknown);
         handleEvent(resource);
+
+        // TODO: remove when below issue is resolved and in the quarkus version being used
+        // This is workaround for bug in the fabric8 around missed delete event
+        // failure to reconcile during resync in DefaultSharedIndexInformer#handleDeltas
+        // https://github.com/fabric8io/kubernetes-client/issues/2994
+        if (deletedFinalStateUnknown) {
+            this.indexer.delete(resource);
+        }
+    }
+
+    public void setIndexer(Indexer<T> indexer) {
+        this.indexer = indexer;
     }
 
     protected abstract void handleEvent(T resource);
+
 
     @ApplicationScoped
     public static class ConfigMapEventSource extends ResourceEventSource<ConfigMap> {

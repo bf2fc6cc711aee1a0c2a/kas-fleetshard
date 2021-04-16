@@ -3,6 +3,7 @@ package org.bf2.sync.informer;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.kubernetes.client.informers.cache.Indexer;
 import org.jboss.logging.Logger;
 
 import java.util.Objects;
@@ -16,13 +17,16 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
     static Logger log = Logger.getLogger(CustomResourceEventHandler.class);
 
     private BiConsumer<T, T> consumer;
+    private Indexer<T> indexer;
 
-    public CustomResourceEventHandler(BiConsumer<T, T> consumer) {
+    public CustomResourceEventHandler(BiConsumer<T, T> consumer, Indexer<T> indexer) {
         this.consumer = consumer;
+        this.indexer = indexer;
     }
 
-    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer) {
-        return new CustomResourceEventHandler<T>(consumer);
+    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer,
+            Indexer<T> indexer) {
+        return new CustomResourceEventHandler<T>(consumer, indexer);
     }
 
     @Override
@@ -36,10 +40,19 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
     @Override
     public void onDelete(T obj, boolean deletedFinalStateUnknown) {
         if (log.isTraceEnabled()) {
-            log.tracef("Delete event for %s", Cache.metaNamespaceKeyFunc(obj));
+            log.tracef("Delete event for %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj),
+                    deletedFinalStateUnknown);
         }
         // this will depend upon the delete strategy chosen
         // currently there is nothing for sync to do on delete
+
+        // TODO: remove when below issue is resolved and in the quarkus version being used
+        // This is workaround for bug in the fabric8 around missed delete event
+        // failure to reconcile during resync in DefaultSharedIndexInformer#handleDeltas
+        // https://github.com/fabric8io/kubernetes-client/issues/2994
+        if (deletedFinalStateUnknown) {
+            this.indexer.delete(obj);
+        }
     }
 
     @Override
