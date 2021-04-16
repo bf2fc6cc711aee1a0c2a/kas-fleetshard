@@ -30,6 +30,8 @@ public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
                 + resource.getMetadata().getNamespace() + "/" + resource.getMetadata().getName()
                 + " relatedCustomResourceUid="
                 + getRelatedCustomResourceUid()
+                + " ,resourceVersion="
+                + resource.getMetadata().getResourceVersion()
                 + " }";
     }
 

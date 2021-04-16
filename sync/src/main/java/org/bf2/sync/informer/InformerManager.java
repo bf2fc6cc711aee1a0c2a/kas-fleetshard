@@ -12,21 +12,16 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.time.Duration;
 import java.util.List;
 
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
-
-    @ConfigProperty(name = "resync.interval")
-    Duration resync;
 
     @Inject
     KubernetesClient client;
@@ -47,13 +42,13 @@ public class InformerManager implements LocalLookup {
         sharedInformerFactory = client.informers();
 
         managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
-                resync.toMillis());
+                0);
         managedKafkaInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus,
                 managedKafkaInformer.getIndexer()));
 
         // for the Agent
         managedAgentInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,
-                resync.toMillis());
+                0);
         managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus,
                 managedAgentInformer.getIndexer()));
 

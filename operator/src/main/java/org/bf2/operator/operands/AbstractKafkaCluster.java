@@ -98,11 +98,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     protected void createOrUpdate(Kafka kafka) {
         // Kafka resource doesn't exist, has to be created
         if (kafkaResourceClient.getByName(kafka.getMetadata().getNamespace(), kafka.getMetadata().getName()) == null) {
-            log.infof("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
+            log.debugf("Creating Kafka instance %s/%s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName());
             kafkaResourceClient.create(kafka);
         // Kafka resource already exists, has to be updated
         } else {
-            log.infof("Updating Kafka instance %s", kafka.getSpec().getKafka().getVersion());
+            log.debugf("Updating Kafka instance %s/%s %s", kafka.getMetadata().getNamespace(), kafka.getMetadata().getName(), kafka.getSpec().getKafka().getVersion());
             kafkaResourceClient.patch(kafka);
         }
     }
