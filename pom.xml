@@ -13,7 +13,7 @@
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>999-SNAPSHOT</version>
+    <version>0.2.0</version>
 
     <properties>
         <!-- things we don't need from basepom -->
