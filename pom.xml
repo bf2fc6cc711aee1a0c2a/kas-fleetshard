@@ -66,7 +66,6 @@
         <properties-plugin.version>1.0.0</properties-plugin.version>
         <impsort-plugin.version>1.6.0</impsort-plugin.version>
         <format.skip>false</format.skip>
-        <deploy-plugin.version>3.0.0-M1</deploy-plugin.version>
     </properties>
 
     <modules>
