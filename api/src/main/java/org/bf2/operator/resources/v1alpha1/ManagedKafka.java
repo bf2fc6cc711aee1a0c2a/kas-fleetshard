@@ -75,7 +75,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                         .addToAnnotations(PLACEMENT_ID, name)
                         .build())
                 .withSpec(new ManagedKafkaSpecBuilder().withNewVersions()
-                        .withKafka("2.6.0")
+                        .withKafka("2.7.0")
                         .withStrimzi("0.21.1")
                         .endVersions()
                         .withNewCapacity()
