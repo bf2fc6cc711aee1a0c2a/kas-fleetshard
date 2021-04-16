@@ -74,33 +74,33 @@ public class InformerManager {
         // TODO: should we make the resync time configurable?
 
         kafkaSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0);
         kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
         kafkaEventSource.setIndexer(kafkaSharedIndexInformer.getIndexer());
 
         deploymentSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0);
         deploymentSharedIndexInformer.addEventHandler(deploymentEventSource);
         deploymentEventSource.setIndexer(deploymentSharedIndexInformer.getIndexer());
 
         serviceSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 0);
         serviceSharedIndexInformer.addEventHandler(serviceEventSource);
         serviceEventSource.setIndexer(serviceSharedIndexInformer.getIndexer());
 
         configMapSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 0);
         configMapSharedIndexInformer.addEventHandler(configMapEventSource);
         configMapEventSource.setIndexer(configMapSharedIndexInformer.getIndexer());
 
         secretSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 60 * 1000L);
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 0);
         secretSharedIndexInformer.addEventHandler(secretEventSource);
         secretEventSource.setIndexer(secretSharedIndexInformer.getIndexer());
 
         if (isOpenShift()) {
             routeSharedIndexInformer =
-                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 60 * 1000L);
+                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 0);
             routeSharedIndexInformer.addEventHandler(routeEventSource);
             routeEventSource.setIndexer(routeSharedIndexInformer.getIndexer());
         }
