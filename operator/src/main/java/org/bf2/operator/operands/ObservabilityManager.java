@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -29,9 +28,6 @@ public class ObservabilityManager {
 
     @Inject
     KubernetesClient client;
-
-    @Inject
-    InformerManager informerManager;
 
     static Base64.Encoder encoder = Base64.getEncoder();
 
@@ -70,8 +66,7 @@ public class ObservabilityManager {
     }
 
     Secret cachedObservabilitySecret() {
-        return informerManager.getLocalSecret(this.client.getNamespace(),
-                ObservabilityManager.OBSERVABILITY_SECRET_NAME);
+        return observabilitySecretResource().get();
     }
 
     public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability) {
