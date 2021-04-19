@@ -6,6 +6,10 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.Probe;
+import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -80,9 +84,37 @@ public class Canary extends AbstractCanary {
                 .withEnv(getEnvVar(managedKafka))
                 .withPorts(getContainerPorts())
                 .withResources(getResources())
+                .withReadinessProbe(getReadinessProbe())
+                .withLivenessProbe(getLivenessProbe())
                 .build();
 
         return Collections.singletonList(container);
+    }
+
+    private Probe getLivenessProbe() {
+        return new ProbeBuilder()
+                .withHttpGet(
+                        new HTTPGetActionBuilder()
+                                .withPath("/liveness")
+                                .withPort(new IntOrString(8080))
+                                .build()
+                )
+                .withTimeoutSeconds(5)
+                .withInitialDelaySeconds(15)
+                .build();
+    }
+
+    private Probe getReadinessProbe() {
+        return new ProbeBuilder()
+                .withHttpGet(
+                        new HTTPGetActionBuilder()
+                                .withPath("/readiness")
+                                .withPort(new IntOrString(8080))
+                                .build()
+                )
+                .withTimeoutSeconds(5)
+                .withInitialDelaySeconds(15)
+                .build();
     }
 
     private Map<String, String> getSelectorLabels(String canaryName) {
