@@ -34,6 +34,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -52,6 +53,14 @@ public class AdminServer extends AbstractAdminServer {
     private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("250m");
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("512Mi");
     private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("500m");
+
+    /**
+     * OpenShift route attribute for the configuration of HTTP strict transport security.
+     *
+     * @see <a href="https://docs.openshift.com/container-platform/4.7/networking/routes/route-configuration.html#nw-enabling-hsts_route-configuration">
+     *  Enabling HTTP strict transport security</a>
+     */
+    private static final String ROUTE_STRICT_TRANSPORT_SECURITY = "haproxy.router.openshift.io/hsts_header";
 
     @Inject
     Logger log;
@@ -174,6 +183,9 @@ public class AdminServer extends AbstractAdminServer {
 
         String tlsCertificate = null;
         String tlsKey = null;
+        Map<String, String> annotations = Map.of(ROUTE_STRICT_TRANSPORT_SECURITY,
+                String.format("max-age=%d", Duration.ofDays(365).toSeconds()));
+
         if (isKafkaExternalCertificateEnabled) {
             tlsCertificate = managedKafka.getSpec().getEndpoint().getTls().getCert();
             tlsKey = managedKafka.getSpec().getEndpoint().getTls().getKey();
@@ -184,6 +196,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
                     .withLabels(getRouteLabels())
+                    .withAnnotations(annotations)
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewTo()
