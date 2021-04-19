@@ -10,7 +10,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.OperationContext;
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
@@ -20,6 +19,7 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ResourceInformer;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.operands.OperandUtils;
 import org.jboss.logging.Logger;
@@ -52,12 +52,13 @@ public class InformerManager {
 
     private SharedInformerFactory sharedInformerFactory;
 
-    private SharedIndexInformer<Kafka> kafkaSharedIndexInformer;
-    private SharedIndexInformer<Deployment> deploymentSharedIndexInformer;
-    private SharedIndexInformer<Service> serviceSharedIndexInformer;
-    private SharedIndexInformer<ConfigMap> configMapSharedIndexInformer;
-    private SharedIndexInformer<Secret> secretSharedIndexInformer;
-    private SharedIndexInformer<Route> routeSharedIndexInformer;
+    private ResourceInformer<Kafka> kafkaInformer;
+    private ResourceInformer<Deployment> deploymentInformer;
+    private ResourceInformer<Service> serviceInformer;
+    private ResourceInformer<ConfigMap> configMapInformer;
+    private ResourceInformer<Secret> secretInformer;
+    private ResourceInformer<Route> routeInformer;
+
 
     boolean isOpenShift() {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
@@ -72,37 +73,30 @@ public class InformerManager {
                         .withIsNamespaceConfiguredFromGlobalConfig(true);
 
         // TODO: should we make the resync time configurable?
+        kafkaInformer =  new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0),
+                kafkaEventSource);
 
-        kafkaSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0);
-        kafkaSharedIndexInformer.addEventHandler(kafkaEventSource);
-        kafkaEventSource.setIndexer(kafkaSharedIndexInformer.getIndexer());
+        deploymentInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0),
+                deploymentEventSource);
 
-        deploymentSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0);
-        deploymentSharedIndexInformer.addEventHandler(deploymentEventSource);
-        deploymentEventSource.setIndexer(deploymentSharedIndexInformer.getIndexer());
+        serviceInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 0),
+                serviceEventSource);
 
-        serviceSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 0);
-        serviceSharedIndexInformer.addEventHandler(serviceEventSource);
-        serviceEventSource.setIndexer(serviceSharedIndexInformer.getIndexer());
+        configMapInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 0),
+                configMapEventSource);
 
-        configMapSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 0);
-        configMapSharedIndexInformer.addEventHandler(configMapEventSource);
-        configMapEventSource.setIndexer(configMapSharedIndexInformer.getIndexer());
-
-        secretSharedIndexInformer =
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 0);
-        secretSharedIndexInformer.addEventHandler(secretEventSource);
-        secretEventSource.setIndexer(secretSharedIndexInformer.getIndexer());
+        secretInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 0),
+                secretEventSource);
 
         if (isOpenShift()) {
-            routeSharedIndexInformer =
-                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 0);
-            routeSharedIndexInformer.addEventHandler(routeEventSource);
-            routeEventSource.setIndexer(routeSharedIndexInformer.getIndexer());
+            routeInformer = new ResourceInformer<>(
+                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 0),
+                    routeEventSource);
         }
 
         sharedInformerFactory.startAllRegisteredInformers();
@@ -113,44 +107,40 @@ public class InformerManager {
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
-        return kafkaSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return kafkaInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Deployment getLocalDeployment(String namespace, String name) {
-        return deploymentSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return deploymentInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Service getLocalService(String namespace, String name) {
-        return serviceSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return serviceInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public ConfigMap getLocalConfigMap(String namespace, String name) {
-        return configMapSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return configMapInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Secret getLocalSecret(String namespace, String name) {
-        return secretSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return secretInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 
     public Route getLocalRoute(String namespace, String name) {
         if (isOpenShift()) {
-            return routeSharedIndexInformer.getIndexer().getByKey(Cache.namespaceKeyFunc(namespace, name));
+            return routeInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
         } else {
             log.warn("Not running on OpenShift cluster, Routes are not available");
             return null;
         }
     }
 
-    static boolean hasLength(String value) {
-        return value != null && !value.isEmpty();
-    }
-
     public boolean isReady() {
-        return hasLength(kafkaSharedIndexInformer.lastSyncResourceVersion())
-                && hasLength(deploymentSharedIndexInformer.lastSyncResourceVersion())
-                && hasLength(serviceSharedIndexInformer.lastSyncResourceVersion())
-                && hasLength(configMapSharedIndexInformer.lastSyncResourceVersion())
-                && hasLength(secretSharedIndexInformer.lastSyncResourceVersion())
-                && (!isOpenShift() || hasLength(routeSharedIndexInformer.lastSyncResourceVersion()));
+        return kafkaInformer.isReady()
+                && deploymentInformer.isReady()
+                && serviceInformer.isReady()
+                && configMapInformer.isReady()
+                && secretInformer.isReady()
+                && (!isOpenShift() || routeInformer.isReady());
     }
 }

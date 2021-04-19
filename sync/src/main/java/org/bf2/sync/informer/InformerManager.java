@@ -1,10 +1,10 @@
 package org.bf2.sync.informer;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.bf2.common.ConditionUtils;
+import org.bf2.common.ResourceInformer;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
@@ -34,23 +34,21 @@ public class InformerManager implements LocalLookup {
 
     private SharedInformerFactory sharedInformerFactory;
 
-    private SharedIndexInformer<ManagedKafka> managedKafkaInformer;
-    private SharedIndexInformer<ManagedKafkaAgent> managedAgentInformer;
+    private ResourceInformer<ManagedKafka> managedKafkaInformer;
+    private ResourceInformer<ManagedKafkaAgent> managedAgentInformer;
 
     @PostConstruct
     protected void onStart() {
         sharedInformerFactory = client.informers();
 
-        managedKafkaInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,
-                0);
-        managedKafkaInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus,
-                managedKafkaInformer.getIndexer()));
+        managedKafkaInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,0),
+                CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus));
 
         // for the Agent
-        managedAgentInformer = sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,
-                0);
-        managedAgentInformer.addEventHandler(CustomResourceEventHandler.of(controlPlane::updateAgentStatus,
-                managedAgentInformer.getIndexer()));
+        managedAgentInformer = new ResourceInformer<>(
+                sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,0),
+                CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         sharedInformerFactory.startAllRegisteredInformers();
 
@@ -82,12 +80,12 @@ public class InformerManager implements LocalLookup {
 
     @Override
     public ManagedKafka getLocalManagedKafka(String metaNamespaceKey) {
-        return managedKafkaInformer.getIndexer().getByKey(metaNamespaceKey);
+        return managedKafkaInformer.getByKey(metaNamespaceKey);
     }
 
     @Override
     public List<ManagedKafka> getLocalManagedKafkas() {
-        return managedKafkaInformer.getIndexer().list();
+        return managedKafkaInformer.getList();
     }
 
     static boolean hasLength(String value) {
@@ -96,13 +94,13 @@ public class InformerManager implements LocalLookup {
 
     @Override
     public boolean isReady() {
-        return hasLength(managedKafkaInformer.lastSyncResourceVersion())
-                && hasLength(managedAgentInformer.lastSyncResourceVersion());
+        return managedKafkaInformer.isReady()
+                && managedAgentInformer.isReady();
     }
 
     @Override
     public ManagedKafkaAgent getLocalManagedKafkaAgent() {
-        List<ManagedKafkaAgent> list = managedAgentInformer.getIndexer().list();
+        List<ManagedKafkaAgent> list = managedAgentInformer.getList();
         if (list.isEmpty()) {
             return null;
         }

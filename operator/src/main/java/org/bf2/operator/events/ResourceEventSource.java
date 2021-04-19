@@ -5,11 +5,11 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Indexer;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.IndexerAwareResourceEventHandler;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -17,7 +17,7 @@ import javax.inject.Inject;
 
 import java.util.Objects;
 
-public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
+public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements IndexerAwareResourceEventHandler<T> {
 
     @Inject
     Logger log;
@@ -54,6 +54,7 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
         }
     }
 
+    @Override
     public void setIndexer(Indexer<T> indexer) {
         this.indexer = indexer;
     }
