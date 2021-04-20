@@ -39,7 +39,7 @@ Read [Testing guide](TESTING.md)
 
 ## Releasing
 
-If you are starting on master create a new branch from the master ex:`0.3.x`
+If you are starting on main branch. create a new branch from the main for example `0.3.x`
 
 ```shell
 git branch -b 0.3.x main
