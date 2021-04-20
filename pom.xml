@@ -9,6 +9,12 @@
         <artifactId>basepom-oss</artifactId>
         <version>36</version>
     </parent>
+    
+    <scm>
+        <connection>scm:git:git://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard.git</connection>
+        <developerConnection>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-fleetshard.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
 
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
@@ -209,23 +215,23 @@
                 </configuration>
             </plugin>
             <plugin>
-	            <groupId>org.apache.maven.plugins</groupId>
-	            <artifactId>maven-dependency-plugin</artifactId>
-	            <executions>
-	                <!-- remove analyze-only and analyze-dep-mgt - they generate a lot of warnings, that we are unlikely to resolve -->
-	                <execution>
-	                    <id>basepom.default</id>
-	                    <phase/>
-	                </execution>
-	                <execution>
-	                    <id>dep-goals</id>
-	                    <phase>${basepom.check.phase-dependency}</phase>
-	                    <goals>
-	                        <goal>analyze-duplicate</goal>
-	                    </goals>
-	                </execution>
-	            </executions>
-	        </plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <!-- remove analyze-only and analyze-dep-mgt - they generate a lot of warnings, that we are unlikely to resolve -->
+                    <execution>
+                        <id>basepom.default</id>
+                        <phase/>
+                    </execution>
+                    <execution>
+                        <id>dep-goals</id>
+                        <phase>${basepom.check.phase-dependency}</phase>
+                        <goals>
+                            <goal>analyze-duplicate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -353,6 +359,38 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>release</id>
+            <properties>
+                <release.properties></release.properties>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <artifactId>maven-release-plugin</artifactId>
+                        <configuration>
+                            <autoVersionSubmodules>true</autoVersionSubmodules>
+                            <tagNameFormat>@{project.version}</tagNameFormat>
+                            <ignoreSnapshots>true</ignoreSnapshots>
+                            <releaseProfiles>release-perform,quickly</releaseProfiles>
+                            <arguments>${release.properties}</arguments>
+                        </configuration>
+                    </plugin>
+                </plugins>  
+            </build>
+        </profile>
+        <profile>
+            <id>release-perform</id>
+            <properties>
+                <release.arguments></release.arguments>
+                <quarkus.container-image.build>true</quarkus.container-image.build>
+                <quarkus.container-image.push>true</quarkus.container-image.push>
+                <quarkus.container-image.group>bf2</quarkus.container-image.group>
+                <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>
+                <!-- we don't want to deploy to a maven repository -->
+                <maven.deploy.skip>true</maven.deploy.skip>
+            </properties>
         </profile>
     </profiles>
 </project>
