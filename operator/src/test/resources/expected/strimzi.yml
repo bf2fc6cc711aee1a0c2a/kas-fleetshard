@@ -126,6 +126,8 @@ spec:
     jvmOptions:
       "-Xmx": "512m"
       "-Xms": "512m"
+      "-XX":
+        ExitOnOutOfMemoryError: "true"
     resources:
       limits:
         memory: "1Gi"
@@ -155,6 +157,8 @@ spec:
     jvmOptions:
       "-Xmx": "512m"
       "-Xms": "512m"
+      "-XX":
+        ExitOnOutOfMemoryError: "true"
     resources:
       limits:
         memory: "1Gi"
