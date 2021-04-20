@@ -388,6 +388,7 @@
                 <quarkus.container-image.push>true</quarkus.container-image.push>
                 <quarkus.container-image.group>bf2</quarkus.container-image.group>
                 <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>
+                <pushChanges>true</pushChanges>
                 <!-- we don't want to deploy to a maven repository -->
                 <maven.deploy.skip>true</maven.deploy.skip>
             </properties>
