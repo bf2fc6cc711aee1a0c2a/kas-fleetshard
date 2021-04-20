@@ -5,6 +5,11 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
 import java.util.List;
 
+/**
+ * This class for for dealing with fabric8 informer issues
+ * github.com/fabric8io/kubernetes-client#2992
+ * github.com/fabric8io/kubernetes-client/issues/2994
+ */
 public class ResourceInformer<T extends HasMetadata> {
     private static long INFORMER_SYNC_TIMEOUT = 2*1000L;
 
@@ -39,16 +44,15 @@ public class ResourceInformer<T extends HasMetadata> {
 
         long oldCheckedTime = this.lastCheckedTime;
         String oldResourceVersion = this.lastSyncResourceVersion;
-        this.lastSyncResourceVersion = version;
-        this.lastCheckedTime = System.currentTimeMillis();
 
-        if (oldCheckedTime ==  -1) {
-             return true;
+        if (oldResourceVersion == null || !oldResourceVersion.equals(version)) {
+            this.lastCheckedTime = System.currentTimeMillis();
+            this.lastSyncResourceVersion = version;
+            return true;
         }
 
         return sharedIndexInformer.hasSynced()
-                        || (System.currentTimeMillis() - oldCheckedTime < INFORMER_SYNC_TIMEOUT)
-                        || !version.equals(oldResourceVersion);
+                || (System.currentTimeMillis() - oldCheckedTime < INFORMER_SYNC_TIMEOUT);
     }
 
     static boolean hasLength(String value) {
