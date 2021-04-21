@@ -68,6 +68,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,6 +111,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
+    private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
 
     @Inject
     Logger log;
@@ -444,11 +446,19 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
-        return new JvmOptionsBuilder().withXms("512m").withXmx("512m").build();
+        return new JvmOptionsBuilder()
+                .withXms("512m")
+                .withXmx("512m")
+                .withXx(JVM_OPTIONS_XX_MAP)
+                .build();
     }
 
     private JvmOptions getZooKeeperJvmOptions(ManagedKafka managedKafka) {
-        return new JvmOptionsBuilder().withXms("512m").withXmx("512m").build();
+        return new JvmOptionsBuilder()
+                .withXms("512m")
+                .withXmx("512m")
+                .withXx(JVM_OPTIONS_XX_MAP)
+                .build();
     }
 
     private ResourceRequirements getKafkaResources(ManagedKafka managedKafka) {
