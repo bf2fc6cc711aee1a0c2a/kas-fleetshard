@@ -111,7 +111,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
-    private static final Map<String, String> EXIT_ON_OUT_OF_MEMORY_ERROR_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
+    private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
 
     @Inject
     Logger log;
@@ -449,7 +449,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new JvmOptionsBuilder()
                 .withXms("512m")
                 .withXmx("512m")
-                .withXx(EXIT_ON_OUT_OF_MEMORY_ERROR_MAP)
+                .withXx(JVM_OPTIONS_XX_MAP)
                 .build();
     }
 
@@ -457,7 +457,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new JvmOptionsBuilder()
                 .withXms("512m")
                 .withXmx("512m")
-                .withXx(EXIT_ON_OUT_OF_MEMORY_ERROR_MAP)
+                .withXx(JVM_OPTIONS_XX_MAP)
                 .build();
     }
 
