@@ -524,6 +524,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // Check storage every 30 seconds
         config.put("client.quota.callback.static.storage.check-interval", "30");
+
+        // Anonymous users bypass the quota.  We do this so the Canary is not subjected to the quota checks.
+        config.put("client.quota.callback.static.disable-quota-anonymous", Boolean.TRUE.toString());
+
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
 

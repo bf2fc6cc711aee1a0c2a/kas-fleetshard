@@ -102,6 +102,7 @@ spec:
       client.quota.callback.static.consume: "699050"
       client.quota.callback.static.storage.hard: "30601641984"
       client.quota.callback.static.storage.check-interval: "30"
+      client.quota.callback.static.disable-quota-anonymous: "true"
       default.replication.factor: 3
       max.connections.creation.rate: "33"
       max.connections: "166"
