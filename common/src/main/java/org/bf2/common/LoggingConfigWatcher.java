@@ -45,7 +45,7 @@ public class LoggingConfigWatcher {
         Path path = Paths.get(loggingConfigFile);
         Path parentPath = path.getParent();
 
-        if (!Files.exists(parentPath)) {
+        if (parentPath == null || !Files.exists(parentPath)) {
             log.infof("Config directory %s does not exist, will not watch for changes", parentPath);
             return;
         }
