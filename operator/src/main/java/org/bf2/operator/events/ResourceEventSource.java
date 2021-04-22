@@ -112,7 +112,10 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
         @Override
         protected void handleEvent(Secret resource) {
-            eventHandler.handleEvent(new ResourceEvent.SecretEvent(resource, this));
+            // observability secret does not have an owner reference
+            if (!resource.getMetadata().getOwnerReferences().isEmpty()) {
+                eventHandler.handleEvent(new ResourceEvent.SecretEvent(resource, this));
+            }
         }
     }
 }
