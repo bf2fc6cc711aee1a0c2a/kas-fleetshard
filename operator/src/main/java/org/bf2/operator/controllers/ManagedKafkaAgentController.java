@@ -11,6 +11,7 @@ import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.operands.ObservabilityManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -50,6 +51,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     ObservabilityManager observabilityManager;
 
+    @Inject
+    InformerManager manager;
+
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
     @Override
@@ -76,8 +80,12 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
-    @Scheduled(every = "{agent.calculate-cluster-capacity.interval}")
+    @Scheduled(every = "{agent.calculate-cluster-capacity.interval}", delayed = "5s")
     void statusUpdateLoop() {
+        if (!manager.isReady()) {
+            log.debug("Not ready to update agent status, the informers are not reader");
+            return;
+        }
         ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
         if (resource != null) {
             // check and reinstate if the observability config changed
