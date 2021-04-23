@@ -18,13 +18,12 @@ data:
 kind: ConfigMap
 metadata:
   name: operator-logging-config-override
-  namespace: kas-fleetshard
 ```
 
 You can create the configmap with:
 
 ```shell
-kubectl apply -f configmap.yml
+kubectl apply -f configmap.yml -n kas-fleetshard
 ```
 
 To restore logging defaults, you can delete the configmap and restart the pod, or you can update the configmap with the appropriate defaults, in this case:
@@ -37,7 +36,6 @@ data:
 kind: ConfigMap
 metadata:
   name: operator-logging-config-override
-  namespace: kas-fleetshard
 ```
 
 See more on [Quarkus logging](https://quarkus.io/guides/logging)
