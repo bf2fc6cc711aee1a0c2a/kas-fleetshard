@@ -155,6 +155,18 @@ spec:
             requests:
               cpu: 500m
               memory: 512Mi
+          volumeMounts:
+          - mountPath: /config
+            name: logging-config-volume
+            readOnly: false
+            subPath: ""
+      volumes:
+      - configMap:
+          defaultMode: 384
+          name: operator-logging-config-override
+          optional: true
+        name: logging-config-volume
+
   selector:
     matchLabels:
       app: kas-fleetshard-operator
