@@ -46,6 +46,9 @@
         <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
         <basepom.test.timeout>150</basepom.test.timeout>
         
+        <basepom.release.push-changes>true</basepom.release.push-changes>
+        <basepom.release.tag-name-format>@{project.version}</basepom.release.tag-name-format>
+        
         <maven.compiler.release>11</maven.compiler.release>
         <project.build.systemJdk>${maven.compiler.release}</project.build.systemJdk>
         <project.build.targetJdk>${maven.compiler.release}</project.build.targetJdk>
@@ -370,12 +373,8 @@
                     <plugin>
                         <artifactId>maven-release-plugin</artifactId>
                         <configuration>
-                            <autoVersionSubmodules>true</autoVersionSubmodules>
-                            <tagNameFormat>@{project.version}</tagNameFormat>
-                            <ignoreSnapshots>true</ignoreSnapshots>
                             <releaseProfiles>release-perform,quickly</releaseProfiles>
                             <arguments>${release.properties}</arguments>
-                            <pushChanges>true</pushChanges>
                         </configuration>
                     </plugin>
                 </plugins>  

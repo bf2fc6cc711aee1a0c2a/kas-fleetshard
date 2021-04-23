@@ -32,4 +32,4 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Build and run Unit tests
-      run: mvn package --file pom.xml --no-transfer-progress -Dno-format
+      run: mvn install --file pom.xml --no-transfer-progress -Dno-format
