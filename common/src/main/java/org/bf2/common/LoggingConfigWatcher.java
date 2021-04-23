@@ -13,13 +13,11 @@ import javax.enterprise.event.Observes;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
+import java.nio.file.attribute.FileTime;
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +34,13 @@ public class LoggingConfigWatcher {
 
     @ConfigProperty(name = "logging.config.file", defaultValue = "/config/application.properties")
     String loggingConfigFile;
+    @ConfigProperty(name = "logging.config.interval", defaultValue = "15s")
+    Duration interval;
 
     private volatile ScheduledExecutorService workerPool;
+    private volatile FileTime lastUpdated;
 
     void onStart(@Observes StartupEvent ev) throws IOException {
-        WatchService watchService = FileSystems.getDefault().newWatchService();
-
         Path path = Paths.get(loggingConfigFile);
         Path parentPath = path.getParent();
 
@@ -50,27 +49,22 @@ public class LoggingConfigWatcher {
             return;
         }
 
-        parentPath.register(
-                watchService,
-                StandardWatchEventKinds.ENTRY_CREATE,
-                StandardWatchEventKinds.ENTRY_DELETE,
-                StandardWatchEventKinds.ENTRY_MODIFY);
-
         workerPool = Executors.newScheduledThreadPool(1);
 
         workerPool.scheduleAtFixedRate(() -> {
-            WatchKey key;
-            while ((key = watchService.poll()) != null) {
-                if (!key.pollEvents().isEmpty()) {
-                    try {
-                        updateLoggingConfig(path.toUri().toURL());
-                    } catch (Exception e) {
-                        log.warnf(e, "Please check %s file - it cannot be processed", loggingConfigFile);
-                    }
-                }
-                key.reset();
+            if (!Files.exists(path)) {
+                return;
             }
-        }, 5, 5, TimeUnit.SECONDS);
+            try {
+                FileTime time = Files.getLastModifiedTime(path);
+                if (lastUpdated == null || time.compareTo(lastUpdated) > 0) {
+                    lastUpdated = time;
+                    updateLoggingConfig(path.toUri().toURL());
+                }
+            } catch (Exception e) {
+                log.warnf(e, "Please check %s file - it cannot be processed", loggingConfigFile);
+            }
+        }, interval.getSeconds(), interval.getSeconds(), TimeUnit.SECONDS);
     }
 
     void onStop(@Observes ShutdownEvent ev) {
