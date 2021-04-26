@@ -4,10 +4,12 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.dsl.Listable;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -18,7 +20,8 @@ import java.util.function.Supplier;
 public class ResourceInformer<T extends HasMetadata> {
     private static Logger log = Logger.getLogger(ResourceInformer.class);
 
-    private static long INFORMER_SYNC_TIMEOUT = Duration.ofMinutes(2).toMillis();
+    private static long DEFAULT_INFORMER_SYNC_TIMEOUT = Duration.ofMinutes(2).toMillis();
+    private static Optional<Long> CONFIGURED_TIMEOUT = ConfigProvider.getConfig().getOptionalValue("informer.watch.health.interval", Long.class);
 
     SharedIndexInformer<T> sharedIndexInformer;
     IndexerAwareResourceEventHandler<T> resourceEventStore;
@@ -65,7 +68,7 @@ public class ResourceInformer<T extends HasMetadata> {
             return true;
         }
 
-        if (currentTime - oldCheckedTime < INFORMER_SYNC_TIMEOUT) {
+        if (currentTime - oldCheckedTime < CONFIGURED_TIMEOUT.orElse(DEFAULT_INFORMER_SYNC_TIMEOUT)) {
             return true;
         }
 
@@ -77,7 +80,7 @@ public class ResourceInformer<T extends HasMetadata> {
         }
         // we can either handle this in the yaml config (with two failed checks), or here
         // with a flag.  opting for the code to have more explicit messages
-        if (doubtfulTime != null && currentTime - doubtfulTime > INFORMER_SYNC_TIMEOUT) {
+        if (doubtfulTime != null && currentTime - doubtfulTime > CONFIGURED_TIMEOUT.orElse(DEFAULT_INFORMER_SYNC_TIMEOUT)) {
             log.warnf("Informer state is wrong for %s, it is stuck at %s but should be at %s", type.getSimpleName(), oldResourceVersion, actualLast);
             return false;
         }
