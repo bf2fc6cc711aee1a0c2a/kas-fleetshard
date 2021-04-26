@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -239,11 +240,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withResources(getResources())
                 .withReadinessProbe(getProbe())
                 .withLivenessProbe(getProbe())
-                .withVolumeMounts(new VolumeMountBuilder()
-                        .withName(adminServerConfigVolumeName(managedKafka))
-                        /* Matches location expected by kafka-admin-api container. */
-                        .withMountPath("/opt/kafka-admin-api/custom-config/")
-                        .build())
+                .withVolumeMounts(getVolumeMounts(managedKafka))
                 .build();
 
         return Collections.singletonList(container);
@@ -260,6 +257,14 @@ public class AdminServer extends AbstractAdminServer {
                 .withTimeoutSeconds(5)
                 .withInitialDelaySeconds(15)
                 .build();
+    }
+
+    private List<VolumeMount> getVolumeMounts(ManagedKafka managedKafka) {
+        return Collections.singletonList(new VolumeMountBuilder()
+                    .withName(adminServerConfigVolumeName(managedKafka))
+                    /* Matches location expected by kafka-admin-api container. */
+                    .withMountPath("/opt/kafka-admin-api/custom-config/")
+                .build());
     }
 
     private Map<String, String> getSelectorLabels(String adminServerName) {
