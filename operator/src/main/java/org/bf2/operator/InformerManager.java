@@ -2,6 +2,8 @@ package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapList;
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
@@ -9,6 +11,8 @@ import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -72,34 +76,44 @@ public class InformerManager {
                         .withLabels(OperandUtils.getDefaultLabels())
                         .withIsNamespaceConfiguredFromGlobalConfig(true);
 
-        // TODO: should we make the resync time configurable?
         kafkaInformer =  new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0),
-                kafkaEventSource);
+                kafkaEventSource,
+                () -> filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), Kafka.class);
 
         deploymentInformer = new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0),
-                deploymentEventSource);
+                deploymentEventSource,
+                () -> filter(kubernetesClient.apps().deployments()), Deployment.class);
 
         serviceInformer = new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 0),
-                serviceEventSource);
+                serviceEventSource,
+                () -> filter(kubernetesClient.services()), Service.class);
 
         configMapInformer = new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 0),
-                configMapEventSource);
+                configMapEventSource,
+                () -> filter(kubernetesClient.configMaps()), ConfigMap.class);
 
         secretInformer = new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 0),
-                secretEventSource);
+                secretEventSource,
+                () -> filter(kubernetesClient.secrets()), Secret.class);
 
         if (isOpenShift()) {
             routeInformer = new ResourceInformer<>(
                     sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 0),
-                    routeEventSource);
+                    routeEventSource,
+                    () -> filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), Route.class);
         }
 
         sharedInformerFactory.startAllRegisteredInformers();
+    }
+
+    static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
+            MixedOperation<T, ? extends KubernetesResourceList<T>, ?> mixedOperation) {
+        return mixedOperation.inAnyNamespace().withLabels(OperandUtils.getDefaultLabels());
     }
 
     void onStop(@Observes ShutdownEvent ev) {
