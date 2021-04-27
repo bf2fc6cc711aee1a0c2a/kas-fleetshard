@@ -101,8 +101,9 @@ public class ResourceInformer<T extends HasMetadata> {
 
         @Override
         public void onClose() {
-            log.info("Explict close of the watch called, it is no longer ready");
+            log.error("Informer watch closing without error");
             ready = false;
+            throw new IllegalStateException();
         }
 
     };
