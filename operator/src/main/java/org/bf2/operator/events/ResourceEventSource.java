@@ -5,11 +5,10 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.informers.cache.Indexer;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.common.IndexerAwareResourceEventHandler;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -17,12 +16,10 @@ import javax.inject.Inject;
 
 import java.util.Objects;
 
-public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements IndexerAwareResourceEventHandler<T> {
+public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements ResourceEventHandler<T> {
 
     @Inject
     Logger log;
-
-    Indexer<T> indexer;
 
     @Override
     public void onAdd(T resource) {
@@ -44,19 +41,6 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
         log.debugf("Delete event received for %s %s/%s with deletedFinalStateUnknown %s", resource.getClass().getName(),
                 resource.getMetadata().getNamespace(), resource.getMetadata().getName(), deletedFinalStateUnknown);
         handleEvent(resource);
-
-        // TODO: remove when below issue is resolved and in the quarkus version being used
-        // This is workaround for bug in the fabric8 around missed delete event
-        // failure to reconcile during resync in DefaultSharedIndexInformer#handleDeltas
-        // https://github.com/fabric8io/kubernetes-client/issues/2994
-        if (deletedFinalStateUnknown) {
-            this.indexer.delete(resource);
-        }
-    }
-
-    @Override
-    public void setIndexer(Indexer<T> indexer) {
-        this.indexer = indexer;
     }
 
     protected abstract void handleEvent(T resource);

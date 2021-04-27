@@ -1,23 +1,17 @@
 package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapList;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretList;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.base.OperationContext;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.api.model.RouteList;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
@@ -71,41 +65,18 @@ public class InformerManager {
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
-        OperationContext operationContext =
-                new OperationContext()
-                        .withLabels(OperandUtils.getDefaultLabels())
-                        .withIsNamespaceConfiguredFromGlobalConfig(true);
+        kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), kafkaEventSource);
 
-        kafkaInformer =  new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0),
-                kafkaEventSource,
-                () -> filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), Kafka.class);
+        deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), deploymentEventSource);
 
-        deploymentInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0),
-                deploymentEventSource,
-                () -> filter(kubernetesClient.apps().deployments()), Deployment.class);
+        serviceInformer = ResourceInformer.start(filter(kubernetesClient.services()), serviceEventSource);
 
-        serviceInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(Service.class, ServiceList.class, operationContext, 0),
-                serviceEventSource,
-                () -> filter(kubernetesClient.services()), Service.class);
+        configMapInformer = ResourceInformer.start(filter(kubernetesClient.configMaps()), configMapEventSource);
 
-        configMapInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, operationContext, 0),
-                configMapEventSource,
-                () -> filter(kubernetesClient.configMaps()), ConfigMap.class);
-
-        secretInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(Secret.class, SecretList.class, operationContext, 0),
-                secretEventSource,
-                () -> filter(kubernetesClient.secrets()), Secret.class);
+        secretInformer = ResourceInformer.start(filter(kubernetesClient.secrets()), secretEventSource);
 
         if (isOpenShift()) {
-            routeInformer = new ResourceInformer<>(
-                    sharedInformerFactory.sharedIndexInformerFor(Route.class, RouteList.class, operationContext, 0),
-                    routeEventSource,
-                    () -> filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), Route.class);
+            routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), routeEventSource);
         }
 
         sharedInformerFactory.startAllRegisteredInformers();
