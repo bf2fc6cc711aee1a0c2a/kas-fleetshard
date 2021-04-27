@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
  * <br>start forces the initial sync inline with the calling thread.
  */
 public class ResourceInformer<T extends HasMetadata> {
+    private static final int WATCH_WAIT = 5000; // time between watch attempts
+
     private static Logger log = Logger.getLogger(ResourceInformer.class);
 
     private WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable;
@@ -76,7 +78,7 @@ public class ResourceInformer<T extends HasMetadata> {
                     }
                 } else {
                     try {
-                        Thread.sleep(5000);
+                        Thread.sleep(WATCH_WAIT);
                     } catch (InterruptedException e) {
                         log.warn("Terminating watch due to interupt");
                         Thread.currentThread().interrupt();
@@ -87,11 +89,11 @@ public class ResourceInformer<T extends HasMetadata> {
                     watch();
                     restarted = true;
                 } catch (Exception e) {
-                    log.error("Error restarting watch", e);
+                    log.error("Error restarting informer watch", e);
                 }
             } finally {
                 if (!restarted) {
-                    log.warn("Terminating watch due to interupt");
+                    log.error("Informer watch was not successfully restarted");
                     ready = false;
                 }
             }
