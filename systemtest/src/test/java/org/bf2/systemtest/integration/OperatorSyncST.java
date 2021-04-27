@@ -52,11 +52,25 @@ public class OperatorSyncST extends AbstractST {
     @Test
     void testCreateManagedKafkaUsingSync(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-deploy-api";
+        doTestUsingSync(extensionContext, mkAppName, false);
+    }
+
+    @Test
+    void testRestartKubeApi(ExtensionContext extensionContext) throws Exception {
+        String mkAppName = "mk-test-restart-kubeapi";
+        doTestUsingSync(extensionContext, mkAppName, true);
+    }
+
+    private void doTestUsingSync(ExtensionContext extensionContext, String mkAppName, boolean restartApi) throws Exception {
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
 
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
         resourceManager.addResource(extensionContext, mk);
+
+        if (restartApi) {
+            restartKubeApi();
+        }
 
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
@@ -64,6 +78,10 @@ public class OperatorSyncST extends AbstractST {
         assertTrue(resourceManager.waitResourceCondition(mk, m ->
                 ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
         LOGGER.info("ManagedKafka {} created", mkAppName);
+
+        if (restartApi) {
+            restartKubeApi();
+        }
 
         // wait for the sync to be up-to-date
         TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, () -> {
@@ -87,6 +105,10 @@ public class OperatorSyncST extends AbstractST {
 
         AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
 
+        if (restartApi) {
+            restartKubeApi();
+        }
+
         //Get agent status
         ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
@@ -96,9 +118,17 @@ public class OperatorSyncST extends AbstractST {
         //Check if managed kafka deployed all components
         AssertUtils.assertManagedKafka(mk);
 
+        if (restartApi) {
+            restartKubeApi();
+        }
+
         //delete mk using api
         res = SyncApiClient.deleteManagedKafka(mk.getId(), syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
+
+        if (restartApi) {
+            restartKubeApi();
+        }
 
         TestUtils.waitFor("Managed kafka is removed", 1_000, 300_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
@@ -107,6 +137,21 @@ public class OperatorSyncST extends AbstractST {
         });
 
         LOGGER.info("ManagedKafka {} deleted", mkAppName);
+    }
+
+    private void restartKubeApi() throws InterruptedException {
+        final String apiNamespace = kube.isGenericKubernetes() ? "kube-system" : "openshift-kube-apiserver";
+
+        LOGGER.info("Restarting kubeapi");
+        for (int i = 0; i < 60; i++) {
+            if (!kube.isGenericKubernetes()) {
+                kube.client().pods().inNamespace("openshift-apiserver").delete();
+            }
+            kube.client().pods().inNamespace(apiNamespace).list().getItems().stream().filter(pod ->
+                    pod.getMetadata().getName().contains("kube-apiserver-")).forEach(pod ->
+                    kube.client().pods().inNamespace(apiNamespace).withName(pod.getMetadata().getName()).withGracePeriod(1000).delete());
+            Thread.sleep(500);
+        }
     }
 
 }
