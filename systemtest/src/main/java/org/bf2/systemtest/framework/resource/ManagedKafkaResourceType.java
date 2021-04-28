@@ -8,6 +8,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.test.Environment;
+import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.List;
@@ -107,5 +108,13 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 Environment.ENDPOINT_TLS_CERT, Environment.ENDPOINT_TLS_KEY, Environment.OAUTH_CLIENT_ID,
                 Environment.OAUTH_TLS_CERT, Environment.OAUTH_CLIENT_SECRET, Environment.OAUTH_USER_CLAIM,
                 Environment.OAUTH_JWKS_ENDPOINT, Environment.OAUTH_TOKEN_ENDPOINT, Environment.OAUTH_ISSUER_ENDPOINT);
+    }
+
+    public static void isDeleted(ManagedKafka mk) {
+        TestUtils.waitFor("Managed kafka is removed", 1_000, 300_000, () -> {
+            ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get();
+            List<Pod> pods = KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems();
+            return m == null && pods.size() == 0;
+        });
     }
 }

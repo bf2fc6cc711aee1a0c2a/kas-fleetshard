@@ -42,30 +42,51 @@ public class FleetShardOperatorManager {
     }
 
     public static void deployFleetShardOperator(KubeClient kubeClient) throws Exception {
+        if (Environment.SKIP_DEPLOY) {
+            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of operator", Environment.SKIP_DEPLOY);
+            return;
+        }
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
         LOGGER.info("Installing CRDs");
         try (InputStream is = new FileInputStream(CRD_PATH.toString())) {
             installedCrds = kubeClient.client().load(is).get();
             installedCrds.forEach(crd -> {
-                LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+                if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).get() == null) {
+                    LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
+                    kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+                } else {
+                    LOGGER.info("CRD {} is already present on server", crd.getMetadata().getName());
+                }
             });
         }
-        kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
-        LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
-        kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
-
-        TestUtils.waitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
-        LOGGER.info("Fleetshard operator is deployed");
+        if (!kubeClient.namespaceExists(OPERATOR_NS)) {
+            kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
+        }
+        if (!isOperatorInstalled()) {
+            LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
+            kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
+            TestUtils.waitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
+            LOGGER.info("Fleetshard operator is deployed");
+        } else {
+            LOGGER.info("Operator is already installed");
+        }
     }
 
     public static void deployFleetShardSync(KubeClient kubeClient) throws Exception {
+        if (Environment.SKIP_DEPLOY) {
+            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of operator", Environment.SKIP_DEPLOY);
+            return;
+        }
         LOGGER.info("Installing {}", SYNC_NAME);
-        kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
+        if (!isSyncInstalled()) {
+            kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
 
-        TestUtils.waitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
-        LOGGER.info("Fleetshard sync is deployed");
+            TestUtils.waitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
+            LOGGER.info("Fleetshard sync is deployed");
+        } else {
+            LOGGER.info("Sync is already installed");
+        }
     }
 
     public static boolean isOperatorInstalled() {
@@ -109,17 +130,21 @@ public class FleetShardOperatorManager {
     }
 
     public static void deleteFleetShard(KubeClient kubeClient) throws InterruptedException {
-        LOGGER.info("Deleting managedkafkas and kas-fleetshard");
-        var mkCli = kubeClient.client().customResources(ManagedKafka.class);
-        mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
-        Thread.sleep(10_000);
-        installedCrds.forEach(crd -> {
-            LOGGER.info("Delete CRD {}", crd.getMetadata().getName());
-            kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete();
-        });
-        LOGGER.info("Crds deleted");
-        kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
-        TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
-        LOGGER.info("kas-fleetshard is deleted");
+        if (!Environment.SKIP_TEARDOWN) {
+            LOGGER.info("Deleting managedkafkas and kas-fleetshard");
+            var mkCli = kubeClient.client().customResources(ManagedKafka.class);
+            mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
+            Thread.sleep(10_000);
+            installedCrds.forEach(crd -> {
+                LOGGER.info("Delete CRD {}", crd.getMetadata().getName());
+                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete();
+            });
+            LOGGER.info("Crds deleted");
+            kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
+            TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
+            LOGGER.info("kas-fleetshard is deleted");
+        } else {
+            LOGGER.info("SKIP_TEARDOWN is set to true.");
+        }
     }
 }

@@ -47,6 +47,9 @@ public class Environment {
     private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
     private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
 
+    private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN_ENV";
+    private static final String SKIP_DEPLOY_ENV = "SKIP_DEPLOY_ENV";
+
 
     /*
      * Setup constants from env variables or set default
@@ -64,6 +67,9 @@ public class Environment {
     public static final String OAUTH_TLS_CERT = getOrDefault(OAUTH_TLS_CERT_ENV, "cert");
     public static final String ENDPOINT_TLS_CERT = getOrDefault(ENDPOINT_TLS_CERT_ENV, "cert");
     public static final String ENDPOINT_TLS_KEY = getOrDefault(ENDPOINT_TLS_KEY_ENV, "key");
+
+    public static final boolean SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, false);
+    public static final boolean SKIP_DEPLOY = getOrDefault(SKIP_DEPLOY_ENV, Boolean::parseBoolean, false);
 
 
     private Environment() {
