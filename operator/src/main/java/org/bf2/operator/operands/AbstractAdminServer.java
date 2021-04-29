@@ -1,7 +1,5 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -12,8 +10,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
-
-import java.util.Map;
 
 public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
@@ -28,8 +24,6 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        createConfigMap(managedKafka);
-
         Deployment currentDeployment = cachedDeployment(managedKafka);
         Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
         createOrUpdate(deployment);
@@ -37,22 +31,6 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         Service currentService = cachedService(managedKafka);
         Service service = serviceFrom(managedKafka, currentService);
         createOrUpdate(service);
-    }
-
-    protected void createConfigMap(ManagedKafka managedKafka) {
-        if (cachedConfigMap(managedKafka) == null) {
-            kubernetesClient.configMaps()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka))
-                .create(new ConfigMapBuilder()
-                    .withNewMetadata()
-                        .withNamespace(adminServerNamespace(managedKafka))
-                        .withName(adminServerName(managedKafka))
-                        .withLabels(OperandUtils.getDefaultLabels())
-                    .endMetadata()
-                    .withData(Map.of("log4j2.properties", "monitorInterval=30\n"))
-                    .build());
-        }
     }
 
     protected void createOrUpdate(Deployment deployment) {
@@ -139,22 +117,12 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
                 .withName(adminServerName(managedKafka));
     }
 
-    protected Resource<ConfigMap> adminConfigMapResource(ManagedKafka managedKafka){
-        return kubernetesClient.configMaps()
-                .inNamespace(adminServerNamespace(managedKafka))
-                .withName(adminServerName(managedKafka));
-    }
-
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
     protected Service cachedService(ManagedKafka managedKafka) {
         return informerManager.getLocalService(adminServerNamespace(managedKafka), adminServerName(managedKafka));
-    }
-
-    protected ConfigMap cachedConfigMap(ManagedKafka managedKafka) {
-        return informerManager.getLocalConfigMap(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
     public static String adminServerName(ManagedKafka managedKafka) {
