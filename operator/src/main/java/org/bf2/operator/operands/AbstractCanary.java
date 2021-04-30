@@ -54,7 +54,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.debugf("Canary isInstalling = %s", isInstalling);
+        log.tracef("Canary isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -63,7 +63,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.debugf("Canary isReady = %s", isReady);
+        log.tracef("Canary isReady = %s", isReady);
         return isReady;
     }
 
@@ -76,7 +76,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedDeployment(managedKafka) == null;
-        log.debugf("Canary isDeleted = %s", isDeleted);
+        log.tracef("Canary isDeleted = %s", isDeleted);
         return isDeleted;
     }
 

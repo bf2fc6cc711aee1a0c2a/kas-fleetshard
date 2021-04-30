@@ -300,7 +300,7 @@ public class AdminServer extends AbstractAdminServer {
         if (openShiftClient != null) {
             isDeleted = isDeleted && cachedRoute(managedKafka) == null;
         }
-        log.debugf("Admin Server isDeleted = %s", isDeleted);
+        log.tracef("Admin Server isDeleted = %s", isDeleted);
         return isDeleted;
     }
 
