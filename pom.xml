@@ -69,6 +69,7 @@
         <properties-plugin.version>1.0.0</properties-plugin.version>
         <impsort-plugin.version>1.6.0</impsort-plugin.version>
         <format.skip>false</format.skip>
+        <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
     </properties>
 
     <modules>
@@ -151,6 +152,11 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>annotations</artifactId>
+                <version>${findbugs.annotations.version}</version>
             </dependency>
             <!-- test -->
             <dependency>

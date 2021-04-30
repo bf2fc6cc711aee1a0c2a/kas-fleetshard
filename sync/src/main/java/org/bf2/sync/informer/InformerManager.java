@@ -7,10 +7,8 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.sync.controlplane.ControlPlane;
 
 import javax.annotation.PostConstruct;
@@ -41,16 +39,12 @@ public class InformerManager implements LocalLookup {
     protected void onStart() {
         sharedInformerFactory = client.informers();
 
-        managedKafkaInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(ManagedKafka.class, ManagedKafkaList.class,0),
-                CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus),
-                ()->client.customResources(ManagedKafka.class).inAnyNamespace(), ManagedKafka.class);
+        managedKafkaInformer = ResourceInformer.start(client.customResources(ManagedKafka.class).inAnyNamespace(),
+                CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus));
 
         // for the Agent
-        managedAgentInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(ManagedKafkaAgent.class, ManagedKafkaAgentList.class,0),
-                CustomResourceEventHandler.of(controlPlane::updateAgentStatus),
-                ()->client.customResources(ManagedKafkaAgent.class).inAnyNamespace(), ManagedKafkaAgent.class);
+        managedAgentInformer = ResourceInformer.start(client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
+                CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         sharedInformerFactory.startAllRegisteredInformers();
 
@@ -88,10 +82,6 @@ public class InformerManager implements LocalLookup {
     @Override
     public List<ManagedKafka> getLocalManagedKafkas() {
         return managedKafkaInformer.getList();
-    }
-
-    static boolean hasLength(String value) {
-        return value != null && !value.isEmpty();
     }
 
     @Override

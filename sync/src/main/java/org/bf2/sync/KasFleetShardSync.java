@@ -1,5 +1,6 @@
 package org.bf2.sync;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import org.bf2.sync.informer.LocalLookup;
@@ -15,6 +16,7 @@ public class KasFleetShardSync implements QuarkusApplication {
     @Inject
     LocalLookup lookup;
 
+    @SuppressFBWarnings(justification = "see comment below about initialization")
     @Override
     public int run(String... args) throws Exception {
         log.info("Managed Kafka sync");
