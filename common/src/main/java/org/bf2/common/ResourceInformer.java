@@ -77,7 +77,7 @@ public class ResourceInformer<T extends HasMetadata> {
                     try {
                         Thread.sleep(WATCH_WAIT);
                     } catch (InterruptedException e) {
-                        log.warn("Terminating watch due to interupt");
+                        log.warn("Terminating watch due to interrupt");
                         Thread.currentThread().interrupt();
                         return;
                     }
