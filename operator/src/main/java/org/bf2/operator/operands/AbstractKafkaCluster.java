@@ -50,7 +50,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 kafkaCondition(kafka, c->c.getType().equals("NotReady")
                 && c.getStatus().equals("True")
                 && c.getReason().equals("Creating"));
-        log.debugf("KafkaCluster isInstalling = %s", isInstalling);
+        log.tracef("KafkaCluster isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -59,7 +59,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReady = kafka != null && (kafka.getStatus() == null ||
                 kafkaCondition(kafka, c->c.getType().equals("Ready") && c.getStatus().equals("True")));
-        log.debugf("KafkaCluster isReady = %s", isReady);
+        log.tracef("KafkaCluster isReady = %s", isReady);
         return isReady;
     }
 
@@ -70,14 +70,14 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             && kafkaCondition(kafka, c->c.getType().equals("NotReady")
             && c.getStatus().equals("True")
             && !c.getReason().equals("Creating"));
-        log.debugf("KafkaCluster isError = %s", isError);
+        log.tracef("KafkaCluster isError = %s", isError);
         return isError;
     }
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedKafka(managedKafka) == null;
-        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
+        log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
     }
 

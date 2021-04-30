@@ -29,16 +29,16 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
 
     @Override
     public void onAdd(T obj) {
-        if (log.isTraceEnabled()) {
-            log.tracef("Add event for %s", Cache.metaNamespaceKeyFunc(obj));
+        if (log.isDebugEnabled()) {
+            log.debugf("Add event for %s %s", Cache.metaNamespaceKeyFunc(obj), obj.getMetadata().getResourceVersion());
         }
         consumer.accept(null, obj);
     }
 
     @Override
     public void onDelete(T obj, boolean deletedFinalStateUnknown) {
-        if (log.isTraceEnabled()) {
-            log.tracef("Delete event for %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj),
+        if (log.isDebugEnabled()) {
+            log.debugf("Delete event for %s %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj), obj.getMetadata().getResourceVersion(),
                     deletedFinalStateUnknown);
         }
         // this will depend upon the delete strategy chosen
@@ -61,8 +61,8 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         if (Objects.equals(oldObj.getMetadata().getResourceVersion(), newObj.getMetadata().getResourceVersion())) {
             return;
         }
-        if (log.isTraceEnabled()) {
-            log.tracef("Update event for %s", Cache.metaNamespaceKeyFunc(newObj));
+        if (log.isDebugEnabled()) {
+            log.debugf("Update event for %s %s", Cache.metaNamespaceKeyFunc(newObj), newObj.getMetadata().getResourceVersion());
         }
         consumer.accept(oldObj, newObj);
     }

@@ -73,11 +73,11 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (managedKafka.getSpec().isDeleted()) {
             // check that it's actually not deleted yet, so operands are gone
             if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.infof("Deleting Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), context.getEvents().getList());
+                log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
-            log.infof("Updating Kafka instance %s/%s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), context.getEvents().getList());
+            log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
             kafkaInstance.createOrUpdate(managedKafka);
         }
     }

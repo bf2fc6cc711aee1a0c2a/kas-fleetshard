@@ -729,7 +729,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
                     cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
         }
-        log.debugf("KafkaCluster isDeleted = %s", isDeleted);
+        log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
     }
 
