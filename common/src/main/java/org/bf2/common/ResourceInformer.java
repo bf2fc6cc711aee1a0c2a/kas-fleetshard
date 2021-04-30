@@ -54,10 +54,7 @@ public class ResourceInformer<T extends HasMetadata> {
                 break;
             case DELETED:
                 lastResourceVersion = resource.getMetadata().getResourceVersion();
-                T old = cache.remove(Cache.metaNamespaceKeyFunc(resource));
-                if (old != null) {
-                    delete(old, false);
-                }
+                delete(Cache.metaNamespaceKeyFunc(resource), false);
                 break;
             }
         }
@@ -142,7 +139,7 @@ public class ResourceInformer<T extends HasMetadata> {
             T newItem = newItems.get(k);
             if (newItem == null) {
                 // unknown because this is coming via a missing list entry
-                delete(v, true);
+                delete(k, true);
             }
         });
         newItems.forEach((k, v) -> {
@@ -150,11 +147,14 @@ public class ResourceInformer<T extends HasMetadata> {
         });
     }
 
-    private void delete(T old, boolean unknownLastState) {
-        try {
-            eventHandler.onDelete(old, unknownLastState);
-        } catch (Exception e) {
-            log.warn("Unhandled exception from event handler", e);
+    private void delete(String k, boolean unknownLastState) {
+        T old = cache.remove(k);
+        if (old != null) {
+            try {
+                eventHandler.onDelete(old, unknownLastState);
+            } catch (Exception e) {
+                log.warn("Unhandled exception from event handler", e);
+            }
         }
     }
 
