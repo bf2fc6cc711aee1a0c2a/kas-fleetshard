@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.dsl.Listable;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
@@ -25,14 +26,15 @@ public class ResourceInformer<T extends HasMetadata> {
 
     SharedIndexInformer<T> sharedIndexInformer;
     IndexerAwareResourceEventHandler<T> resourceEventStore;
-    Supplier<Listable<? extends KubernetesResourceList<?>>> lister;
+    Supplier<Listable<? extends KubernetesResourceList<T>>> lister;
     Class<T> type;
 
     private volatile String lastSyncResourceVersion;
     private volatile long lastCheckedTime = -1L;
     private volatile Long doubtfulTime;
 
-    public ResourceInformer(SharedIndexInformer<T> indexInformer, IndexerAwareResourceEventHandler<T> eventStore, Supplier<Listable<? extends KubernetesResourceList<?>>> lister, Class<T> type){
+    public ResourceInformer(SharedIndexInformer<T> indexInformer, IndexerAwareResourceEventHandler<T> eventStore,
+            Supplier<Listable<? extends KubernetesResourceList<T>>> lister, Class<T> type) {
         this.sharedIndexInformer = indexInformer;
         this.resourceEventStore = eventStore;
         this.lister = lister;
@@ -72,8 +74,16 @@ public class ResourceInformer<T extends HasMetadata> {
             return true;
         }
 
-        String actualLast = lister.get().list().getMetadata().getResourceVersion();
-        if (oldResourceVersion.equals(actualLast)) {
+        KubernetesResourceList<T> list = lister.get().list();
+
+        if (list.getItems().size() == sharedIndexInformer.getIndexer().list().size()
+                && list.getItems().stream().allMatch((i) -> {
+                    T existing = sharedIndexInformer.getIndexer().getByKey(Cache.metaNamespaceKeyFunc(i));
+                    if (existing == null) {
+                        return false;
+                    }
+                    return existing.getMetadata().getResourceVersion().equals(i.getMetadata().getResourceVersion());
+                })) {
             this.lastCheckedTime = currentTime;
             doubtfulTime = null;
             return true;
@@ -81,7 +91,7 @@ public class ResourceInformer<T extends HasMetadata> {
         // we can either handle this in the yaml config (with two failed checks), or here
         // with a flag.  opting for the code to have more explicit messages
         if (doubtfulTime != null && currentTime - doubtfulTime > CONFIGURED_TIMEOUT.orElse(DEFAULT_INFORMER_SYNC_TIMEOUT)) {
-            log.warnf("Informer state is wrong for %s, it is stuck at %s but should be at %s", type.getSimpleName(), oldResourceVersion, actualLast);
+            log.warnf("Informer state is wrong for %s, it is stuck at %s", type.getSimpleName(), oldResourceVersion);
             return false;
         }
         if (doubtfulTime == null) {

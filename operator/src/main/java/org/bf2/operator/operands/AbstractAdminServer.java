@@ -79,7 +79,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.debugf("Admin Server isInstalling = %s", isInstalling);
+        log.tracef("Admin Server isInstalling = %s", isInstalling);
         return isInstalling;
     }
 
@@ -88,7 +88,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
                 (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
-        log.debugf("Admin Server isReady = %s", isReady);
+        log.tracef("Admin Server isReady = %s", isReady);
         return isReady;
     }
 
@@ -101,7 +101,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
-        log.debugf("Admin Server isDeleted = %s", isDeleted);
+        log.tracef("Admin Server isDeleted = %s", isDeleted);
         return isDeleted;
     }
 
