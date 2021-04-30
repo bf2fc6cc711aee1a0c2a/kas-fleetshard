@@ -9,11 +9,13 @@ import io.fabric8.kubernetes.client.WatcherException;
 import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,9 +43,13 @@ public class ResourceInformer<T extends HasMetadata> {
     private volatile String lastResourceVersion;
     private volatile boolean ready;
 
+    private static Optional<Long> WATCH_TIMEOUT = ConfigProvider.getConfig().getOptionalValue("resourceinformer.watch.timeout.seconds", Long.class);
+
     private Watcher<T> watcher = new Watcher<T>() {
         @Override
         public void eventReceived(Action action, T resource) {
+            // a log here would duplicate what we have in the resource handlers
+            // so we just log the special case of duplicate delete below
             switch (action) {
             case ERROR:
                 throw new KubernetesClientException("Error received");
@@ -75,6 +81,8 @@ public class ResourceInformer<T extends HasMetadata> {
                     }
                 } else {
                     try {
+                        // note this (and the other watch restart not related to a relise) should not necessary
+                        // in 5.3.1 or later with reconnecting support see https://github.com/fabric8io/kubernetes-client/pull/3018
                         Thread.sleep(WATCH_WAIT);
                     } catch (InterruptedException e) {
                         log.warn("Terminating watch due to interrupt");
@@ -121,16 +129,18 @@ public class ResourceInformer<T extends HasMetadata> {
     }
 
     private void watch() {
+        log.debugf("Starting watch at version %s", lastResourceVersion);
         watchListDeletable.watch(new ListOptionsBuilder()
                 .withWatch(Boolean.TRUE)
                 .withResourceVersion(lastResourceVersion)
-                .withTimeoutSeconds(null)
+                .withTimeoutSeconds(WATCH_TIMEOUT.orElseGet(()->null))
                 .build(), watcher);
         ready = true;
     }
 
     private void list() {
         KubernetesResourceList<T> list = watchListDeletable.list();
+        log.debugf("Got a fresh list %s version %s", list.getClass().getSimpleName(), list.getMetadata().getResourceVersion());
         lastResourceVersion = list.getMetadata().getResourceVersion();
         Map<String, T> newItems = list.getItems()
                 .stream()
@@ -155,6 +165,8 @@ public class ResourceInformer<T extends HasMetadata> {
             } catch (Exception e) {
                 log.warn("Unhandled exception from event handler", e);
             }
+        } else {
+            log.debugf("Duplicate delete received for %s", k);
         }
     }
 
