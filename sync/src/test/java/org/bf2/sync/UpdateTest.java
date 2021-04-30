@@ -40,7 +40,9 @@ public class UpdateTest {
     @AfterEach
     public void afterEach() {
         // the test resource is suite scoped, so we clean up after each test
-        managedKafkaClient.list().forEach((mk)->managedKafkaClient.delete(mk.getMetadata().getNamespace(), mk.getMetadata().getName()));
+        managedKafkaClient.list()
+                .forEach(
+                        (mk) -> managedKafkaClient.delete(mk.getMetadata().getNamespace(), mk.getMetadata().getName()));
     }
 
     @Test
@@ -69,7 +71,8 @@ public class UpdateTest {
 
     private ArgumentCaptor<Map<String, ManagedKafkaStatus>> getUpdates() {
         ArgumentCaptor<Map<String, ManagedKafkaStatus>> statusCaptor = ArgumentCaptor.forClass(Map.class);
-        Mockito.verify(controlPlaneRestClient).updateKafkaClustersStatus(Mockito.eq(PollerTest.CLUSTER_ID), statusCaptor.capture());
+        Mockito.verify(controlPlaneRestClient)
+                .updateKafkaClustersStatus(Mockito.eq(PollerTest.CLUSTER_ID), statusCaptor.capture());
         return statusCaptor;
     }
 

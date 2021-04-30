@@ -30,7 +30,8 @@ public class NoDeploymentAdminServer extends org.bf2.operator.operands.AdminServ
         // Admin Server deployment resource doesn't exist, has to be created
         if (kubernetesClient.configMaps()
                 .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
+                .withName(deployment.getMetadata().getName())
+                .get() == null) {
 
             // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()
@@ -45,11 +46,12 @@ public class NoDeploymentAdminServer extends org.bf2.operator.operands.AdminServ
             // @formatter:on
 
             kubernetesClient.configMaps().inNamespace(deployment.getMetadata().getNamespace()).create(cm);
-        // Admin Server deployment resource already exists, has to be updated
+            // Admin Server deployment resource already exists, has to be updated
         } else {
             ConfigMap cm = kubernetesClient.configMaps()
                     .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName()).get();
+                    .withName(deployment.getMetadata().getName())
+                    .get();
 
             kubernetesClient.configMaps()
                     .inNamespace(deployment.getMetadata().getNamespace())
@@ -69,7 +71,8 @@ public class NoDeploymentAdminServer extends org.bf2.operator.operands.AdminServ
 
     @Override
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
-        ConfigMap cm = informerManager.getLocalConfigMap(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+        ConfigMap cm =
+                informerManager.getLocalConfigMap(adminServerNamespace(managedKafka), adminServerName(managedKafka));
         if (cm == null) {
             return null;
         }

@@ -30,7 +30,8 @@ public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
         // Canary deployment resource doesn't exist, has to be created
         if (kubernetesClient.configMaps()
                 .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
+                .withName(deployment.getMetadata().getName())
+                .get() == null) {
 
             // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()
@@ -45,11 +46,12 @@ public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
             // @formatter:on
 
             kubernetesClient.configMaps().inNamespace(deployment.getMetadata().getNamespace()).create(cm);
-        // Canary deployment resource already exists, has to be updated
+            // Canary deployment resource already exists, has to be updated
         } else {
             ConfigMap cm = kubernetesClient.configMaps()
                     .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName()).get();
+                    .withName(deployment.getMetadata().getName())
+                    .get();
 
             kubernetesClient.configMaps()
                     .inNamespace(deployment.getMetadata().getNamespace())

@@ -15,7 +15,7 @@ public class SecretRestartHandler {
     @Inject
     Logger log;
 
-    @ConfigProperty(name="secret.name")
+    @ConfigProperty(name = "secret.name")
     String secretName;
 
     @Inject
@@ -23,8 +23,8 @@ public class SecretRestartHandler {
 
     private volatile String resourceVersion;
     /*
-     * track the uid to detect delete/add (there unfortunately doesn't seem
-     * to be a hard guarantee about resourceVersions across uids)
+     * track the uid to detect delete/add (there unfortunately doesn't seem to be a hard guarantee about
+     * resourceVersions across uids)
      */
     private volatile String uid;
 
@@ -40,7 +40,7 @@ public class SecretRestartHandler {
             resourceVersion = secret.getMetadata().getResourceVersion();
             uid = secret.getMetadata().getUid();
         } else if (!resourceVersion.equals(secret.getMetadata().getResourceVersion())
-                    || !uid.equals(secret.getMetadata().getUid())) {
+                || !uid.equals(secret.getMetadata().getUid())) {
             log.info(secretName + " changed, requires a restart to pickup new configuration");
             Quarkus.asyncExit();
         }

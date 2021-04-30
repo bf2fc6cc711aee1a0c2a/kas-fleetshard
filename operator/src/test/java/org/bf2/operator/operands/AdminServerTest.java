@@ -45,8 +45,11 @@ public class AdminServerTest {
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
 
         server.getClient().apps().deployments().create(adminServerDeployment);
-        assertNotNull(server.getClient().apps().deployments()
+        assertNotNull(server.getClient()
+                .apps()
+                .deployments()
                 .inNamespace(adminServerDeployment.getMetadata().getNamespace())
-                .withName(adminServerDeployment.getMetadata().getName()).get());
+                .withName(adminServerDeployment.getMetadata().getName())
+                .get());
     }
 }

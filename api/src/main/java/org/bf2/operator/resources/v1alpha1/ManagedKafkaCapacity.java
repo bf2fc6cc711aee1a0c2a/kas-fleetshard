@@ -11,8 +11,7 @@ import lombok.ToString;
  */
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
-        editableEnabled = false
-)
+        editableEnabled = false)
 @ToString
 @EqualsAndHashCode
 @JsonInclude(value = JsonInclude.Include.NON_NULL)

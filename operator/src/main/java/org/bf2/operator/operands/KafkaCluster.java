@@ -91,7 +91,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final boolean DELETE_CLAIM = true;
     private static final String KAFKA_AUTHORIZER_CLASS = "io.bf2.kafka.authorizer.GlobalAclAuthorizer";
     private static final String KAFKA_AUTHORIZER_CONFIG_PREFIX = "strimzi.authorization.global-authorizer.";
-    private static final String KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS = KAFKA_AUTHORIZER_CONFIG_PREFIX + "allowed-listeners";
+    private static final String KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS =
+            KAFKA_AUTHORIZER_CONFIG_PREFIX + "allowed-listeners";
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
@@ -111,7 +112,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
-    private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
+    private static final Map<String, String> JVM_OPTIONS_XX_MAP =
+            Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
 
     @Inject
     Logger log;
@@ -143,11 +145,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
-        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
+        ConfigMap kafkaMetricsConfigMap =
+                configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
         createOrUpdate(kafkaMetricsConfigMap);
 
-        ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
-        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
+        ConfigMap currentZooKeeperMetricsConfigMap =
+                cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
+        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka),
+                currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
         // delete "old" Kafka and ZooKeeper metrics ConfigMaps
@@ -193,9 +198,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // Secret resource doesn't exist, has to be created
         if (kubernetesClient.secrets()
                 .inNamespace(secret.getMetadata().getNamespace())
-                .withName(secret.getMetadata().getName()).get() == null) {
+                .withName(secret.getMetadata().getName())
+                .get() == null) {
             kubernetesClient.secrets().inNamespace(secret.getMetadata().getNamespace()).createOrReplace(secret);
-        // Secret resource already exists, has to be updated
+            // Secret resource already exists, has to be updated
         } else {
             kubernetesClient.secrets()
                     .inNamespace(secret.getMetadata().getNamespace())
@@ -208,9 +214,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // ConfigMap resource doesn't exist, has to be created
         if (kubernetesClient.configMaps()
                 .inNamespace(configMap.getMetadata().getNamespace())
-                .withName(configMap.getMetadata().getName()).get() == null) {
-            kubernetesClient.configMaps().inNamespace(configMap.getMetadata().getNamespace()).createOrReplace(configMap);
-        // ConfigMap resource already exists, has to be updated
+                .withName(configMap.getMetadata().getName())
+                .get() == null) {
+            kubernetesClient.configMaps()
+                    .inNamespace(configMap.getMetadata().getNamespace())
+                    .createOrReplace(configMap);
+            // ConfigMap resource already exists, has to be updated
         } else {
             kubernetesClient.configMaps()
                     .inNamespace(configMap.getMetadata().getNamespace())
@@ -263,7 +272,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endSpec()
                 .build();
         // @formatter:on
-        
+
         // setting the ManagedKafka has owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly
         OperandUtils.setAsOwner(managedKafka, kafka);
@@ -286,9 +295,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
         ConfigMap configMap = builder
                 .editOrNewMetadata()
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(name)
-                    .withLabels(OperandUtils.getDefaultLabels())
+                .withNamespace(kafkaClusterNamespace(managedKafka))
+                .withName(name)
+                .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
                 .withData(template.getData())
                 .build();
@@ -306,8 +315,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
         Map<String, String> certs = new HashMap<>(2);
-        certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes(StandardCharsets.UTF_8)));
-        certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes(StandardCharsets.UTF_8)));
+        certs.put("tls.crt", encoder.encodeToString(
+                managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes(StandardCharsets.UTF_8)));
+        certs.put("tls.key", encoder.encodeToString(
+                managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes(StandardCharsets.UTF_8)));
         // @formatter:off
         Secret secret = builder
                 .editOrNewMetadata()
@@ -319,7 +330,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withData(certs)
                 .build();
         // @formatter:on
-        
+
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);
@@ -333,7 +344,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
         Map<String, String> data = new HashMap<>(1);
-        data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes(StandardCharsets.UTF_8)));
+        data.put("ssoClientSecret", encoder
+                .encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes(StandardCharsets.UTF_8)));
         // @formatter:off
         Secret secret = builder
                 .editOrNewMetadata()
@@ -345,7 +357,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withData(data)
                 .build();
         // @formatter:on
-        
+
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);
@@ -356,7 +368,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     /* test */
     protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         Map<String, String> certs = new HashMap<>(1);
-        certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes(StandardCharsets.UTF_8)));
+        certs.put("keycloak.crt", encoder.encodeToString(
+                managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes(StandardCharsets.UTF_8)));
         // @formatter:off
         Secret secret = new SecretBuilder()
                 .editOrNewMetadata()
@@ -368,7 +381,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withData(certs)
                 .build();
         // @formatter:on
-        
+
         // setting the ManagedKafka has owner of the Secret resource is needed
         // by the operator sdk to handle events on the Secret resource properly
         OperandUtils.setAsOwner(managedKafka, secret);
@@ -432,11 +445,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
                 .withRequiredDuringSchedulingIgnoredDuringExecution(
-                        new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
-                ).build();
+                        new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build())
+                .build();
 
         return new KafkaClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder().withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build()).build())
+                .withPod(new PodTemplateBuilder()
+                        .withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build())
+                        .build())
                 .build();
     }
 
@@ -444,11 +459,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
                 .withRequiredDuringSchedulingIgnoredDuringExecution(
                         new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build(),
-                        new PodAffinityTermBuilder().withTopologyKey("topology.kubernetes.io/zone").build()
-                ).build();
+                        new PodAffinityTermBuilder().withTopologyKey("topology.kubernetes.io/zone").build())
+                .build();
 
         return new ZookeeperClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder().withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build()).build())
+                .withPod(new PodTemplateBuilder()
+                        .withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build())
+                        .build())
                 .build();
     }
 
@@ -518,16 +535,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
-        Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC)).doubleValue() / KAFKA_BROKERS);
+        Quantity ingressEgressThroughputPerSec =
+                managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
+        long throughputBytes = (long) (Quantity.getAmountInBytes(
+                Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC))
+                .doubleValue() / KAFKA_BROKERS);
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
         // Start throttling when disk is above 90%. Full stop at 95%.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
         double dataRetentionBytes = Quantity.getAmountInBytes(maxDataRetentionSize).doubleValue();
-        config.put("client.quota.callback.static.storage.soft", String.valueOf((long)(SOFT_PERCENT * dataRetentionBytes)));
-        config.put("client.quota.callback.static.storage.hard", String.valueOf((long)(HARD_PERCENT * dataRetentionBytes)));
+        config.put("client.quota.callback.static.storage.soft",
+                String.valueOf((long) (SOFT_PERCENT * dataRetentionBytes)));
+        config.put("client.quota.callback.static.storage.hard",
+                String.valueOf((long) (HARD_PERCENT * dataRetentionBytes)));
 
         // Check storage every 30 seconds
         config.put("client.quota.callback.static.storage.check-interval", "30");
@@ -540,10 +562,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // Limit client connections per broker
         Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-        config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
+        config.put("max.connections", String.valueOf(
+                (long) (Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
         // Limit connection attempts per broker
         Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-        config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
+        config.put("max.connections.creation.rate",
+                String.valueOf(
+                        Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC)
+                                / KAFKA_BROKERS));
 
         // custom authorizer configuration
         addKafkaAuthorizerConfig(config);
@@ -582,7 +608,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .build();
         }
 
-        KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
+        KafkaListenerType externalListenerType =
+                kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE
+                        : KafkaListenerType.INGRESS;
 
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
@@ -607,13 +635,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withConfiguration(
                                         new GenericKafkaListenerConfigurationBuilder()
                                                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
-                                                        .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                                                        .build()
-                                                )
+                                                        .withHost(managedKafka.getSpec()
+                                                                .getEndpoint()
+                                                                .getBootstrapServerHost())
+                                                        .build())
                                                 .withBrokers(getBrokerOverrides(managedKafka))
                                                 .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka))
-                                        .build()
-                                )
+                                                .build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("oauth")
@@ -627,8 +655,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withPort(9096)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(false)
-                                .build()
-                ).build();
+                                .build())
+                .build();
     }
 
     private List<GenericKafkaListenerConfigurationBroker> getBrokerOverrides(ManagedKafka managedKafka) {
@@ -636,10 +664,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         for (int i = 0; i < KAFKA_BROKERS; i++) {
             brokerOverrides.add(
                     new GenericKafkaListenerConfigurationBrokerBuilder()
-                            .withHost(String.format("broker-%d-%s", i, managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))
+                            .withHost(String.format("broker-%d-%s", i,
+                                    managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))
                             .withBroker(i)
-                    .build()
-            );
+                            .build());
         }
         return brokerOverrides;
     }
@@ -652,8 +680,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
                                 .withDeleteClaim(DELETE_CLAIM)
                                 .withStorageClass(KAFKA_STORAGE_CLASS)
-                                .build()
-                )
+                                .build())
                 .build();
     }
 
@@ -673,16 +700,18 @@ public class KafkaCluster extends AbstractKafkaCluster {
         bytes /= KAFKA_BROKERS;
 
         // pad to give a margin before soft/hard limits kick in
-        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
+        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(),
+                (long) (bytes / SOFT_PERCENT));
 
         // strimzi won't allow the size to be reduced so scrape the size if possible
         if (current != null) {
             Storage storage = current.getSpec().getKafka().getStorage();
             if (storage instanceof JbodStorage) {
-                JbodStorage jbodStorage = (JbodStorage)storage;
+                JbodStorage jbodStorage = (JbodStorage) storage;
                 for (SingleVolumeStorage singleVolumeStorage : jbodStorage.getVolumes()) {
-                    if (singleVolumeStorage instanceof PersistentClaimStorage && Integer.valueOf(JBOD_VOLUME_ID).equals(singleVolumeStorage.getId())) {
-                        String existingSize = ((PersistentClaimStorage)singleVolumeStorage).getSize();
+                    if (singleVolumeStorage instanceof PersistentClaimStorage
+                            && Integer.valueOf(JBOD_VOLUME_ID).equals(singleVolumeStorage.getId())) {
+                        String existingSize = ((PersistentClaimStorage) singleVolumeStorage).getSize();
                         long existingBytes = Quantity.getAmountInBytes(Quantity.parse(existingSize)).longValue();
                         // TODO: if not changed a warning may be appropriate, but it would be best as a status condition
                         bytes = Math.max(existingBytes, bytes);

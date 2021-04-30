@@ -46,10 +46,12 @@ public class ResourceManager {
         LOGGER.info("----------------------------------------------");
         LOGGER.info("Going to clear all resources for {}", testContext.getDisplayName());
         LOGGER.info("----------------------------------------------");
-        if (!storedResources.containsKey(testContext.getDisplayName()) || storedResources.get(testContext.getDisplayName()).isEmpty()) {
+        if (!storedResources.containsKey(testContext.getDisplayName())
+                || storedResources.get(testContext.getDisplayName()).isEmpty()) {
             LOGGER.info("Nothing to delete");
         }
-        while (storedResources.containsKey(testContext.getDisplayName()) && !storedResources.get(testContext.getDisplayName()).isEmpty()) {
+        while (storedResources.containsKey(testContext.getDisplayName())
+                && !storedResources.get(testContext.getDisplayName()).isEmpty()) {
             storedResources.get(testContext.getDisplayName()).pop().run();
         }
         LOGGER.info("----------------------------------------------");
@@ -61,7 +63,7 @@ public class ResourceManager {
     // Common resource methods
     //------------------------------------------------------------------------------------------------
 
-    private final ResourceType<?>[] resourceTypes = new ResourceType[]{
+    private final ResourceType<?>[] resourceTypes = new ResourceType[] {
             new ManagedKafkaResourceType(),
             new NamespaceResourceType(),
     };
@@ -77,7 +79,8 @@ public class ResourceManager {
     }
 
     @SafeVarargs
-    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, TimeoutBudget waitDuration, T... resources) {
+    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, TimeoutBudget waitDuration,
+            T... resources) {
         createResource(testContext, true, waitDuration, resources);
     }
 
@@ -87,12 +90,14 @@ public class ResourceManager {
     }
 
     @SafeVarargs
-    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, T... resources) {
+    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady,
+            T... resources) {
         createResource(testContext, waitReady, null, resources);
     }
 
     @SafeVarargs
-    private final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, TimeoutBudget timeout, T... resources) {
+    private final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady,
+            TimeoutBudget timeout, T... resources) {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
             if (type == null) {
@@ -102,12 +107,19 @@ public class ResourceManager {
 
             // Convenience for tests that create resources in non-existing namespaces. This will create and clean them up.
             synchronized (this) {
-                if (resource.getMetadata().getNamespace() != null && !kubeClient.namespaceExists(resource.getMetadata().getNamespace())) {
-                    createResource(testContext, waitReady, new NamespaceBuilder().editOrNewMetadata().withName(resource.getMetadata().getNamespace()).endMetadata().build());
+                if (resource.getMetadata().getNamespace() != null
+                        && !kubeClient.namespaceExists(resource.getMetadata().getNamespace())) {
+                    createResource(testContext, waitReady,
+                            new NamespaceBuilder().editOrNewMetadata()
+                                    .withName(resource.getMetadata().getNamespace())
+                                    .endMetadata()
+                                    .build());
                 }
             }
             LOGGER.info("Create/Update of {} {} in namespace {}",
-                    resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
+                    resource.getKind(), resource.getMetadata().getName(),
+                    resource.getMetadata().getNamespace() == null ? "(not set)"
+                            : resource.getMetadata().getNamespace());
 
             type.create(resource);
 
@@ -126,7 +138,8 @@ public class ResourceManager {
                 }
 
                 assertTrue(waitResourceCondition(resource, type::isReady, timeout),
-                        String.format("Timed out waiting for %s %s in namespace %s to be ready", resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
+                        String.format("Timed out waiting for %s %s in namespace %s to be ready", resource.getKind(),
+                                resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
 
                 T updated = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
                 type.refreshResource(resource, updated);
@@ -143,10 +156,13 @@ public class ResourceManager {
                 continue;
             }
             LOGGER.info("Delete of {} {} in namespace {}",
-                    resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
+                    resource.getKind(), resource.getMetadata().getName(),
+                    resource.getMetadata().getNamespace() == null ? "(not set)"
+                            : resource.getMetadata().getNamespace());
             type.delete(resource);
             assertTrue(waitResourceCondition(resource, Objects::isNull),
-                    String.format("Timed out deleting %s %s in namespace %s", resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
+                    String.format("Timed out deleting %s %s in namespace %s", resource.getKind(),
+                            resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
 
         }
     }
@@ -155,7 +171,8 @@ public class ResourceManager {
         return waitResourceCondition(resource, condition, TimeoutBudget.ofDuration(Duration.ofMinutes(5)));
     }
 
-    public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition, TimeoutBudget timeout) {
+    public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition,
+            TimeoutBudget timeout) {
         assertNotNull(resource);
         assertNotNull(resource.getMetadata());
         assertNotNull(resource.getMetadata().getName());

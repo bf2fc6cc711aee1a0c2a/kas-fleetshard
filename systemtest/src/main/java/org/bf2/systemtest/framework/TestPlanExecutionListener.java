@@ -41,7 +41,8 @@ public class TestPlanExecutionListener implements TestExecutionListener {
         LOGGER.info("Following testclasses are selected for run:");
         Arrays.asList(plan.getChildren(plan.getRoots()
                 .toArray(new TestIdentifier[0])[0])
-                .toArray(new TestIdentifier[0])).forEach(testIdentifier -> LOGGER.info("-> {}", testIdentifier.getLegacyReportingName()));
+                .toArray(new TestIdentifier[0]))
+                .forEach(testIdentifier -> LOGGER.info("-> {}", testIdentifier.getLegacyReportingName()));
         LOGGER.info("=======================================================================");
         LOGGER.info("=======================================================================");
     }

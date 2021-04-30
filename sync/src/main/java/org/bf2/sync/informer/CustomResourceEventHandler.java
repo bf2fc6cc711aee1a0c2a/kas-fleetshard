@@ -12,7 +12,7 @@ import java.util.function.BiConsumer;
 /**
  * Simple generic handler.  The consumer should be non-blocking.
  */
-final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements IndexerAwareResourceEventHandler<T> {
+final class CustomResourceEventHandler<T extends CustomResource<?, ?>> implements IndexerAwareResourceEventHandler<T> {
 
     static Logger log = Logger.getLogger(CustomResourceEventHandler.class);
 
@@ -23,7 +23,7 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
         this.consumer = consumer;
     }
 
-    public static <T extends CustomResource<?,?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer) {
+    public static <T extends CustomResource<?, ?>> CustomResourceEventHandler<T> of(BiConsumer<T, T> consumer) {
         return new CustomResourceEventHandler<T>(consumer);
     }
 
@@ -38,7 +38,8 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
     @Override
     public void onDelete(T obj, boolean deletedFinalStateUnknown) {
         if (log.isDebugEnabled()) {
-            log.debugf("Delete event for %s %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj), obj.getMetadata().getResourceVersion(),
+            log.debugf("Delete event for %s %s, with deletedStateUknown %s", Cache.metaNamespaceKeyFunc(obj),
+                    obj.getMetadata().getResourceVersion(),
                     deletedFinalStateUnknown);
         }
         // this will depend upon the delete strategy chosen
@@ -62,7 +63,8 @@ final class CustomResourceEventHandler<T extends CustomResource<?,?>> implements
             return;
         }
         if (log.isDebugEnabled()) {
-            log.debugf("Update event for %s %s", Cache.metaNamespaceKeyFunc(newObj), newObj.getMetadata().getResourceVersion());
+            log.debugf("Update event for %s %s", Cache.metaNamespaceKeyFunc(newObj),
+                    newObj.getMetadata().getResourceVersion());
         }
         consumer.accept(oldObj, newObj);
     }

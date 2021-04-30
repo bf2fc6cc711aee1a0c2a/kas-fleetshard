@@ -53,10 +53,13 @@ public class ObservabilityManagerTest {
         assertFalse(observabilityManager.isObservabilityRunning());
 
         ObservabilityConfiguration secretConfig = new ObservabilityConfigurationBuilder()
-                .withAccessToken(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))))
-                .withChannel(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))))
+                .withAccessToken(new String(
+                        decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))))
+                .withChannel(
+                        new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_CHANNEL))))
                 .withTag(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_TAG))))
-                .withRepository(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))))
+                .withRepository(
+                        new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_REPOSITORY))))
                 .build();
 
         // secret verification
@@ -64,8 +67,11 @@ public class ObservabilityManagerTest {
         assertEquals("observability-operator", secret.getMetadata().getLabels().get("configures"));
 
         // status verification, the Informers do not work in test framework thus direct verification
-        secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config).editMetadata()
-                .addToAnnotations(ObservabilityManager.OBSERVABILITY_OPERATOR_STATUS, ObservabilityManager.ACCEPTED).endMetadata().build();
+        secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config)
+                .editMetadata()
+                .addToAnnotations(ObservabilityManager.OBSERVABILITY_OPERATOR_STATUS, ObservabilityManager.ACCEPTED)
+                .endMetadata()
+                .build();
         observabilityManager.observabilitySecretResource().createOrReplace(secret);
 
         secret = observabilityManager.observabilitySecretResource().get();

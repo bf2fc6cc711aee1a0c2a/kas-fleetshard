@@ -45,8 +45,11 @@ public class CanaryTest {
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
 
         server.getClient().apps().deployments().create(canaryDeployment);
-        assertNotNull(server.getClient().apps().deployments()
+        assertNotNull(server.getClient()
+                .apps()
+                .deployments()
                 .inNamespace(canaryDeployment.getMetadata().getNamespace())
-                .withName(canaryDeployment.getMetadata().getName()).get());
+                .withName(canaryDeployment.getMetadata().getName())
+                .get());
     }
 }

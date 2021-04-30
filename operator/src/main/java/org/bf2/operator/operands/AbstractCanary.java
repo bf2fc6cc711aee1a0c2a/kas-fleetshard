@@ -32,13 +32,19 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     protected void createOrUpdate(Deployment deployment) {
         // Canary deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments()
+        if (kubernetesClient.apps()
+                .deployments()
                 .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
-        // Canary deployment resource already exists, has to be updated
+                .withName(deployment.getMetadata().getName())
+                .get() == null) {
+            kubernetesClient.apps()
+                    .deployments()
+                    .inNamespace(deployment.getMetadata().getNamespace())
+                    .create(deployment);
+            // Canary deployment resource already exists, has to be updated
         } else {
-            kubernetesClient.apps().deployments()
+            kubernetesClient.apps()
+                    .deployments()
                     .inNamespace(deployment.getMetadata().getNamespace())
                     .withName(deployment.getMetadata().getName())
                     .patch(deployment);
@@ -62,7 +68,8 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     public boolean isReady(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
         boolean isReady = deployment != null && (deployment.getStatus() == null ||
-                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
+                (deployment.getStatus().getReadyReplicas() != null
+                        && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
         log.tracef("Canary isReady = %s", isReady);
         return isReady;
     }

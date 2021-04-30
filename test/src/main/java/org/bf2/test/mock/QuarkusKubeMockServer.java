@@ -73,7 +73,8 @@ public class QuarkusKubeMockServer implements QuarkusTestResourceLifecycleManage
                 Field f = var3[var5];
                 if (f.getAnnotation(QuarkusKubernetesMockServer.class) != null) {
                     if (!KubernetesServer.class.isAssignableFrom(f.getType())) {
-                        throw new RuntimeException("@KubernetesMockServer can only be used on fields of type KubernetesServer");
+                        throw new RuntimeException(
+                                "@KubernetesMockServer can only be used on fields of type KubernetesServer");
                     }
 
                     f.setAccessible(true);

@@ -210,7 +210,8 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @param grepPattern       Grep patterns for search
      * @return Grep result as string
      */
-    String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds, String... grepPattern);
+    String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds,
+            String... grepPattern);
 
     String getResourceAsJson(String resourceType, String resourceName);
 

@@ -10,7 +10,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 /**
  * jUnit5 specific class which listening on test callbacks
  */
-public class TestCallbackListener implements BeforeAllCallback, BeforeEachCallback, AfterAllCallback, AfterEachCallback {
+public class TestCallbackListener
+        implements BeforeAllCallback, BeforeEachCallback, AfterAllCallback, AfterEachCallback {
 
     @Override
     public void beforeAll(ExtensionContext extensionContext) throws Exception {

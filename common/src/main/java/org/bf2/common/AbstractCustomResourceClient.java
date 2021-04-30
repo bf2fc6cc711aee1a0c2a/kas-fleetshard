@@ -42,7 +42,8 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
     public T getByName(String namespace, String name) {
         return resourceClient
                 .inNamespace(namespace)
-                .withName(name).get();
+                .withName(name)
+                .get();
     }
 
     public T create(T resource) {
@@ -58,7 +59,9 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
     }
 
     public T patch(T resource) {
-        return resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).patch(resource);
+        return resourceClient.inNamespace(resource.getMetadata().getNamespace())
+                .withName(resource.getMetadata().getName())
+                .patch(resource);
     }
 
     /**

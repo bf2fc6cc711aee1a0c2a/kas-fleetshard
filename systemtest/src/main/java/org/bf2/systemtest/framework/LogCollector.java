@@ -20,8 +20,13 @@ public class LogCollector {
      */
     public static void saveKubernetesState(ExtensionContext extensionContext, Throwable throwable) throws Throwable {
         LOGGER.warn("Printing all pods on cluster");
-        KubeClient.getInstance().client().pods().inAnyNamespace().list().getItems().forEach(p ->
-                LOGGER.info("Pod: {} in ns: {} with phase: {}",
+        KubeClient.getInstance()
+                .client()
+                .pods()
+                .inAnyNamespace()
+                .list()
+                .getItems()
+                .forEach(p -> LOGGER.info("Pod: {} in ns: {} with phase: {}",
                         p.getMetadata().getName(),
                         p.getMetadata().getNamespace(),
                         p.getStatus().getPhase()));

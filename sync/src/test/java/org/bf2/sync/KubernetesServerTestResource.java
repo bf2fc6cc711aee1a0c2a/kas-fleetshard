@@ -52,10 +52,14 @@ public class KubernetesServerTestResource implements QuarkusTestResourceLifecycl
     public void configureServer(KubernetesServer mockServer) {
         // initialize with the crd
         try (NamespacedKubernetesClient client = server.getClient()) {
-            client.load(KubernetesServerTestResource.class.getResourceAsStream("/META-INF/dekorate/kubernetes.yml")).get().forEach(crd -> {
-                client.apiextensions().v1beta1().customResourceDefinitions()
-                        .createOrReplace((CustomResourceDefinition) crd);
-            });
+            client.load(KubernetesServerTestResource.class.getResourceAsStream("/META-INF/dekorate/kubernetes.yml"))
+                    .get()
+                    .forEach(crd -> {
+                        client.apiextensions()
+                                .v1beta1()
+                                .customResourceDefinitions()
+                                .createOrReplace((CustomResourceDefinition) crd);
+                    });
         }
     }
 

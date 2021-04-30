@@ -96,7 +96,8 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @SuppressWarnings("unchecked")
     public K create(File... files) {
         try (Context context = defaultContext()) {
-            Map<File, ExecResult> execResults = execRecursive(CREATE, files, Comparator.comparing(File::getName).reversed());
+            Map<File, ExecResult> execResults =
+                    execRecursive(CREATE, files, Comparator.comparing(File::getName).reversed());
             for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
                 if (!entry.getValue().exitStatus()) {
                     LOGGER.warn("Failed to create {}!", entry.getKey().getAbsolutePath());
@@ -111,7 +112,8 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @SuppressWarnings("unchecked")
     public K apply(File... files) {
         try (Context context = defaultContext()) {
-            Map<File, ExecResult> execResults = execRecursive(APPLY, files, Comparator.comparing(File::getName).reversed());
+            Map<File, ExecResult> execResults =
+                    execRecursive(APPLY, files, Comparator.comparing(File::getName).reversed());
             for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
                 if (!entry.getValue().exitStatus()) {
                     LOGGER.warn("Failed to apply {}!", entry.getKey().getAbsolutePath());
@@ -126,7 +128,8 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @SuppressWarnings("unchecked")
     public K delete(File... files) {
         try (Context context = defaultContext()) {
-            Map<File, ExecResult> execResults = execRecursive(DELETE, files, Comparator.comparing(File::getName).reversed());
+            Map<File, ExecResult> execResults =
+                    execRecursive(DELETE, files, Comparator.comparing(File::getName).reversed());
             for (Map.Entry<File, ExecResult> entry : execResults.entrySet()) {
                 if (!entry.getValue().exitStatus()) {
                     LOGGER.warn("Failed to delete {}!", entry.getKey().getAbsolutePath());
@@ -142,7 +145,8 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         for (File f : files) {
             if (f.isFile()) {
                 if (f.getName().endsWith(".yaml")) {
-                    execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), 0, false, false));
+                    execResults.put(f,
+                            Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), 0, false, false));
                 }
             } else if (f.isDirectory()) {
                 File[] children = f.listFiles();
@@ -297,8 +301,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     public K waitForResourceCreation(String resourceType, String resourceName) {
         // wait when resource to be created
         return waitFor(resourceType, resourceName,
-                actualObj -> true
-        );
+                actualObj -> true);
     }
 
     @Override
@@ -323,7 +326,11 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
 
     @Override
     public List<String> list(String resourceType) {
-        return asList(Exec.exec(namespacedCommand("get", resourceType, "-o", "jsonpath={range .items[*]}{.metadata.name} ")).out().trim().split(" +")).stream().filter(s -> !s.trim().isEmpty()).collect(Collectors.toList());
+        return asList(
+                Exec.exec(namespacedCommand("get", resourceType, "-o", "jsonpath={range .items[*]}{.metadata.name} "))
+                        .out()
+                        .trim()
+                        .split(" +")).stream().filter(s -> !s.trim().isEmpty()).collect(Collectors.toList());
     }
 
     @Override
@@ -362,9 +369,9 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     public String logs(String pod, String container) {
         String[] args;
         if (container != null) {
-            args = new String[]{"logs", pod, "-c", container};
+            args = new String[] { "logs", pod, "-c", container };
         } else {
-            args = new String[]{"logs", pod};
+            args = new String[] { "logs", pod };
         }
         return Exec.exec(namespacedCommand(args)).out();
     }
@@ -372,8 +379,13 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     @Override
     public String searchInLog(String resourceType, String resourceName, long sinceSeconds, String... grepPattern) {
         try {
-            return Exec.exec("bash", "-c", join(" ", namespacedCommand("logs", resourceType + "/" + resourceName, "--since=" + sinceSeconds + "s",
-                    "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1"))).out();
+            return Exec
+                    .exec("bash", "-c",
+                            join(" ",
+                                    namespacedCommand("logs", resourceType + "/" + resourceName,
+                                            "--since=" + sinceSeconds + "s",
+                                            "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1")))
+                    .out();
         } catch (KubeClusterException e) {
             if (e.result != null && e.result.returnCode() == 1) {
                 LOGGER.info("{} not found", grepPattern);
@@ -385,10 +397,16 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     }
 
     @Override
-    public String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds, String... grepPattern) {
+    public String searchInLog(String resourceType, String resourceName, String resourceContainer, long sinceSeconds,
+            String... grepPattern) {
         try {
-            return Exec.exec("bash", "-c", join(" ", namespacedCommand("logs", resourceType + "/" + resourceName, "-c " + resourceContainer, "--since=" + sinceSeconds + "s",
-                    "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1"))).out();
+            return Exec
+                    .exec("bash", "-c",
+                            join(" ",
+                                    namespacedCommand("logs", resourceType + "/" + resourceName,
+                                            "-c " + resourceContainer, "--since=" + sinceSeconds + "s",
+                                            "|", "grep", " -e " + join(" -e ", grepPattern), "-B", "1")))
+                    .out();
         } catch (KubeClusterException e) {
             if (e.result != null && e.result.exitStatus()) {
                 LOGGER.info("{} not found", grepPattern);
@@ -400,6 +418,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     }
 
     public List<String> listResourcesByLabel(String resourceType, String label) {
-        return asList(Exec.exec(namespacedCommand("get", resourceType, "-l", label, "-o", "jsonpath={range .items[*]}{.metadata.name} ")).out().split("\\s+"));
+        return asList(Exec.exec(namespacedCommand("get", resourceType, "-l", label, "-o",
+                "jsonpath={range .items[*]}{.metadata.name} ")).out().split("\\s+"));
     }
 }

@@ -11,7 +11,8 @@ public class Kubectl extends BaseCmdKubeClient<Kubectl> {
 
     public static final String KUBECTL = "kubectl";
 
-    public Kubectl() { }
+    public Kubectl() {
+    }
 
     Kubectl(String futureNamespace) {
         namespace = futureNamespace;

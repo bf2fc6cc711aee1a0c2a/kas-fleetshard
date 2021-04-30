@@ -11,8 +11,7 @@ import java.util.List;
  */
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
-        editableEnabled = false
-)
+        editableEnabled = false)
 @ToString
 public class ManagedKafkaStatus {
 

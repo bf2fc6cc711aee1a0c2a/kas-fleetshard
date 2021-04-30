@@ -30,7 +30,8 @@ public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaClu
         // Kafka resource doesn't exist, has to be created
         if (kubernetesClient.configMaps()
                 .inNamespace(kafka.getMetadata().getNamespace())
-                .withName(kafka.getMetadata().getName()).get() == null) {
+                .withName(kafka.getMetadata().getName())
+                .get() == null) {
 
             // @formatter:off
             ConfigMap cm = new ConfigMapBuilder()

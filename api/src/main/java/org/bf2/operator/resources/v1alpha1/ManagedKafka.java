@@ -21,8 +21,7 @@ import java.util.UUID;
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
         refs = @BuildableReference(CustomResource.class),
-        editableEnabled = false
-)
+        editableEnabled = false)
 @Group("managedkafka.bf2.org")
 @Version("v1alpha1")
 @Crd(group = "managedkafka.bf2.org", version = "v1alpha1")

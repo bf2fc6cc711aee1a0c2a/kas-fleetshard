@@ -17,7 +17,8 @@ import javax.inject.Inject;
 
 import java.util.Objects;
 
-public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource implements IndexerAwareResourceEventHandler<T> {
+public abstract class ResourceEventSource<T extends HasMetadata> extends AbstractEventSource
+        implements IndexerAwareResourceEventHandler<T> {
 
     @Inject
     Logger log;
@@ -26,16 +27,19 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
 
     @Override
     public void onAdd(T resource) {
-        log.debugf("Add event received for %s %s/%s", resource.getClass().getName(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+        log.debugf("Add event received for %s %s/%s", resource.getClass().getName(),
+                resource.getMetadata().getNamespace(), resource.getMetadata().getName());
         handleEvent(resource);
     }
 
     @Override
     public void onUpdate(T oldResource, T newResource) {
-        if (Objects.equals(oldResource.getMetadata().getResourceVersion(), newResource.getMetadata().getResourceVersion())) {
+        if (Objects.equals(oldResource.getMetadata().getResourceVersion(),
+                newResource.getMetadata().getResourceVersion())) {
             return; // no need to handle an event where nothing has changed
         }
-        log.debugf("Update event received for %s %s/%s", oldResource.getClass().getName(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
+        log.debugf("Update event received for %s %s/%s", oldResource.getClass().getName(),
+                oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
         handleEvent(newResource);
     }
 
@@ -60,7 +64,6 @@ public abstract class ResourceEventSource<T extends HasMetadata> extends Abstrac
     }
 
     protected abstract void handleEvent(T resource);
-
 
     @ApplicationScoped
     public static class ConfigMapEventSource extends ResourceEventSource<ConfigMap> {

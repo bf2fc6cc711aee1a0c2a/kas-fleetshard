@@ -25,7 +25,7 @@ public class MockManagedKafkaFactory {
     @Inject
     ManagedKafkaResourceClient mkClient;
 
-    @ConfigProperty(name="mock.factory.max-managedkafka", defaultValue = "3")
+    @ConfigProperty(name = "mock.factory.max-managedkafka", defaultValue = "3")
     int maxKafkas;
 
     // current active clusters
@@ -55,7 +55,7 @@ public class MockManagedKafkaFactory {
         if (this.kafkas.size() > 1 && random.nextBoolean()) {
             int idx = Math.abs(random.nextInt(this.kafkas.size()));
             int i = 0;
-            for (ManagedKafka k:kafkas.values()) {
+            for (ManagedKafka k : kafkas.values()) {
                 if (i++ < idx) {
                     continue;
                 } else {
@@ -74,7 +74,7 @@ public class MockManagedKafkaFactory {
         }
 
         log.info("--------------------------------------------------");
-        for(ManagedKafka mk:this.kafkas.values()) {
+        for (ManagedKafka mk : this.kafkas.values()) {
             log.infof("ManagedKafka: %s, delete requested: %s", mk.getId(), mk.getSpec().isDeleted());
         }
         log.info("--------------------------------------------------");

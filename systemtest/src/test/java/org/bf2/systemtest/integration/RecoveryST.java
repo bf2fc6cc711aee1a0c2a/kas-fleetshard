@@ -43,7 +43,8 @@ public class RecoveryST extends AbstractST {
         var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.createResource(extensionContext,
+                new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
@@ -53,14 +54,20 @@ public class RecoveryST extends AbstractST {
         AssertUtils.assertManagedKafka(mk);
 
         LOGGER.info("Delete resources in namespace {}", mkAppName);
-        kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
+        kube.client()
+                .apps()
+                .deployments()
+                .inNamespace(mkAppName)
+                .withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator")
+                .delete();
         kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False)));
+        assertTrue(resourceManager.waitResourceCondition(mk, m -> ManagedKafkaResourceType.hasConditionStatus(m,
+                ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False)));
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                        ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
+        assertTrue(resourceManager.waitResourceCondition(mk,
+                m -> ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready,
+                        ManagedKafkaCondition.Status.True),
                 TimeoutBudget.ofDuration(Duration.ofMinutes(15))));
 
         AssertUtils.assertManagedKafka(mk);

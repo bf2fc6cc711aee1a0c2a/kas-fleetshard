@@ -24,10 +24,19 @@ public class FleetShardOperatorManager {
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
     private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
 
-    public static final Path ROOT_PATH = Objects.requireNonNullElseGet(Paths.get(System.getProperty("user.dir")).getParent(), () -> Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
-    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
-    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
-    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+    public static final Path ROOT_PATH =
+            Objects.requireNonNullElseGet(Paths.get(System.getProperty("user.dir")).getParent(),
+                    () -> Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
+    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV,
+            Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
+    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get,
+            Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
+    public static final Path CRD_PATH = ROOT_PATH.resolve("api")
+            .resolve("target")
+            .resolve("classes")
+            .resolve("META-INF")
+            .resolve("dekorate")
+            .resolve("kubernetes.yml");
 
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
@@ -49,10 +58,16 @@ public class FleetShardOperatorManager {
             installedCrds = kubeClient.client().load(is).get();
             installedCrds.forEach(crd -> {
                 LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
+                kubeClient.client()
+                        .apiextensions()
+                        .v1beta1()
+                        .customResourceDefinitions()
+                        .createOrReplace((CustomResourceDefinition) crd);
             });
         }
-        kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
+        kubeClient.client()
+                .namespaces()
+                .createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
 
@@ -91,20 +106,38 @@ public class FleetShardOperatorManager {
     public static String createEndpoint(KubeClient kubeClient) {
         String externalEndpointName = SYNC_NAME + "-external";
         if (kubeClient.isGenericKubernetes()) {
-            if (kubeClient.client().services().inNamespace(OPERATOR_NS).list().getItems().stream().anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
+            if (kubeClient.client()
+                    .services()
+                    .inNamespace(OPERATOR_NS)
+                    .list()
+                    .getItems()
+                    .stream()
+                    .anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
                 kubeClient.client().services().inNamespace(OPERATOR_NS).withName(externalEndpointName).delete();
             }
-            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME, "--type=LoadBalancer", "--name", externalEndpointName);
+            kubeClient.cmdClient()
+                    .namespace(OPERATOR_NS)
+                    .execInCurrentNamespace("expose", "service", SYNC_NAME, "--type=LoadBalancer", "--name",
+                            externalEndpointName);
             return new ExecBuilder()
                     .withCommand("minikube", "service", "--url", externalEndpointName, "-n", OPERATOR_NS)
                     .logToOutput(false)
-                    .exec().out().trim();
+                    .exec()
+                    .out()
+                    .trim();
         } else {
             OpenShiftClient openShiftClient = kubeClient.client().adapt(OpenShiftClient.class);
-            if (openShiftClient.routes().inNamespace(OPERATOR_NS).list().getItems().stream().anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
+            if (openShiftClient.routes()
+                    .inNamespace(OPERATOR_NS)
+                    .list()
+                    .getItems()
+                    .stream()
+                    .anyMatch(service -> service.getMetadata().getName().equals(externalEndpointName))) {
                 openShiftClient.routes().inNamespace(OPERATOR_NS).withName(externalEndpointName).delete();
             }
-            kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("expose", "service", SYNC_NAME, "--name", externalEndpointName);
+            kubeClient.cmdClient()
+                    .namespace(OPERATOR_NS)
+                    .execInCurrentNamespace("expose", "service", SYNC_NAME, "--name", externalEndpointName);
             Route r = openShiftClient.routes().inNamespace(OPERATOR_NS).withName(externalEndpointName).get();
             return String.format("%s://%s:%d", r.getSpec().getPort().getTargetPort().getStrVal(),
                     r.getSpec().getHost(),
@@ -115,11 +148,21 @@ public class FleetShardOperatorManager {
     public static void deleteFleetShard(KubeClient kubeClient) throws InterruptedException {
         LOGGER.info("Deleting managedkafkas and kas-fleetshard");
         var mkCli = kubeClient.client().customResources(ManagedKafka.class);
-        mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
+        mkCli.inAnyNamespace()
+                .list()
+                .getItems()
+                .forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace())
+                        .withName(mk.getMetadata().getName())
+                        .delete());
         Thread.sleep(10_000);
         installedCrds.forEach(crd -> {
             LOGGER.info("Delete CRD {}", crd.getMetadata().getName());
-            kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete();
+            kubeClient.client()
+                    .apiextensions()
+                    .v1beta1()
+                    .customResourceDefinitions()
+                    .withName(crd.getMetadata().getName())
+                    .delete();
         });
         LOGGER.info("Crds deleted");
         kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();

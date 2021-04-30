@@ -51,7 +51,8 @@ public class AgentPollerTest {
 
         ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
         local.setStatus(new ManagedKafkaAgentStatusBuilder()
-                .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build()).build());
+                .withRemainingCapacity(new ClusterCapacityBuilder().withConnections(1000).build())
+                .build());
         client.updateStatus(local);
 
         assertEquals("test-token", local.getSpec().getObservability().getAccessToken());

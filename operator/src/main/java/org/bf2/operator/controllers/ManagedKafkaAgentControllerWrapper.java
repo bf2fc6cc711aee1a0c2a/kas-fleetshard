@@ -25,7 +25,8 @@ public class ManagedKafkaAgentControllerWrapper implements ResourceController<Ma
     }
 
     @Override
-    public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
+    public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
+            Context<ManagedKafkaAgent> context) {
         return controller.createOrUpdateResource(resource, context);
     }
 

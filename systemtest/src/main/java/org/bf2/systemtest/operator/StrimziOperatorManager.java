@@ -40,15 +40,24 @@ public class StrimziOperatorManager {
         // @formatter:on
             LOGGER.info("Installing Strimzi : {}", OPERATOR_NS);
 
-            kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
+            kubeClient.client()
+                    .namespaces()
+                    .createOrReplace(
+                            new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
             URL url = new URL("https://strimzi.io/install/latest?namespace=" + OPERATOR_NS);
             List<HasMetadata> opItems = kubeClient.client().load(url.openStream()).get();
 
-            Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
+            Optional<Deployment> operatorDeployment = opItems.stream()
+                    .filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName())
+                            && h.getKind().equals("Deployment"))
+                    .map(Deployment.class::cast)
+                    .findFirst();
             if (operatorDeployment.isPresent()) {
                 Container container = operatorDeployment.get().getSpec().getTemplate().getSpec().getContainers().get(0);
-                List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
-                EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
+                List<EnvVar> env =
+                        new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
+                EnvVar strimziNS =
+                        env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
                 env.remove(strimziNS);
                 env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
                 container.setEnv(env);

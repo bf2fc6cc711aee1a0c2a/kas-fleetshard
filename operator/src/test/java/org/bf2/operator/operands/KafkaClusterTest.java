@@ -66,8 +66,7 @@ class KafkaClusterTest {
                                 .withEndpoint(
                                         new ManagedKafkaEndpointBuilder()
                                                 .withBootstrapServerHost("xxx.yyy.zzz")
-                                                .build()
-                                )
+                                                .build())
                                 .withOauth(
                                         new ManagedKafkaAuthenticationOAuthBuilder()
                                                 .withClientId("clientId")
@@ -76,8 +75,7 @@ class KafkaClusterTest {
                                                 .withJwksEndpointURI("https://jwksEndpointURI")
                                                 .withValidIssuerEndpointURI("https://validIssuerEndpointURI")
                                                 .withUserNameClaim("userNameClaim")
-                                                .build()
-                                )
+                                                .build())
                                 .withNewCapacity()
                                 .withMaxDataRetentionSize(Quantity.parse(size))
                                 .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
@@ -106,7 +104,9 @@ class KafkaClusterTest {
 
         // should change to a larger size
         patch = diffToExpected(larger);
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
+        assertEquals(
+                "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]",
+                patch.toString());
     }
 
     private JsonNode diffToExpected(Kafka kafka) throws IOException, JsonProcessingException, JsonMappingException {

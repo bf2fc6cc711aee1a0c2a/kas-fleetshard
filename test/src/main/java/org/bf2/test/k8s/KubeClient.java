@@ -33,7 +33,6 @@ public class KubeClient {
     private final KubernetesClient client;
     private static KubeClient instance;
 
-
     private KubeClient() {
         this.client = new DefaultKubernetesClient();
         if (isGenericKubernetes()) {
@@ -84,9 +83,9 @@ public class KubeClient {
      * @param streamManipulator replacer
      * @param paths             folders
      */
-    public void apply(String namespace, final Function<InputStream, InputStream> streamManipulator, final Path... paths) throws Exception {
-        loadDirectories(streamManipulator, item ->
-                item.inNamespace(namespace).createOrReplace(), paths);
+    public void apply(String namespace, final Function<InputStream, InputStream> streamManipulator, final Path... paths)
+            throws Exception {
+        loadDirectories(streamManipulator, item -> item.inNamespace(namespace).createOrReplace(), paths);
     }
 
     /**
@@ -105,21 +104,23 @@ public class KubeClient {
      * @param streamManipulator replaces
      * @param paths             folders
      */
-    public void delete(final Function<InputStream, InputStream> streamManipulator, final Path... paths) throws Exception {
-        loadDirectories(streamManipulator, o ->
-                o.fromServer().get().forEach(item ->
-                        client.resource(item).delete()), paths);
+    public void delete(final Function<InputStream, InputStream> streamManipulator, final Path... paths)
+            throws Exception {
+        loadDirectories(streamManipulator, o -> o.fromServer().get().forEach(item -> client.resource(item).delete()),
+                paths);
     }
 
     private void loadDirectories(final Function<InputStream, InputStream> streamManipulator,
-                                 Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer, final Path... paths) throws Exception {
+            Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer,
+            final Path... paths) throws Exception {
         for (Path path : paths) {
             loadDirectory(streamManipulator, consumer, path);
         }
     }
 
     private void loadDirectory(final Function<InputStream, InputStream> streamManipulator,
-                               Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer, final Path path) throws Exception {
+            Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer,
+            final Path path) throws Exception {
 
         LOGGER.info("Loading resources from: {}", path);
 
@@ -133,7 +134,8 @@ public class KubeClient {
                     return FileVisitResult.CONTINUE;
                 }
 
-                if (!file.getFileName().toString().endsWith(".yaml") && !file.getFileName().toString().endsWith(".yml")) {
+                if (!file.getFileName().toString().endsWith(".yaml")
+                        && !file.getFileName().toString().endsWith(".yml")) {
                     LOGGER.info("Skipping file: does not end with '.yaml': {}", file);
                     return FileVisitResult.CONTINUE;
                 }

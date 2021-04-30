@@ -17,9 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ConditionUtilsTest {
 
     @ParameterizedTest
-    @ValueSource(strings = {"Ready"})
+    @ValueSource(strings = { "Ready" })
     void testBuildUpdateCondition(String type) {
-        ManagedKafkaCondition mkcondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), Status.True);
+        ManagedKafkaCondition mkcondition =
+                ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), Status.True);
         assertEquals("True", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());
         ConditionUtils.updateConditionStatus(mkcondition, Status.False, null);
@@ -43,6 +44,7 @@ public class ConditionUtilsTest {
                 .endCondition()
                 .build();
 
-        assertNotNull(ConditionUtils.findManagedKafkaCondition(mks.getConditions(), ManagedKafkaCondition.Type.Ready).get());
+        assertNotNull(
+                ConditionUtils.findManagedKafkaCondition(mks.getConditions(), ManagedKafkaCondition.Type.Ready).get());
     }
 }

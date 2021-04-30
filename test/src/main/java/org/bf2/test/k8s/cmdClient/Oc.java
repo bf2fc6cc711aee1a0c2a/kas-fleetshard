@@ -20,7 +20,8 @@ public class Oc extends BaseCmdKubeClient<Oc> {
 
     private static final String OC = "oc";
 
-    public Oc() { }
+    public Oc() {
+    }
 
     private Oc(String futureNamespace) {
         namespace = futureNamespace;

@@ -19,7 +19,10 @@ public class AssertUtils {
         KubeClient kube = KubeClient.getInstance();
         var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
 
-        assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
+        assertNotNull(ManagedKafkaResourceType.getOperation()
+                .inNamespace(mk.getMetadata().getNamespace())
+                .withName(mk.getMetadata().getName())
+                .get());
         assertNotNull(kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
         assertTrue(kube.client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().size() > 0);
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
@@ -33,11 +36,15 @@ public class AssertUtils {
 
     public static void assertManagedKafkaStatus(ManagedKafka mk, ManagedKafkaStatus mkStatus) {
         assertEquals(mk.getStatus().getAdminServerURI(), mkStatus.getAdminServerURI());
-        assertEquals(mk.getStatus().getCapacity().getTotalMaxConnections(), mkStatus.getCapacity().getTotalMaxConnections());
-        assertEquals(mk.getStatus().getCapacity().getIngressEgressThroughputPerSec(), mkStatus.getCapacity().getIngressEgressThroughputPerSec());
-        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionPeriod(), mkStatus.getCapacity().getMaxDataRetentionPeriod());
+        assertEquals(mk.getStatus().getCapacity().getTotalMaxConnections(),
+                mkStatus.getCapacity().getTotalMaxConnections());
+        assertEquals(mk.getStatus().getCapacity().getIngressEgressThroughputPerSec(),
+                mkStatus.getCapacity().getIngressEgressThroughputPerSec());
+        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionPeriod(),
+                mkStatus.getCapacity().getMaxDataRetentionPeriod());
         assertEquals(mk.getStatus().getCapacity().getMaxPartitions(), mkStatus.getCapacity().getMaxPartitions());
-        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionSize(), mkStatus.getCapacity().getMaxDataRetentionSize());
+        assertEquals(mk.getStatus().getCapacity().getMaxDataRetentionSize(),
+                mkStatus.getCapacity().getMaxDataRetentionSize());
         mkStatus.getConditions()
                 .forEach(condition -> assertTrue(ManagedKafkaResourceType.hasConditionStatus(mk,
                         ManagedKafkaCondition.Type.valueOf(condition.getType()),

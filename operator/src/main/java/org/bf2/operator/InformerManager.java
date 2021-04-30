@@ -63,7 +63,6 @@ public class InformerManager {
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
 
-
     boolean isOpenShift() {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
     }
@@ -76,13 +75,14 @@ public class InformerManager {
                         .withLabels(OperandUtils.getDefaultLabels())
                         .withIsNamespaceConfiguredFromGlobalConfig(true);
 
-        kafkaInformer =  new ResourceInformer<>(
+        kafkaInformer = new ResourceInformer<>(
                 sharedInformerFactory.sharedIndexInformerFor(Kafka.class, KafkaList.class, operationContext, 0),
                 kafkaEventSource,
                 () -> filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), Kafka.class);
 
         deploymentInformer = new ResourceInformer<>(
-                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext, 0),
+                sharedInformerFactory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, operationContext,
+                        0),
                 deploymentEventSource,
                 () -> filter(kubernetesClient.apps().deployments()), Deployment.class);
 

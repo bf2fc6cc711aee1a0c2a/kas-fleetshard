@@ -61,10 +61,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     KafkaInstance kafkaInstance;
 
     @Override
-    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
-    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "The number of delete events")
+    @Timed(
+            value = "controller.delete",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "Time spent processing delete events")
+    @Counted(
+            value = "controller.delete",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "The number of delete events")
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(),
+                managedKafka.getMetadata().getName());
         return DeleteControl.DEFAULT_DELETE;
     }
 
@@ -73,11 +80,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         if (managedKafka.getSpec().isDeleted()) {
             // check that it's actually not deleted yet, so operands are gone
             if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(),
+                        managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(),
+                        context.getEvents().getList());
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
-            log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+            log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(),
+                    managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(),
+                    context.getEvents().getList());
             kafkaInstance.createOrUpdate(managedKafka);
         }
     }
@@ -89,9 +100,16 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * This strategy is straight-forward and works well as long as few events are expected.
      */
     @Override
-    @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing createOrUpdate calls")
-    @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "The number of createOrUpdate calls")
-    public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    @Timed(
+            value = "controller.update",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "Time spent processing createOrUpdate calls")
+    @Counted(
+            value = "controller.update",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "The number of createOrUpdate calls")
+    public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka,
+            Context<ManagedKafka> context) {
         handleUpdate(managedKafka, context);
         updateManagedKafkaStatus(managedKafka);
         return UpdateControl.updateStatusSubResource(managedKafka);
@@ -120,7 +138,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         // add status if not already available on the ManagedKafka resource
         ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
                 new ManagedKafkaStatusBuilder()
-                .build());
+                        .build());
         status.setUpdatedTimestamp(ConditionUtils.iso8601Now());
         managedKafka.setStatus(status);
 
@@ -151,7 +169,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             ConditionUtils.updateConditionStatus(ready, Status.True, null);
 
             // TODO: just reflecting for now what was defined in the spec
-            managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
+            managedKafka.getStatus()
+                    .setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
             managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
             managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
 

@@ -39,7 +39,8 @@ public class ManagedKafkaST extends AbstractST {
         String mkAppName = "mk-test-create";
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.createResource(extensionContext,
+                new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
@@ -54,7 +55,8 @@ public class ManagedKafkaST extends AbstractST {
         String mkAppName = "mk-test-create-delete";
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.createResource(extensionContext,
+                new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);

@@ -20,7 +20,7 @@ public class ConditionUtils {
      * @return condition found if any
      */
     public static Optional<ManagedKafkaCondition> findManagedKafkaCondition(List<ManagedKafkaCondition> conditions,
-                                                                            ManagedKafkaCondition.Type type) {
+            ManagedKafkaCondition.Type type) {
         return conditions == null ? Optional.empty()
                 : conditions.stream().filter(c -> c.getType().equals(type.name())).findFirst();
     }
@@ -32,7 +32,8 @@ public class ConditionUtils {
      * @param status condition status
      * @return created ManagedKafkaCondition
      */
-    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
+    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type,
+            ManagedKafkaCondition.Status status) {
         return new ManagedKafkaConditionBuilder()
                 .withType(type.name())
                 .withStatus(status.name())
@@ -47,8 +48,10 @@ public class ConditionUtils {
      * @param newStatus new status to update
      * @param newReason new reason to update
      */
-    public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus, ManagedKafkaCondition.Reason newReason) {
-        if (!Objects.equals(condition.getStatus(), newStatus == null ? null : newStatus.name()) || !Objects.equals(condition.getReason(), newReason == null ? null : newReason.name())) {
+    public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus,
+            ManagedKafkaCondition.Reason newReason) {
+        if (!Objects.equals(condition.getStatus(), newStatus == null ? null : newStatus.name())
+                || !Objects.equals(condition.getReason(), newReason == null ? null : newReason.name())) {
             condition.setStatus(newStatus);
             condition.setLastTransitionTime(ConditionUtils.iso8601Now());
             condition.reason(newReason).setMessage(null);

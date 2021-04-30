@@ -125,7 +125,7 @@ public class ControlPlane {
      */
     public List<ManagedKafka> getKafkaClusters() {
         ManagedKafkaList result = controlPlaneClient.getKafkaClusters(id);
-        result.getItems().forEach((mk)->addDesiredState(mk));
+        result.getItems().forEach((mk) -> addDesiredState(mk));
         return result.getItems();
     }
 
@@ -146,7 +146,8 @@ public class ControlPlane {
                 return Collections.emptyMap();
             }
             // for consistency we'll send an empty status
-            return Map.<String, ManagedKafkaStatus>of(clusterId, requireNonNullElse(kafka.getStatus(), EMPTY_MANAGED_KAFKA_STATUS));
+            return Map.<String, ManagedKafkaStatus>of(clusterId,
+                    requireNonNullElse(kafka.getStatus(), EMPTY_MANAGED_KAFKA_STATUS));
         });
     }
 
@@ -173,7 +174,8 @@ public class ControlPlane {
      * newManagedKafka is expected to be non-null as deletes are not processed
      */
     public void updateKafkaClusterStatus(ManagedKafka oldManagedKafka, ManagedKafka newManagedKafka) {
-        if (newManagedKafka.getId() != null && oldManagedKafka != null && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
+        if (newManagedKafka.getId() != null && oldManagedKafka != null
+                && statusChanged(oldManagedKafka.getStatus(), newManagedKafka.getStatus())) {
             // send a status update immediately (async)
             updateKafkaClusterStatus(Cache.metaNamespaceKeyFunc(newManagedKafka), newManagedKafka.getId());
         }
@@ -197,7 +199,9 @@ public class ControlPlane {
     public void sendResync() {
         log.debug("Updating status on resync interval");
         updateKafkaClusterStatus(() -> {
-            return localLookup.getLocalManagedKafkas().stream().filter(mk -> mk.getId() != null)
+            return localLookup.getLocalManagedKafkas()
+                    .stream()
+                    .filter(mk -> mk.getId() != null)
                     .collect(Collectors.toMap(ManagedKafka::getId,
                             (mk) -> requireNonNullElse(mk.getStatus(), EMPTY_MANAGED_KAFKA_STATUS)));
         });

@@ -47,7 +47,8 @@ public class TestUtils {
      * @param onTimeout      lambda method which is called when timeout is reached
      * @return
      */
-    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready, Runnable onTimeout) {
+    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready,
+            Runnable onTimeout) {
         LOGGER.debug("Waiting for {}", description);
         long deadline = System.currentTimeMillis() + timeoutMs;
         while (true) {
@@ -63,13 +64,15 @@ public class TestUtils {
             }
             if (timeLeft <= 0) {
                 onTimeout.run();
-                WaitException waitException = new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
+                WaitException waitException =
+                        new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
                 waitException.printStackTrace();
                 throw waitException;
             }
             long sleepTime = Math.min(pollIntervalMs, timeLeft);
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("{} not ready, will try again in {} ms ({}ms till timeout)", description, sleepTime, timeLeft);
+                LOGGER.trace("{} not ready, will try again in {} ms ({}ms till timeout)", description, sleepTime,
+                        timeLeft);
             }
             try {
                 Thread.sleep(sleepTime);
@@ -83,8 +86,9 @@ public class TestUtils {
         File yamlFile = File.createTempFile("temp-file", ".yaml");
 
         try (InputStream bais = (InputStream) URI.create(url).toURL().openConnection().getContent();
-             BufferedReader br = new BufferedReader(new InputStreamReader(bais, StandardCharsets.UTF_8));
-             OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
+                BufferedReader br = new BufferedReader(new InputStreamReader(bais, StandardCharsets.UTF_8));
+                OutputStreamWriter osw =
+                        new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
 
             StringBuilder sb = new StringBuilder();
 
@@ -107,7 +111,8 @@ public class TestUtils {
         return null;
     }
 
-    public static File replaceStringInYaml(String pathToOrigin, String originalns, String namespace) throws IOException {
+    public static File replaceStringInYaml(String pathToOrigin, String originalns, String namespace)
+            throws IOException {
         byte[] encoded;
         File yamlFile = File.createTempFile("temp-file", ".yaml");
 

@@ -41,13 +41,17 @@ public class ObservabilityManager {
 
     static SecretBuilder createObservabilitySecretBuilder(String namespace, ObservabilityConfiguration observability) {
         Map<String, String> data = new HashMap<>(2);
-        data.put(OBSERVABILITY_ACCESS_TOKEN, encoder.encodeToString(observability.getAccessToken().getBytes(StandardCharsets.UTF_8)));
-        data.put(OBSERVABILITY_REPOSITORY, encoder.encodeToString(observability.getRepository().getBytes(StandardCharsets.UTF_8)));
+        data.put(OBSERVABILITY_ACCESS_TOKEN,
+                encoder.encodeToString(observability.getAccessToken().getBytes(StandardCharsets.UTF_8)));
+        data.put(OBSERVABILITY_REPOSITORY,
+                encoder.encodeToString(observability.getRepository().getBytes(StandardCharsets.UTF_8)));
         if (observability.getChannel() != null) {
-            data.put(OBSERVABILITY_CHANNEL, encoder.encodeToString(observability.getChannel().getBytes(StandardCharsets.UTF_8)));
+            data.put(OBSERVABILITY_CHANNEL,
+                    encoder.encodeToString(observability.getChannel().getBytes(StandardCharsets.UTF_8)));
         }
         if (observability.getTag() != null) {
-            data.put(OBSERVABILITY_TAG, encoder.encodeToString(observability.getTag().getBytes(StandardCharsets.UTF_8)));
+            data.put(OBSERVABILITY_TAG,
+                    encoder.encodeToString(observability.getTag().getBytes(StandardCharsets.UTF_8)));
         }
         // @formatter:off
         return new SecretBuilder()
@@ -62,7 +66,8 @@ public class ObservabilityManager {
     }
 
     static boolean isObservabilityStatusAccepted(Secret cm) {
-        Map<String, String> annotations = Objects.requireNonNullElse(cm.getMetadata().getAnnotations(), Collections.emptyMap());
+        Map<String, String> annotations =
+                Objects.requireNonNullElse(cm.getMetadata().getAnnotations(), Collections.emptyMap());
         String status = annotations.get(OBSERVABILITY_OPERATOR_STATUS);
         return ACCEPTED.equalsIgnoreCase(status);
     }

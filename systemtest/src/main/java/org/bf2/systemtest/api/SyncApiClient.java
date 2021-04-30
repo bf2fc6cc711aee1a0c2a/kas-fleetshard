@@ -35,7 +35,8 @@ public class SyncApiClient {
     public static HttpResponse<String> deleteManagedKafka(String id, String endpoint) throws Exception {
         LOGGER.info("Delete managed kafka {}", id);
         URI uri = URI.create(endpoint + "/api/managed-services-api/v1/agent-clusters/pepa/kafkas/" + id);
-        LOGGER.info("Sending DELETE request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
+        LOGGER.info("Sending DELETE request to {} with port {} and path {}", uri.getHost(), uri.getPort(),
+                uri.getPath());
 
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
@@ -78,7 +79,8 @@ public class SyncApiClient {
         for (int i = 1; i < MAX_RESEND; i++) {
             try {
                 var res = apiRequest.get();
-                if (res.statusCode() >= HttpURLConnection.HTTP_OK && res.statusCode() <= HttpURLConnection.HTTP_PARTIAL) {
+                if (res.statusCode() >= HttpURLConnection.HTTP_OK
+                        && res.statusCode() <= HttpURLConnection.HTTP_PARTIAL) {
                     return res;
                 } else {
                     throw new Exception("Status code is " + res.statusCode());

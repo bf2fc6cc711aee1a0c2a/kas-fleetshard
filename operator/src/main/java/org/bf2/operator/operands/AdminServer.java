@@ -92,7 +92,8 @@ public class AdminServer extends AbstractAdminServer {
             // Admin Server route resource doesn't exist, has to be created
             if (openShiftClient.routes()
                     .inNamespace(route.getMetadata().getNamespace())
-                    .withName(route.getMetadata().getName()).get() == null) {
+                    .withName(route.getMetadata().getName())
+                    .get() == null) {
                 openShiftClient.routes().inNamespace(route.getMetadata().getNamespace()).create(route);
                 // Admin Server route resource already exists, has to be updated
             } else {
@@ -142,7 +143,7 @@ public class AdminServer extends AbstractAdminServer {
                 .endSpec()
                 .build();
         // @formatter:on
-        
+
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
         OperandUtils.setAsOwner(managedKafka, deployment);
@@ -244,10 +245,9 @@ public class AdminServer extends AbstractAdminServer {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
-                        .withPath("/health/liveness")
-                        .withPort(new IntOrString(8080))
-                        .build()
-                )
+                                .withPath("/health/liveness")
+                                .withPort(new IntOrString(8080))
+                                .build())
                 .withTimeoutSeconds(5)
                 .withInitialDelaySeconds(15)
                 .build();
@@ -273,7 +273,9 @@ public class AdminServer extends AbstractAdminServer {
 
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(1);
-        envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095").build());
+        envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS")
+                .withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095")
+                .build());
         if (corsAllowList.isPresent()) {
             envVars.add(new EnvVarBuilder().withName("CORS_ALLOW_LIST_REGEX").withValue(corsAllowList.get()).build());
         }
@@ -285,7 +287,11 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<ServicePort> getServicePorts() {
-        return Collections.singletonList(new ServicePortBuilder().withName("http").withProtocol("TCP").withPort(8080).withTargetPort(new IntOrString("http")).build());
+        return Collections.singletonList(new ServicePortBuilder().withName("http")
+                .withProtocol("TCP")
+                .withPort(8080)
+                .withTargetPort(new IntOrString("http"))
+                .build());
     }
 
     private ResourceRequirements getResources() {

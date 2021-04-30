@@ -6,8 +6,7 @@ import lombok.ToString;
 
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
-        editableEnabled = false
-)
+        editableEnabled = false)
 @ToString
 @EqualsAndHashCode
 public class ManagedKafkaAgentSpec {

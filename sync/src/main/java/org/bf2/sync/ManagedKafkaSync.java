@@ -64,8 +64,14 @@ public class ManagedKafkaSync {
      * Then execute that deferred work using the {@link ManagedExecutor} but with
      * a refresh of the state to ensure we're still acting appropriately.
      */
-    @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafka"}, description = "The time spent processing polling calls")
-    @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafka"}, description = "The number of polling calls")
+    @Timed(
+            value = "sync.poll",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "The time spent processing polling calls")
+    @Counted(
+            value = "sync.poll",
+            extraTags = { "resource", "ManagedKafka" },
+            description = "The number of polling calls")
     public void syncKafkaClusters() {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
@@ -77,7 +83,8 @@ public class ManagedKafkaSync {
             ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
             Objects.requireNonNull(remoteSpec);
 
-            String localKey = Cache.namespaceKeyFunc(remoteManagedKafka.getMetadata().getNamespace(), remoteManagedKafka.getMetadata().getName());
+            String localKey = Cache.namespaceKeyFunc(remoteManagedKafka.getMetadata().getNamespace(),
+                    remoteManagedKafka.getMetadata().getName());
             ManagedKafka existing = lookup.getLocalManagedKafka(localKey);
 
             // take action based upon differences
@@ -93,11 +100,15 @@ public class ManagedKafkaSync {
                     // we need to send another status update to let them know
 
                     ManagedKafkaStatusBuilder statusBuilder = new ManagedKafkaStatusBuilder();
-                    statusBuilder.withConditions(ConditionUtils.buildCondition(Type.Ready, Status.False).reason(Reason.Deleted));
+                    statusBuilder.withConditions(
+                            ConditionUtils.buildCondition(Type.Ready, Status.False).reason(Reason.Deleted));
                     // fire and forget the async call - if it fails, we'll retry on the next poll
-                    controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
+                    controlPlane.updateKafkaClusterStatus(() -> {
+                        return Map.of(remoteManagedKafka.getId(), statusBuilder.build());
+                    });
                 }
-            } else if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
+            } else if (specChanged(remoteSpec, existing)
+                    || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
                 reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
             }
         }
@@ -120,10 +131,12 @@ public class ManagedKafkaSync {
         if (!local.getSpec().isDeleted()) {
             if (local.getStatus() != null
                     && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Ready)
-                            .filter(c -> Reason.Rejected.name().equals(c.getReason())).isPresent()) {
+                            .filter(c -> Reason.Rejected.name().equals(c.getReason()))
+                            .isPresent()) {
                 return true;
             }
-            log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted", Cache.metaNamespaceKeyFunc(local));
+            log.warnf("Control plane wants to fully remove %s, but it's not marked as fully deleted",
+                    Cache.metaNamespaceKeyFunc(local));
             return false;
         }
         return true;
@@ -179,16 +192,17 @@ public class ManagedKafkaSync {
             }
         } else {
             if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {
-                log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
+                log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement",
+                        local.getPlacementId());
                 return;
             }
             if (specChanged(remote.getSpec(), local)) {
                 log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
                 ManagedKafkaSpec spec = remote.getSpec();
                 client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                        mk.setSpec(spec);
-                        return mk;
-                    });
+                    mk.setSpec(spec);
+                    return mk;
+                });
                 // the operator will handle it from here
             }
         }
@@ -210,13 +224,14 @@ public class ManagedKafkaSync {
         // log after the namespace is set
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
 
-        kubeClient.namespaces().createOrReplace(
-                new NamespaceBuilder()
-                        .withNewMetadata()
-                            .withName(remote.getMetadata().getNamespace())
-                            .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
-                        .endMetadata()
-                        .build());
+        kubeClient.namespaces()
+                .createOrReplace(
+                        new NamespaceBuilder()
+                                .withNewMetadata()
+                                .withName(remote.getMetadata().getNamespace())
+                                .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
+                                .endMetadata()
+                                .build());
 
         try {
             client.create(remote);

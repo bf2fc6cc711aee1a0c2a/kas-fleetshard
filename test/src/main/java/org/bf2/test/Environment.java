@@ -47,12 +47,12 @@ public class Environment {
     private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
     private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
 
-
     /*
      * Setup constants from env variables or set default
      */
     public static final String SUITE_ROOT = System.getProperty("user.dir");
-    public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs")).resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
+    public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(SUITE_ROOT, "target", "logs"))
+            .resolve("test-run-" + DATE_FORMAT.format(LocalDateTime.now()));
 
     public static final String BOOTSTRAP_HOST_DOMAIN = getOrDefault(BOOTSTRAP_HOST_DOMAIN_ENV, "my-domain.com");
     public static final String OAUTH_CLIENT_SECRET = getOrDefault(OAUTH_CLIENT_SECRET_ENV, "client_secret");
@@ -64,7 +64,6 @@ public class Environment {
     public static final String OAUTH_TLS_CERT = getOrDefault(OAUTH_TLS_CERT_ENV, "cert");
     public static final String ENDPOINT_TLS_CERT = getOrDefault(ENDPOINT_TLS_CERT_ENV, "cert");
     public static final String ENDPOINT_TLS_KEY = getOrDefault(ENDPOINT_TLS_KEY_ENV, "key");
-
 
     private Environment() {
     }
@@ -98,11 +97,8 @@ public class Environment {
      * @return value of variable fin defined data type
      */
     public static <T> T getOrDefault(String var, Function<String, T> converter, T defaultValue) {
-        String value = System.getenv(var) != null ?
-                System.getenv(var) :
-                (Objects.requireNonNull(JSON_DATA).get(var) != null ?
-                        JSON_DATA.get(var).asText() :
-                        null);
+        String value = System.getenv(var) != null ? System.getenv(var)
+                : (Objects.requireNonNull(JSON_DATA).get(var) != null ? JSON_DATA.get(var).asText() : null);
         T returnValue = defaultValue;
         if (value != null) {
             returnValue = converter.apply(value);
@@ -117,8 +113,9 @@ public class Environment {
      * @return json object with loaded variables
      */
     private static JsonNode loadConfigurationFile() {
-        config = System.getenv().getOrDefault(CONFIG_FILE_PATH_ENV,
-                Paths.get(System.getProperty("user.dir"), "config.json").toAbsolutePath().toString());
+        config = System.getenv()
+                .getOrDefault(CONFIG_FILE_PATH_ENV,
+                        Paths.get(System.getProperty("user.dir"), "config.json").toAbsolutePath().toString());
         ObjectMapper mapper = new ObjectMapper();
         try {
             File jsonFile = new File(config).getAbsoluteFile();

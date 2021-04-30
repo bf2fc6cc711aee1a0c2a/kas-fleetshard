@@ -22,6 +22,7 @@ public class KasFleetShardOperator implements QuarkusApplication {
 
     @Inject
     ManagedKafkaController managedKafkaController;
+
     @Override
     public int run(String... args) throws Exception {
         log.info("kas fleetshard operator");

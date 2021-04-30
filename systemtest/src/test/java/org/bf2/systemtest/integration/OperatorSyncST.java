@@ -61,11 +61,13 @@ public class OperatorSyncST extends AbstractST {
         doTestUsingSync(extensionContext, mkAppName, true);
     }
 
-    private void doTestUsingSync(ExtensionContext extensionContext, String mkAppName, boolean restartApi) throws Exception {
+    private void doTestUsingSync(ExtensionContext extensionContext, String mkAppName, boolean restartApi)
+            throws Exception {
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
 
         //Create mk using api
-        resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.addResource(extensionContext,
+                new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
         resourceManager.addResource(extensionContext, mk);
 
         if (restartApi) {
@@ -75,8 +77,8 @@ public class OperatorSyncST extends AbstractST {
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
+        assertTrue(resourceManager.waitResourceCondition(mk, m -> ManagedKafkaResourceType.hasConditionStatus(m,
+                ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
         if (restartApi) {
@@ -90,7 +92,8 @@ public class OperatorSyncST extends AbstractST {
                 if (statusBody.isEmpty()) {
                     return false;
                 }
-                ManagedKafkaStatus apiStatus = Serialization.jsonMapper().readValue(statusBody, ManagedKafkaStatus.class);
+                ManagedKafkaStatus apiStatus =
+                        Serialization.jsonMapper().readValue(statusBody, ManagedKafkaStatus.class);
                 return ManagedKafkaResourceType.hasConditionStatus(apiStatus, ManagedKafkaCondition.Type.Ready,
                         ManagedKafkaCondition.Status.True);
             } catch (Exception e) {
@@ -100,8 +103,10 @@ public class OperatorSyncST extends AbstractST {
 
         //Get status and compare with CR status
         ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(), ManagedKafkaStatus.class);
-        ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
+                .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(),
+                        ManagedKafkaStatus.class);
+        ManagedKafka managedKafka =
+                ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
 
         AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
 
@@ -111,7 +116,8 @@ public class OperatorSyncST extends AbstractST {
 
         //Get agent status
         ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
+                .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(),
+                        ManagedKafkaAgentStatus.class);
 
         AssertUtils.assertManagedKafkaAgentStatus(agentStatus);
 
@@ -147,9 +153,19 @@ public class OperatorSyncST extends AbstractST {
             if (!kube.isGenericKubernetes()) {
                 kube.client().pods().inNamespace("openshift-apiserver").delete();
             }
-            kube.client().pods().inNamespace(apiNamespace).list().getItems().stream().filter(pod ->
-                    pod.getMetadata().getName().contains("kube-apiserver-")).forEach(pod ->
-                    kube.client().pods().inNamespace(apiNamespace).withName(pod.getMetadata().getName()).withGracePeriod(1000).delete());
+            kube.client()
+                    .pods()
+                    .inNamespace(apiNamespace)
+                    .list()
+                    .getItems()
+                    .stream()
+                    .filter(pod -> pod.getMetadata().getName().contains("kube-apiserver-"))
+                    .forEach(pod -> kube.client()
+                            .pods()
+                            .inNamespace(apiNamespace)
+                            .withName(pod.getMetadata().getName())
+                            .withGracePeriod(1000)
+                            .delete());
             Thread.sleep(500);
         }
     }

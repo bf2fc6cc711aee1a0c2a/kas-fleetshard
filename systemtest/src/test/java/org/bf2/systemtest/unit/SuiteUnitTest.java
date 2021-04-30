@@ -41,10 +41,17 @@ public class SuiteUnitTest extends AbstractST {
     @BeforeAll
     void setupMockServer() {
         PodList expectedPodList = new PodListBuilder().withItems(
-                new PodBuilder().withNewMetadata().withName("pod1").withNamespace(TEST_NS).endMetadata()
+                new PodBuilder().withNewMetadata()
+                        .withName("pod1")
+                        .withNamespace(TEST_NS)
+                        .endMetadata()
                         .build(),
-                new PodBuilder().withNewMetadata().withName("pod2").withNamespace(TEST_NS).endMetadata()
-                        .build()).build();
+                new PodBuilder().withNewMetadata()
+                        .withName("pod2")
+                        .withNamespace(TEST_NS)
+                        .endMetadata()
+                        .build())
+                .build();
         for (Pod p : expectedPodList.getItems()) {
             server.getClient().pods().inNamespace(TEST_NS).create(p);
         }
