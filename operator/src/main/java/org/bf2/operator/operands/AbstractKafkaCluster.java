@@ -33,6 +33,7 @@ import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -40,6 +41,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public static final int KAFKA_BROKERS = 3;
     public static final int ZOOKEEPER_NODES = 3;
+    private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
+    private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
 
     @Inject
     Logger log;
@@ -181,6 +184,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
+        // Limit client connections per listener
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), DEFAULT_MAX_CONNECTIONS);
+        // Limit connection attempts per listener
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), DEFAULT_CONNECTION_ATTEMPTS_PER_SEC);
+
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
                         new GenericKafkaListenerBuilder()
@@ -203,6 +211,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                                 )
                                                 .withBrokers(getBrokerOverrides(managedKafka))
                                                 .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka))
+                                                .withMaxConnections(totalMaxConnections)
+                                                .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec)
                                                 .build()
                                 )
                                 .build(),

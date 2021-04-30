@@ -44,6 +44,8 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
+        maxConnections: 500
+        maxConnectionCreationRate: 100
         bootstrap:
           host: "xxx.yyy.zzz"
         brokers:
@@ -98,8 +100,6 @@ spec:
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.static.disable-quota-anonymous: "true"
       default.replication.factor: 3
-      max.connections.creation.rate: "33"
-      max.connections: "166"
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "699050"
       leader.imbalance.per.broker.percentage: 0
