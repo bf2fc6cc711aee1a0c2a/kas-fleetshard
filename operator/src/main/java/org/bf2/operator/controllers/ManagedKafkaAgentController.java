@@ -21,7 +21,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.jboss.logging.Logger;
@@ -80,7 +81,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
-    @Scheduled(every = "{agent.calculate-cluster-capacity.interval}", delayed = "5s")
+    @Scheduled(every = "{agent.status.interval}", delayed = "5s")
     void statusUpdateLoop() {
         if (!manager.isReady()) {
             log.debug("Not ready to update agent status, the informers are not reader");
@@ -101,11 +102,17 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
      * @return
      */
     private ManagedKafkaAgentStatus buildStatus(ManagedKafkaAgent resource) {
-        ManagedKafkaCondition readyCondition = new ManagedKafkaConditionBuilder()
-                .withType(ManagedKafkaCondition.Type.Ready.name())
-                .withStatus(this.observabilityManager.isObservabilityRunning() ? "True" : "False")
-                .withLastTransitionTime(ConditionUtils.iso8601Now())
-                .build();
+        ManagedKafkaAgentStatus status = resource.getStatus();
+        ManagedKafkaCondition readyCondition = null;
+        if (status != null) {
+            readyCondition = ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Ready).orElse(null);
+        }
+        Status statusValue = this.observabilityManager.isObservabilityRunning()?ManagedKafkaCondition.Status.True:ManagedKafkaCondition.Status.False;
+        if (readyCondition == null) {
+            readyCondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, statusValue);
+        } else {
+            ConditionUtils.updateConditionStatus(readyCondition, statusValue, null);
+        }
 
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
@@ -146,6 +153,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .withRemainingCapacity(remaining)
                 .withRequiredNodeSizes(nodeInfo)
                 .withResizeInfo(resize)
+                .withUpdatedTimestamp(ConditionUtils.iso8601Now())
                 .build();
     }
 }
