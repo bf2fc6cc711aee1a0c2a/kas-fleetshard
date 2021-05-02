@@ -9,7 +9,7 @@
 
 ```shell
 kubectl create namespace kafka
-kubectl apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
+kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ```
 
 The first step is to install the operator allowing the `dekorate` plugin to generate the `ManagedKafka` CRD.
