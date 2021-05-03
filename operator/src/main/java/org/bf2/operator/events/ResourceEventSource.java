@@ -40,11 +40,11 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
 
     protected void handleEvent(HasMetadata resource) {
         // the operator may not have inited yet
-        if (eventHandler != null
-                // observability secret does not have an owner reference
-                && !resource.getMetadata().getOwnerReferences().isEmpty()) {
+        if (eventHandler != null) {
+            if(resource.getMetadata().getOwnerReferences().isEmpty()) {
+                log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+            }
             eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this));
         }
     }
-
 }

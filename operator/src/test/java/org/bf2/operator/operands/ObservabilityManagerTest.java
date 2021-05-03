@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -41,7 +42,16 @@ public class ObservabilityManagerTest {
                 .withTag("tag")
                 .build();
 
-        this.observabilityManager.createOrUpdateObservabilitySecret(config);
+        String ownerName = "SampleOwner";
+        Secret owner = client.secrets().inNamespace(client.getNamespace()).withName(ownerName)
+            .create(new SecretBuilder()
+                .withNewMetadata()
+                .withNamespace(client.getNamespace())
+                .withName(ownerName)
+            .endMetadata()
+            .addToData("key", "value").build());
+
+        this.observabilityManager.createOrUpdateObservabilitySecret(config, owner);
 
         // lets call event handler
         Secret secret = observabilityManager.observabilitySecretResource().get();
@@ -51,6 +61,7 @@ public class ObservabilityManagerTest {
         // not be seen as running
         assertNotNull(observabilityManager.cachedObservabilitySecret());
         assertFalse(observabilityManager.isObservabilityRunning());
+        assertFalse(secret.getMetadata().getOwnerReferences().isEmpty());
 
         ObservabilityConfiguration secretConfig = new ObservabilityConfigurationBuilder()
                 .withAccessToken(new String(decoder.decode(secret.getData().get(ObservabilityManager.OBSERVABILITY_ACCESS_TOKEN))))
@@ -71,7 +82,7 @@ public class ObservabilityManagerTest {
         secret = observabilityManager.observabilitySecretResource().get();
         assertTrue(ObservabilityManager.isObservabilityStatusAccepted(secret));
 
-        this.observabilityManager.createOrUpdateObservabilitySecret(config);
+        this.observabilityManager.createOrUpdateObservabilitySecret(config, owner);
 
         // no-op update and make sure the flag is not flipped
         secret = observabilityManager.observabilitySecretResource().get();

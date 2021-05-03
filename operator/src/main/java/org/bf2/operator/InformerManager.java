@@ -17,9 +17,9 @@ import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.operator.events.ResourceEventSource;
-import org.bf2.operator.operands.OperandUtils;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
