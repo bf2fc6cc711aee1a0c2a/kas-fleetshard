@@ -111,7 +111,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     }
 
     public static void isDeleted(ManagedKafka mk) {
-        TestUtils.waitFor("Managed kafka is removed", 1_000, 300_000, () -> {
+        TestUtils.waitFor("Managed kafka is removed", 1_000, 600_000, () -> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get();
             List<Pod> pods = KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems();
             return m == null && pods.size() == 0;

@@ -91,8 +91,8 @@ public class ManagedKafkaST extends AbstractST {
         AssertUtils.assertManagedKafka(mk);
 
         LOGGER.info("Delete resources in namespace {}", mkAppName);
-        kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
-        kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", "kas-fleetshard-operator").delete();
+        kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
+        kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
 
         assertTrue(resourceManager.waitResourceCondition(mk, m ->
                 ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False)));
@@ -106,71 +106,78 @@ public class ManagedKafkaST extends AbstractST {
 
     @SequentialTest
     void testCreateManagedKafkaRestartKubeApi(ExtensionContext extensionContext) throws Exception {
-        String mkAppName = "mk-test-restart-kubeapi";
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
-
         ExecutorService executor = Executors.newFixedThreadPool(1);
+        try {
+            String mkAppName = "mk-test-restart-kubeapi";
+            ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
 
-        //Create mk using api
-        resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
-        resourceManager.addResource(extensionContext, mk);
+            //start restarting kubeapi
+            executor.execute(TestUtils::restartKubeApi);
+            Thread.sleep(5_000);
 
-        //start restarting kubeapi
-        executor.execute(TestUtils::restartKubeApi);
+            //Create mk using api
+            resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+            resourceManager.addResource(extensionContext, mk);
 
-        HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
-        assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
+            HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
+            assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
-        //stop restarting kubeapi
-        executor.shutdown();
+            //stop restarting kubeapi
+            executor.shutdownNow();
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
-        LOGGER.info("ManagedKafka {} created", mkAppName);
+            assertTrue(resourceManager.waitResourceCondition(mk, m ->
+                            ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
+                    TimeoutBudget.ofDuration(Duration.ofMinutes(15))));
+            LOGGER.info("ManagedKafka {} created", mkAppName);
 
-        // wait for the sync to be up-to-date
-        TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, () -> {
-            try {
-                String statusBody = SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body();
-                if (statusBody.isEmpty()) {
-                    return false;
+            // wait for the sync to be up-to-date
+            TestUtils.waitFor("Managed kafka status sync", 1_000, 60_000, () -> {
+                try {
+                    String statusBody = SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body();
+                    if (statusBody.isEmpty()) {
+                        return false;
+                    }
+                    ManagedKafkaStatus apiStatus = Serialization.jsonMapper().readValue(statusBody, ManagedKafkaStatus.class);
+                    return ManagedKafkaResourceType.hasConditionStatus(apiStatus, ManagedKafkaCondition.Type.Ready,
+                            ManagedKafkaCondition.Status.True);
+                } catch (Exception e) {
+                    throw new AssertionError(e);
                 }
-                ManagedKafkaStatus apiStatus = Serialization.jsonMapper().readValue(statusBody, ManagedKafkaStatus.class);
-                return ManagedKafkaResourceType.hasConditionStatus(apiStatus, ManagedKafkaCondition.Type.Ready,
-                        ManagedKafkaCondition.Status.True);
-            } catch (Exception e) {
-                throw new AssertionError(e);
-            }
-        });
+            });
 
-        //Get status and compare with CR status
-        ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(), ManagedKafkaStatus.class);
-        ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
+            //Get status and compare with CR status
+            ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
+                    .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(), ManagedKafkaStatus.class);
+            ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
 
-        AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
+            AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
 
-        //Get agent status
-        ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
+            //Get agent status
+            ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
+                    .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
 
-        AssertUtils.assertManagedKafkaAgentStatus(agentStatus);
+            AssertUtils.assertManagedKafkaAgentStatus(agentStatus);
 
-        //Check if managed kafka deployed all components
-        AssertUtils.assertManagedKafka(mk);
+            //Check if managed kafka deployed all components
+            AssertUtils.assertManagedKafka(mk);
 
-        //start restarting kubeapi
-        executor.execute(TestUtils::restartKubeApi);
+            //start restarting kubeapi
+            executor = Executors.newFixedThreadPool(1);
+            executor.execute(TestUtils::restartKubeApi);
+            Thread.sleep(5_000);
 
-        //delete mk using api
-        res = SyncApiClient.deleteManagedKafka(mk.getId(), syncEndpoint);
-        assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
+            //delete mk using api
+            res = SyncApiClient.deleteManagedKafka(mk.getId(), syncEndpoint);
+            assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
-        //stop restarting kubeapi
-        executor.shutdown();
+            //stop restarting kubeapi
+            executor.shutdownNow();
 
-        ManagedKafkaResourceType.isDeleted(mk);
+            ManagedKafkaResourceType.isDeleted(mk);
 
-        LOGGER.info("ManagedKafka {} deleted", mkAppName);
+            LOGGER.info("ManagedKafka {} deleted", mkAppName);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }

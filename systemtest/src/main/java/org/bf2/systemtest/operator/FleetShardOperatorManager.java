@@ -75,7 +75,7 @@ public class FleetShardOperatorManager {
 
     public static void deployFleetShardSync(KubeClient kubeClient) throws Exception {
         if (Environment.SKIP_DEPLOY) {
-            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of operator", Environment.SKIP_DEPLOY);
+            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of sync", Environment.SKIP_DEPLOY);
             return;
         }
         LOGGER.info("Installing {}", SYNC_NAME);

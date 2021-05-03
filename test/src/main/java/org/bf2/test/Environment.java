@@ -47,8 +47,8 @@ public class Environment {
     private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
     private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
 
-    private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN_ENV";
-    private static final String SKIP_DEPLOY_ENV = "SKIP_DEPLOY_ENV";
+    private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
+    private static final String SKIP_DEPLOY_ENV = "SKIP_DEPLOY";
 
 
     /*
