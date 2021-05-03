@@ -36,17 +36,7 @@ public class InformerManager {
     KubernetesClient kubernetesClient;
 
     @Inject
-    ResourceEventSource.KafkaEventSource kafkaEventSource;
-    @Inject
-    ResourceEventSource.DeploymentEventSource deploymentEventSource;
-    @Inject
-    ResourceEventSource.ServiceEventSource serviceEventSource;
-    @Inject
-    ResourceEventSource.ConfigMapEventSource configMapEventSource;
-    @Inject
-    ResourceEventSource.SecretEventSource secretEventSource;
-    @Inject
-    ResourceEventSource.RouteEventSource routeEventSource;
+    ResourceEventSource eventSource;
 
     private SharedInformerFactory sharedInformerFactory;
 
@@ -65,18 +55,18 @@ public class InformerManager {
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
-        kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), kafkaEventSource);
+        kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
 
-        deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), deploymentEventSource);
+        deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), eventSource);
 
-        serviceInformer = ResourceInformer.start(filter(kubernetesClient.services()), serviceEventSource);
+        serviceInformer = ResourceInformer.start(filter(kubernetesClient.services()), eventSource);
 
-        configMapInformer = ResourceInformer.start(filter(kubernetesClient.configMaps()), configMapEventSource);
+        configMapInformer = ResourceInformer.start(filter(kubernetesClient.configMaps()), eventSource);
 
-        secretInformer = ResourceInformer.start(filter(kubernetesClient.secrets()), secretEventSource);
+        secretInformer = ResourceInformer.start(filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), routeEventSource);
+            routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
 
         sharedInformerFactory.startAllRegisteredInformers();

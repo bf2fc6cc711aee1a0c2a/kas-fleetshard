@@ -50,7 +50,7 @@ public class ManagedKafkaControllerTest {
         // essentially there "last event" of the delete is something other than a deployment or a kafka
         // it should still trigger the update of the status
         Mockito.when(context.getEvents())
-                .thenReturn(new EventList(Arrays.asList(new ResourceEvent.ServiceEvent(new ServiceBuilder()
+                .thenReturn(new EventList(Arrays.asList(new ResourceEvent<>(new ServiceBuilder()
                         .withNewMetadata()
                         .withOwnerReferences(new OwnerReferenceBuilder().withUid(mk.getMetadata().getUid()).build())
                         .endMetadata()
