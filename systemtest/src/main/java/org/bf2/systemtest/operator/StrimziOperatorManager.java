@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
@@ -92,7 +93,7 @@ public class StrimziOperatorManager {
     }
 
     public static void uninstallStrimziClusterWideResources(KubeClient kubeClient) {
-        if (kubeClient.namespaceExists(OPERATOR_NS)) {
+        if (kubeClient.namespaceExists(OPERATOR_NS) && !Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting Strimzi : {}", OPERATOR_NS);
             kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
             CLUSTER_WIDE_RESOURCE_DELETERS.forEach(delete -> delete.accept(null));

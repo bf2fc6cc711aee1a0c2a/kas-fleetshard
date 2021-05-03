@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.utils.IOHelpers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -153,6 +154,7 @@ public class TestUtils {
 
     /**
      * Check all containers state in pod and return boolean status if po is running
+     *
      * @param p pod
      */
     public static boolean isPodReady(Pod p) {
@@ -161,6 +163,7 @@ public class TestUtils {
 
     /**
      * Replacer function replacing values in input stream and returns modified input stream
+     *
      * @param values map of values for replace
      */
     public static Function<InputStream, InputStream> replacer(final Map<String, String> values) {
@@ -175,5 +178,24 @@ public class TestUtils {
                 throw KubernetesClientException.launderThrowable(ex);
             }
         };
+    }
+
+    /**
+     * Restart kubeapi
+     *
+     * @throws InterruptedException
+     */
+    public static void restartKubeApi() {
+        final String apiNamespace = KubeClient.getInstance().isGenericKubernetes() ? "kube-system" : "openshift-kube-apiserver";
+
+        LOGGER.info("Restarting kubeapi");
+        for (int i = 0; i < 60; i++) {
+            if (!KubeClient.getInstance().isGenericKubernetes()) {
+                KubeClient.getInstance().client().pods().inNamespace("openshift-apiserver").delete();
+            }
+            KubeClient.getInstance().client().pods().inNamespace(apiNamespace).list().getItems().stream().filter(pod ->
+                    pod.getMetadata().getName().contains("kube-apiserver-")).forEach(pod ->
+                    KubeClient.getInstance().client().pods().inNamespace(apiNamespace).withName(pod.getMetadata().getName()).withGracePeriod(1000).delete());
+        }
     }
 }
