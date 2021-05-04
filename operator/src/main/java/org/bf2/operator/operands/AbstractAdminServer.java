@@ -129,6 +129,10 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         return managedKafka.getMetadata().getName() + "-admin-server";
     }
 
+    public static String adminServerConfigVolumeName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-config-volume";
+    }
+
     public static String adminServerNamespace(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getNamespace();
     }
