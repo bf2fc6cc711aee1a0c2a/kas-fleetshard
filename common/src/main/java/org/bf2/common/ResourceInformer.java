@@ -36,7 +36,7 @@ public class ResourceInformer<T extends HasMetadata> {
     private static Logger log = Logger.getLogger(ResourceInformer.class);
 
     private WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable;
-    private ResourceEventHandler<T> eventHandler;
+    private ResourceEventHandler<? super T> eventHandler;
 
     private ConcurrentHashMap<String, T> cache = new ConcurrentHashMap<>();
 
@@ -115,7 +115,7 @@ public class ResourceInformer<T extends HasMetadata> {
 
     public static <T extends HasMetadata> ResourceInformer<T> start(
             WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
-            ResourceEventHandler<T> eventHandler) {
+            ResourceEventHandler<? super T> eventHandler) {
         ResourceInformer<T> result = new ResourceInformer<>(watchListDeletable, eventHandler);
         result.list();
         result.watch();
@@ -123,7 +123,7 @@ public class ResourceInformer<T extends HasMetadata> {
     }
 
     private ResourceInformer(WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
-            ResourceEventHandler<T> eventHandler) {
+            ResourceEventHandler<? super T> eventHandler) {
         this.watchListDeletable = watchListDeletable;
         this.eventHandler = eventHandler;
     }

@@ -1,7 +1,6 @@
 package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
@@ -40,22 +39,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     KubernetesClient kubernetesClient;
 
     @Inject
-    ResourceEventSource.KafkaEventSource kafkaEventSource;
-
-    @Inject
-    ResourceEventSource.DeploymentEventSource deploymentEventSource;
-
-    @Inject
-    ResourceEventSource.ServiceEventSource serviceEventSource;
-
-    @Inject
-    ResourceEventSource.ConfigMapEventSource configMapEventSource;
-
-    @Inject
-    ResourceEventSource.SecretEventSource secretEventSource;
-
-    @Inject
-    ResourceEventSource.RouteEventSource routeEventSource;
+    ResourceEventSource eventSource;
 
     @Inject
     KafkaInstance kafkaInstance;
@@ -100,14 +84,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Override
     public void init(EventSourceManager eventSourceManager) {
         log.info("init");
-        eventSourceManager.registerEventSource("kafka-event-source", kafkaEventSource);
-        eventSourceManager.registerEventSource("deployment-event-source", deploymentEventSource);
-        eventSourceManager.registerEventSource("service-event-source", serviceEventSource);
-        eventSourceManager.registerEventSource("configmap-event-source", configMapEventSource);
-        eventSourceManager.registerEventSource("secret-event-source", secretEventSource);
-        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
-            eventSourceManager.registerEventSource("route-event-source", routeEventSource);
-        }
+        eventSourceManager.registerEventSource("event-source", eventSource);
     }
 
     /**
