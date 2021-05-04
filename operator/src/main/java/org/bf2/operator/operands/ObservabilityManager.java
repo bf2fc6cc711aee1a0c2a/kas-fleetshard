@@ -76,6 +76,8 @@ public class ObservabilityManager {
 
     public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability) {
         Secret secret = createObservabilitySecret(this.client.getNamespace(), observability);
+        // we can't just use create or replace as there's an expected modification by
+        // the observability operator
         if (cachedObservabilitySecret() == null) {
             observabilitySecretResource().create(secret);
         } else {

@@ -34,33 +34,11 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     }
 
     protected void createOrUpdate(Deployment deployment) {
-        // Admin Server deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments()
-                .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
-        // Admin Server deployment resource already exists, has to be updated
-        } else {
-            kubernetesClient.apps().deployments()
-                    .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName())
-                    .patch(deployment);
-        }
+        kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).createOrReplace(deployment);
     }
 
     protected void createOrUpdate(Service service) {
-        // Admin Server service resource doesn't exist, has to be created
-        if (kubernetesClient.services()
-                .inNamespace(service.getMetadata().getNamespace())
-                .withName(service.getMetadata().getName()).get() == null) {
-            kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).create(service);
-        // Admin Server service resource already exists, has to be updated
-        } else {
-            kubernetesClient.services()
-                    .inNamespace(service.getMetadata().getNamespace())
-                    .withName(service.getMetadata().getName())
-                    .patch(service);
-        }
+        kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).createOrReplace(service);
     }
 
     @Override
