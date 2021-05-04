@@ -22,6 +22,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 /**
@@ -33,7 +35,7 @@ public class StrimziOperatorManager {
     private static final String OPERATOR_NS = "strimzi-cluster-operator";
     private static final List<Consumer<Void>> CLUSTER_WIDE_RESOURCE_DELETERS = new LinkedList<>();
 
-    public static void installStrimzi(KubeClient kubeClient) throws Exception {
+    public static Future<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
                         .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
@@ -82,13 +84,14 @@ public class StrimziOperatorManager {
             });
 
             opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(OPERATOR_NS).createOrReplace());
-            TestUtils.waitFor("Strimzi operator ready", 1_000, 120_000, () ->
+            LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
+            return CompletableFuture.completedFuture(true).thenRunAsync(() -> TestUtils.waitFor("Strimzi operator ready", 1_000, 120_000, () ->
                     TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                             .list().getItems().stream().filter(pod ->
-                                    pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
-            LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
+                                    pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get())));
         } else {
             LOGGER.info("Strimzi operator is installed no need to install it");
+            return CompletableFuture.completedFuture(null);
         }
     }
 

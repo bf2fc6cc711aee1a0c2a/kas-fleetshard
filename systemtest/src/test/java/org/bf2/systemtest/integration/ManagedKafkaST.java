@@ -28,6 +28,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,9 +40,9 @@ public class ManagedKafkaST extends AbstractST {
 
     @BeforeAll
     void deploy() throws Exception {
-        StrimziOperatorManager.installStrimzi(kube);
-        FleetShardOperatorManager.deployFleetShardOperator(kube);
-        FleetShardOperatorManager.deployFleetShardSync(kube);
+        Future<Void> strimziInstall = StrimziOperatorManager.installStrimzi(kube);
+        FleetShardOperatorManager.deployFletshard(true);
+        strimziInstall.get(2, TimeUnit.MINUTES);
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
