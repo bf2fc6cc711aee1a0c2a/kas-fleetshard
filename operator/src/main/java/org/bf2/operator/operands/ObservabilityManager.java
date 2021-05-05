@@ -1,9 +1,11 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
@@ -74,8 +76,9 @@ public class ObservabilityManager {
                 ObservabilityManager.OBSERVABILITY_SECRET_NAME);
     }
 
-    public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability) {
+    public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability, HasMetadata owner) {
         Secret secret = createObservabilitySecret(this.client.getNamespace(), observability);
+        OperandUtils.setAsOwner(owner, secret);
         if (cachedObservabilitySecret() == null) {
             observabilitySecretResource().create(secret);
         } else {

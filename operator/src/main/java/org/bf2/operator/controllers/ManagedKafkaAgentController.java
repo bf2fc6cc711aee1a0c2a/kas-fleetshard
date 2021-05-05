@@ -70,7 +70,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Override
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
-        this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
+        this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
         return UpdateControl.noUpdate();
     }
 
@@ -90,7 +90,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
         if (resource != null) {
             // check and reinstate if the observability config changed
-            this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability());
+            this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
             log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
             resource.setStatus(buildStatus(resource));
             this.agentClient.updateStatus(resource);

@@ -6,7 +6,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
-import org.bf2.operator.operands.OperandUtils;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.enterprise.context.ApplicationScoped;

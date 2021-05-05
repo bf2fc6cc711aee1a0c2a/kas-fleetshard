@@ -56,6 +56,7 @@ import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
