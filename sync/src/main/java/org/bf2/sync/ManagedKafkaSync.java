@@ -9,6 +9,7 @@ import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -210,11 +211,14 @@ public class ManagedKafkaSync {
         // log after the namespace is set
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
 
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
+        labels.put("observability-operator/scrape-logging", "true");
+
         kubeClient.namespaces().createOrReplace(
                 new NamespaceBuilder()
                         .withNewMetadata()
                             .withName(remote.getMetadata().getNamespace())
-                            .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
+                            .withLabels(labels)
                         .endMetadata()
                         .build());
 
