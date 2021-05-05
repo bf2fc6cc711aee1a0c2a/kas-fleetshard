@@ -46,14 +46,11 @@ public class FleetShardOperatorManager {
 
     public static void deployFletshard(boolean installSync) throws Exception {
         Future<Void> operatorFuture = deployFleetShardOperator(KubeClient.getInstance());
-        Future<Void> syncFuture = null;
         if (installSync) {
-            syncFuture = deployFleetShardSync(KubeClient.getInstance());
-        }
-        operatorFuture.get(3, TimeUnit.MINUTES);
-        if (syncFuture != null) {
+            Future<Void> syncFuture = deployFleetShardSync(KubeClient.getInstance());
             syncFuture.get(3, TimeUnit.MINUTES);
         }
+        operatorFuture.get(3, TimeUnit.MINUTES);
     }
 
     public static Future<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
@@ -80,7 +77,7 @@ public class FleetShardOperatorManager {
         }
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
-        return CompletableFuture.completedFuture(true).thenRunAsync(() -> TestUtils.waitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled));
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, FleetShardOperatorManager::isOperatorInstalled);
     }
 
     public static Future<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
@@ -91,7 +88,7 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", SYNC_NAME);
         kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
-        return CompletableFuture.completedFuture(true).thenRunAsync(() -> TestUtils.waitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled));
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, FleetShardOperatorManager::isSyncInstalled);
     }
 
     public static boolean isOperatorInstalled() {

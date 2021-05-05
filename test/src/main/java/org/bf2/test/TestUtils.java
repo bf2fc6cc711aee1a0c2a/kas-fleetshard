@@ -24,6 +24,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -80,50 +87,44 @@ public class TestUtils {
         }
     }
 
-    public static File downloadYamlAndReplaceNamespace(String url, String namespace) throws IOException {
-        File yamlFile = File.createTempFile("temp-file", ".yaml");
+    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(new ThreadFactory() {
+        final ThreadFactory defaultThreadFactory = Executors.defaultThreadFactory();
 
-        try (InputStream bais = (InputStream) URI.create(url).toURL().openConnection().getContent();
-             BufferedReader br = new BufferedReader(new InputStreamReader(bais, StandardCharsets.UTF_8));
-             OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread result = defaultThreadFactory.newThread(r);
+            result.setDaemon(true);
+            return result;
+        }
+    });
 
-            StringBuilder sb = new StringBuilder();
-
-            String read;
-            while ((read = br.readLine()) != null) {
-                sb.append(read);
-                sb.append("\n");
+    public static Future<Void> asyncWaitFor(String description, long pollIntervalMs, BooleanSupplier ready) {
+        LOGGER.debug("Waiting for {}", description);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Executor delayed = CompletableFuture.delayedExecutor(pollIntervalMs, TimeUnit.MILLISECONDS, EXECUTOR);
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                boolean result;
+                try {
+                    result = ready.getAsBoolean();
+                } catch (Exception e) {
+                    result = false;
+                }
+                if (!future.isDone()) {
+                    if (!result) {
+                        if (LOGGER.isTraceEnabled()) {
+                            LOGGER.trace("{} not ready, will try again in {} ms", description, pollIntervalMs);
+                        }
+                        delayed.execute(this);
+                    } else {
+                        future.complete(null);
+                    }
+                }
             }
-            String yaml = sb.toString();
-            yaml = yaml.replaceAll("namespace: .*", "namespace: " + namespace);
-            yaml = yaml.replace("securityContext:\n" +
-                    "        runAsNonRoot: true\n" +
-                    "        runAsUser: 65534", "");
-            osw.write(yaml);
-            return yamlFile;
-
-        } catch (RuntimeException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public static File replaceStringInYaml(String pathToOrigin, String originalns, String namespace) throws IOException {
-        byte[] encoded;
-        File yamlFile = File.createTempFile("temp-file", ".yaml");
-
-        try (OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(yamlFile), StandardCharsets.UTF_8)) {
-            encoded = Files.readAllBytes(Paths.get(pathToOrigin));
-
-            String yaml = new String(encoded, StandardCharsets.UTF_8);
-            yaml = yaml.replaceAll(originalns, namespace);
-
-            osw.write(yaml);
-            return yamlFile.toPath().toFile();
-        } catch (RuntimeException e) {
-            e.printStackTrace();
-        }
-        return null;
+        };
+        r.run();
+        return future;
     }
 
     public static Path getLogPath(String folderName, ExtensionContext context) {
@@ -182,8 +183,6 @@ public class TestUtils {
 
     /**
      * Restart kubeapi
-     *
-     * @throws InterruptedException
      */
     public static void restartKubeApi() {
         final String apiNamespace = KubeClient.getInstance().isGenericKubernetes() ? "kube-system" : "openshift-kube-apiserver";

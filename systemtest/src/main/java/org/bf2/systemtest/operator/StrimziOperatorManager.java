@@ -85,10 +85,10 @@ public class StrimziOperatorManager {
 
             opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(OPERATOR_NS).createOrReplace());
             LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
-            return CompletableFuture.completedFuture(true).thenRunAsync(() -> TestUtils.waitFor("Strimzi operator ready", 1_000, 120_000, () ->
+            return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, () ->
                     TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                             .list().getItems().stream().filter(pod ->
-                                    pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get())));
+                                    pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
         } else {
             LOGGER.info("Strimzi operator is installed no need to install it");
             return CompletableFuture.completedFuture(null);
