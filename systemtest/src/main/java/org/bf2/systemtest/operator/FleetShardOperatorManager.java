@@ -43,15 +43,6 @@ public class FleetShardOperatorManager {
         LOGGER.info("Crds path: {}", CRD_PATH);
     }
 
-    public static void deployFletshard(boolean installSync) throws Exception {
-        List<CompletableFuture<Void>> fleetshardInstall = new LinkedList<>();
-        fleetshardInstall.add(deployFleetShardOperator(KubeClient.getInstance()));
-        if (installSync) {
-            fleetshardInstall.add(deployFleetShardSync(KubeClient.getInstance()));
-        }
-        CompletableFuture.allOf(fleetshardInstall.toArray(new CompletableFuture[0])).join();
-    }
-
     public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
         if (Environment.SKIP_DEPLOY || isOperatorInstalled()) {
             LOGGER.info("SKIP_DEPLOY is set or operator is already installed, skipping deployment of operator");

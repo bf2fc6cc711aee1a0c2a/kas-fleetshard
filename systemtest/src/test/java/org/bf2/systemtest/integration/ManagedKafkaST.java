@@ -39,9 +39,10 @@ public class ManagedKafkaST extends AbstractST {
 
     @BeforeAll
     void deploy() throws Exception {
-        CompletableFuture<Void> strimziInstall = StrimziOperatorManager.installStrimzi(kube);
-        FleetShardOperatorManager.deployFletshard(true);
-        CompletableFuture.allOf(strimziInstall).join();
+        CompletableFuture.allOf(
+                StrimziOperatorManager.installStrimzi(kube),
+                FleetShardOperatorManager.deployFleetShardOperator(kube),
+                FleetShardOperatorManager.deployFleetShardSync(kube)).join();
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
