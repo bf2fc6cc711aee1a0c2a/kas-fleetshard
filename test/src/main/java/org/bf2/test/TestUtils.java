@@ -20,7 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
@@ -90,8 +89,9 @@ public class TestUtils {
         }
     });
 
-    public static Future<Void> asyncWaitFor(String description, long pollIntervalMs, BooleanSupplier ready) {
-        LOGGER.debug("Waiting for {}", description);
+    public static CompletableFuture<Void> asyncWaitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready) {
+        LOGGER.info("Waiting for {}", description);
+        long deadline = System.currentTimeMillis() + timeoutMs;
         CompletableFuture<Void> future = new CompletableFuture<>();
         Executor delayed = CompletableFuture.delayedExecutor(pollIntervalMs, TimeUnit.MILLISECONDS, EXECUTOR);
         Runnable r = new Runnable() {
@@ -103,12 +103,17 @@ public class TestUtils {
                 } catch (Exception e) {
                     result = false;
                 }
+                long timeLeft = deadline - System.currentTimeMillis();
                 if (!future.isDone()) {
                     if (!result) {
-                        if (LOGGER.isTraceEnabled()) {
-                            LOGGER.trace("{} not ready, will try again in {} ms", description, pollIntervalMs);
+                        if (timeLeft >= 0) {
+                            if (LOGGER.isTraceEnabled()) {
+                                LOGGER.trace("{} not ready, will try again ({}ms till timeout)", description, timeLeft);
+                            }
+                            delayed.execute(this);
+                        } else {
+                            future.completeExceptionally(new WaitException(String.format("Waiting for %s timeout %s exceeded", description, timeoutMs)));
                         }
-                        delayed.execute(this);
                     } else {
                         future.complete(null);
                     }
