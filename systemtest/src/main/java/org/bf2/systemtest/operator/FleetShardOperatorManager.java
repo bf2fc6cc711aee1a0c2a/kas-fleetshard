@@ -17,8 +17,10 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 public class FleetShardOperatorManager {
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
@@ -41,10 +43,19 @@ public class FleetShardOperatorManager {
         LOGGER.info("Crds path: {}", CRD_PATH);
     }
 
-    public static void deployFleetShardOperator(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY) {
-            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of operator", Environment.SKIP_DEPLOY);
-            return;
+    public static void deployFletshard(boolean installSync) throws Exception {
+        List<CompletableFuture<Void>> fleetshardInstall = new LinkedList<>();
+        fleetshardInstall.add(deployFleetShardOperator(KubeClient.getInstance()));
+        if (installSync) {
+            fleetshardInstall.add(deployFleetShardSync(KubeClient.getInstance()));
+        }
+        CompletableFuture.allOf(fleetshardInstall.toArray(new CompletableFuture[0])).join();
+    }
+
+    public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
+        if (Environment.SKIP_DEPLOY || isOperatorInstalled()) {
+            LOGGER.info("SKIP_DEPLOY is set or operator is already installed, skipping deployment of operator");
+            return CompletableFuture.completedFuture(null);
         }
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
@@ -63,30 +74,20 @@ public class FleetShardOperatorManager {
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         }
-        if (!isOperatorInstalled()) {
-            LOGGER.info("Installing operator from files: {}", YAML_OPERATOR_BUNDLE_PATH.toString());
-            kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
-            TestUtils.waitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
-            LOGGER.info("Fleetshard operator is deployed");
-        } else {
-            LOGGER.info("Operator is already installed");
-        }
+        kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
+        LOGGER.info("Operator is deployed");
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
     }
 
-    public static void deployFleetShardSync(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY) {
-            LOGGER.info("SKIP_DEPLOY is set to {}, skipping deployment of sync", Environment.SKIP_DEPLOY);
-            return;
+    public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
+        if (Environment.SKIP_DEPLOY || isSyncInstalled()) {
+            LOGGER.info("SKIP_DEPLOY is set or sync is already installed, skipping deployment of sync");
+            return CompletableFuture.completedFuture(null);
         }
         LOGGER.info("Installing {}", SYNC_NAME);
-        if (!isSyncInstalled()) {
-            kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
-
-            TestUtils.waitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
-            LOGGER.info("Fleetshard sync is deployed");
-        } else {
-            LOGGER.info("Sync is already installed");
-        }
+        kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
+        LOGGER.info("Sync is deployed");
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
     }
 
     public static boolean isOperatorInstalled() {

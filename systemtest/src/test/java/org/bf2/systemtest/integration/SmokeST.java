@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -33,9 +34,9 @@ public class SmokeST extends AbstractST {
 
     @BeforeAll
     void deploy() throws Exception {
-        StrimziOperatorManager.installStrimzi(kube);
-        FleetShardOperatorManager.deployFleetShardOperator(kube);
-        FleetShardOperatorManager.deployFleetShardSync(kube);
+        CompletableFuture<Void> strimziInstall = StrimziOperatorManager.installStrimzi(kube);
+        FleetShardOperatorManager.deployFletshard(true);
+        CompletableFuture.allOf(strimziInstall).join();
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
