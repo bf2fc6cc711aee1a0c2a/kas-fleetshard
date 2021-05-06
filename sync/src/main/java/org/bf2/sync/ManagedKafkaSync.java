@@ -210,14 +210,12 @@ public class ManagedKafkaSync {
         // log after the namespace is set
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
 
-        Map<String, String> labels = OperandUtils.getDefaultLabels();
-        labels.put("observability-operator/scrape-logging", "true");
-
         kubeClient.namespaces().createOrReplace(
                 new NamespaceBuilder()
                         .withNewMetadata()
                             .withName(remote.getMetadata().getNamespace())
-                            .withLabels(labels)
+                            .withLabels(OperandUtils.getDefaultLabels())
+                            .addToLabels("observability-operator/scrape-logging", "true")
                         .endMetadata()
                         .build());
 
