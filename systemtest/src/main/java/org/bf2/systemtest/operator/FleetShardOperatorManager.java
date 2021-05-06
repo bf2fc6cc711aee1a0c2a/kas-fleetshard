@@ -17,7 +17,6 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -41,15 +40,6 @@ public class FleetShardOperatorManager {
         LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Sync bundle install files: {}", YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Crds path: {}", CRD_PATH);
-    }
-
-    public static void deployFletshard(boolean installSync) throws Exception {
-        List<CompletableFuture<Void>> fleetshardInstall = new LinkedList<>();
-        fleetshardInstall.add(deployFleetShardOperator(KubeClient.getInstance()));
-        if (installSync) {
-            fleetshardInstall.add(deployFleetShardSync(KubeClient.getInstance()));
-        }
-        CompletableFuture.allOf(fleetshardInstall.toArray(new CompletableFuture[0])).join();
     }
 
     public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
