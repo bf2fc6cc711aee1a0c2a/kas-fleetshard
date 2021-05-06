@@ -12,7 +12,7 @@ kubectl create namespace kafka
 kubectl create -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
 ```
 
-The first step is to install the operator allowing the `dekorate` plugin to generate the `ManagedKafka` CRD.
+The first step is to install the operator allowing fabric8 to generate the `ManagedKafka` CRDs.
 
 ```shell
 mvn install
@@ -21,7 +21,8 @@ mvn install
 After that, apply the generated CRD to the Kubernetes/OpenShift cluster by running the following commands.
 
 ```shell
-kubectl apply -f api/target/classes/META-INF/dekorate/kubernetes.yml
+kubectl apply -f api/target/classes/META-INF/fabric8/managedkafkas.managedkafka.bf2.org-v1beta1.yml
+kubectl apply -f api/target/classes/META-INF/fabric8/managedkafkaagents.managedkafka.bf2.org-v1beta1.yml
 ```
 
 Finally, you can start the operator from your IDE running the `Main` application (for a step by step debugging purposes), 

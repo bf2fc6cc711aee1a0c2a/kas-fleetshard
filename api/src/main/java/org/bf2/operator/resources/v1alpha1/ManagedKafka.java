@@ -1,7 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.dekorate.crd.annotation.Crd;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
@@ -25,7 +24,6 @@ import java.util.UUID;
 )
 @Group("managedkafka.bf2.org")
 @Version("v1alpha1")
-@Crd(group = "managedkafka.bf2.org", version = "v1alpha1")
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 
     private static final String CERT = "cert";

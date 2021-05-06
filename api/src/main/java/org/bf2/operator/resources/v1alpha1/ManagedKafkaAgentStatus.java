@@ -1,6 +1,5 @@
 package org.bf2.operator.resources.v1alpha1;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.sundr.builder.annotations.Buildable;
 
 import java.util.List;
@@ -10,16 +9,12 @@ public class ManagedKafkaAgentStatus {
 
     private List<ManagedKafkaCondition> conditions;
 
-    @JsonProperty(value = "total")
-    private ClusterCapacity totalCapacity;
+    private ClusterCapacity total;
 
-    @JsonProperty(value = "remaining")
-    private ClusterCapacity remainingCapacity;
+    private ClusterCapacity remaining;
 
-    @JsonProperty(value = "nodeInfo")
-    private NodeCounts requiredNodeSizes;
+    private NodeCounts nodeInfo;
 
-    @JsonProperty(value = "resizeInfo")
     private ClusterResizeInfo resizeInfo;
 
     private String updatedTimestamp;
@@ -32,28 +27,28 @@ public class ManagedKafkaAgentStatus {
         this.conditions = conditions;
     }
 
-    public ClusterCapacity getTotalCapacity() {
-        return totalCapacity;
+    public ClusterCapacity getTotal() {
+        return total;
     }
 
-    public void setTotalCapacity(ClusterCapacity totalCapacity) {
-        this.totalCapacity = totalCapacity;
+    public void setTotal(ClusterCapacity totalCapacity) {
+        this.total = totalCapacity;
     }
 
-    public ClusterCapacity getRemainingCapacity() {
-        return remainingCapacity;
+    public ClusterCapacity getRemaining() {
+        return remaining;
     }
 
-    public void setRemainingCapacity(ClusterCapacity remainingCapacity) {
-        this.remainingCapacity = remainingCapacity;
+    public void setRemaining(ClusterCapacity remainingCapacity) {
+        this.remaining = remainingCapacity;
     }
 
-    public NodeCounts getRequiredNodeSizes() {
-        return requiredNodeSizes;
+    public NodeCounts getNodeInfo() {
+        return nodeInfo;
     }
 
-    public void setRequiredNodeSizes(NodeCounts requiredNodeSizes) {
-        this.requiredNodeSizes = requiredNodeSizes;
+    public void setNodeInfo(NodeCounts requiredNodeSizes) {
+        this.nodeInfo = requiredNodeSizes;
     }
 
     public ClusterResizeInfo getResizeInfo() {

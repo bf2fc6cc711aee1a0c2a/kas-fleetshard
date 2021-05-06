@@ -1,8 +1,6 @@
 package org.bf2.systemtest.operator;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
@@ -13,28 +11,28 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
-import java.io.FileInputStream;
-import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public class FleetShardOperatorManager {
+    private static final String CRD_FILE_SUFFIX = "-v1beta1.yml";
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
     private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
 
     public static final Path ROOT_PATH = Objects.requireNonNullElseGet(Paths.get(System.getProperty("user.dir")).getParent(), () -> Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
-    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes"));
-    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes"));
-    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("dekorate").resolve("kubernetes.yml");
+    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes", "kubernetes.yml"));
+    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes", "kubernetes.yml"));
+    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8");
 
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
     public static final String OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String SYNC_NAME = "kas-fleetshard-sync";
-    private static List<HasMetadata> installedCrds;
+    private static Path[] installedCrds;
 
     private static void printVar() {
         LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
@@ -49,18 +47,12 @@ public class FleetShardOperatorManager {
         }
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
-        LOGGER.info("Installing CRDs");
-        try (InputStream is = new FileInputStream(CRD_PATH.toString())) {
-            installedCrds = kubeClient.client().load(is).get();
-            installedCrds.forEach(crd -> {
-                if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).get() == null) {
-                    LOGGER.info("Installing CRD {}", crd.getMetadata().getName());
-                    kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().createOrReplace((CustomResourceDefinition) crd);
-                } else {
-                    LOGGER.info("CRD {} is already present on server", crd.getMetadata().getName());
-                }
-            });
-        }
+
+        installedCrds =
+        Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).toArray(Path[]::new);
+        LOGGER.info("Installing CRDs {}", Arrays.toString(installedCrds));
+        kubeClient.apply(OPERATOR_NS, installedCrds);
+
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         }
@@ -126,9 +118,11 @@ public class FleetShardOperatorManager {
             var mkCli = kubeClient.client().customResources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
             Thread.sleep(10_000);
-            installedCrds.forEach(crd -> {
-                LOGGER.info("Delete CRD {}", crd.getMetadata().getName());
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crd.getMetadata().getName()).delete();
+            Arrays.asList(installedCrds).forEach(crd -> {
+                String fileName = crd.getFileName().toString();
+                String crdName = fileName.substring(0, fileName.length()-CRD_FILE_SUFFIX.length());
+                LOGGER.info("Delete CRD {}", crdName);
+                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crdName).delete();
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
