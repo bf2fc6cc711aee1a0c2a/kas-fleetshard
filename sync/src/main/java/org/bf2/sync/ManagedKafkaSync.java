@@ -9,6 +9,7 @@ import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -24,7 +25,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.net.HttpURLConnection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -214,7 +214,8 @@ public class ManagedKafkaSync {
                 new NamespaceBuilder()
                         .withNewMetadata()
                             .withName(remote.getMetadata().getNamespace())
-                            .withLabels(Collections.singletonMap("observability-operator/scrape-logging", "true"))
+                            .withLabels(OperandUtils.getDefaultLabels())
+                            .addToLabels("observability-operator/scrape-logging", "true")
                         .endMetadata()
                         .build());
 
