@@ -52,6 +52,13 @@ public class InformerManager {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
     }
 
+    /**
+     * Start each informer in a blocking manner.  The controller(s) will
+     * not be initilized until after this completes - ensuring that all
+     * will be synced to avoid any inconsistent state on start-up.
+     *
+     * This could be modified to start all in parallel, and then wait for sync.
+     */
     void onStart(@Observes StartupEvent ev) {
         sharedInformerFactory = kubernetesClient.informers();
 
