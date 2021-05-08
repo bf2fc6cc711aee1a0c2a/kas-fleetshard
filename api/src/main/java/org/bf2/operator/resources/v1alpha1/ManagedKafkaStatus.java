@@ -14,6 +14,7 @@ import java.util.List;
         editableEnabled = false
 )
 @ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManagedKafkaStatus {
 
     private List<ManagedKafkaCondition> conditions;
@@ -30,7 +31,6 @@ public class ManagedKafkaStatus {
         this.conditions = conditions;
     }
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public ManagedKafkaCapacity getCapacity() {
         return capacity;
     }
@@ -39,7 +39,6 @@ public class ManagedKafkaStatus {
         this.capacity = capacity;
     }
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public Versions getVersions() {
         return versions;
     }
@@ -48,7 +47,6 @@ public class ManagedKafkaStatus {
         this.versions = versions;
     }
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getAdminServerURI() {
         return adminServerURI;
     }
