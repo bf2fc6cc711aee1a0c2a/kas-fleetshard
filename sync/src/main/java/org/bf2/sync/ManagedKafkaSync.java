@@ -229,7 +229,7 @@ public class ManagedKafkaSync {
         }
     }
 
-    @Scheduled(every = "{poll.interval}", delayed = "5s")
+    @Scheduled(every = "{poll.interval}")
     void pollKafkaClusters() {
         if (!lookup.isReady()) {
             log.debug("Not ready to poll, the lookup is not ready");

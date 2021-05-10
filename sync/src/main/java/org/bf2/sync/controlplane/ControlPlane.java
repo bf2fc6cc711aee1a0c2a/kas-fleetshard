@@ -193,7 +193,7 @@ public class ControlPlane {
      * On the resync interval, send everything
      */
     @Counted(value = "sync.resync", description = "The number of resync calls") // no need to be timed as the actions are async
-    @Scheduled(every = "{resync.interval}", delayed = "10s")
+    @Scheduled(every = "{resync.interval}")
     public void sendResync() {
         log.debug("Updating status on resync interval");
         updateKafkaClusterStatus(() -> {
