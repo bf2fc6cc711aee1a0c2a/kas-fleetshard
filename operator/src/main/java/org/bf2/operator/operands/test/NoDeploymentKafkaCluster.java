@@ -63,16 +63,9 @@ public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaClu
                 .withName(kafkaClusterName(managedKafka))
                 .delete();
 
+        secretManager.delete(managedKafka);
         configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
         configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
-
-        if (isKafkaExternalCertificateEnabled) {
-            secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
-        }
-        if (isKafkaAuthenticationEnabled) {
-            secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
-            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
-        }
     }
 
     @Override

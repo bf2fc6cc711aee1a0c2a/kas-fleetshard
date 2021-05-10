@@ -51,7 +51,7 @@ public class SmokeST extends AbstractST {
 
     @Tag(TestTags.SMOKE)
     @ParallelTest
-    void testCreateManagedKafkaByOperator(ExtensionContext extensionContext) {
+    void testCreateManagedKafkaByOperator(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
 
         LOGGER.info("Create namespace");

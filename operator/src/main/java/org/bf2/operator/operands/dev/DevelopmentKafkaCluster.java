@@ -1,5 +1,6 @@
 package org.bf2.operator.operands.dev;
 
+import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
@@ -18,6 +19,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;
+import org.bf2.operator.secrets.SecuritySecretManager;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -34,7 +36,27 @@ import java.util.Map;
 public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
     @Inject
+    protected SecuritySecretManager secretManager;
+
+    @Inject
     protected ImagePullSecretManager imagePullSecretManager;
+
+    @Override
+    public void createOrUpdate(ManagedKafka managedKafka) {
+        super.createOrUpdate(managedKafka);
+        secretManager.createOrUpdate(managedKafka);
+    }
+
+    @Override
+    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        super.delete(managedKafka, context);
+        secretManager.delete(managedKafka);
+    }
+
+    @Override
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        return super.isDeleted(managedKafka) && secretManager.isDeleted(managedKafka);
+    }
 
     /* test */
     @Override

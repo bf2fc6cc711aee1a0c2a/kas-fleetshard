@@ -11,8 +11,6 @@ import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
@@ -60,6 +58,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
+import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -67,9 +66,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -118,34 +115,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @Inject
     Logger log;
 
+    @Inject
+    protected SecuritySecretManager secretManager;
+
     @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
     protected boolean isKafkaAuthenticationEnabled;
+
     @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
     protected boolean isKafkaExternalCertificateEnabled;
 
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
-    Base64.Encoder encoder = Base64.getEncoder();
-
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-
-        if (isKafkaExternalCertificateEnabled) {
-            Secret currentKafkaTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
-            Secret kafkaTlsSecret = kafkaTlsSecretFrom(managedKafka, currentKafkaTlsSecret);
-            createOrUpdate(kafkaTlsSecret);
-        }
-
-        if (isKafkaAuthenticationEnabled) {
-            Secret currentSsoClientSecret = cachedSecret(managedKafka, ssoClientSecretName(managedKafka));
-            Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
-            createOrUpdate(ssoClientSecret);
-
-            Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
-            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
-            createOrUpdate(ssoTlsSecret);
-        }
+        secretManager.createOrUpdate(managedKafka);
 
         ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
         ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
@@ -181,32 +165,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         super.delete(managedKafka, context);
+        secretManager.delete(managedKafka);
 
         configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
         configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
-
-        if (isKafkaExternalCertificateEnabled) {
-            secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
-        }
-        if (isKafkaAuthenticationEnabled) {
-            secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
-            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
-        }
-    }
-
-    private void createOrUpdate(Secret secret) {
-        // Secret resource doesn't exist, has to be created
-        if (kubernetesClient.secrets()
-                .inNamespace(secret.getMetadata().getNamespace())
-                .withName(secret.getMetadata().getName()).get() == null) {
-            kubernetesClient.secrets().inNamespace(secret.getMetadata().getNamespace()).createOrReplace(secret);
-        // Secret resource already exists, has to be updated
-        } else {
-            kubernetesClient.secrets()
-                    .inNamespace(secret.getMetadata().getNamespace())
-                    .withName(secret.getMetadata().getName())
-                    .patch(secret);
-        }
     }
 
     private void createOrUpdate(ConfigMap configMap) {
@@ -304,86 +266,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return configMap;
     }
 
-    /* test */
-    protected Secret kafkaTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
-
-        SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
-
-        Map<String, String> certs = new HashMap<>(2);
-        certs.put("tls.crt", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getCert().getBytes(StandardCharsets.UTF_8)));
-        certs.put("tls.key", encoder.encodeToString(managedKafka.getSpec().getEndpoint().getTls().getKey().getBytes(StandardCharsets.UTF_8)));
-        Secret secret = builder
-                .editOrNewMetadata()
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(kafkaTlsSecretName(managedKafka))
-                    .withLabels(OperandUtils.getDefaultLabels())
-                .endMetadata()
-                .withType("kubernetes.io/tls")
-                .withData(certs)
-                .build();
-
-        // setting the ManagedKafka has owner of the Secret resource is needed
-        // by the operator sdk to handle events on the Secret resource properly
-        OperandUtils.setAsOwner(managedKafka, secret);
-
-        return secret;
-    }
-
-    /* test */
-    protected Secret ssoClientSecretFrom(ManagedKafka managedKafka, Secret current) {
-
-        SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
-
-        Map<String, String> data = new HashMap<>(1);
-        data.put("ssoClientSecret", encoder.encodeToString(managedKafka.getSpec().getOauth().getClientSecret().getBytes(StandardCharsets.UTF_8)));
-        Secret secret = builder
-                .editOrNewMetadata()
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(ssoClientSecretName(managedKafka))
-                    .withLabels(OperandUtils.getDefaultLabels())
-                .endMetadata()
-                .withType("Opaque")
-                .withData(data)
-                .build();
-
-        // setting the ManagedKafka has owner of the Secret resource is needed
-        // by the operator sdk to handle events on the Secret resource properly
-        OperandUtils.setAsOwner(managedKafka, secret);
-
-        return secret;
-    }
-
-    /* test */
-    protected Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
-        Map<String, String> certs = new HashMap<>(1);
-        certs.put("keycloak.crt", encoder.encodeToString(managedKafka.getSpec().getOauth().getTlsTrustedCertificate().getBytes(StandardCharsets.UTF_8)));
-        Secret secret = new SecretBuilder()
-                .editOrNewMetadata()
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(ssoTlsSecretName(managedKafka))
-                    .withLabels(OperandUtils.getDefaultLabels())
-                .endMetadata()
-                .withType("Opaque")
-                .withData(certs)
-                .build();
-
-        // setting the ManagedKafka has owner of the Secret resource is needed
-        // by the operator sdk to handle events on the Secret resource properly
-        OperandUtils.setAsOwner(managedKafka, secret);
-
-        return secret;
-    }
-
     protected GenericSecretSource getSsoClientGenericSecretSource(ManagedKafka managedKafka) {
         return new GenericSecretSourceBuilder()
-                .withSecretName(ssoClientSecretName(managedKafka))
+                .withSecretName(SecuritySecretManager.ssoClientSecretName(managedKafka))
                 .withKey("ssoClientSecret")
                 .build();
     }
 
     protected CertSecretSource getSsoTlsCertSecretSource(ManagedKafka managedKafka) {
         return new CertSecretSourceBuilder()
-                .withSecretName(ssoTlsSecretName(managedKafka))
+                .withSecretName(SecuritySecretManager.ssoTlsSecretName(managedKafka))
                 .withCertificate("keycloak.crt")
                 .build();
     }
@@ -393,7 +285,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return null;
         }
         return new CertAndKeySecretSourceBuilder()
-                .withSecretName(kafkaTlsSecretName(managedKafka))
+                .withSecretName(SecuritySecretManager.kafkaTlsSecretName(managedKafka))
                 .withCertificate("tls.crt")
                 .withKey("tls.key")
                 .build();
@@ -733,17 +625,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean isDeleted = cachedKafka(managedKafka) == null &&
+        boolean isDeleted = super.isDeleted(managedKafka) &&
+                secretManager.isDeleted(managedKafka) &&
                 cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka)) == null &&
                 cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka)) == null;
 
-        if (isKafkaExternalCertificateEnabled) {
-            isDeleted = isDeleted && cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka)) == null;
-        }
-        if (isKafkaAuthenticationEnabled) {
-            isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
-                    cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
-        }
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
     }
@@ -752,32 +638,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return informerManager.getLocalConfigMap(kafkaClusterNamespace(managedKafka), name);
     }
 
-    private Secret cachedSecret(ManagedKafka managedKafka, String name) {
-        return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
-    }
-
-    protected Resource<Secret> secretResource(ManagedKafka managedKafka, String name) {
-        return kubernetesClient.secrets()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(name);
-    }
-
     protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
         return kubernetesClient.configMaps()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);
-    }
-
-    public static String kafkaTlsSecretName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-tls-secret";
-    }
-
-    public static String ssoClientSecretName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-sso-secret";
-    }
-
-    public static String ssoTlsSecretName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-sso-cert";
     }
 
     public static String kafkaMetricsConfigMapName(ManagedKafka managedKafka) {
