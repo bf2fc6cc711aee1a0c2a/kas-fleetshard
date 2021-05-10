@@ -9,12 +9,9 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
@@ -22,8 +19,8 @@ import org.bf2.common.ResourceInformer;
 import org.bf2.operator.events.ResourceEventSource;
 import org.jboss.logging.Logger;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 @ApplicationScoped
@@ -38,8 +35,6 @@ public class InformerManager {
     @Inject
     ResourceEventSource eventSource;
 
-    private SharedInformerFactory sharedInformerFactory;
-
     private ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
@@ -52,16 +47,9 @@ public class InformerManager {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
     }
 
-    /**
-     * Start each informer in a blocking manner.  The controller(s) will
-     * not be initilized until after this completes - ensuring that all
-     * will be synced to avoid any inconsistent state on start-up.
-     *
-     * This could be modified to start all in parallel, and then wait for sync.
-     */
-    void onStart(@Observes StartupEvent ev) {
-        sharedInformerFactory = kubernetesClient.informers();
 
+    @PostConstruct
+    protected void onStart() {
         kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
 
         deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), eventSource);
@@ -75,17 +63,11 @@ public class InformerManager {
         if (isOpenShift()) {
             routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
-
-        sharedInformerFactory.startAllRegisteredInformers();
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
             MixedOperation<T, ? extends KubernetesResourceList<T>, ?> mixedOperation) {
         return mixedOperation.inAnyNamespace().withLabels(OperandUtils.getDefaultLabels());
-    }
-
-    void onStop(@Observes ShutdownEvent ev) {
-        sharedInformerFactory.stopAllRegisteredInformers();
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
