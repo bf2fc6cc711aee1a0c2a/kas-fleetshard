@@ -6,8 +6,8 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ImagePullSecretUtils;
+import org.bf2.common.OperandUtils;
 import org.bf2.sync.controlplane.ControlPlane;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -26,9 +26,6 @@ public class ImagePullSecretManager {
     @Inject
     Logger log;
 
-    @ConfigProperty(name = "operator.deployment.name", defaultValue = "kas-fleetshard-operator")
-    String operatorDeploymentName;
-
     @Inject
     ControlPlane controlPlane;
 
@@ -46,7 +43,7 @@ public class ImagePullSecretManager {
          * to propagate the secrets to new managed Kafka namespaces. The operator is assumed to be in
          * the same namespace as this sync component.
          */
-        this.imagePullSecretRefs = ImagePullSecretUtils.getImagePullSecrets(client, operatorDeploymentName);
+        this.imagePullSecretRefs = ImagePullSecretUtils.getImagePullSecrets(client, OperandUtils.FLEETSHARD_OPERATOR_NAME);
 
         this.secretMeta = imagePullSecretRefs.stream()
                 .map(this::secretFromReference)
