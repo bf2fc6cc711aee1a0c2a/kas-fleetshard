@@ -12,6 +12,7 @@ import lombok.ToString;
         editableEnabled = false
 )
 @ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManagedKafkaCondition {
 
     public enum Type {
@@ -50,7 +51,6 @@ public class ManagedKafkaCondition {
         return this;
     }
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getReason() {
         return reason;
     }
@@ -64,7 +64,6 @@ public class ManagedKafkaCondition {
         return this;
     }
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getMessage() {
         return message;
     }

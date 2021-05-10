@@ -1,7 +1,6 @@
 package org.bf2.sync.informer;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ResourceInformer;
@@ -12,7 +11,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.sync.controlplane.ControlPlane;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
@@ -30,23 +28,17 @@ public class InformerManager implements LocalLookup {
     @Inject
     MeterRegistry meterRegistry;
 
-    private SharedInformerFactory sharedInformerFactory;
-
     private ResourceInformer<ManagedKafka> managedKafkaInformer;
     private ResourceInformer<ManagedKafkaAgent> managedAgentInformer;
 
     @PostConstruct
     protected void onStart() {
-        sharedInformerFactory = client.informers();
-
         managedKafkaInformer = ResourceInformer.start(client.customResources(ManagedKafka.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus));
 
         // for the Agent
         managedAgentInformer = ResourceInformer.start(client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
-
-        sharedInformerFactory.startAllRegisteredInformers();
 
         meterRegistry.gauge("managedkafkas", this, (informer) -> {
             if (!informer.isReady()) {
@@ -67,11 +59,6 @@ public class InformerManager implements LocalLookup {
                             .isPresent())
                     .count();
         });
-    }
-
-    @PreDestroy
-    protected void onStop() {
-        sharedInformerFactory.stopAllRegisteredInformers();
     }
 
     @Override

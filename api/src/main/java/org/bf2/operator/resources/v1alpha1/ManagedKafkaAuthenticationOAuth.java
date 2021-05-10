@@ -14,6 +14,7 @@ import lombok.ToString;
 )
 @ToString
 @EqualsAndHashCode
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManagedKafkaAuthenticationOAuth {
 
     private String clientId;
@@ -25,7 +26,6 @@ public class ManagedKafkaAuthenticationOAuth {
     private String tlsTrustedCertificate;
     private String customClaimCheck;
 
-    @JsonInclude(value = JsonInclude.Include.NON_NULL)
     public String getCustomClaimCheck() {
         return customClaimCheck;
     }
