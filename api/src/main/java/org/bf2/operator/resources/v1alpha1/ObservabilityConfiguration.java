@@ -1,5 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -10,6 +11,7 @@ import lombok.ToString;
 )
 @ToString
 @EqualsAndHashCode
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ObservabilityConfiguration {
 
     private String accessToken;
