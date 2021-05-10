@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "dev")
-public class KafkaCluster extends AbstractKafkaCluster {
+public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
     /* test */
     @Override
