@@ -9,7 +9,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -37,8 +36,6 @@ public class InformerManager {
     @Inject
     ResourceEventSource eventSource;
 
-    private SharedInformerFactory sharedInformerFactory;
-
     private ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
@@ -54,8 +51,6 @@ public class InformerManager {
 
     @PostConstruct
     protected void onStart() {
-        sharedInformerFactory = kubernetesClient.informers();
-
         kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
 
         deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), eventSource);
@@ -69,18 +64,11 @@ public class InformerManager {
         if (isOpenShift()) {
             routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
-
-        sharedInformerFactory.startAllRegisteredInformers();
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
             MixedOperation<T, ? extends KubernetesResourceList<T>, ?> mixedOperation) {
         return mixedOperation.inAnyNamespace().withLabels(OperandUtils.getDefaultLabels());
-    }
-
-    @PreDestroy
-    protected void onStop() {
-        sharedInformerFactory.stopAllRegisteredInformers();
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
