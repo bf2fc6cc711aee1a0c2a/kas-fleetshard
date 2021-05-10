@@ -20,7 +20,6 @@ import org.bf2.operator.events.ResourceEventSource;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
