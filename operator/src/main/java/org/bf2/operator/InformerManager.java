@@ -13,8 +13,6 @@ import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
@@ -22,8 +20,9 @@ import org.bf2.common.ResourceInformer;
 import org.bf2.operator.events.ResourceEventSource;
 import org.jboss.logging.Logger;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
 @ApplicationScoped
@@ -52,14 +51,9 @@ public class InformerManager {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
     }
 
-    /**
-     * Start each informer in a blocking manner.  The controller(s) will
-     * not be initilized until after this completes - ensuring that all
-     * will be synced to avoid any inconsistent state on start-up.
-     *
-     * This could be modified to start all in parallel, and then wait for sync.
-     */
-    void onStart(@Observes StartupEvent ev) {
+
+    @PostConstruct
+    protected void onStart() {
         sharedInformerFactory = kubernetesClient.informers();
 
         kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
@@ -84,7 +78,8 @@ public class InformerManager {
         return mixedOperation.inAnyNamespace().withLabels(OperandUtils.getDefaultLabels());
     }
 
-    void onStop(@Observes ShutdownEvent ev) {
+    @PreDestroy
+    protected void onStop() {
         sharedInformerFactory.stopAllRegisteredInformers();
     }
 
