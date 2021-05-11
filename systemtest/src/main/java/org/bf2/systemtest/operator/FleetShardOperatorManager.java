@@ -15,7 +15,6 @@ import org.bf2.test.k8s.KubeClient;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.LinkedList;
