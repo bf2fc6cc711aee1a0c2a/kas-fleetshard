@@ -33,6 +33,20 @@ mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress \
 * suite by default gets generated operator/sync deployments from `target/kubernetes` folders
 * if you want to use different deployment files run test suite with env var `YAML_BUNDLE_PATH=/custom/path`
 
+### System Tests with Image Pull Secrets
+Testing with image pull secrets can done using the following steps. Note, only tests using both the operator and sync components support pull secrets. The optional properties for overriding the operand images are only necessary for those images for which you wish to tests image pull secrets.
+1. Build the operator image as you typically would for system tests, additionally setting the following system properties. These properties will be used to push the test images as well as configure the `kubernetes.yml` deployment files accordingly.
+  * `quarkus.container-image.registry`: registry where the images will be pushed. This registry should support authentication
+  * `quarkus.container-image.username`: username for the given registry (used to push the image only)
+  * `quarkus.container-image.password`: password for the given registry (used to push the image only)
+  * `quarkus.container-image.group`: the image group name
+  * `quarkus.kubernetes.image-pull-secrets`: list of image pull secret names to be used. The secrets themselves are provided in step 2
+  * (optional) `quarkus.kubernetes.env.vars."IMAGE_ADMIN_API"`: reference string of the admin server image to deploy
+  * (optional) `quarkus.kubernetes.env.vars."IMAGE_CANARY"`: reference string of the canary image to deploy
+  * (optional) `quarkus.kubernetes.env.vars."IMAGE_KAFKA"`: reference string of the Kafka image to deploy (via Strimzi)
+  * (optional) `quarkus.kubernetes.env.vars."IMAGE_ZOOKEEPER"`: reference string of the ZooKeeper image to deploy (via Strimzi)
+2. Provide an `image-pull-secrets.yaml` (or any YAML) file at a location specified by environment variable `FLEET_SHARD_PULL_SECRET_PATH` containing the [pull secrets](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/) you wish to use.
+
 #### Running full suite
 ```bash
 mvn verify -P systemtest -pl systemtest -am

@@ -10,6 +10,10 @@ import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
+import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
+import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
+import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
+import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -25,7 +29,7 @@ import java.util.Map;
  */
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "dev")
-public class KafkaCluster extends AbstractKafkaCluster {
+public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
     /* test */
     @Override
@@ -46,11 +50,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withListeners(getListeners())
                         .withStorage(getStorage())
                         .withConfig(getKafkaConfig(managedKafka))
+                        .withTemplate(getKafkaTemplate())
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(3)
                         .withStorage((SingleVolumeStorage)getStorage())
+                        .withTemplate(getZookeeperTemplate())
                         .withImage(zookeeperImage.orElse(null))
                     .endZookeeper()
                 .endSpec()
@@ -92,4 +98,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private Map<String, String> getLabels() {
         return OperandUtils.getDefaultLabels();
     }
+
+    private KafkaClusterTemplate getKafkaTemplate() {
+        return new KafkaClusterTemplateBuilder()
+                .withNewPod()
+                    .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                .endPod()
+            .build();
+    }
+
+    private ZookeeperClusterTemplate getZookeeperTemplate() {
+        return new ZookeeperClusterTemplateBuilder()
+                .withNewPod()
+                    .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                .endPod()
+            .build();
+    }
+
 }
