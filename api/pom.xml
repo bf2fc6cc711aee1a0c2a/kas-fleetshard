@@ -12,9 +12,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.dekorate</groupId>
-            <artifactId>crd-annotations</artifactId>
-            <optional>true</optional> <!-- we need to keep this optional to avoid conflicts with quarkus-kubernetes -->
+            <groupId>io.fabric8</groupId>
+            <artifactId>crd-generator</artifactId>
         </dependency>
         <dependency>
             <groupId>io.sundr</groupId>

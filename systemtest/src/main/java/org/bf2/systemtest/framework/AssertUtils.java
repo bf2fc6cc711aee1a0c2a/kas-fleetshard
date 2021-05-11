@@ -1,5 +1,6 @@
 package org.bf2.systemtest.framework;
 
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -45,10 +46,11 @@ public class AssertUtils {
     }
 
     public static void assertManagedKafkaAgentStatus(ManagedKafkaAgentStatus agentStatus) {
-        assertEquals(1, agentStatus.getConditions().size());
-        assertNotNull(agentStatus.getTotalCapacity());
-        assertNotNull(agentStatus.getRemainingCapacity());
-        assertNotNull(agentStatus.getResizeInfo());
-        assertNotNull(agentStatus.getRequiredNodeSizes());
+        String yml = Serialization.asYaml(agentStatus);
+        assertEquals(1, agentStatus.getConditions().size(), yml);
+        assertNotNull(agentStatus.getTotal(), yml);
+        assertNotNull(agentStatus.getRemaining(), yml);
+        assertNotNull(agentStatus.getResizeInfo(), yml);
+        assertNotNull(agentStatus.getNodeInfo(), yml);
     }
 }

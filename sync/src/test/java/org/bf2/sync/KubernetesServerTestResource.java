@@ -1,6 +1,5 @@
 package org.bf2.sync;
 
-import io.fabric8.kubernetes.api.model.apiextensions.v1beta1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
@@ -50,13 +49,6 @@ public class KubernetesServerTestResource implements QuarkusTestResourceLifecycl
      * setup the mock server before the Quarkus application starts
      */
     public void configureServer(KubernetesServer mockServer) {
-        // initialize with the crd
-        try (NamespacedKubernetesClient client = server.getClient()) {
-            client.load(KubernetesServerTestResource.class.getResourceAsStream("/META-INF/dekorate/kubernetes.yml")).get().forEach(crd -> {
-                client.apiextensions().v1beta1().customResourceDefinitions()
-                        .createOrReplace((CustomResourceDefinition) crd);
-            });
-        }
     }
 
     @Override
