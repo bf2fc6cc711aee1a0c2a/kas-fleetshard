@@ -29,7 +29,7 @@ public class ManagedKafkaAgentSync {
 
     @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The time spent processing polling calls")
     @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of polling calls")
-    @Scheduled(every = "{poll.interval}", delayed = "5s")
+    @Scheduled(every = "{poll.interval}")
     void loop() {
         if (!lookup.isReady()) {
             log.debug("Not ready to poll, the lookup is not ready");

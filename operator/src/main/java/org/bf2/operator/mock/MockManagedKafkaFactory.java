@@ -34,7 +34,7 @@ public class MockManagedKafkaFactory {
     // Unique Id for the clusters
     private AtomicInteger clusterIdGenerator = new AtomicInteger(1);
 
-    @Scheduled(every = "{mock.factory.interval}", delayed = "10s")
+    @Scheduled(every = "{mock.factory.interval}")
     void loop() {
 
         Random random = new Random(System.currentTimeMillis());

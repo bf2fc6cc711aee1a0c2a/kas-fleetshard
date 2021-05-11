@@ -81,7 +81,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
-    @Scheduled(every = "{agent.status.interval}", delayed = "5s")
+    @Scheduled(every = "{agent.status.interval}")
     void statusUpdateLoop() {
         if (!manager.isReady()) {
             log.debug("Not ready to update agent status, the informers are not reader");
