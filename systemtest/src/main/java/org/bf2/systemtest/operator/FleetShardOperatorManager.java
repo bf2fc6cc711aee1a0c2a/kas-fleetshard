@@ -98,15 +98,8 @@ public class FleetShardOperatorManager {
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {
-        Path secretResourcePath;
-
-        try {
-            secretResourcePath = Path.of(FLEET_SHARD_PULL_SECRET_PATH);
-            LOGGER.info("Deploying secrets for image pull from {}", FLEET_SHARD_PULL_SECRET_PATH);
-            kubeClient.apply(OPERATOR_NS, secretResourcePath);
-        } catch (InvalidPathException e) {
-            LOGGER.warn("Invalid path for {} - {}", FLEET_SHARD_PULL_SECRET_PATH_ENV, e.getMessage());
-        }
+        LOGGER.info("Deploying secrets for image pull from {}", FLEET_SHARD_PULL_SECRET_PATH);
+        kubeClient.apply(OPERATOR_NS, Path.of(FLEET_SHARD_PULL_SECRET_PATH));
     }
 
     public static boolean isOperatorInstalled() {
