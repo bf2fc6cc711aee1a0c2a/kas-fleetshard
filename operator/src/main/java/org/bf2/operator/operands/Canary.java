@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarSource;
+import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
 import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
@@ -136,6 +138,27 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(KafkaCluster.KAFKA_BROKERS)).build());
         envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(managedKafka.getSpec().getVersions().getKafka()).build());
+
+        EnvVarSource saramaLogEnabled =
+                new EnvVarSourceBuilder()
+                        .editOrNewConfigMapKeyRef()
+                            .withName("canary-config")
+                            .withKey("sarama.log.enabled")
+                            .withOptional(Boolean.TRUE)
+                        .endConfigMapKeyRef()
+                        .build();
+
+        EnvVarSource verbosityLogLevel =
+                new EnvVarSourceBuilder()
+                        .editOrNewConfigMapKeyRef()
+                            .withName("canary-config")
+                            .withKey("verbosity.log.level")
+                            .withOptional(Boolean.TRUE)
+                        .endConfigMapKeyRef()
+                        .build();
+
+        envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
+        envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
         return envVars;
     }
 
