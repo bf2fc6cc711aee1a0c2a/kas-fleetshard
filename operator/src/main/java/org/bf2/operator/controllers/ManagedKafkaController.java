@@ -9,6 +9,7 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
+import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -20,6 +21,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
+import org.jboss.logging.NDC;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -76,9 +78,18 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing createOrUpdate calls")
     @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "The number of createOrUpdate calls")
     public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        handleUpdate(managedKafka, context);
-        updateManagedKafkaStatus(managedKafka);
-        return UpdateControl.updateStatusSubResource(managedKafka);
+        if (managedKafka.getId() != null) {
+            NDC.push(ManagedKafkaResourceClient.ID_LOG_KEY + "=" + managedKafka.getId());
+        }
+        try {
+            handleUpdate(managedKafka, context);
+            updateManagedKafkaStatus(managedKafka);
+            return UpdateControl.updateStatusSubResource(managedKafka);
+        } finally {
+            if (managedKafka.getId() != null) {
+                NDC.pop();
+            }
+        }
     }
 
     @Override

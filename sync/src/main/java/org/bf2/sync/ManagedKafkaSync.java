@@ -20,6 +20,7 @@ import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
+import org.jboss.logging.NDC;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -169,27 +170,42 @@ public class ManagedKafkaSync {
             return; //nothing to do
         }
 
-        if (local == null) {
-            if (!remote.getSpec().isDeleted()) {
-                create(remote);
-            }
-        } else if (remote == null) {
-            if (deleteAllowed(local)) {
-                delete(local);
-            }
+        String id = null;
+        if (local != null) {
+            id = local.getId();
         } else {
-            if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {
-                log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
-                return;
+            id = remote.getId();
+        }
+        if (id != null) {
+            NDC.push(ManagedKafkaResourceClient.ID_LOG_KEY + "=" + id);
+        }
+        try {
+            if (local == null) {
+                if (!remote.getSpec().isDeleted()) {
+                    create(remote);
+                }
+            } else if (remote == null) {
+                if (deleteAllowed(local)) {
+                    delete(local);
+                }
+            } else {
+                if (!Objects.equals(local.getPlacementId(), remote.getPlacementId())) {
+                    log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
+                    return;
+                }
+                if (specChanged(remote.getSpec(), local)) {
+                    log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
+                    ManagedKafkaSpec spec = remote.getSpec();
+                    client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
+                            mk.setSpec(spec);
+                            return mk;
+                        });
+                    // the operator will handle it from here
+                }
             }
-            if (specChanged(remote.getSpec(), local)) {
-                log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
-                ManagedKafkaSpec spec = remote.getSpec();
-                client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                        mk.setSpec(spec);
-                        return mk;
-                    });
-                // the operator will handle it from here
+        } finally {
+            if (id != null) {
+                NDC.pop();
             }
         }
     }

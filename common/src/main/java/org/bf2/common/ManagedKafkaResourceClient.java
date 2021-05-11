@@ -11,6 +11,8 @@ import javax.enterprise.context.ApplicationScoped;
 @ApplicationScoped
 public class ManagedKafkaResourceClient extends AbstractCustomResourceClient<ManagedKafka, ManagedKafkaList> {
 
+    public static final String ID_LOG_KEY = "mk.id";
+
     @Override
     protected Class<ManagedKafka> getCustomResourceClass() {
         return ManagedKafka.class;
