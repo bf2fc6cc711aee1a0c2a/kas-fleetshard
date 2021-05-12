@@ -8,7 +8,6 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ConditionUtils;
-import org.bf2.common.ImagePullSecretUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -18,7 +17,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlane;
-import org.bf2.sync.informer.ImagePullSecretManager;
 import org.bf2.sync.informer.LocalLookup;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
@@ -54,9 +52,6 @@ public class ManagedKafkaSync {
 
     @Inject
     ControlPlane controlPlane;
-
-    @Inject
-    ImagePullSecretManager pullSecretManager;
 
     @Inject
     KubernetesClient kubeClient;
@@ -240,10 +235,6 @@ public class ManagedKafkaSync {
                             .addToLabels("observability-operator/scrape-logging", "true")
                         .endMetadata()
                         .build());
-
-        var syncPullSecrets = pullSecretManager.getImagePullSecrets();
-        ImagePullSecretUtils.propagateSecrets(kubeClient, remoteNamespace, syncPullSecrets);
-
         try {
             client.create(remote);
         } catch (KubernetesClientException e) {

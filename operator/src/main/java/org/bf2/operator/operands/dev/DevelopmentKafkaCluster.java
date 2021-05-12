@@ -17,8 +17,10 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.secrets.ImagePullSecretManager;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -30,6 +32,9 @@ import java.util.Map;
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "dev")
 public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
+
+    @Inject
+    protected ImagePullSecretManager imagePullSecretManager;
 
     /* test */
     @Override
@@ -102,7 +107,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
     private KafkaClusterTemplate getKafkaTemplate() {
         return new KafkaClusterTemplateBuilder()
                 .withNewPod()
-                    .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
                 .endPod()
             .build();
     }
@@ -110,7 +115,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
     private ZookeeperClusterTemplate getZookeeperTemplate() {
         return new ZookeeperClusterTemplateBuilder()
                 .withNewPod()
-                    .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
                 .endPod()
             .build();
     }

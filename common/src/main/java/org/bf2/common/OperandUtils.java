@@ -1,14 +1,11 @@
 package org.bf2.common;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 public class OperandUtils {
@@ -29,10 +26,6 @@ public class OperandUtils {
                 .withUid(owner.getMetadata().getUid())
                 .build();
         resource.getMetadata().setOwnerReferences(Collections.singletonList(ownerReference));
-    }
-
-    public static List<LocalObjectReference> getOperatorImagePullSecrets(KubernetesClient client) {
-        return ImagePullSecretUtils.getImagePullSecrets(client, FLEETSHARD_OPERATOR_NAME);
     }
 
     public static Map<String, String> getDefaultLabels() {
