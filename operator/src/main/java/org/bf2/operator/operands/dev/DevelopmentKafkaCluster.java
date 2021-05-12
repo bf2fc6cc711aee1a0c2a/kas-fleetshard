@@ -55,13 +55,13 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                         .withListeners(getListeners())
                         .withStorage(getStorage())
                         .withConfig(getKafkaConfig(managedKafka))
-                        .withTemplate(getKafkaTemplate())
+                        .withTemplate(getKafkaTemplate(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(3)
                         .withStorage((SingleVolumeStorage)getStorage())
-                        .withTemplate(getZookeeperTemplate())
+                        .withTemplate(getZookeeperTemplate(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
                     .endZookeeper()
                 .endSpec()
@@ -104,18 +104,18 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         return OperandUtils.getDefaultLabels();
     }
 
-    private KafkaClusterTemplate getKafkaTemplate() {
+    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
         return new KafkaClusterTemplateBuilder()
                 .withNewPod()
-                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
+                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                 .endPod()
             .build();
     }
 
-    private ZookeeperClusterTemplate getZookeeperTemplate() {
+    private ZookeeperClusterTemplate getZookeeperTemplate(ManagedKafka managedKafka) {
         return new ZookeeperClusterTemplateBuilder()
                 .withNewPod()
-                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
+                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                 .endPod()
             .build();
     }

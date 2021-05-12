@@ -438,7 +438,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withAffinity(new AffinityBuilder()
                                 .withPodAntiAffinity(podAntiAffinity)
                                 .build())
-                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
+                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .build())
                 .build();
     }
@@ -455,7 +455,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withAffinity(new AffinityBuilder()
                                 .withPodAntiAffinity(podAntiAffinity)
                                 .build())
-                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets())
+                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .build())
                 .build();
     }

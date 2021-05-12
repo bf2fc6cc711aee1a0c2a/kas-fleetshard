@@ -24,7 +24,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        imagePullSecretManager.propagateSecrets(managedKafka.getMetadata().getNamespace());
+        imagePullSecretManager.propagateSecrets(managedKafka);
 
         kafkaCluster.createOrUpdate(managedKafka);
         canary.createOrUpdate(managedKafka);
@@ -33,6 +33,8 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        imagePullSecretManager.deleteSecrets(managedKafka);
+
         kafkaCluster.delete(managedKafka, context);
         canary.delete(managedKafka, context);
         adminServer.delete(managedKafka, context);

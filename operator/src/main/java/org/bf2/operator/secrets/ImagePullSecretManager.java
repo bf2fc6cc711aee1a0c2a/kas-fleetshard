@@ -1,6 +1,7 @@
 package org.bf2.operator.secrets;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
@@ -9,6 +10,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -39,16 +41,22 @@ public class ImagePullSecretManager {
 
     private volatile Map<String, Secret> secrets;
 
-    static void propagateSecrets(KubernetesClient client, String remoteNamespace, Collection<Secret> secrets) {
+    private static String getSecretName(ManagedKafka managedKafka, String name) {
+        return managedKafka.getMetadata().getName() + "-pull-" + name;
+    }
+
+    static void propagateSecrets(KubernetesClient client, ManagedKafka mk, Collection<Secret> secrets) {
         secrets.stream()
-                .map(secret -> new SecretBuilder(secret)
-                    .withNewMetadata()
-                        .withNamespace(remoteNamespace)
-                        .withName(secret.getMetadata().getName())
-                    .endMetadata()
-                    .build())
-                .forEach(s -> {
-                    client.secrets().inNamespace(remoteNamespace).createOrReplace(s);
+                .forEach(secret -> {
+                    Secret s = new SecretBuilder(secret)
+                        .withNewMetadata()
+                            .withNamespace(mk.getMetadata().getNamespace())
+                            .withName(getSecretName(mk, secret.getMetadata().getName()))
+                            .withLabels(OperandUtils.getDefaultLabels())
+                        .endMetadata()
+                        .build();
+                    OperandUtils.setAsOwner(mk, s);
+                    client.secrets().inNamespace(mk.getMetadata().getNamespace()).createOrReplace(s);
                 });
     }
 
@@ -94,7 +102,7 @@ public class ImagePullSecretManager {
 
     @Scheduled(every = "60s")
     void checkSecret() {
-        Map<String, Secret> newSecretMeta = getOperatorImagePullSecrets().stream()
+        Map<String, Secret> newSecretMeta = imagePullSecretRefs.stream()
                 .map(this::secretFromReference)
                 .collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
 
@@ -112,24 +120,25 @@ public class ImagePullSecretManager {
         this.secrets = newSecretMeta;
 
         if (!updatedSecrets.isEmpty()) {
+            if (log.isInfoEnabled()) {
+                log.infof("Propagating secrets [%s]",
+                        updatedSecrets.stream().map(s -> s.getMetadata().getName()).collect(Collectors.joining(", ")));
+            }
             managedKafkaResourceClient.list().stream()
-                .map(remote -> remote.getMetadata().getNamespace())
-                .forEach(ns -> {
+                .forEach(mk -> {
                     try {
-                        if (log.isInfoEnabled()) {
-                            log.infof("Propagating secrets to %s namespace: [%s]", ns,
-                                    updatedSecrets.stream().map(s -> s.getMetadata().getName()).collect(Collectors.joining(", ")));
-                        }
-                        propagateSecrets(client, ns, updatedSecrets);
+                        propagateSecrets(client, mk, updatedSecrets);
                     } catch (Exception e) {
-                        log.warnf("Exception propagating pull secrets to namespace %s: %s", ns, e.getMessage());
+                        log.warnf("Exception propagating pull secrets to namespace %s: %s", mk, e.getMessage());
                     }
                 });
         }
     }
 
-    public List<LocalObjectReference> getOperatorImagePullSecrets() {
-        return this.imagePullSecretRefs;
+    public List<LocalObjectReference> getOperatorImagePullSecrets(ManagedKafka managedKafka) {
+        return this.imagePullSecretRefs.stream()
+                .map(s -> new LocalObjectReferenceBuilder(s).withName(getSecretName(managedKafka, s.getName())).build())
+                .collect(Collectors.toList());
     }
 
     Secret updatedSecretOrNull(Map.Entry<String, Secret> entry) {
@@ -153,10 +162,18 @@ public class ImagePullSecretManager {
                 || !previous.getUid().equals(current.getUid());
     }
 
-    public void propagateSecrets(String namespace) {
+    public void propagateSecrets(ManagedKafka managedKafka) {
         if (secrets != null && !secrets.isEmpty()) {
-            propagateSecrets(client, namespace, secrets.values());
+            propagateSecrets(client, managedKafka, secrets.values());
         }
+    }
+
+    public void deleteSecrets(ManagedKafka managedKafka) {
+        imagePullSecretRefs.stream()
+                .forEach(s -> client.secrets()
+                        .inNamespace(managedKafka.getMetadata().getNamespace())
+                        .withName(getSecretName(managedKafka, s.getName()))
+                        .delete());
     }
 
 }
