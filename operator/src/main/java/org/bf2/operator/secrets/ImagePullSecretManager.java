@@ -86,6 +86,7 @@ public class ImagePullSecretManager {
          * the same namespace as this component.
          */
         this.imagePullSecretRefs = getImagePullSecrets(client, OperandUtils.FLEETSHARD_OPERATOR_NAME);
+        this.secrets = null;
         if (log.isInfoEnabled()) {
             if (imagePullSecretRefs.isEmpty()) {
                 log.infof("No `imagePullSecrets` defined for %s/%s", client.getNamespace(), OperandUtils.FLEETSHARD_OPERATOR_NAME);
@@ -97,7 +98,7 @@ public class ImagePullSecretManager {
     }
 
     Secret secretFromReference(LocalObjectReference ref) {
-        return client.secrets().inNamespace(client.getNamespace()).withName(ref.getName()).get();
+        return client.secrets().inNamespace(client.getNamespace()).withName(ref.getName()).require();
     }
 
     @Scheduled(every = "60s")
