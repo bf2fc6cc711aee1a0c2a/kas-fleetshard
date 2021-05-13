@@ -24,8 +24,6 @@ rules:
       - ""
     resources:
       - namespaces
-      # kas-fleetshard-sync creates image pull secrets in the remote namespace when used to pull sync itself
-      - secrets
     verbs:
       - get
       - list
