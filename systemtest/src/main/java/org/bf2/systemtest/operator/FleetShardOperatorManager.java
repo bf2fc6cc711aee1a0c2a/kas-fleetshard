@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 public class FleetShardOperatorManager {
-    private static final String CRD_FILE_SUFFIX = "-v1beta1.yml";
+    private static final String CRD_FILE_SUFFIX = "-v1.yml";
     private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
     private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
     private static final String FLEET_SHARD_PULL_SECRET_PATH_ENV = "FLEET_SHARD_PULL_SECRET_PATH";
@@ -133,7 +133,7 @@ public class FleetShardOperatorManager {
                 String fileName = crd.getFileName().toString();
                 String crdName = fileName.substring(0, fileName.length()-CRD_FILE_SUFFIX.length());
                 LOGGER.info("Delete CRD {}", crdName);
-                kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withName(crdName).delete();
+                kubeClient.client().apiextensions().v1().customResourceDefinitions().withName(crdName).delete();
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
