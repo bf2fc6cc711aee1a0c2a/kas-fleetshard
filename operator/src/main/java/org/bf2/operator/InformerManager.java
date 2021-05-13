@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
@@ -23,6 +24,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+@Startup
 @ApplicationScoped
 public class InformerManager {
 
@@ -46,7 +48,6 @@ public class InformerManager {
     boolean isOpenShift() {
         return kubernetesClient.isAdaptable(OpenShiftClient.class);
     }
-
 
     @PostConstruct
     protected void onStart() {

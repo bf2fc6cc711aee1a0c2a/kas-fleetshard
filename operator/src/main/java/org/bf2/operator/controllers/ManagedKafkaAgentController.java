@@ -2,6 +2,7 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
@@ -27,7 +28,6 @@ import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.jboss.logging.Logger;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Arrays;
@@ -40,7 +40,7 @@ import java.util.Arrays;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@ApplicationScoped
+@Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     @Inject

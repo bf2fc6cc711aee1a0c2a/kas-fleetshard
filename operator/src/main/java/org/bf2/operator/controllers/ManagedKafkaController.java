@@ -2,6 +2,7 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
@@ -23,7 +24,6 @@ import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.logging.NDC;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@ApplicationScoped
+@Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     @Inject

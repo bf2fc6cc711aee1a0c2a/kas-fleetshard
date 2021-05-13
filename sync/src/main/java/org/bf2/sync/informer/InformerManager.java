@@ -2,6 +2,7 @@ package org.bf2.sync.informer;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.quarkus.runtime.Startup;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -16,6 +17,7 @@ import javax.inject.Inject;
 
 import java.util.List;
 
+@Startup
 @ApplicationScoped
 public class InformerManager implements LocalLookup {
 
