@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
@@ -23,7 +22,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(QuarkusKubeMockServer.class)
@@ -92,7 +90,7 @@ public class ImagePullSecretManagerTest {
         // no-ops - the secrets aren't yet retrieved
         imagePullSecretManager.propagateSecrets(managedKafka);
         imagePullSecretManager.deleteSecrets(managedKafka);
-        assertThrows(ResourceNotFoundException.class, imagePullSecretManager::checkSecret);
+        imagePullSecretManager.checkSecret();
 
         client.secrets()
                 .inNamespace(client.getNamespace())

@@ -98,13 +98,14 @@ public class ImagePullSecretManager {
     }
 
     Secret secretFromReference(LocalObjectReference ref) {
-        return client.secrets().inNamespace(client.getNamespace()).withName(ref.getName()).require();
+        return client.secrets().inNamespace(client.getNamespace()).withName(ref.getName()).get();
     }
 
     @Scheduled(every = "60s")
     void checkSecret() {
         Map<String, Secret> newSecretMeta = imagePullSecretRefs.stream()
                 .map(this::secretFromReference)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toMap(s->s.getMetadata().getName(), Function.identity()));
 
         Collection<Secret> updatedSecrets;
@@ -144,7 +145,8 @@ public class ImagePullSecretManager {
 
     Secret updatedSecretOrNull(Map.Entry<String, Secret> entry) {
         final String secretName = entry.getKey();
-        final ObjectMeta previousMeta = this.secrets.get(secretName).getMetadata();
+        Secret secret = this.secrets.get(secretName);
+        final ObjectMeta previousMeta = secret != null ? secret.getMetadata() : null;
         final Secret currentSecret = entry.getValue();
         final ObjectMeta currentMeta = entry.getValue().getMetadata();
 
@@ -159,7 +161,7 @@ public class ImagePullSecretManager {
     }
 
     boolean secretUpdated(ObjectMeta previous, ObjectMeta current) {
-        return !previous.getResourceVersion().equals(current.getResourceVersion())
+        return previous == null || !previous.getResourceVersion().equals(current.getResourceVersion())
                 || !previous.getUid().equals(current.getUid());
     }
 
