@@ -2,6 +2,7 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
 import io.javaoperatorsdk.operator.api.ResourceController;
 import io.javaoperatorsdk.operator.api.UpdateControl;
@@ -9,6 +10,7 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.InformerManager;
@@ -27,7 +29,6 @@ import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.jboss.logging.Logger;
 
-import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Arrays;
@@ -40,7 +41,7 @@ import java.util.Arrays;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@ApplicationScoped
+@Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     @Inject
@@ -81,7 +82,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
-    @Scheduled(every = "{agent.status.interval}")
+    @Scheduled(every = "{agent.status.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void statusUpdateLoop() {
         if (!manager.isReady()) {
             log.debug("Not ready to update agent status, the informers are not reader");

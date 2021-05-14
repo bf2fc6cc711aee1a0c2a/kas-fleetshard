@@ -12,4 +12,9 @@ public class MockSyncProfile implements QuarkusTestProfile {
         return Collections.singletonMap("quarkus.scheduler.enabled", "false");
     }
 
+    @Override
+    public boolean disableApplicationLifecycleObservers() {
+        return true;
+    }
+
 }
