@@ -10,6 +10,7 @@ import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.InformerManager;
@@ -81,7 +82,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
-    @Scheduled(every = "{agent.status.interval}")
+    @Scheduled(every = "{agent.status.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void statusUpdateLoop() {
         if (!manager.isReady()) {
             log.debug("Not ready to update agent status, the informers are not reader");

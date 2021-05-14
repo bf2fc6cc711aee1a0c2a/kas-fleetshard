@@ -3,6 +3,7 @@ package org.bf2.sync;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.sync.controlplane.ControlPlane;
@@ -29,7 +30,7 @@ public class ManagedKafkaAgentSync {
 
     @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The time spent processing polling calls")
     @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of polling calls")
-    @Scheduled(every = "{poll.interval}")
+    @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void loop() {
         if (!lookup.isReady()) {
             log.debug("Not ready to poll, the lookup is not ready");

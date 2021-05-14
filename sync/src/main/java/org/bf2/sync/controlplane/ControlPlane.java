@@ -3,6 +3,7 @@ package org.bf2.sync.controlplane;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.annotation.Counted;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
@@ -193,7 +194,7 @@ public class ControlPlane {
      * On the resync interval, send everything
      */
     @Counted(value = "sync.resync", description = "The number of resync calls") // no need to be timed as the actions are async
-    @Scheduled(every = "{resync.interval}")
+    @Scheduled(every = "{resync.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     public void sendResync() {
         log.debug("Updating status on resync interval");
         updateKafkaClusterStatus(() -> {

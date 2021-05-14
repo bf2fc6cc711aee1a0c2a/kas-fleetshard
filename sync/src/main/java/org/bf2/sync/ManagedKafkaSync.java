@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ImagePullSecretUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
@@ -254,7 +255,7 @@ public class ManagedKafkaSync {
         }
     }
 
-    @Scheduled(every = "{poll.interval}")
+    @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void pollKafkaClusters() {
         if (!lookup.isReady()) {
             log.debug("Not ready to poll, the lookup is not ready");
@@ -263,7 +264,7 @@ public class ManagedKafkaSync {
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list
-        executorService.execute(() -> syncKafkaClusters());
+        syncKafkaClusters();
     }
 
 }

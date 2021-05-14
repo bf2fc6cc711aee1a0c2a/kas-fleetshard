@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.scheduler.Scheduled;
+import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.config.spi.ConfigSource;
@@ -35,7 +36,7 @@ public class SecretRestartHandler {
      */
     private volatile String uid;
 
-    @Scheduled(every = "60s")
+    @Scheduled(every = "60s", concurrentExecution = ConcurrentExecution.SKIP)
     public void checkSecret() {
         Secret secret = client.secrets().inNamespace(client.getNamespace()).withName(secretName).get();
         if (secret == null) {
