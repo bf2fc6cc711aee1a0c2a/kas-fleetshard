@@ -47,10 +47,10 @@ The canary tool, deployed by the fleetshard operator, provides logging at two di
 * canary application itself
 * Sarama Apache Kafka client, used by the canary to interact with the Apache Kafka cluster
 
-The canary application has a verbosity logging level to be configurable through the `VERBOSITY_LOG_LEVEL` environment variable that defaults to 0 (INFO); other allowed values are 1 (DEBUG) and 2 (TRACE).
-Warnings and errors are always logged and not driven by such a configuration.
+The canary application has a verbosity logging level configuration using the `VERBOSITY_LOG_LEVEL` environment variable that defaults to `0` (INFO); other allowed values are `1` (DEBUG) and `2` (TRACE).
+Warnings and errors are always logged and are not affected by the value of `VERBOSITY_LOG_LEVEL`.
 
-The Sarama Apache Kafka client just allows to enable or disable (default) the logging, without any kind of verbosity level support.
+The Sarama Apache Kafka client only allows logging to be enabled or disabled (default), without any kind of verbosity level support.
 It is possible to enable it by using the `SARAMA_LOG_ENABLED` environment variable.
 
 If you wish to change the above logging configuration, you should create a ConfigMap containing the corresponding environment variables in the following way.
