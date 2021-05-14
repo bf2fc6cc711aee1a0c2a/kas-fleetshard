@@ -20,9 +20,11 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,6 +46,9 @@ public class Canary extends AbstractCanary {
 
     @ConfigProperty(name = "image.canary")
     String canaryImage;
+
+    @Inject
+    protected ImagePullSecretManager imagePullSecretManager;
 
     @Override
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
@@ -68,7 +73,7 @@ public class Canary extends AbstractCanary {
                         .endMetadata()
                         .editOrNewSpec()
                             .withContainers(getContainers(managedKafka))
-                            .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                            .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec()

@@ -32,6 +32,7 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -80,6 +81,9 @@ public class AdminServer extends AbstractAdminServer {
     Optional<String> corsAllowList;
 
     OpenShiftClient openShiftClient;
+
+    @Inject
+    protected ImagePullSecretManager imagePullSecretManager;
 
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
@@ -142,7 +146,7 @@ public class AdminServer extends AbstractAdminServer {
                         .endMetadata()
                         .editOrNewSpec()
                             .withContainers(getContainers(managedKafka))
-                            .withImagePullSecrets(OperandUtils.getOperatorImagePullSecrets(kubernetesClient))
+                            .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(getVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()

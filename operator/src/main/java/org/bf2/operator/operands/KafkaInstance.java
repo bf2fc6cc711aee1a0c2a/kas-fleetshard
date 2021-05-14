@@ -2,6 +2,7 @@ package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.secrets.ImagePullSecretManager;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -18,9 +19,13 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     Canary canary;
     @Inject
     AdminServer adminServer;
+    @Inject
+    ImagePullSecretManager imagePullSecretManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        imagePullSecretManager.propagateSecrets(managedKafka);
+
         kafkaCluster.createOrUpdate(managedKafka);
         canary.createOrUpdate(managedKafka);
         adminServer.createOrUpdate(managedKafka);
@@ -28,6 +33,8 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+        imagePullSecretManager.deleteSecrets(managedKafka);
+
         kafkaCluster.delete(managedKafka, context);
         canary.delete(managedKafka, context);
         adminServer.delete(managedKafka, context);
