@@ -52,7 +52,7 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
         installedCrds =
-        Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).toArray(Path[]::new);
+                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).toArray(Path[]::new);
         LOGGER.info("Installing CRDs {}", Arrays.toString(installedCrds));
         kubeClient.apply(OPERATOR_NS, installedCrds);
 
@@ -123,24 +123,23 @@ public class FleetShardOperatorManager {
         }
     }
 
-    public static void deleteFleetShard(KubeClient kubeClient) throws InterruptedException {
+    public static CompletableFuture<Void> deleteFleetShard(KubeClient kubeClient) {
         if (!Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
             var mkCli = kubeClient.client().customResources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
-            Thread.sleep(10_000);
             Arrays.asList(installedCrds).forEach(crd -> {
                 String fileName = crd.getFileName().toString();
-                String crdName = fileName.substring(0, fileName.length()-CRD_FILE_SUFFIX.length());
+                String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
                 LOGGER.info("Delete CRD {}", crdName);
                 kubeClient.client().apiextensions().v1().customResourceDefinitions().withName(crdName).delete();
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
-            TestUtils.waitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
-            LOGGER.info("kas-fleetshard is deleted");
+            return TestUtils.asyncWaitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         } else {
             LOGGER.info("SKIP_TEARDOWN is set to true.");
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

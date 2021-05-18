@@ -94,17 +94,18 @@ public class StrimziOperatorManager {
         }
     }
 
-    public static void uninstallStrimziClusterWideResources(KubeClient kubeClient) {
+    public static CompletableFuture<Void> uninstallStrimziClusterWideResources(KubeClient kubeClient) {
         if (kubeClient.namespaceExists(OPERATOR_NS) && !Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting Strimzi : {}", OPERATOR_NS);
             kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
             CLUSTER_WIDE_RESOURCE_DELETERS.forEach(delete -> delete.accept(null));
-            TestUtils.waitFor("Delete strimzi", 2_000, 120_000, () ->
+            return TestUtils.asyncWaitFor("Delete strimzi", 2_000, 120_000, () ->
                     kubeClient.client().pods().inNamespace(OPERATOR_NS).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
                             !kubeClient.namespaceExists(OPERATOR_NS));
         } else {
             LOGGER.info("No need to uninstall strimzi operator");
+            return CompletableFuture.completedFuture(null);
         }
     }
 }
