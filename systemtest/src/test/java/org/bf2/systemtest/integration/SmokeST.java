@@ -43,7 +43,7 @@ public class SmokeST extends AbstractST {
     }
 
     @AfterAll
-    void clean() throws InterruptedException {
+    void clean() {
         CompletableFuture.allOf(
                 FleetShardOperatorManager.deleteFleetShard(kube),
                 StrimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
