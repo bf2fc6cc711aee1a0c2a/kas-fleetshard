@@ -5,23 +5,23 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
-import org.bf2.test.mock.QuarkusKubeMockServer;
-import org.bf2.test.mock.QuarkusKubernetesMockServer;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@QuarkusTestResource(QuarkusKubeMockServer.class)
+@QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class CanaryTest {
 
-    @QuarkusKubernetesMockServer
-    static KubernetesServer server;
+    @KubernetesTestServer
+    KubernetesServer server;
 
     @Inject
     Canary canary;

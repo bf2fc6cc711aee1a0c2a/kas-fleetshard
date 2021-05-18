@@ -35,6 +35,11 @@
             <artifactId>quarkus-openshift-client</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-test-kubernetes-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.strimzi</groupId>
             <artifactId>api</artifactId>
         </dependency>

@@ -9,10 +9,10 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
+import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.MockProfile;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@QuarkusTestResource(QuarkusKubeMockServer.class)
+@QuarkusTestResource(KubernetesServerTestResource.class)
 @TestProfile(MockProfile.class)
 @QuarkusTest
 public class ImagePullSecretManagerTest {
@@ -103,10 +103,10 @@ public class ImagePullSecretManagerTest {
         imagePullSecretManager.checkSecret();
 
         assertTrue(client.secrets()
-                        .inNamespace("testWithSecrets")
-                        .list()
-                        .getItems()
-                        .isEmpty());
+                .inNamespace("testWithSecrets")
+                .list()
+                .getItems()
+                .isEmpty());
 
         imagePullSecretManager.propagateSecrets(managedKafka);
 
