@@ -53,7 +53,8 @@ Warnings and errors are always logged and are not affected by the value of `VERB
 The Sarama Apache Kafka client only allows logging to be enabled or disabled (default), without any kind of verbosity level support.
 It is possible to enable it by using the `SARAMA_LOG_ENABLED` environment variable.
 
-If you wish to change the above logging configuration, you should create a ConfigMap containing the corresponding environment variables in the following way.
+If you wish to change the above logging configuration, you should create a ConfigMap named `canary-config` in the namespace of the Kafka instance where the canary is running.
+The ConfigMap should contain the corresponding environment variables in the following way.
 
 ```
 apiVersion: v1
@@ -68,7 +69,7 @@ data:
 You can create the ConfigMap with:
 
 ```shell
-kubectl apply -f canary-config.yml -n kas-fleetshard
+kubectl apply -f canary-config.yml -n my-kafka-cluster-namespace
 ```
 
 Because the configuration is set using environment variables, you need to restart the canary application in order to allow it to get and use the new values; it is enough to scale the corresponding Deployment down because the fleetshard operator will scale it up again during the reconcile.
