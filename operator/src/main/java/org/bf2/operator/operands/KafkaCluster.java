@@ -89,7 +89,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     // storage related constants
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
-    private static final String KAFKA_STORAGE_CLASS = "mk-storageclass";
+    private static final String KAFKA_STORAGE_CLASS = "gp2";
     private static final boolean DELETE_CLAIM = true;
     private static final String KAFKA_AUTHORIZER_CLASS = "io.bf2.kafka.authorizer.GlobalAclAuthorizer";
     private static final String KAFKA_AUTHORIZER_CONFIG_PREFIX = "strimzi.authorization.global-authorizer.";
