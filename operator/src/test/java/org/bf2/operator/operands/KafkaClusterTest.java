@@ -16,8 +16,6 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
-import io.strimzi.api.kafka.model.storage.JbodStorage;
-import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -50,25 +48,6 @@ class KafkaClusterTest {
 
         JsonNode patch = diffToExpected(kafka);
         assertEquals("[]", patch.toString());
-
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
-        kafkaCli.create(kafka);
-        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
-    }
-
-    @Test
-    void testKeepOldStorageClass() throws IOException {
-        ManagedKafka mk = exampleManagedKafka("60Gi");
-
-        // modify the storage class
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-        ((PersistentClaimStorage)((JbodStorage)kafka.getSpec().getKafka().getStorage()).getVolumes().get(0)).setStorageClass("mk-storageclass");
-
-        // see if it changes
-        kafka = kafkaCluster.kafkaFrom(mk, kafka);
-
-        JsonNode patch = diffToExpected(kafka);
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/class\",\"value\":\"mk-storageclass\"}]", patch.toString());
 
         var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
         kafkaCli.create(kafka);
