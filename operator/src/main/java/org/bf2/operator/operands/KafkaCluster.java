@@ -659,22 +659,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withId(JBOD_VOLUME_ID)
                                 .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
                                 .withDeleteClaim(DELETE_CLAIM)
-                                .withStorageClass(getStorageClass(current))
+                                .withStorageClass(KAFKA_STORAGE_CLASS)
                                 .build()
                 )
                 .build();
-    }
-
-    private String getStorageClass(Kafka current) {
-        if (current != null) {
-            if (current.getSpec().getKafka().getStorage() instanceof JbodStorage) {
-                JbodStorage storage = (JbodStorage)current.getSpec().getKafka().getStorage();
-                if (!storage.getVolumes().isEmpty() && storage.getVolumes().get(0) instanceof PersistentClaimStorage) {
-                    return ((PersistentClaimStorage)storage.getVolumes().get(0)).getStorageClass();
-                }
-            }
-        }
-        return KAFKA_STORAGE_CLASS;
     }
 
     /**
