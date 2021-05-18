@@ -8,10 +8,10 @@ import io.javaoperatorsdk.operator.processing.event.EventList;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.test.mock.QuarkusKubeMockServer;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -22,7 +22,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@QuarkusTestResource(QuarkusKubeMockServer.class)
+@QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class ManagedKafkaControllerTest {
 

@@ -12,6 +12,8 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -19,8 +21,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilde
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaEndpointBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
-import org.bf2.test.mock.QuarkusKubeMockServer;
-import org.bf2.test.mock.QuarkusKubernetesMockServer;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
@@ -30,12 +30,12 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@QuarkusTestResource(QuarkusKubeMockServer.class)
+@QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 class KafkaClusterTest {
 
-    @QuarkusKubernetesMockServer
-    static KubernetesServer server;
+    @KubernetesTestServer
+    KubernetesServer server;
 
     @Inject
     KafkaCluster kafkaCluster;
