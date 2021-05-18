@@ -72,3 +72,27 @@ kubectl apply -f canary-config.yml -n kas-fleetshard
 ```
 
 Because the configuration is set using environment variables, you need to restart the canary application in order to allow it to get and use the new values; it is enough to scale the corresponding Deployment down because the fleetshard operator will scale it up again during the reconcile.
+
+## Configure admin server logging
+
+The Kafka admin server, deployed by the fleetshard operator, utilizes the Log4J2 logging framework and provides a way to configure an additional configuration properties file at runtime using a ConfigMap. The ConfigMap must reside in the same namespace as the admin server where additional logging will be enabled and the name of the ConfigMap must match the name of the admin server deployment, e.g. `my-kafka-cluster-admin-server`. The ConfigMap should contain an entry named `log4j2.properties` with any content supported by Log4J2 properties configuration. [See more on Log4J2 properties format and options](https://logging.apache.org/log4j/2.x/manual/configuration.html#Properties).
+
+Given the following `admin-server-config.yml` file:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-kafka-cluster-admin-server
+data:
+  log4j2.properties: |
+    rootLogger.level = DEBUG
+    logger.adminserver.name = org.bf2.admin
+    logger.adminserver.level = DEBUG
+```
+
+You can create the ConfigMap with:
+
+```shell
+kubectl apply -f admin-server-config.yml -n my-kafka-cluster-namespace
+```
+The added configuration will be merged with the default logging configuration already present in the admin server. There is no need to restart the application. Configuration properties present in the ConfigMap will override properties with the same key in the default configuration. To reset logging configuration to the defaults, simply delete the ConfigMap.
