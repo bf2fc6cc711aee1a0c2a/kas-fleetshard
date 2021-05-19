@@ -17,7 +17,7 @@ import java.util.Map;
 
 public interface ControlPlaneApi {
 
-    public static final String BASE_PATH = "/api/managed-services-api/v1/agent-clusters/";
+    public static final String BASE_PATH = "/api/kafkas_mgmt/v1/agent-clusters/";
 
     @GET
     @Path("/{id}")
