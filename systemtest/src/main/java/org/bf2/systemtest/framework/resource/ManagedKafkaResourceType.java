@@ -7,11 +7,13 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
@@ -102,10 +104,23 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     /**
      * get common default managedkafka instance
+     * @throws Exception
      */
-    public static ManagedKafka getDefault(String namespace, String appName) {
+    public static ManagedKafka getDefault(String namespace, String appName) throws Exception {
+        final String tlsCert;
+        final String tlsKey;
+
+        if (Environment.DUMMY_CERT.equals(Environment.ENDPOINT_TLS_CERT)) {
+            Map<String, String> tlsConfig = SecurityUtils.getTLSConfig(Environment.BOOTSTRAP_HOST_DOMAIN);
+            tlsCert = tlsConfig.get(SecurityUtils.CERT);
+            tlsKey = tlsConfig.get(SecurityUtils.KEY);
+        } else {
+            tlsCert = Environment.ENDPOINT_TLS_CERT;
+            tlsKey = Environment.ENDPOINT_TLS_KEY;
+        }
+
         return ManagedKafka.getDefault(appName, namespace, Environment.BOOTSTRAP_HOST_DOMAIN,
-                Environment.ENDPOINT_TLS_CERT, Environment.ENDPOINT_TLS_KEY, Environment.OAUTH_CLIENT_ID,
+                                       tlsCert, tlsKey, Environment.OAUTH_CLIENT_ID,
                 Environment.OAUTH_TLS_CERT, Environment.OAUTH_CLIENT_SECRET, Environment.OAUTH_USER_CLAIM,
                 Environment.OAUTH_JWKS_ENDPOINT, Environment.OAUTH_TOKEN_ENDPOINT, Environment.OAUTH_ISSUER_ENDPOINT);
     }

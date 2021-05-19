@@ -78,7 +78,7 @@ public class ManagedKafkaST extends AbstractST {
     }
 
     @ParallelTest
-    void testDeleteDeployedResources(ExtensionContext extensionContext) {
+    void testDeleteDeployedResources(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-resource-recovery";
 
         var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);

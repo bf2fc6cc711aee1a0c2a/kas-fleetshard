@@ -1,4 +1,4 @@
-package org.bf2.operator.operands;
+package org.bf2.operator.secrets;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;

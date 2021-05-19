@@ -26,6 +26,8 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.api.model.TLSConfig;
+import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
@@ -33,6 +35,7 @@ import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;
+import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -40,7 +43,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,25 +62,29 @@ public class AdminServer extends AbstractAdminServer {
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("512Mi");
     private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("500m");
 
-    /**
-     * OpenShift route attribute for the configuration of HTTP strict transport security.
-     *
-     * @see <a href="https://docs.openshift.com/container-platform/4.7/networking/routes/route-configuration.html#nw-enabling-hsts_route-configuration">
-     *  Enabling HTTP strict transport security</a>
-     */
-    private static final String ROUTE_STRICT_TRANSPORT_SECURITY = "haproxy.router.openshift.io/hsts_header";
+    private static final int HTTP_PORT = 8080;
+    private static final int HTTPS_PORT = 8443;
+    private static final int MANAGEMENT_PORT = 9990;
+
+    private static final String HTTP_PORT_NAME = "http";
+    private static final String HTTPS_PORT_NAME = "https";
+    private static final String MANAGEMENT_PORT_NAME = "management";
+
+    private static final IntOrString HTTP_PORT_TARGET = new IntOrString(HTTP_PORT_NAME);
+    private static final IntOrString HTTPS_PORT_TARGET = new IntOrString(HTTPS_PORT_NAME);
+    private static final IntOrString MANAGEMENT_PORT_TARGET = new IntOrString(MANAGEMENT_PORT_NAME);
 
     @Inject
     Logger log;
-
-    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
-    boolean isKafkaExternalCertificateEnabled;
 
     @ConfigProperty(name = "image.admin-api")
     String adminApiImage;
 
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
+
+    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
+    boolean isKafkaExternalCertificateEnabled;
 
     OpenShiftClient openShiftClient;
 
@@ -192,14 +198,15 @@ public class AdminServer extends AbstractAdminServer {
 
         RouteBuilder builder = current != null ? new RouteBuilder(current) : new RouteBuilder();
 
-        String tlsCertificate = null;
-        String tlsKey = null;
-        Map<String, String> annotations = Map.of(ROUTE_STRICT_TRANSPORT_SECURITY,
-                String.format("max-age=%d", Duration.ofDays(365).toSeconds()));
+        final IntOrString targetPort;
+        final TLSConfig tlsConfig;
 
         if (isKafkaExternalCertificateEnabled) {
-            tlsCertificate = managedKafka.getSpec().getEndpoint().getTls().getCert();
-            tlsKey = managedKafka.getSpec().getEndpoint().getTls().getKey();
+            targetPort = HTTPS_PORT_TARGET;
+            tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
+        } else {
+            targetPort = HTTP_PORT_TARGET;
+            tlsConfig = null;
         }
 
         Route route = builder
@@ -207,7 +214,6 @@ public class AdminServer extends AbstractAdminServer {
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
                     .withLabels(getRouteLabels())
-                    .withAnnotations(annotations)
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewTo()
@@ -215,14 +221,10 @@ public class AdminServer extends AbstractAdminServer {
                         .withName(adminServerName)
                     .endTo()
                     .withNewPort()
-                        .withTargetPort(new IntOrString("http"))
+                        .withTargetPort(targetPort)
                     .endPort()
                     .withHost("admin-server-" + managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                    .withNewTls()
-                        .withTermination("edge")
-                        .withCertificate(tlsCertificate)
-                        .withKey(tlsKey)
-                    .endTls()
+                    .withTls(tlsConfig)
                 .endSpec()
                 .build();
 
@@ -253,7 +255,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withHttpGet(
                         new HTTPGetActionBuilder()
                         .withPath("/health/liveness")
-                        .withPort(new IntOrString(8080))
+                        .withPort(MANAGEMENT_PORT_TARGET)
                         .build()
                 )
                 .withTimeoutSeconds(5)
@@ -298,20 +300,82 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(1);
-        envVars.add(new EnvVarBuilder().withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095").build());
-        if (corsAllowList.isPresent()) {
-            envVars.add(new EnvVarBuilder().withName("CORS_ALLOW_LIST_REGEX").withValue(corsAllowList.get()).build());
+        List<EnvVar> envVars = new ArrayList<>(4);
+
+        envVars.add(new EnvVarBuilder()
+                    .withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS")
+                    .withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095")
+                    .build());
+
+        if (isKafkaExternalCertificateEnabled) {
+            envVars.add(new EnvVarBuilder()
+                        .withName("KAFKA_ADMIN_TLS_CERT")
+                        .withNewValueFrom()
+                            .withNewSecretKeyRef("tls.crt", SecuritySecretManager.kafkaTlsSecretName(managedKafka), false)
+                        .endValueFrom()
+                        .build());
+
+            envVars.add(new EnvVarBuilder()
+                        .withName("KAFKA_ADMIN_TLS_KEY")
+                        .withNewValueFrom()
+                            .withNewSecretKeyRef("tls.key", SecuritySecretManager.kafkaTlsSecretName(managedKafka), false)
+                        .endValueFrom()
+                        .build());
         }
+
+        if (corsAllowList.isPresent()) {
+            envVars.add(new EnvVarBuilder()
+                        .withName("CORS_ALLOW_LIST_REGEX")
+                        .withValue(corsAllowList.get())
+                        .build());
+        }
+
         return envVars;
     }
 
     private List<ContainerPort> getContainerPorts() {
-        return Collections.singletonList(new ContainerPortBuilder().withName("http").withContainerPort(8080).build());
+        final String apiPortName;
+        final int apiContainerPort;
+
+        if (isKafkaExternalCertificateEnabled) {
+            apiPortName = HTTPS_PORT_NAME;
+            apiContainerPort = HTTPS_PORT;
+        } else {
+            apiPortName = HTTP_PORT_NAME;
+            apiContainerPort = HTTP_PORT;
+        }
+
+        return List.of(new ContainerPortBuilder()
+                           .withName(apiPortName)
+                           .withContainerPort(apiContainerPort)
+                           .build(),
+                       new ContainerPortBuilder()
+                           .withName(MANAGEMENT_PORT_NAME)
+                           .withContainerPort(MANAGEMENT_PORT)
+                           .build());
     }
 
     private List<ServicePort> getServicePorts() {
-        return Collections.singletonList(new ServicePortBuilder().withName("http").withProtocol("TCP").withPort(8080).withTargetPort(new IntOrString("http")).build());
+        final String apiPortName;
+        final int apiPort;
+        final IntOrString apiTargetPort;
+
+        if (isKafkaExternalCertificateEnabled) {
+            apiPortName = HTTPS_PORT_NAME;
+            apiPort = HTTPS_PORT;
+            apiTargetPort = HTTPS_PORT_TARGET;
+        } else {
+            apiPortName = HTTP_PORT_NAME;
+            apiPort = HTTP_PORT;
+            apiTargetPort = HTTP_PORT_TARGET;
+        }
+
+        return Collections.singletonList(new ServicePortBuilder()
+                           .withName(apiPortName)
+                           .withProtocol("TCP")
+                           .withPort(apiPort)
+                           .withTargetPort(apiTargetPort)
+                           .build());
     }
 
     private ResourceRequirements getResources() {
