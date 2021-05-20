@@ -3,13 +3,13 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-    
+
     <parent>
         <groupId>org.basepom</groupId>
         <artifactId>basepom-oss</artifactId>
         <version>36</version>
     </parent>
-    
+
     <scm>
         <connection>scm:git:git://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard.git</connection>
         <developerConnection>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-fleetshard.git</developerConnection>
@@ -23,38 +23,38 @@
 
     <properties>
         <!-- things we don't need from basepom -->
-        
+
         <basepom.check.skip-license>true</basepom.check.skip-license>
         <!-- quarkus picks up functionality via unused, but we don't want to fully skip to keep dependency tree enabled -->
         <basepom.check.fail-dependency>false</basepom.check.fail-dependency>
-        
+
         <!-- things that we could eventually turn on -->
-        
+
         <!-- currently there is a lot of duplicate classes in the dependencies
              overlaps between javax and jakarta, io.sundr, io.fabric8, etc.
          -->
         <basepom.check.skip-duplicate-finder>true</basepom.check.skip-duplicate-finder>
-        
+
         <!-- we may want to disable this in github actions
-        <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check> 
+        <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
         -->
         <!-- we don't currently care about these warnings - this could be enabled on a per module basis -->
         <maven.compiler.showWarnings>false</maven.compiler.showWarnings>
-        
+
         <basepom.test.fork-count>1</basepom.test.fork-count>
         <basepom.failsafe.fork-count>1</basepom.failsafe.fork-count>
         <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
         <basepom.test.timeout>150</basepom.test.timeout>
-        
-        <basepom.release.push-changes>true</basepom.release.push-changes>
+
+        <basepom.release.push-changes>false</basepom.release.push-changes>
         <basepom.release.tag-name-format>@{project.version}</basepom.release.tag-name-format>
-        
+
         <maven.compiler.release>11</maven.compiler.release>
         <project.build.systemJdk>${maven.compiler.release}</project.build.systemJdk>
         <project.build.targetJdk>${maven.compiler.release}</project.build.targetJdk>
-                
+
         <maven.compiler.parameters>true</maven.compiler.parameters>
-        
+
         <quarkus.platform.version>1.13.1.Final</quarkus.platform.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
@@ -189,7 +189,7 @@
             </releases>
         </repository>
     </repositories>
-  
+
     <build>
         <plugins>
             <!-- make root resources available to child modules -->
@@ -258,7 +258,7 @@
                             <groupId>org.bf2</groupId>
                             <artifactId>kas-fleetshard</artifactId>
                             <version>${project.version}</version>
-                        </dependency>                    
+                        </dependency>
                     </dependencies>
                 </plugin>
                 <plugin>
@@ -271,7 +271,7 @@
             </plugins>
         </pluginManagement>
     </build>
-    
+
     <profiles>
         <profile>
             <id>quickly</id>
@@ -386,7 +386,7 @@
                             <arguments>${release.properties}</arguments>
                         </configuration>
                     </plugin>
-                </plugins>  
+                </plugins>
             </build>
         </profile>
         <profile>
@@ -396,7 +396,7 @@
                 <quarkus.container-image.build>true</quarkus.container-image.build>
                 <quarkus.container-image.push>true</quarkus.container-image.push>
                 <quarkus.container-image.group>bf2</quarkus.container-image.group>
-                <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>                
+                <quarkus.container-image.registry>localhost:5000</quarkus.container-image.registry>
                 <!-- we don't want to deploy to a maven repository -->
                 <maven.deploy.skip>true</maven.deploy.skip>
             </properties>
