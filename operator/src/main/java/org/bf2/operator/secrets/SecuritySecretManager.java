@@ -103,18 +103,7 @@ public class SecuritySecretManager {
     }
 
     private void createOrUpdate(Secret secret) {
-        // Secret resource doesn't exist, has to be created
-        if (kubernetesClient.secrets()
-                .inNamespace(secret.getMetadata().getNamespace())
-                .withName(secret.getMetadata().getName()).get() == null) {
-            kubernetesClient.secrets().inNamespace(secret.getMetadata().getNamespace()).createOrReplace(secret);
-        // Secret resource already exists, has to be updated
-        } else {
-            kubernetesClient.secrets()
-                    .inNamespace(secret.getMetadata().getNamespace())
-                    .withName(secret.getMetadata().getName())
-                    .patch(secret);
-        }
+        OperandUtils.createOrUpdate(kubernetesClient.secrets(), secret);
     }
 
     private static Secret buildSecretFrom(String name, String type, ManagedKafka managedKafka, Secret current, Map<String, String> dataSource) {

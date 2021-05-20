@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
@@ -34,33 +35,11 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     }
 
     protected void createOrUpdate(Deployment deployment) {
-        // Admin Server deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments()
-                .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
-        // Admin Server deployment resource already exists, has to be updated
-        } else {
-            kubernetesClient.apps().deployments()
-                    .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName())
-                    .patch(deployment);
-        }
+        OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), deployment);
     }
 
     protected void createOrUpdate(Service service) {
-        // Admin Server service resource doesn't exist, has to be created
-        if (kubernetesClient.services()
-                .inNamespace(service.getMetadata().getNamespace())
-                .withName(service.getMetadata().getName()).get() == null) {
-            kubernetesClient.services().inNamespace(service.getMetadata().getNamespace()).create(service);
-        // Admin Server service resource already exists, has to be updated
-        } else {
-            kubernetesClient.services()
-                    .inNamespace(service.getMetadata().getNamespace())
-                    .withName(service.getMetadata().getName())
-                    .patch(service);
-        }
+        OperandUtils.createOrUpdate(kubernetesClient.services(), service);
     }
 
     @Override

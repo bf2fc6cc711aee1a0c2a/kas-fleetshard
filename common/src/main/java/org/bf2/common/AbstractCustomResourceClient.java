@@ -79,4 +79,8 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         return kubernetesClient.getNamespace();
     }
 
+    public T createOrUpdate(T resource) {
+        return OperandUtils.createOrUpdate(resourceClient, resource);
+    }
+
 }

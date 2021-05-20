@@ -172,18 +172,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private void createOrUpdate(ConfigMap configMap) {
-        // ConfigMap resource doesn't exist, has to be created
-        if (kubernetesClient.configMaps()
-                .inNamespace(configMap.getMetadata().getNamespace())
-                .withName(configMap.getMetadata().getName()).get() == null) {
-            kubernetesClient.configMaps().inNamespace(configMap.getMetadata().getNamespace()).createOrReplace(configMap);
-        // ConfigMap resource already exists, has to be updated
-        } else {
-            kubernetesClient.configMaps()
-                    .inNamespace(configMap.getMetadata().getNamespace())
-                    .withName(configMap.getMetadata().getName())
-                    .patch(configMap);
-        }
+        OperandUtils.createOrUpdate(kubernetesClient.configMaps(), configMap);
     }
 
     /* test */
