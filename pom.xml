@@ -46,6 +46,7 @@
         <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
         <basepom.test.timeout>150</basepom.test.timeout>
 
+        <!-- Disable push of changes from the release plugin, handled in separate job step. See .github/workflows/release.yml. -->
         <basepom.release.push-changes>false</basepom.release.push-changes>
         <basepom.release.tag-name-format>@{project.version}</basepom.release.tag-name-format>
 
