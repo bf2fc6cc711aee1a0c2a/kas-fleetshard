@@ -20,6 +20,8 @@ import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
 import io.strimzi.api.kafka.model.CertSecretSource;
 import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
+import io.strimzi.api.kafka.model.ExternalLogging;
+import io.strimzi.api.kafka.model.ExternalLoggingBuilder;
 import io.strimzi.api.kafka.model.GenericSecretSource;
 import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.JmxPrometheusExporterMetricsBuilder;
@@ -139,6 +141,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
+        // do not reset the logging configuration during the reconcile cycle
+        ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka));
+        if (currentKafkaLoggingConfigMap == null) {
+            ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka), null);
+            createOrUpdate(kafkaLoggingConfigMap);
+        }
+
         // delete "old" Kafka and ZooKeeper metrics ConfigMaps
         deleteOldMetricsConfigMaps(managedKafka);
 
@@ -201,6 +210,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                         .withAuthorization(getKafkaAuthorization(managedKafka))
                         .withImage(kafkaImage.orElse(null))
+                        .withExternalLogging(getKafkaExternalLogging(managedKafka))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(ZOOKEEPER_NODES)
@@ -617,6 +627,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
     }
 
+    private ExternalLogging getKafkaExternalLogging(ManagedKafka managedKafka) {
+        return new ExternalLoggingBuilder()
+                .withNewValueFrom()
+                    .withNewConfigMapKeyRef("log4j.properties", kafkaExternalLoggingConfigMapName(managedKafka), false)
+                .endValueFrom()
+                .build();
+    }
+
     private Map<String, String> getKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
@@ -651,5 +669,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String zookeeperMetricsConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-zookeeper-metrics";
+    }
+
+    public static String kafkaExternalLoggingConfigMapName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-kafka-logging";
     }
 }
