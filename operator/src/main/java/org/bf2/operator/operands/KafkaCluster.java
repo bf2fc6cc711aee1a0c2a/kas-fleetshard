@@ -32,6 +32,8 @@ import io.strimzi.api.kafka.model.KafkaAuthorization;
 import io.strimzi.api.kafka.model.KafkaAuthorizationCustom;
 import io.strimzi.api.kafka.model.KafkaAuthorizationCustomBuilder;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.KafkaExporterSpec;
+import io.strimzi.api.kafka.model.KafkaExporterSpecBuilder;
 import io.strimzi.api.kafka.model.MetricsConfig;
 import io.strimzi.api.kafka.model.Rack;
 import io.strimzi.api.kafka.model.RackBuilder;
@@ -107,6 +109,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = new Quantity("500m");
     private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = new Quantity("256Mi");
     private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = new Quantity("1000m");
+    private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
+    private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
@@ -141,11 +145,18 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
         createOrUpdate(zooKeeperMetricsConfigMap);
 
-        // do not reset the logging configuration during the reconcile cycle
+        // do not reset the kafka logging configuration during the reconcile cycle
         ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka));
         if (currentKafkaLoggingConfigMap == null) {
             ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka), null);
             createOrUpdate(kafkaLoggingConfigMap);
+        }
+
+        // do not reset the exporter logging configuration during the reconcile cycle
+        ConfigMap currentKafkaExporterLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        if (currentKafkaExporterLoggingConfigMap == null) {
+            ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
+            createOrUpdate(kafkaExporterLoggingConfigMap);
         }
 
         // delete "old" Kafka and ZooKeeper metrics ConfigMaps
@@ -221,11 +232,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withMetricsConfig(getZooKeeperMetricsConfig(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
                     .endZookeeper()
-                    .editOrNewKafkaExporter()
-                        .withTopicRegex(".*")
-                        .withGroupRegex(".*")
-                        .withResources(getKafkaExporterResources(managedKafka))
-                    .endKafkaExporter()
+                    .withKafkaExporter(getKafkaExporter(managedKafka))
                 .endSpec()
                 .build();
 
@@ -388,6 +395,26 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .addToLimits("cpu", ZOOKEEPER_CONTAINER_CPU)
                 .build();
         return resources;
+    }
+
+    private KafkaExporterSpec getKafkaExporter(ManagedKafka managedKafka) {
+        ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
+                .withTopicRegex(".*")
+                .withGroupRegex(".*")
+                .withResources(getKafkaExporterResources(managedKafka));
+
+        if (configMap != null) {
+            String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
+            String saramaLogging = configMap.getData().get(KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING);
+            if (logLevel != null && !logLevel.equals("info")) {
+                specBuilder.withLogging(logLevel);
+            }
+            if (Boolean.valueOf(saramaLogging)) {
+                specBuilder.withEnableSaramaLogging(true);
+            }
+        }
+        return specBuilder.build();
     }
 
     private ResourceRequirements getKafkaExporterResources(ManagedKafka managedKafka) {
@@ -673,5 +700,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String kafkaExternalLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-kafka-logging";
+    }
+    public static String kafkaExporterLoggingConfigMapName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-kafka-exporter-logging";
     }
 }
