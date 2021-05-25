@@ -146,9 +146,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         createOrUpdate(zooKeeperMetricsConfigMap);
 
         // do not reset the kafka logging configuration during the reconcile cycle
-        ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka));
+        ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaLoggingConfigMapName(managedKafka));
         if (currentKafkaLoggingConfigMap == null) {
-            ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaExternalLoggingConfigMapName(managedKafka), null);
+            ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka), null);
             createOrUpdate(kafkaLoggingConfigMap);
         }
 
@@ -157,6 +157,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (currentKafkaExporterLoggingConfigMap == null) {
             ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
             createOrUpdate(kafkaExporterLoggingConfigMap);
+        }
+
+        // do not reset the zookeeper logging configuration during the reconcile cycle
+        ConfigMap currentZookeeperLoggingConfigMap = cachedConfigMap(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
+        if (currentZookeeperLoggingConfigMap == null) {
+            ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka), null);
+            createOrUpdate(zookeeperLoggingConfigMap);
         }
 
         // delete "old" Kafka and ZooKeeper metrics ConfigMaps
@@ -231,6 +238,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withTemplate(getZookeeperTemplate(managedKafka))
                         .withMetricsConfig(getZooKeeperMetricsConfig(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
+                        .withExternalLogging(getZookeeperExternalLogging(managedKafka))
                     .endZookeeper()
                     .withKafkaExporter(getKafkaExporter(managedKafka))
                 .endSpec()
@@ -319,6 +327,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         return new JmxPrometheusExporterMetricsBuilder()
                 .withValueFrom(new ExternalConfigurationReferenceBuilder().withConfigMapKeyRef(cmSelector).build())
+                .build();
+    }
+
+    private ExternalLogging getZookeeperExternalLogging(ManagedKafka managedKafka) {
+        return new ExternalLoggingBuilder()
+                .withNewValueFrom()
+                    .withNewConfigMapKeyRef("log4j.properties", zookeeperLoggingConfigMapName(managedKafka), false)
+                .endValueFrom()
                 .build();
     }
 
@@ -657,7 +673,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private ExternalLogging getKafkaExternalLogging(ManagedKafka managedKafka) {
         return new ExternalLoggingBuilder()
                 .withNewValueFrom()
-                    .withNewConfigMapKeyRef("log4j.properties", kafkaExternalLoggingConfigMapName(managedKafka), false)
+                    .withNewConfigMapKeyRef("log4j.properties", kafkaLoggingConfigMapName(managedKafka), false)
                 .endValueFrom()
                 .build();
     }
@@ -698,10 +714,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return managedKafka.getMetadata().getName() + "-zookeeper-metrics";
     }
 
-    public static String kafkaExternalLoggingConfigMapName(ManagedKafka managedKafka) {
+    public static String kafkaLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-kafka-logging";
     }
+
     public static String kafkaExporterLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-kafka-exporter-logging";
+    }
+
+    public static String zookeeperLoggingConfigMapName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-zookeeper-logging";
     }
 }

@@ -181,6 +181,13 @@ spec:
         configMapKeyRef:
           key: "jmx-exporter-config"
           name: "test-mk-zookeeper-metrics"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j.properties
+          name: test-mk-zookeeper-logging
+          optional: false          
     template:
       pod:
         affinity:

@@ -1,0 +1,18 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: zookeeper-logging
+  labels:
+    app: strimzi
+data:
+  log4j.properties: |
+    log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
+
+    log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
+
+    log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} %p %m (%c)
+    [%t]%n
+
+    zookeeper.root.logger=INFO
+
+    log4j.rootLogger=${zookeeper.root.logger}, CONSOLE
