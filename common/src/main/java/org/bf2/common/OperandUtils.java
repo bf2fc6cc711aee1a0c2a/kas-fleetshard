@@ -3,6 +3,9 @@ package org.bf2.common;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,5 +35,30 @@ public class OperandUtils {
         LinkedHashMap<String, String> result = new LinkedHashMap<>(1);
         result.put("app.kubernetes.io/managed-by", FLEETSHARD_OPERATOR_NAME);
         return result;
+    }
+
+    /**
+     * Similar to the fabric8 createOrReplace operation, but assumes replacement is the dominant operation
+     *
+     * <br>WARNING: should not be called on resources that have metadata changes that
+     * need preserved.  An edit should be used instead.
+     */
+    public static <T extends HasMetadata> T createOrUpdate(MixedOperation<T, ?, ?> resources, T resource) {
+        Resource<T> withName = resources
+                .inNamespace(resource.getMetadata().getNamespace())
+                .withName(resource.getMetadata().getName());
+        T result = null;
+        try {
+            // this could be a patch(item) or replace(item) - they do similar things
+            // do the replace first that's 1 call when locked
+            result = withName.lockResourceVersion(resource.getMetadata().getResourceVersion()).replace(resource);
+        } catch (NullPointerException | KubernetesClientException e) {
+            // see https://github.com/fabric8io/kubernetes-client/issues/3121
+            // see https://github.com/fabric8io/kubernetes-client/issues/3122
+        }
+        if (result != null) {
+            return result;
+        }
+        return withName.createOrReplace(resource);
     }
 }

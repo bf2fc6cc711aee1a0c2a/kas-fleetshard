@@ -104,18 +104,8 @@ public class AdminServer extends AbstractAdminServer {
         if (openShiftClient != null) {
             Route currentRoute = cachedRoute(managedKafka);
             Route route = routeFrom(managedKafka, currentRoute);
-            // Admin Server route resource doesn't exist, has to be created
-            if (openShiftClient.routes()
-                    .inNamespace(route.getMetadata().getNamespace())
-                    .withName(route.getMetadata().getName()).get() == null) {
-                openShiftClient.routes().inNamespace(route.getMetadata().getNamespace()).create(route);
-                // Admin Server route resource already exists, has to be updated
-            } else {
-                openShiftClient.routes()
-                        .inNamespace(route.getMetadata().getNamespace())
-                        .withName(route.getMetadata().getName())
-                        .patch(route);
-            }
+
+            OperandUtils.createOrUpdate(openShiftClient.routes(), route);
         }
     }
 
@@ -180,6 +170,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withLabels(getLabels(adminServerName))
                 .endMetadata()
                 .editOrNewSpec()
+                    .withClusterIP(null) // to prevent 422 errors
                     .withSelector(getSelectorLabels(adminServerName))
                     .withPorts(getServicePorts())
                 .endSpec()

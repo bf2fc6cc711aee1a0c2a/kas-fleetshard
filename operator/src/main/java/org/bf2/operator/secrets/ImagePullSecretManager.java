@@ -56,7 +56,7 @@ public class ImagePullSecretManager {
                         .endMetadata()
                         .build();
                     OperandUtils.setAsOwner(mk, s);
-                    client.secrets().inNamespace(mk.getMetadata().getNamespace()).createOrReplace(s);
+                    OperandUtils.createOrUpdate(client.secrets(), s);
                 });
     }
 

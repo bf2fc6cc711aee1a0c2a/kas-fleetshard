@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
@@ -31,18 +32,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     }
 
     protected void createOrUpdate(Deployment deployment) {
-        // Canary deployment resource doesn't exist, has to be created
-        if (kubernetesClient.apps().deployments()
-                .inNamespace(deployment.getMetadata().getNamespace())
-                .withName(deployment.getMetadata().getName()).get() == null) {
-            kubernetesClient.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).create(deployment);
-        // Canary deployment resource already exists, has to be updated
-        } else {
-            kubernetesClient.apps().deployments()
-                    .inNamespace(deployment.getMetadata().getNamespace())
-                    .withName(deployment.getMetadata().getName())
-                    .patch(deployment);
-        }
+        OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), deployment);
     }
 
     @Override
