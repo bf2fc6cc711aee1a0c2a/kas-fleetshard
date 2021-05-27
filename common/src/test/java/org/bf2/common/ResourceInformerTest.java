@@ -43,7 +43,7 @@ public class ResourceInformerTest {
                 .build();
         Mockito.when(podWatchList.list()).thenReturn(podList, emptyList, podList);
 
-        ResourceInformer<Pod> podInformer = ResourceInformer.start(podWatchList, podEventHandler);
+        ResourceInformer<Pod> podInformer = ResourceInformer.start(Pod.class, podWatchList, podEventHandler);
 
         ArgumentCaptor<Watcher<Pod>> watcherCaptor = ArgumentCaptor.forClass(Watcher.class);
 

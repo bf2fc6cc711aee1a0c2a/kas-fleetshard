@@ -35,6 +35,7 @@ public class ResourceInformer<T extends HasMetadata> {
 
     private static Logger log = Logger.getLogger(ResourceInformer.class);
 
+    private String typeName;
     private WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable;
     private ResourceEventHandler<? super T> eventHandler;
 
@@ -72,16 +73,16 @@ public class ResourceInformer<T extends HasMetadata> {
         public void onClose(WatcherException cause) {
             boolean restarted = false;
             try {
-                log.info("Informer watch needs restarted", cause);
+                log.infof("%s Informer watch needs restarted", typeName, cause);
                 if (cause.isHttpGone()) {
                     try {
                         list();
                     } catch (Exception e) {
-                        log.warn("Error re-listing", e);
+                        log.warnf("%s Informer Error re-listing", typeName, e);
                     }
                 } else {
                     try {
-                        // note this (and the other watch restart not related to a relise) should not necessary
+                        // note this (and the other watch restart not related to a relist) should not necessary
                         // in 5.3.1 or later with reconnecting support see https://github.com/fabric8io/kubernetes-client/pull/3018
                         Thread.sleep(WATCH_WAIT);
                     } catch (InterruptedException e) {
@@ -94,11 +95,11 @@ public class ResourceInformer<T extends HasMetadata> {
                     watch();
                     restarted = true;
                 } catch (Exception e) {
-                    log.error("Error restarting informer watch", e);
+                    log.errorf("Error restarting %s informer watch", typeName, e);
                 }
             } finally {
                 if (!restarted) {
-                    log.error("Informer watch was not successfully restarted");
+                    log.errorf("%s Informer watch was not successfully restarted", typeName);
                     ready = false;
                 }
             }
@@ -106,24 +107,25 @@ public class ResourceInformer<T extends HasMetadata> {
 
         @Override
         public void onClose() {
-            log.error("Informer watch closing without error");
+            log.errorf("%s Informer watch closing without error", typeName);
             ready = false;
             throw new IllegalStateException();
         }
 
     };
 
-    public static <T extends HasMetadata> ResourceInformer<T> start(
+    public static <T extends HasMetadata> ResourceInformer<T> start(Class<T> type,
             WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
-        ResourceInformer<T> result = new ResourceInformer<>(watchListDeletable, eventHandler);
+        ResourceInformer<T> result = new ResourceInformer<>(type, watchListDeletable, eventHandler);
         result.list();
         result.watch();
         return result;
     }
 
-    private ResourceInformer(WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
+    private ResourceInformer(Class<T> type, WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
+        this.typeName = type.getSimpleName();
         this.watchListDeletable = watchListDeletable;
         this.eventHandler = eventHandler;
     }

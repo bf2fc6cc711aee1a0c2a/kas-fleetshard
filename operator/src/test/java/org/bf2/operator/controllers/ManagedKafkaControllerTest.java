@@ -2,6 +2,7 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.processing.event.EventList;
@@ -54,7 +55,7 @@ public class ManagedKafkaControllerTest {
                         .withNewMetadata()
                         .withOwnerReferences(new OwnerReferenceBuilder().withUid(mk.getMetadata().getUid()).build())
                         .endMetadata()
-                        .build(), null))));
+                        .build(), null, Watcher.Action.DELETED))));
         mkController.createOrUpdateResource(mk, context);
 
         // should now be deleted

@@ -35,11 +35,11 @@ public class InformerManager implements LocalLookup {
 
     @PostConstruct
     protected void onStart() {
-        managedKafkaInformer = ResourceInformer.start(client.customResources(ManagedKafka.class).inAnyNamespace(),
+        managedKafkaInformer = ResourceInformer.start(ManagedKafka.class, client.customResources(ManagedKafka.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus));
 
         // for the Agent
-        managedAgentInformer = ResourceInformer.start(client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
+        managedAgentInformer = ResourceInformer.start(ManagedKafkaAgent.class, client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         meterRegistry.gauge("managedkafkas", this, (informer) -> {

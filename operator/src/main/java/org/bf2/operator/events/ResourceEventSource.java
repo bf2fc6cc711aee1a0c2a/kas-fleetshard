@@ -1,6 +1,7 @@
 package org.bf2.operator.events;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
 import org.jboss.logging.Logger;
@@ -19,7 +20,7 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
     @Override
     public void onAdd(HasMetadata resource) {
         log.debugf("Add event received for %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-        handleEvent(resource);
+        handleEvent(resource, Watcher.Action.ADDED);
     }
 
     @Override
@@ -28,23 +29,23 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
             return; // no need to handle an event where nothing has changed
         }
         log.debugf("Update event received for %s %s/%s", oldResource.getKind(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
-        handleEvent(newResource);
+        handleEvent(newResource, Watcher.Action.MODIFIED);
     }
 
     @Override
     public void onDelete(HasMetadata resource, boolean deletedFinalStateUnknown) {
         log.debugf("Delete event received for %s %s/%s with deletedFinalStateUnknown %s", resource.getKind(),
                 resource.getMetadata().getNamespace(), resource.getMetadata().getName(), deletedFinalStateUnknown);
-        handleEvent(resource);
+        handleEvent(resource, Watcher.Action.DELETED);
     }
 
-    protected void handleEvent(HasMetadata resource) {
+    protected void handleEvent(HasMetadata resource, Watcher.Action action) {
         // the operator may not have inited yet
         if (eventHandler != null) {
             if(resource.getMetadata().getOwnerReferences().isEmpty()) {
                 log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
             }
-            eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this));
+            eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this, action));
         }
     }
 }
