@@ -84,7 +84,8 @@ class KafkaClusterTest {
                                 .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
                                 .endCapacity()
                                 .withNewVersions()
-                                .withKafka("2.6.0")
+                                    .withKafka("2.6.0")
+                                    .withStrimzi("0.22.1")
                                 .endVersions()
                                 .build())
                 .build();

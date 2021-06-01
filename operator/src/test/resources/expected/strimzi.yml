@@ -4,6 +4,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
+    managedkafka.bf2.org/strimziVersion: "0.22.1"
   name: "test-mk"
   namespace: "test"
   ownerReferences:

@@ -185,7 +185,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withLabels(getKafkaLabels())
+                    .withLabels(getKafkaLabels(managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
@@ -617,8 +617,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
     }
 
-    private Map<String, String> getKafkaLabels() {
+    private Map<String, String> getKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
+        labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
         labels.put("ingressType", "sharded");
         return labels;
     }
