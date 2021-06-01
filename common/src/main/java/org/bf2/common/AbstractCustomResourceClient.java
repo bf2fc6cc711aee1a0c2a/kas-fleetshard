@@ -1,5 +1,6 @@
 package org.bf2.common;
 
+import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -36,6 +37,7 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         resourceClient
                 .inNamespace(namespace)
                 .withName(name)
+                .withPropagationPolicy(DeletionPropagation.BACKGROUND)
                 .delete();
     }
 
