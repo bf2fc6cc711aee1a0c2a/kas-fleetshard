@@ -51,18 +51,18 @@ public class InformerManager {
 
     @PostConstruct
     protected void onStart() {
-        kafkaInformer = ResourceInformer.start(filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
+        kafkaInformer = ResourceInformer.start(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
 
-        deploymentInformer = ResourceInformer.start(filter(kubernetesClient.apps().deployments()), eventSource);
+        deploymentInformer = ResourceInformer.start(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
 
-        serviceInformer = ResourceInformer.start(filter(kubernetesClient.services()), eventSource);
+        serviceInformer = ResourceInformer.start(Service.class, filter(kubernetesClient.services()), eventSource);
 
-        configMapInformer = ResourceInformer.start(filter(kubernetesClient.configMaps()), eventSource);
+        configMapInformer = ResourceInformer.start(ConfigMap.class, filter(kubernetesClient.configMaps()), eventSource);
 
-        secretInformer = ResourceInformer.start(filter(kubernetesClient.secrets()), eventSource);
+        secretInformer = ResourceInformer.start(Secret.class, filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = ResourceInformer.start(filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
+            routeInformer = ResourceInformer.start(Route.class, filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
     }
 
