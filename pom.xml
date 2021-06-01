@@ -57,7 +57,7 @@
         <quarkus.platform.version>1.13.1.Final</quarkus.platform.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
-        <strimzi.version>0.23.0-SNAPSHOT</strimzi.version>
+        <strimzi.version>0.23.0</strimzi.version>
         <fabric8.crd-generator.version>5.1.1</fabric8.crd-generator.version>
         <quarkus.operator.extension>1.8.2</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
