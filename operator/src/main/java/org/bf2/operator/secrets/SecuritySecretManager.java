@@ -75,9 +75,28 @@ public class SecuritySecretManager {
             Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
             createOrUpdate(ssoClientSecret);
 
-            Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
-            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
-            createOrUpdate(ssoTlsSecret);
+            if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
+                Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
+                Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
+                createOrUpdate(ssoTlsSecret);
+            } else {
+                deleteOldTlsTrustedCertificateSecret(managedKafka);
+            }
+        }
+    }
+
+    /**
+     * Delete "not used" Secret containing TLS trusted certificates for OAuth server
+     * NOTE:
+     * If TLS trusted certificates are signed by a public CA (i.e. Let's Encrypt), passing them
+     * is not needed in the ManagedKafka resource, so for already running Kafka instances we can
+     * delete the corresponding Secret hosting them.
+     *
+     * @param managedKafka
+     */
+    private void deleteOldTlsTrustedCertificateSecret(ManagedKafka managedKafka) {
+        if (cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) != null) {
+            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
         }
     }
 
@@ -88,7 +107,9 @@ public class SecuritySecretManager {
 
         if (isKafkaAuthenticationEnabled) {
             secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
-            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
+            if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
+                secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
+            }
         }
     }
 
