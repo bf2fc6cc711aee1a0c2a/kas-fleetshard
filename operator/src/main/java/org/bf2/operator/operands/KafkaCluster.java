@@ -70,6 +70,9 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.io.InputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -117,6 +120,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
     private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
+    private static final String DIGEST = "app.kubernetes.io/digest";
 
     @Inject
     Logger log;
@@ -147,22 +151,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // do not reset the kafka logging configuration during the reconcile cycle
         ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaLoggingConfigMapName(managedKafka));
-        if (currentKafkaLoggingConfigMap == null) {
-            ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka), null);
+        ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka), null);
+        if (currentKafkaLoggingConfigMap == null || isDigestModified(currentKafkaLoggingConfigMap, kafkaLoggingConfigMap)) {
             createOrUpdate(kafkaLoggingConfigMap);
         }
 
         // do not reset the exporter logging configuration during the reconcile cycle
         ConfigMap currentKafkaExporterLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
-        if (currentKafkaExporterLoggingConfigMap == null) {
-            ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
+        ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
+        if (currentKafkaExporterLoggingConfigMap == null || isDigestModified(currentKafkaExporterLoggingConfigMap, kafkaExporterLoggingConfigMap)) {
             createOrUpdate(kafkaExporterLoggingConfigMap);
         }
 
         // do not reset the zookeeper logging configuration during the reconcile cycle
         ConfigMap currentZookeeperLoggingConfigMap = cachedConfigMap(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
-        if (currentZookeeperLoggingConfigMap == null) {
-            ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka), null);
+        ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka), null);
+        if (currentZookeeperLoggingConfigMap == null || isDigestModified(currentZookeeperLoggingConfigMap, zookeeperLoggingConfigMap)) {
             createOrUpdate(zookeeperLoggingConfigMap);
         }
 
@@ -252,10 +256,27 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
-        String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
-        InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml");
-        ConfigMap template = kubernetesClient.configMaps().load(is).get();
-        return template;
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
+            InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml");
+            DigestInputStream dis = new DigestInputStream(is, md);
+            ConfigMap template = kubernetesClient.configMaps().load(dis).get();
+            Map<String, String> annotations = new HashMap<>(1);
+            annotations.put(DIGEST, md5Hex(md.digest()));
+            template.getMetadata().setAnnotations(annotations);
+            return template;
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String md5Hex(byte[] hash) {
+        StringBuilder sb = new StringBuilder(2 * hash.length);
+        for (byte b : hash) {
+            sb.append(String.format("%02x", b & 0xff));
+        }
+        return sb.toString();
     }
 
     /* test */
@@ -724,5 +745,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String zookeeperLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-zookeeper-logging";
+    }
+
+    private boolean isDigestModified(ConfigMap currentCM, ConfigMap newCM) {
+        if (currentCM == null || newCM == null) {
+            return true;
+        }
+        String currentDigest = currentCM.getMetadata().getAnnotations().get(DIGEST);
+        String newDigest = newCM.getMetadata().getAnnotations().get(DIGEST);
+        return !currentDigest.equals(newDigest);
     }
 }

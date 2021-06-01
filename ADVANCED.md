@@ -97,3 +97,54 @@ You can create the ConfigMap with:
 kubectl apply -f admin-server-config.yml -n my-kafka-cluster-namespace
 ```
 The added configuration will be merged with the default logging configuration already present in the admin server. There is no need to restart the application. Configuration properties present in the ConfigMap will override properties with the same key in the default configuration. To reset logging configuration to the defaults, simply delete the ConfigMap.
+
+## Configure Strimzi Components logging
+
+To change the Strimzi operator logging, find the namespace in which the Strimzi Operator is installed then edit the config map with name `strimzi-cluster-operator` that has the log4j configuration for the operator. The contents of the key `log4j.properties` needs to be modified to suit the needs.
+
+```shell
+kubectl edit strimzi-cluster-operator -n <namespace>
+```
+
+## Configure Kafka Components logging
+
+The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper and exporter are configued individually in seperate ConfigMaps in the namespace where the Kafka cluster is installed.
+
+### Kafka Broker logging configuration
+
+To change the logging configuration of the Kafka broker component execute the following and the contents of the key `log4j.properties` needs to be modified to suit the needs.
+
+```shell
+oc edit <kafka-cluster-name>-kafka-logging -n <tenant-kafka-cluster-namespace>
+```
+
+### Kafka Zookeeper logging configuration
+
+To change the logging configuration of the Zookeeper component execute the following and the contents of the key `log4j.properties` needs to be modified to suit the needs.
+
+```shell
+oc edit <kafka-cluster-name>-zookeeper-logging -n <tenant-kafka-cluster-namespace>
+```
+
+### Kafka Exporter logging configuration
+
+To change the logging configuration of the Kafka Exporter component execute the following
+
+```shell
+oc edit <kafka-cluster-name>-kafka-exporter-logging -n <tenant-kafka-cluster-namespace>
+```
+
+A sample configmap looks as below, make necessary edits as required
+
+
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: kafka-exporter-logging
+  data:
+  enableSaramaLogging: 'false'
+  logLevel: info
+```
+
+supported log levels: [debug, info, warn, error, fatal]
