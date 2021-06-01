@@ -4,6 +4,8 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
+
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
@@ -11,6 +13,7 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 public class ManagedKafkaAgentSpec {
+    @NotNull
     ObservabilityConfiguration observability;
 
     public ObservabilityConfiguration getObservability() {

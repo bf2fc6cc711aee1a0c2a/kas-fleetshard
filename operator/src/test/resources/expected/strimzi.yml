@@ -47,10 +47,6 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
-        brokerCertChainAndKey:
-          secretName: "test-mk-tls-secret"
-          certificate: "tls.crt"
-          key: "tls.key"
         bootstrap:
           host: "xxx.yyy.zzz"
         brokers:

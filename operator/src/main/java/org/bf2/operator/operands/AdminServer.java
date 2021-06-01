@@ -83,9 +83,6 @@ public class AdminServer extends AbstractAdminServer {
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
-    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
-    boolean isKafkaExternalCertificateEnabled;
-
     OpenShiftClient openShiftClient;
 
     @Inject
@@ -172,7 +169,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .withClusterIP(null) // to prevent 422 errors
                     .withSelector(getSelectorLabels(adminServerName))
-                    .withPorts(getServicePorts())
+                    .withPorts(getServicePorts(managedKafka))
                 .endSpec()
                 .build();
 
@@ -192,7 +189,7 @@ public class AdminServer extends AbstractAdminServer {
         final IntOrString targetPort;
         final TLSConfig tlsConfig;
 
-        if (isKafkaExternalCertificateEnabled) {
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             targetPort = HTTPS_PORT_TARGET;
             tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
         } else {
@@ -231,7 +228,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withName("admin-server")
                 .withImage(adminApiImage)
                 .withEnv(getEnvVar(managedKafka))
-                .withPorts(getContainerPorts())
+                .withPorts(getContainerPorts(managedKafka))
                 .withResources(getResources())
                 .withReadinessProbe(getProbe())
                 .withLivenessProbe(getProbe())
@@ -298,7 +295,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095")
                     .build());
 
-        if (isKafkaExternalCertificateEnabled) {
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             envVars.add(new EnvVarBuilder()
                         .withName("KAFKA_ADMIN_TLS_CERT")
                         .withNewValueFrom()
@@ -324,11 +321,11 @@ public class AdminServer extends AbstractAdminServer {
         return envVars;
     }
 
-    private List<ContainerPort> getContainerPorts() {
+    private List<ContainerPort> getContainerPorts(ManagedKafka managedKafka) {
         final String apiPortName;
         final int apiContainerPort;
 
-        if (isKafkaExternalCertificateEnabled) {
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             apiPortName = HTTPS_PORT_NAME;
             apiContainerPort = HTTPS_PORT;
         } else {
@@ -346,12 +343,12 @@ public class AdminServer extends AbstractAdminServer {
                            .build());
     }
 
-    private List<ServicePort> getServicePorts() {
+    private List<ServicePort> getServicePorts(ManagedKafka managedKafka) {
         final String apiPortName;
         final int apiPort;
         final IntOrString apiTargetPort;
 
-        if (isKafkaExternalCertificateEnabled) {
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             apiPortName = HTTPS_PORT_NAME;
             apiPort = HTTPS_PORT;
             apiTargetPort = HTTPS_PORT_TARGET;

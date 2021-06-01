@@ -5,6 +5,8 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
+
 /**
  * Defines the endpoint related information used for reaching the ManagedKafka instance
  */
@@ -17,6 +19,7 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManagedKafkaEndpoint {
 
+    @NotNull
     private String bootstrapServerHost;
     private TlsKeyPair tls;
 

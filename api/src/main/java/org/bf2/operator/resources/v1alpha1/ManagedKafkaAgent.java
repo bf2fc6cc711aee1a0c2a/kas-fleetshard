@@ -18,4 +18,20 @@ public class ManagedKafkaAgent extends CustomResource<ManagedKafkaAgentSpec, Man
         implements Namespaced {
     private static final long serialVersionUID = 1L;
 
+    @Override
+    protected ManagedKafkaAgentSpec initSpec() {
+        return new ManagedKafkaAgentSpec();
+    }
+
+    /**
+     * A null value will be treated as empty instead
+     */
+    @Override
+    public void setSpec(ManagedKafkaAgentSpec spec) {
+        if (spec == null) {
+            spec = initSpec();
+        }
+        super.setSpec(spec);
+    }
+
 }

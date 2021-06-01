@@ -5,6 +5,8 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
+
 /**
  * Represents different versions supported by the ManagedKafka instance
  */
@@ -17,7 +19,9 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Versions {
 
+    @NotNull
     private String kafka;
+    @NotNull
     private String strimzi;
 
     public String getKafka() {
