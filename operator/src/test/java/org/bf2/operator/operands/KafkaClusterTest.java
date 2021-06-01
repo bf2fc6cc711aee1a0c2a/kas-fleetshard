@@ -76,6 +76,7 @@ class KafkaClusterTest {
                                                 .withJwksEndpointURI("https://jwksEndpointURI")
                                                 .withValidIssuerEndpointURI("https://validIssuerEndpointURI")
                                                 .withUserNameClaim("userNameClaim")
+                                                .withTlsTrustedCertificate("TLS trusted cert")
                                                 .build()
                                 )
                                 .withNewCapacity()
