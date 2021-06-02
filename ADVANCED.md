@@ -108,7 +108,7 @@ kubectl edit strimzi-cluster-operator -n <namespace>
 
 ## Configure Kafka Components logging
 
-The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper and exporter are configued individually in seperate ConfigMaps in the namespace where the Kafka cluster is installed.
+The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper and exporter are configured individually in separate ConfigMaps in the namespace where the Kafka cluster is installed.
 
 ### Kafka Broker logging configuration
 

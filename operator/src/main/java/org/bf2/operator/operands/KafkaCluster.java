@@ -68,7 +68,9 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+import javax.xml.bind.DatatypeConverter;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -120,7 +122,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
     private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
-    private static final String DIGEST = "app.kubernetes.io/digest";
+    private static final String DIGEST = "org.bf2.operator/digest";
 
     @Inject
     Logger log;
@@ -256,27 +258,19 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
-        try {
+        String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
+
+        try (InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml")) {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
-            InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml");
             DigestInputStream dis = new DigestInputStream(is, md);
             ConfigMap template = kubernetesClient.configMaps().load(dis).get();
             Map<String, String> annotations = new HashMap<>(1);
-            annotations.put(DIGEST, md5Hex(md.digest()));
+            annotations.put(DIGEST, DatatypeConverter.printHexBinary(md.digest()));
             template.getMetadata().setAnnotations(annotations);
             return template;
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private static String md5Hex(byte[] hash) {
-        StringBuilder sb = new StringBuilder(2 * hash.length);
-        for (byte b : hash) {
-            sb.append(String.format("%02x", b & 0xff));
-        }
-        return sb.toString();
     }
 
     /* test */
@@ -751,8 +745,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (currentCM == null || newCM == null) {
             return true;
         }
-        String currentDigest = currentCM.getMetadata().getAnnotations().get(DIGEST);
-        String newDigest = newCM.getMetadata().getAnnotations().get(DIGEST);
-        return !currentDigest.equals(newDigest);
+        String currentDigest = currentCM.getMetadata().getAnnotations() == null ? null : currentCM.getMetadata().getAnnotations().get(DIGEST);
+        String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
+        return !Objects.equals(currentDigest, newDigest);
     }
 }
