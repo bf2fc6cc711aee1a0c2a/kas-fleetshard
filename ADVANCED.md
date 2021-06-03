@@ -103,7 +103,7 @@ The added configuration will be merged with the default logging configuration al
 To change the Strimzi operator logging, find the namespace in which the Strimzi Operator is installed then edit the config map with name `strimzi-cluster-operator` that has the log4j configuration for the operator. The contents of the key `log4j.properties` needs to be modified to suit the needs.
 
 ```shell
-kubectl edit strimzi-cluster-operator -n <namespace>
+kubectl edit cm strimzi-cluster-operator -n <namespace>
 ```
 
 ## Configure Kafka Components logging
@@ -115,7 +115,7 @@ The fleetshard operator when it installs Kafka cluster, it configures Kafka clus
 To change the logging configuration of the Kafka broker component execute the following and the contents of the key `log4j.properties` needs to be modified to suit the needs.
 
 ```shell
-oc edit <kafka-cluster-name>-kafka-logging -n <tenant-kafka-cluster-namespace>
+oc edit cm <kafka-cluster-name>-kafka-logging -n <tenant-kafka-cluster-namespace>
 ```
 
 ### Kafka Zookeeper logging configuration
@@ -123,7 +123,7 @@ oc edit <kafka-cluster-name>-kafka-logging -n <tenant-kafka-cluster-namespace>
 To change the logging configuration of the Zookeeper component execute the following and the contents of the key `log4j.properties` needs to be modified to suit the needs.
 
 ```shell
-oc edit <kafka-cluster-name>-zookeeper-logging -n <tenant-kafka-cluster-namespace>
+oc edit cm <kafka-cluster-name>-zookeeper-logging -n <tenant-kafka-cluster-namespace>
 ```
 
 ### Kafka Exporter logging configuration
@@ -131,7 +131,7 @@ oc edit <kafka-cluster-name>-zookeeper-logging -n <tenant-kafka-cluster-namespac
 To change the logging configuration of the Kafka Exporter component execute the following
 
 ```shell
-oc edit <kafka-cluster-name>-kafka-exporter-logging -n <tenant-kafka-cluster-namespace>
+oc edit cm <kafka-cluster-name>-kafka-exporter-logging -n <tenant-kafka-cluster-namespace>
 ```
 
 A sample configmap looks as below, make necessary edits as required
