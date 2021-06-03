@@ -60,7 +60,7 @@
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.23.0</strimzi.version>
-        <quarkus.operator.extension>1.9.0-SNAPSHOT</quarkus.operator.extension>
+        <quarkus.operator.extension>1.9.0</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
         <sundrio.version>0.40.1</sundrio.version>
