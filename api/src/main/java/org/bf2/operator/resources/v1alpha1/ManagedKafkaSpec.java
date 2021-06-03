@@ -4,6 +4,8 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
+import javax.validation.constraints.NotNull;
+
 /**
  * Defines the specification of the ManagedKafka instance
  */
@@ -15,17 +17,28 @@ import lombok.ToString;
 @EqualsAndHashCode
 public class ManagedKafkaSpec {
 
-    private ManagedKafkaCapacity capacity;
+    private ManagedKafkaCapacity capacity = new ManagedKafkaCapacity();
     private ManagedKafkaAuthenticationOAuth oauth;
+    @NotNull
     private ManagedKafkaEndpoint endpoint;
+    @NotNull
     private Versions versions;
     private boolean deleted;
 
+    /**
+     * Never null
+     */
     public ManagedKafkaCapacity getCapacity() {
         return capacity;
     }
 
+    /**
+     * A null value will be treated as empty instead
+     */
     public void setCapacity(ManagedKafkaCapacity capacity) {
+        if (capacity == null) {
+            capacity = new ManagedKafkaCapacity();
+        }
         this.capacity = capacity;
     }
 

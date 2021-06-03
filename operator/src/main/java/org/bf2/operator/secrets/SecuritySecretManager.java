@@ -7,7 +7,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -26,11 +25,13 @@ public class SecuritySecretManager {
     @Inject
     private InformerManager informerManager;
 
-    @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
-    private boolean isKafkaAuthenticationEnabled;
+    public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
+        return managedKafka.getSpec().getOauth() != null;
+    }
 
-    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
-    private boolean isKafkaExternalCertificateEnabled;
+    public static boolean isKafkaExternalCertificateEnabled(ManagedKafka managedKafka) {
+        return managedKafka.getSpec().getEndpoint().getTls() != null;
+    }
 
     public static String kafkaTlsSecretName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-tls-secret";
@@ -51,11 +52,11 @@ public class SecuritySecretManager {
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = true;
 
-        if (isKafkaExternalCertificateEnabled) {
+        if (isKafkaExternalCertificateEnabled(managedKafka)) {
             isDeleted = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka)) == null;
         }
 
-        if (isKafkaAuthenticationEnabled) {
+        if (isKafkaAuthenticationEnabled(managedKafka)) {
             isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
                     cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
         }
@@ -64,48 +65,43 @@ public class SecuritySecretManager {
     }
 
     public void createOrUpdate(ManagedKafka managedKafka) {
-        if (isKafkaExternalCertificateEnabled) {
-            Secret currentKafkaTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
+        Secret currentKafkaTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
+        if (isKafkaExternalCertificateEnabled(managedKafka)) {
             Secret kafkaTlsSecret = kafkaTlsSecretFrom(managedKafka, currentKafkaTlsSecret);
             createOrUpdate(kafkaTlsSecret);
+        } else if (currentKafkaTlsSecret != null) {
+            secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
         }
 
-        if (isKafkaAuthenticationEnabled) {
-            Secret currentSsoClientSecret = cachedSecret(managedKafka, ssoClientSecretName(managedKafka));
+        Secret currentSsoClientSecret = cachedSecret(managedKafka, ssoClientSecretName(managedKafka));
+        Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
+
+        if (isKafkaAuthenticationEnabled(managedKafka)) {
             Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
             createOrUpdate(ssoClientSecret);
 
             if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
-                Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
                 Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
                 createOrUpdate(ssoTlsSecret);
-            } else {
-                deleteOldTlsTrustedCertificateSecret(managedKafka);
+            } else if (currentSsoTlsSecret != null) {
+                secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
+            }
+        } else {
+            if (currentSsoClientSecret != null) {
+                secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
+            }
+            if (currentSsoTlsSecret != null) {
+                secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
             }
         }
     }
 
-    /**
-     * Delete "not used" Secret containing TLS trusted certificates for OAuth server
-     * NOTE:
-     * If TLS trusted certificates are signed by a public CA (i.e. Let's Encrypt), passing them
-     * is not needed in the ManagedKafka resource, so for already running Kafka instances we can
-     * delete the corresponding Secret hosting them.
-     *
-     * @param managedKafka
-     */
-    private void deleteOldTlsTrustedCertificateSecret(ManagedKafka managedKafka) {
-        if (cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) != null) {
-            secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
-        }
-    }
-
     public void delete(ManagedKafka managedKafka) {
-        if (isKafkaExternalCertificateEnabled) {
+        if (isKafkaExternalCertificateEnabled(managedKafka)) {
             secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
         }
 
-        if (isKafkaAuthenticationEnabled) {
+        if (isKafkaAuthenticationEnabled(managedKafka)) {
             secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
             if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
                 secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();

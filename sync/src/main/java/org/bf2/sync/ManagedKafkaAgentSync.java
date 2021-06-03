@@ -13,6 +13,8 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.Objects;
+
 @ApplicationScoped
 public class ManagedKafkaAgentSync {
 
@@ -37,6 +39,7 @@ public class ManagedKafkaAgentSync {
             return;
         }
         ManagedKafkaAgent managedKafkaAgent = controlPlane.getManagedKafkaAgent();
+        Objects.requireNonNull(managedKafkaAgent);
         createOrUpdateManagedKafkaAgent(managedKafkaAgent);
     }
 
@@ -52,7 +55,7 @@ public class ManagedKafkaAgentSync {
             remoteAgent.getMetadata().setName(AgentResourceClient.RESOURCE_NAME);
             this.agentClient.create(remoteAgent);
             log.infof("ManagedKafkaAgent CR created");
-        } else if (remoteAgent.getSpec() != null && !remoteAgent.getSpec().equals(resource.getSpec())) {
+        } else if (!remoteAgent.getSpec().equals(resource.getSpec())) {
             this.agentClient.edit(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME, mka -> {
                 mka.setSpec(remoteAgent.getSpec());
                 return mka;

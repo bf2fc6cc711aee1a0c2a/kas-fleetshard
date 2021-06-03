@@ -63,7 +63,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -129,12 +128,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected SecuritySecretManager secretManager;
-
-    @ConfigProperty(name = "kafka.authentication.enabled", defaultValue = "false")
-    protected boolean isKafkaAuthenticationEnabled;
-
-    @ConfigProperty(name = "kafka.external.certificate.enabled", defaultValue = "false")
-    protected boolean isKafkaExternalCertificateEnabled;
 
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
@@ -303,7 +296,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     protected CertSecretSource getSsoTlsCertSecretSource(ManagedKafka managedKafka) {
-        if (!isKafkaAuthenticationEnabled || managedKafka.getSpec().getOauth().getTlsTrustedCertificate() == null) {
+        if (!SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka) || managedKafka.getSpec().getOauth().getTlsTrustedCertificate() == null) {
             return null;
         }
         return new CertSecretSourceBuilder()
@@ -313,7 +306,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     protected CertAndKeySecretSource getTlsCertAndKeySecretSource(ManagedKafka managedKafka) {
-        if (!isKafkaExternalCertificateEnabled) {
+        if (!SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             return null;
         }
         return new CertAndKeySecretSourceBuilder()
@@ -516,7 +509,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
         KafkaListenerAuthentication oauthAuthenticationListener = null;
 
-        if (isKafkaAuthenticationEnabled) {
+        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
             ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
 
             CertSecretSource ssoTlsCertSecretSource = getSsoTlsCertSecretSource(managedKafka);

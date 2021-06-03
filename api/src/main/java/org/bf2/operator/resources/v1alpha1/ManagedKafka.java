@@ -32,6 +32,22 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public static final String ID = BF2_DOMAIN + "id";
     public static final String PLACEMENT_ID = BF2_DOMAIN + "placementId";
 
+    @Override
+    protected ManagedKafkaSpec initSpec() {
+        return new ManagedKafkaSpec();
+    }
+
+    /**
+     * A null value will be treated as empty instead
+     */
+    @Override
+    public void setSpec(ManagedKafkaSpec spec) {
+        if (spec == null) {
+            spec = initSpec();
+        }
+        super.setSpec(spec);
+    }
+
     @JsonIgnore
     public String getId() {
         return getOrCreateAnnotations().get(ID);
