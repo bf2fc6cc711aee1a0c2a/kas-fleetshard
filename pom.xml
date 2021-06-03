@@ -56,15 +56,14 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
-        <quarkus.platform.version>1.13.1.Final</quarkus.platform.version>
+        <quarkus.platform.version>1.13.6.Final</quarkus.platform.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.23.0</strimzi.version>
-        <fabric8.crd-generator.version>5.1.1</fabric8.crd-generator.version>
-        <quarkus.operator.extension>1.8.2</quarkus.operator.extension>
+        <quarkus.operator.extension>1.9.0-SNAPSHOT</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.0</junit.platform.version>
-        <sundrio.version>0.24.3</sundrio.version>
+        <sundrio.version>0.40.1</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
         <properties-plugin.version>1.0.0</properties-plugin.version>
@@ -85,6 +84,13 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>5.4.1</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
                 <groupId>org.bf2</groupId>
                 <artifactId>kas-fleetshard-api</artifactId>
                 <version>${project.version}</version>
@@ -100,14 +106,6 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>crd-generator</artifactId>
-                <version>${fabric8.crd-generator.version}</version>
-                <!-- we need to keep this optional to avoid conflicts with quarkus-kubernetes -->
-                <optional>true</optional>
-                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.quarkiverse.operatorsdk</groupId>

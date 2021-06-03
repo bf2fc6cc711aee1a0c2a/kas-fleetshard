@@ -12,12 +12,22 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>crd-generator</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.sundr</groupId>
             <artifactId>builder-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>crd-generator-apt</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-client</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
