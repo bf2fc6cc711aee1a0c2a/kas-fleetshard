@@ -90,7 +90,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                         .build())
                 .withSpec(new ManagedKafkaSpecBuilder().withNewVersions()
                         .withKafka("2.7.0")
-                        .withStrimzi("0.21.1")
+                        .withStrimzi("0.22.1")
                         .endVersions()
                         .withNewCapacity()
                         .withNewIngressEgressThroughputPerSec("4Mi")
