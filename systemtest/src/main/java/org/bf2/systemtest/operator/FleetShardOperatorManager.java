@@ -35,7 +35,7 @@ public class FleetShardOperatorManager {
     public static final String OPERATOR_NS = "kas-fleetshard";
     public static final String OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String SYNC_NAME = "kas-fleetshard-sync";
-    private static Path[] installedCrds;
+    private static Path[] installedCrds = new Path[0];
 
     private static void printVar() {
         LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
