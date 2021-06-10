@@ -4,17 +4,13 @@
  */
 package org.bf2.test.k8s.cmdClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.test.TestUtils;
 import org.bf2.test.executor.Exec;
 import org.bf2.test.executor.ExecResult;
 import org.bf2.test.k8s.KubeClusterException;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +18,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static java.lang.String.join;
@@ -42,6 +37,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
 
     String namespace = defaultNamespace();
 
+    @Override
     public abstract String cmd();
 
     @Override
@@ -273,49 +269,6 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         THROW
     }
 
-    @SuppressWarnings("unchecked")
-    public K waitFor(String resource, String name, Predicate<JsonNode> condition) {
-        long timeoutMs = 570_000L;
-        long pollMs = 1_000L;
-        ObjectMapper mapper = new ObjectMapper();
-        TestUtils.waitFor(resource + " " + name, pollMs, timeoutMs, () -> {
-            try {
-                String jsonString = Exec.exec(namespacedCommand("get", resource, name, "-o", "json")).out();
-                LOGGER.trace("{}", jsonString);
-                JsonNode actualObj = mapper.readTree(jsonString);
-                return condition.test(actualObj);
-            } catch (KubeClusterException.NotFound e) {
-                return false;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        return (K) this;
-    }
-
-    @Override
-    public K waitForResourceCreation(String resourceType, String resourceName) {
-        // wait when resource to be created
-        return waitFor(resourceType, resourceName,
-                actualObj -> true
-        );
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public K waitForResourceDeletion(String resourceType, String resourceName) {
-        TestUtils.waitFor(resourceType + " " + resourceName + " removal",
-                1_000L, 480_000L, () -> {
-                    try {
-                        get(resourceType, resourceName);
-                        return false;
-                    } catch (KubeClusterException.NotFound e) {
-                        return true;
-                    }
-                });
-        return (K) this;
-    }
-
     @Override
     public String toString() {
         return cmd();
@@ -399,6 +352,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         return "";
     }
 
+    @Override
     public List<String> listResourcesByLabel(String resourceType, String label) {
         return asList(Exec.exec(namespacedCommand("get", resourceType, "-l", label, "-o", "jsonpath={range .items[*]}{.metadata.name} ")).out().split("\\s+"));
     }

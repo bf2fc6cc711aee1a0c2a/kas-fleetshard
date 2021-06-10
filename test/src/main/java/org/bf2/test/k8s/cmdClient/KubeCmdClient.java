@@ -4,13 +4,11 @@
  */
 package org.bf2.test.k8s.cmdClient;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.bf2.test.executor.ExecResult;
 
 import java.io.File;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -141,25 +139,6 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
     ExecResult exec(boolean throwError, boolean logToOutput, String... command);
 
     /**
-     * Wait for the resource with the given {@code name} to be reach the state defined by the predicate.
-     *
-     * @param resource  The resource type.
-     * @param name      The resource name.
-     * @param condition Predicate to test if the desired state was achieved
-     * @return This kube client.
-     */
-    K waitFor(String resource, String name, Predicate<JsonNode> condition);
-
-    /**
-     * Wait for the resource with the given {@code name} to be created.
-     *
-     * @param resourceType The resource type.
-     * @param resourceName The resource name.
-     * @return This kube client.
-     */
-    K waitForResourceCreation(String resourceType, String resourceName);
-
-    /**
      * Get the content of the given {@code resource} with the given {@code name} as YAML.
      *
      * @param resource     The type of resource (e.g. "cm").
@@ -174,8 +153,6 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @return List of events
      */
     String getEvents();
-
-    K waitForResourceDeletion(String resourceType, String resourceName);
 
     List<String> list(String resourceType);
 

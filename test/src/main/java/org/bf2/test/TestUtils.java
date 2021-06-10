@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -31,50 +32,17 @@ import java.util.function.Function;
 public class TestUtils {
     private static final Logger LOGGER = LogManager.getLogger(TestUtils.class);
 
-    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready) {
-        return waitFor(description, pollIntervalMs, timeoutMs, ready, () -> {
-        });
-    }
-
-    /**
-     * Wait for specific lambda expression
-     *
-     * @param description    description for logging
-     * @param pollIntervalMs poll interval in ms
-     * @param timeoutMs      timeout in ms
-     * @param ready          lambda method for waiting
-     * @param onTimeout      lambda method which is called when timeout is reached
-     * @return
-     */
-    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready, Runnable onTimeout) {
-        LOGGER.debug("Waiting for {}", description);
-        long deadline = System.currentTimeMillis() + timeoutMs;
-        while (true) {
-            boolean result;
-            try {
-                result = ready.getAsBoolean();
-            } catch (Exception e) {
-                result = false;
+    public static void waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready) {
+        try {
+            asyncWaitFor(description, pollIntervalMs, timeoutMs, ready).get();
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException)e.getCause();
             }
-            long timeLeft = deadline - System.currentTimeMillis();
-            if (result) {
-                return timeLeft;
-            }
-            if (timeLeft <= 0) {
-                onTimeout.run();
-                WaitException waitException = new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
-                waitException.printStackTrace();
-                throw waitException;
-            }
-            long sleepTime = Math.min(pollIntervalMs, timeLeft);
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("{} not ready, will try again in {} ms ({}ms till timeout)", description, sleepTime, timeLeft);
-            }
-            try {
-                Thread.sleep(sleepTime);
-            } catch (InterruptedException e) {
-                return deadline - System.currentTimeMillis();
-            }
+            throw new RuntimeException(e);
         }
     }
 
