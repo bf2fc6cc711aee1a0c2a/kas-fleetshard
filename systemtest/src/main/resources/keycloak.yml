@@ -1,0 +1,34 @@
+apiVersion: keycloak.org/v1alpha1
+kind: KeycloakRealm
+metadata:
+  name: demo
+  labels:
+    app: demo
+spec:
+  realm:
+    id: "demo"
+    realm: "demo"
+    enabled: True
+    displayName: "demo"
+  instanceSelector:
+    matchLabels:
+      app: sso
+---
+apiVersion: keycloak.org/v1alpha1
+kind: KeycloakClient
+metadata:
+  name: kafka
+  labels:
+    app: sso
+spec:
+  realmSelector:
+    matchLabels:
+      app: demo
+  client:
+    clientId: kafka
+    secret: kafka
+    clientAuthenticatorType: client-secret
+    protocol: openid-connect
+    serviceAccountsEnabled: true
+    standardFlowEnabled: false
+    implicitFlowEnabled: false
