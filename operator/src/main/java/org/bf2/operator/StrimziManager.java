@@ -8,6 +8,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -53,8 +54,8 @@ public class StrimziManager {
                 if (optDeployment.isPresent()) {
                     Deployment deployment = optDeployment.get();
                     // check it's ready
-                    boolean isReady = deployment != null && (deployment.getStatus() == null ||
-                            (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
+                    boolean isReady = deployment.getStatus() == null ||
+                            (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas()));
                     if (isReady) {
                         strimziVersions.add(deployment.getMetadata().getName());
                     }
