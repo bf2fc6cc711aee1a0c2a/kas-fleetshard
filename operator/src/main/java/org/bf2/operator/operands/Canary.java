@@ -74,6 +74,7 @@ public class Canary extends AbstractCanary {
                         .editOrNewSpec()
                             .withContainers(getContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                            .withAffinity(kafkaPodAffinity())
                         .endSpec()
                     .endTemplate()
                 .endSpec()

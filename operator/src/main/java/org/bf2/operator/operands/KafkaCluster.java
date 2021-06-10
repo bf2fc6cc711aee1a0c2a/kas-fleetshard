@@ -50,6 +50,7 @@ import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -126,6 +127,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StorageClassManager storageClassManager;
+
+    @ConfigProperty(name = "kafka.broker.restrict-one-instance-per-node")
+    boolean restrictOneInstancePerNode;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -218,7 +222,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(getKafkaStorage(managedKafka, current))
                         .withListeners(getListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
-                        .withTemplate(getKafkaTemplate(managedKafka))
+                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                         .withAuthorization(getKafkaAuthorization())
                         .withImage(kafkaImage.orElse(null))
@@ -319,11 +323,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
+    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka, boolean onePerNode) {
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                .withRequiredDuringSchedulingIgnoredDuringExecution(
-                        new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
-                ).build();
+                .withRequiredDuringSchedulingIgnoredDuringExecution(kafkaPodAffinityTerm(onePerNode))
+                .build();
 
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()

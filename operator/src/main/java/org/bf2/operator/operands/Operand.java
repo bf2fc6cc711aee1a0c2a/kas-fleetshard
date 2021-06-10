@@ -1,7 +1,14 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinityTerm;
+import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.Context;
+
+import java.util.LinkedHashMap;
 
 /**
  * Define common behaviour across operands related to a controller handling a specific custom resource
@@ -49,4 +56,24 @@ public interface Operand<T extends CustomResource<?, ?>> {
      * @return if the operand instance is deleted
      */
     boolean isDeleted(T customResource);
+
+
+    default Affinity kafkaPodAffinity() {
+        return new AffinityBuilder().withPodAffinity(new PodAffinityBuilder()
+            .withRequiredDuringSchedulingIgnoredDuringExecution(kafkaPodAffinityTerm(true))
+            .build())
+        .build();
+    }
+
+    default PodAffinityTerm kafkaPodAffinityTerm(boolean includeKafkaAffinity) {
+        LinkedHashMap<String, String> kafkaPodSelectorLabels = new LinkedHashMap<>(1);
+        kafkaPodSelectorLabels.put("app.kubernetes.io/name", "kafka");
+        PodAffinityTermBuilder builder = new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname");
+        if(includeKafkaAffinity) {
+            builder.withNewLabelSelector()
+                .withMatchLabels(kafkaPodSelectorLabels)
+                .endLabelSelector();
+        }
+        return builder.build();
+    }
 }
