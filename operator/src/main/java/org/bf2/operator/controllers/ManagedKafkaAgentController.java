@@ -14,6 +14,7 @@ import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.InformerManager;
+import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
@@ -32,6 +33,7 @@ import org.jboss.logging.Logger;
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * The controller for {@link ManagedKafkaAgent}.  However there is currently
@@ -55,6 +57,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Inject
     InformerManager manager;
+
+    @Inject
+    StrimziManager strimziManager;
 
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
@@ -115,6 +120,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null);
         }
 
+        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
+
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
                 .withDataRetentionSize(Quantity.parse("40Gi"))
@@ -155,6 +162,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .withNodeInfo(nodeInfo)
                 .withResizeInfo(resize)
                 .withUpdatedTimestamp(ConditionUtils.iso8601Now())
+                .withStrimziVersions(strimziVersions)
                 .build();
     }
 }
