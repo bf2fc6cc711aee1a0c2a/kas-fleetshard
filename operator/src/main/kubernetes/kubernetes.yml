@@ -67,6 +67,14 @@ rules:
       - patch
       - update
   - apiGroups:
+      - apps
+      resources:
+        # operator needs to get ReplicaSets for discovering Strimzi installations
+        - replicasets
+      verbs:
+        - get
+        - list
+  - apiGroups:
       - ""
     resources:
       # the operator creates Services for admin server UI
