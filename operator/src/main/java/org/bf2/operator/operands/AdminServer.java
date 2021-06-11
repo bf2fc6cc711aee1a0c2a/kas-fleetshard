@@ -142,7 +142,7 @@ public class AdminServer extends AbstractAdminServer {
                             .withContainers(getContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(getVolumes(managedKafka))
-                            .withAffinity(kafkaPodAffinity())
+                            .withAffinity(kafkaPodAffinity(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec()

@@ -3,10 +3,10 @@ package org.bf2.operator.operands;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
-import io.fabric8.kubernetes.api.model.PodAffinityTerm;
 import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import java.util.LinkedHashMap;
 
@@ -58,22 +58,19 @@ public interface Operand<T extends CustomResource<?, ?>> {
     boolean isDeleted(T customResource);
 
 
-    default Affinity kafkaPodAffinity() {
+    default Affinity kafkaPodAffinity(ManagedKafka managedKafka) {
+        // place where kafka is placed
+        LinkedHashMap<String, String> kafkaPodSelectorLabels = new LinkedHashMap<>(1);
+        kafkaPodSelectorLabels.put("strimzi.io/name",  managedKafka.getMetadata().getName()+"-kafka");
+
         return new AffinityBuilder().withPodAffinity(new PodAffinityBuilder()
-            .withRequiredDuringSchedulingIgnoredDuringExecution(kafkaPodAffinityTerm(true))
+            .withRequiredDuringSchedulingIgnoredDuringExecution(new PodAffinityTermBuilder()
+                    .withTopologyKey("kubernetes.io/hostname")
+                    .withNewLabelSelector()
+                        .withMatchLabels(kafkaPodSelectorLabels)
+                    .endLabelSelector()
+                    .build())
             .build())
         .build();
-    }
-
-    default PodAffinityTerm kafkaPodAffinityTerm(boolean includeKafkaAffinity) {
-        LinkedHashMap<String, String> kafkaPodSelectorLabels = new LinkedHashMap<>(1);
-        kafkaPodSelectorLabels.put("app.kubernetes.io/name", "kafka");
-        PodAffinityTermBuilder builder = new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname");
-        if(includeKafkaAffinity) {
-            builder.withNewLabelSelector()
-                .withMatchLabels(kafkaPodSelectorLabels)
-                .endLabelSelector();
-        }
-        return builder.build();
     }
 }
