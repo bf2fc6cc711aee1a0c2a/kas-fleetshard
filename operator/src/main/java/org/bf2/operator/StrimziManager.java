@@ -47,19 +47,18 @@ public class StrimziManager {
                 String deploymentName = replicaSet.getMetadata().getOwnerReferences().get(0).getName();
                 Optional<Deployment> optDeployment = this.kubernetesClient.apps()
                         .deployments()
-                        .inAnyNamespace()
+                        .inNamespace(replicaSet.getMetadata().getNamespace())
                         .list().getItems()
                         .stream().filter(d -> d.getMetadata().getName().equals(deploymentName)).findFirst();
 
                 if (optDeployment.isPresent()) {
                     Deployment deployment = optDeployment.get();
                     // check it's ready
-                    boolean isReady = deployment.getStatus() == null ||
-                            (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas()));
+                    boolean isReady = deployment.getStatus() != null && deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas());
                     if (isReady) {
                         strimziVersions.add(deployment.getMetadata().getName());
                     }
-                    log.debugf("\t %s [%s]", deployment.getMetadata().getName(), isReady);
+                    log.debugf("\t - %s [%s]", deployment.getMetadata().getName(), isReady);
                 }
             }
         }
