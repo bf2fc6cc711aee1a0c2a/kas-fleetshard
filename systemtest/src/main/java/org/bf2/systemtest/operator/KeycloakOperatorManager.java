@@ -2,17 +2,23 @@ package org.bf2.systemtest.operator;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public class KeycloakOperatorManager {
@@ -29,6 +35,21 @@ public class KeycloakOperatorManager {
             LOGGER.info("Installing Keycloak : {}", OPERATOR_NS);
 
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
+
+            Map<String, String> tls = SecurityUtils.getTLSConfig(OPERATOR_NS + ".svc");
+
+            Secret keycloakCert = new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("sso-x509-https-secret")
+                    .withNamespace(OPERATOR_NS)
+                    .endMetadata()
+                    .withType("kubernetes.io/tls")
+                    .withData(Map.of(
+                            "tls.crt", new String(Base64.getEncoder().encode(tls.get("cert").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
+                            "tls.key", new String(Base64.getEncoder().encode(tls.get("key").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
+                    )
+                    .build();
+            kubeClient.client().secrets().inNamespace(OPERATOR_NS).createOrReplace(keycloakCert);
 
             List<String> keycloakInstallFiles = Arrays.asList(
                     "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/service_account.yaml",
@@ -53,9 +74,6 @@ public class KeycloakOperatorManager {
                 resource.getMetadata().setNamespace(OPERATOR_NS);
                 kubeClient.client().resource(resource).inNamespace(OPERATOR_NS).createOrReplace();
             }
-
-            kubeClient.cmdClient().namespace(OPERATOR_NS)
-                    .execInCurrentNamespace("apply", "-f", "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/examples/keycloak/keycloak.yaml");
 
             kubeClient.cmdClient().namespace(OPERATOR_NS)
                     .execInCurrentNamespace("apply", "-f",
