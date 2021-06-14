@@ -34,6 +34,7 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -288,7 +289,7 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(4);
+        List<EnvVar> envVars = new ArrayList<>();
 
         envVars.add(new EnvVarBuilder()
                     .withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS")
@@ -311,14 +312,24 @@ public class AdminServer extends AbstractAdminServer {
                         .build());
         }
 
+        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
+            ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI", oauth.getJwksEndpointURI());
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI", oauth.getValidIssuerEndpointURI());
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI", oauth.getTokenEndpointURI());
+        } else {
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_ENABLED", "false");
+        }
+
         if (corsAllowList.isPresent()) {
-            envVars.add(new EnvVarBuilder()
-                        .withName("CORS_ALLOW_LIST_REGEX")
-                        .withValue(corsAllowList.get())
-                        .build());
+            addEnvVar(envVars, "CORS_ALLOW_LIST_REGEX", corsAllowList.get());
         }
 
         return envVars;
+    }
+
+    private void addEnvVar(List<EnvVar> envVars, String name, String value) {
+        envVars.add(new EnvVarBuilder().withName(name).withValue(value).build());
     }
 
     private List<ContainerPort> getContainerPorts(ManagedKafka managedKafka) {
