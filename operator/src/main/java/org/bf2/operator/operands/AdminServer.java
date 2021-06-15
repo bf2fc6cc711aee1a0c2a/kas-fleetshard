@@ -291,10 +291,7 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>();
 
-        envVars.add(new EnvVarBuilder()
-                    .withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS")
-                    .withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095")
-                    .build());
+        addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             envVars.add(new EnvVarBuilder()
