@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
+import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
@@ -104,9 +105,19 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     /**
      * get common default managedkafka instance
+     *
      * @throws Exception
      */
     public static ManagedKafka getDefault(String namespace, String appName) throws Exception {
+        return getDefault(namespace, appName, null);
+    }
+
+    /**
+     * get common default managedkafka instance
+     *
+     * @throws Exception
+     */
+    public static ManagedKafka getDefault(String namespace, String appName, KeycloakInstance keycloak) throws Exception {
         final String tlsCert;
         final String tlsKey;
 
@@ -119,10 +130,37 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             tlsKey = Environment.ENDPOINT_TLS_KEY;
         }
 
-        return ManagedKafka.getDefault(appName, namespace, Environment.BOOTSTRAP_HOST_DOMAIN,
-                                       tlsCert, tlsKey, Environment.OAUTH_CLIENT_ID,
-                Environment.OAUTH_TLS_CERT, Environment.OAUTH_CLIENT_SECRET, Environment.OAUTH_USER_CLAIM,
-                Environment.OAUTH_JWKS_ENDPOINT, Environment.OAUTH_TOKEN_ENDPOINT, Environment.OAUTH_ISSUER_ENDPOINT);
+        //use defined values by env vars for oauth
+        if (keycloak == null) {
+            return ManagedKafka.getDefault(
+                    appName,
+                    namespace,
+                    Environment.BOOTSTRAP_HOST_DOMAIN,
+                    tlsCert,
+                    tlsKey,
+                    Environment.OAUTH_CLIENT_ID,
+                    Environment.OAUTH_TLS_CERT,
+                    Environment.OAUTH_CLIENT_SECRET,
+                    Environment.OAUTH_USER_CLAIM,
+                    Environment.OAUTH_JWKS_ENDPOINT,
+                    Environment.OAUTH_TOKEN_ENDPOINT,
+                    Environment.OAUTH_ISSUER_ENDPOINT);
+        } else {
+            //use installed custom keycloak by suite
+            return ManagedKafka.getDefault(
+                    appName,
+                    namespace,
+                    Environment.BOOTSTRAP_HOST_DOMAIN,
+                    tlsCert,
+                    tlsKey,
+                    "kafka",
+                    keycloak.getKeycloakCert(),
+                    "kafka",
+                    keycloak.getUserNameClaim(),
+                    keycloak.getJwksEndpointUri(),
+                    keycloak.getOauthTokenEndpointUri(),
+                    keycloak.getValidIssuerUri());
+        }
     }
 
     public static void isDeleted(ManagedKafka mk) {
