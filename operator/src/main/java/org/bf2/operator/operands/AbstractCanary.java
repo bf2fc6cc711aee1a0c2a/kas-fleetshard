@@ -51,8 +51,8 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
-        boolean isReady = deployment != null && (deployment.getStatus() == null ||
-                (deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas())));
+        boolean isReady = deployment != null && deployment.getStatus() != null &&
+                deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas());
         log.tracef("Canary isReady = %s", isReady);
         return isReady;
     }
