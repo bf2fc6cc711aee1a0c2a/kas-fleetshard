@@ -130,37 +130,53 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             tlsKey = Environment.ENDPOINT_TLS_KEY;
         }
 
-        //use defined values by env vars for oauth
-        if (keycloak == null) {
-            return ManagedKafka.getDefault(
-                    appName,
-                    namespace,
-                    Environment.BOOTSTRAP_HOST_DOMAIN,
-                    tlsCert,
-                    tlsKey,
-                    Environment.OAUTH_CLIENT_ID,
-                    Environment.OAUTH_TLS_CERT,
-                    Environment.OAUTH_CLIENT_SECRET,
-                    Environment.OAUTH_USER_CLAIM,
-                    Environment.OAUTH_JWKS_ENDPOINT,
-                    Environment.OAUTH_TOKEN_ENDPOINT,
-                    Environment.OAUTH_ISSUER_ENDPOINT);
+        final String oauthClientId;
+        final String oauthTlsCert;
+        final String oauthClientSecret;
+        final String oauthUserClaim;
+        final String oauthJwksEndpoint;
+        final String oauthTokenEndpoint;
+        final String oauthIssuerEndpoint;
+
+        if (keycloak != null) {
+            oauthClientId = "kafka";
+            oauthTlsCert = keycloak.getKeycloakCert();
+            oauthClientSecret = "kafka";
+            oauthUserClaim = keycloak.getUserNameClaim();
+            oauthJwksEndpoint = keycloak.getJwksEndpointUri();
+            oauthTokenEndpoint = keycloak.getOauthTokenEndpointUri();
+            oauthIssuerEndpoint = keycloak.getValidIssuerUri();
+        } else if (Environment.DUMMY_OAUTH_JWKS_URI.equals(Environment.OAUTH_JWKS_ENDPOINT)) {
+            oauthClientId = null;
+            oauthTlsCert = null;
+            oauthClientSecret = null;
+            oauthUserClaim = null;
+            oauthJwksEndpoint = null;
+            oauthTokenEndpoint = null;
+            oauthIssuerEndpoint = null;
         } else {
-            //use installed custom keycloak by suite
-            return ManagedKafka.getDefault(
-                    appName,
-                    namespace,
-                    Environment.BOOTSTRAP_HOST_DOMAIN,
-                    tlsCert,
-                    tlsKey,
-                    "kafka",
-                    keycloak.getKeycloakCert(),
-                    "kafka",
-                    keycloak.getUserNameClaim(),
-                    keycloak.getJwksEndpointUri(),
-                    keycloak.getOauthTokenEndpointUri(),
-                    keycloak.getValidIssuerUri());
+            //use defined values by env vars for oauth
+            oauthClientId = Environment.OAUTH_CLIENT_ID;
+            oauthTlsCert = Environment.OAUTH_TLS_CERT;
+            oauthClientSecret = Environment.OAUTH_CLIENT_SECRET;
+            oauthUserClaim = Environment.OAUTH_USER_CLAIM;
+            oauthJwksEndpoint = Environment.OAUTH_JWKS_ENDPOINT;
+            oauthTokenEndpoint = Environment.OAUTH_TOKEN_ENDPOINT;
+            oauthIssuerEndpoint = Environment.OAUTH_ISSUER_ENDPOINT;
         }
+
+        return ManagedKafka.getDefault(appName,
+                namespace,
+                Environment.BOOTSTRAP_HOST_DOMAIN,
+                tlsCert,
+                tlsKey,
+                oauthClientId,
+                oauthTlsCert,
+                oauthClientSecret,
+                oauthUserClaim,
+                oauthJwksEndpoint,
+                oauthTokenEndpoint,
+                oauthIssuerEndpoint);
     }
 
     public static void isDeleted(ManagedKafka mk) {
