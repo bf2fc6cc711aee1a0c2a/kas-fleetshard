@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -15,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
+import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.systemtest.framework.SequentialTest;
 import org.bf2.systemtest.integration.AbstractST;
 import org.bf2.test.executor.Exec;
@@ -23,11 +25,13 @@ import org.bf2.test.executor.ExecResult;
 import org.bf2.test.k8s.KubeClusterException;
 import org.junit.jupiter.api.BeforeAll;
 
-import java.util.Collections;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -46,7 +50,7 @@ public class SuiteUnitTest extends AbstractST {
     KubernetesServer mockServer;
 
     @BeforeAll
-    void setupMockServer() {
+    void setupMockServer() throws Exception {
         PodList expectedPodList = new PodListBuilder().withItems(
                 new PodBuilder().withNewMetadata().withName("pod1").withNamespace(TEST_NS).endMetadata()
                         .build(),
@@ -59,14 +63,20 @@ public class SuiteUnitTest extends AbstractST {
         mockServer.getClient().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName("keycloak").endMetadata().build());
         mockServer.getClient().pods().inNamespace("keycloak").createOrReplace(
                 new PodBuilder().withNewMetadata().withName("keycloak-0").withNamespace("keycloak").endMetadata().build());
-        mockServer.getClient().secrets().inNamespace("keycloak").createOrReplace(
-                new SecretBuilder()
-                        .withNewMetadata()
-                        .withName("sso-x509-https-secret")
-                        .endMetadata()
-                        .withData(
-                                Collections.singletonMap("tls.crt", "am52YWpzbmZ2bG5zZmxqdnNuZGxmanZzbGtkam5mdgo="))
-                        .build());
+
+        Map<String, String> tls = SecurityUtils.getTLSConfig("keycloak.svc");
+        Secret keycloakCert = new SecretBuilder()
+                .withNewMetadata()
+                .withName("sso-x509-https-secret")
+                .withNamespace("keycloak")
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .withData(Map.of(
+                        "tls.crt", new String(Base64.getEncoder().encode(tls.get("cert").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
+                        "tls.key", new String(Base64.getEncoder().encode(tls.get("key").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
+                )
+                .build();
+        mockServer.getClient().secrets().inNamespace("keycloak").createOrReplace(keycloakCert);
         mockServer.getClient().secrets().inNamespace("keycloak").createOrReplace(
                 new SecretBuilder()
                         .withNewMetadata()
@@ -113,11 +123,12 @@ public class SuiteUnitTest extends AbstractST {
         assertThrows(KubeClusterException.class, command::exec);
     }
 
-    @SequentialTest
+    @ParallelTest
     void testKeycloakInstance() {
         KeycloakInstance k = new KeycloakInstance("keycloak");
         assertEquals("https://keycloak.keycloak.svc:8443/auth/realms/demo/protocol/openid-connect/certs", k.getJwksEndpointUri());
         assertEquals("admin", k.getUsername());
         assertEquals("admin", k.getPassword());
+        assertNotNull(k.getKeycloakCert());
     }
 }
