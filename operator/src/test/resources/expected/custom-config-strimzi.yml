@@ -1,0 +1,207 @@
+---
+kind: "Kafka"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    ingressType: "sharded"
+    managedkafka.bf2.org/strimziVersion: "0.22.1"
+  name: "test-mk"
+  namespace: "test"
+  ownerReferences:
+  - apiVersion: "managedkafka.bf2.org/v1alpha1"
+    kind: "ManagedKafka"
+    name: "test-mk"
+spec:
+  kafka:
+    version: "2.6.0"
+    replicas: 4
+    listeners:
+    - name: "plain"
+      port: 9092
+      type: "internal"
+      tls: false
+    - name: "tls"
+      port: 9093
+      type: "internal"
+      tls: true
+    - name: "external"
+      port: 9094
+      type: "ingress"
+      tls: true
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+        - secretName: "test-mk-sso-cert"
+          certificate: "keycloak.crt"
+        enablePlain: true
+        tokenEndpointUri: "https://tokenEndpointURI"
+        enableOauthBearer: true
+        type: "oauth"
+      configuration:
+        bootstrap:
+          host: "xxx.yyy.zzz"
+        brokers:
+        - broker: 0
+          host: "broker-0-xxx.yyy.zzz"
+        - broker: 1
+          host: "broker-1-xxx.yyy.zzz"
+        - broker: 2
+          host: "broker-2-xxx.yyy.zzz"
+        - broker: 3
+          host: "broker-3-xxx.yyy.zzz"          
+    - name: "oauth"
+      port: 9095
+      type: "internal"
+      tls: false
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+        - secretName: "test-mk-sso-cert"
+          certificate: "keycloak.crt"
+        enableOauthBearer: true
+        type: "oauth"
+    - name: "sre"
+      port: 9096
+      type: "internal"
+      tls: false        
+    authorization:
+      type: custom
+      authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
+    config:
+      ssl.protocol: "TLSv1.3"
+      client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
+      transaction.state.log.replication.factor: 3
+      auto.create.topics.enable: "false"
+      log.message.format.version: "2.6.0"
+      ssl.enabled.protocols: "TLSv1.3"
+      min.insync.replicas: 2
+      offsets.topic.replication.factor: 3
+      quota.window.size.seconds: "2"
+      transaction.state.log.min.isr: 2
+      client.quota.callback.static.storage.soft: "24159191040"
+      quota.window.num: "30"
+      client.quota.callback.static.consume: "524288"
+      client.quota.callback.static.storage.hard: "25501368320"
+      client.quota.callback.static.storage.check-interval: "30"
+      client.quota.callback.static.disable-quota-anonymous: "true"
+      default.replication.factor: 3
+      max.connections.creation.rate: "75"
+      max.connections: "125"
+      inter.broker.protocol.version: "2.6.0"
+      client.quota.callback.static.produce: "524288"
+      leader.imbalance.per.broker.percentage: 0
+      strimzi.authorization.global-authorizer.allowed-listeners: PLAIN-9092,SRE-9096
+      strimzi.authorization.global-authorizer.acl.1: permission=allow;topic=*;operations=all
+      strimzi.authorization.global-authorizer.acl.2: permission=allow;group=*;operations=all
+      strimzi.authorization.global-authorizer.acl.3: permission=allow;transactional_id=*;operations=all
+    storage: !<jbod>
+      volumes:
+      - !<persistent-claim>
+        type: "persistent-claim"
+        size: "26843545600"
+        class: "gp2"
+        id: 0
+        deleteClaim: true
+      type: "jbod"
+    rack:
+      topologyKey: "topology.kubernetes.io/zone"
+    jvmOptions:
+      "-Xmx": "512m"
+      "-Xms": "512m"
+      "-XX":
+        ExitOnOutOfMemoryError: "true"
+        foo: "bar"
+        foo2: "bar2"
+    resources:
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+    metricsConfig: !<jmxPrometheusExporter>
+      type: "jmxPrometheusExporter"
+      valueFrom:
+        configMapKeyRef:
+          key: "jmx-exporter-config"
+          name: "test-mk-kafka-metrics"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j.properties
+          name: test-mk-kafka-logging
+          optional: false
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+  zookeeper:
+    replicas: 10
+    storage: !<persistent-claim>
+      type: "persistent-claim"
+      size: "10Gi"
+      class: "gp2"
+      deleteClaim: true
+    jvmOptions:
+      "-Xmx": "512m"
+      "-Xms": "512m"
+      "-XX":
+        ExitOnOutOfMemoryError: "true"
+        zkfoo: "zkbar"
+        zkfoo2: "zkbar2"
+    resources:
+      limits:
+        memory: "11Gi"
+        cpu: "500m"
+      requests:
+        memory: "11Gi"
+        cpu: "500m"
+    metricsConfig: !<jmxPrometheusExporter>
+      type: "jmxPrometheusExporter"
+      valueFrom:
+        configMapKeyRef:
+          key: "jmx-exporter-config"
+          name: "test-mk-zookeeper-metrics"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j.properties
+          name: test-mk-zookeeper-logging
+          optional: false          
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: "kubernetes.io/hostname"
+            - topologyKey: "topology.kubernetes.io/zone"
+  kafkaExporter:
+    resources:
+      limits:
+        memory: "256Mi"
+        cpu: "1000m"
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
