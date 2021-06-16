@@ -102,12 +102,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
-    private static final Quantity KAFKA_CONTAINER_MEMORY = new Quantity("1Gi");
-    private static final Quantity KAFKA_CONTAINER_CPU = new Quantity("1000m");
+    private static final Quantity KAFKA_CONTAINER_MEMORY = new Quantity("8Gi");
+    private static final Quantity KAFKA_CONTAINER_CPU = new Quantity("3000m");
 
     private static final Quantity ZOOKEEPER_VOLUME_SIZE = new Quantity("10Gi");
-    private static final Quantity ZOOKEEPER_CONTAINER_MEMORY = new Quantity("1Gi");
-    private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("500m");
+    private static final Quantity ZOOKEEPER_CONTAINER_MEMORY = new Quantity("4Gi");
+    private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("1000m");
 
     private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = new Quantity("128Mi");
     private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = new Quantity("500m");
@@ -387,16 +387,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms("512m")
-                .withXmx("512m")
+                .withXms("3G")
+                .withXmx("3G")
                 .withXx(JVM_OPTIONS_XX_MAP)
                 .build();
     }
 
     private JvmOptions getZooKeeperJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms("512m")
-                .withXmx("512m")
+                .withXms("2G")
+                .withXmx("2G")
                 .withXx(JVM_OPTIONS_XX_MAP)
                 .build();
     }

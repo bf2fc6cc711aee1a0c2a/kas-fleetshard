@@ -122,17 +122,17 @@ spec:
     rack:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
-      "-Xmx": "512m"
-      "-Xms": "512m"
+      "-Xmx": "3G"
+      "-Xms": "3G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
     resources:
       limits:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "8Gi"
+        cpu: "3000m"
       requests:
-        memory: "1Gi"
-        cpu: "1000m"
+        memory: "8Gi"
+        cpu: "3000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
@@ -160,17 +160,17 @@ spec:
       class: "gp2"
       deleteClaim: true
     jvmOptions:
-      "-Xmx": "512m"
-      "-Xms": "512m"
+      "-Xmx": "2G"
+      "-Xms": "2G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
     resources:
       limits:
-        memory: "1Gi"
-        cpu: "500m"
+        memory: "4Gi"
+        cpu: "1000m"
       requests:
-        memory: "1Gi"
-        cpu: "500m"
+        memory: "4Gi"
+        cpu: "1000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
