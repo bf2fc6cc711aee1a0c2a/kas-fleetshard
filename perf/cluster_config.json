@@ -1,0 +1,37 @@
+{
+    "name":"shawkins-client",
+    "managed":true,
+    "multi_az":true,
+    "billing_model":"standard",
+    "region": {
+        "id":"us-east-1"
+    },
+    "version": {
+        "id":"openshift-v4.7.12"
+    },
+    "nodes": {
+        "compute_machine_type": {
+            "id":"r5.xlarge"
+        },
+        "compute":3
+    },
+    "cloud_provider": {
+        "id":"aws"
+    },
+    "node_drain_grace_period": {
+        "value":60,
+        "unit":"minutes"
+    },
+    "product": {
+        "id":"osd"
+    },
+    "ccs": {
+        "enabled":true,
+        "disable_scp_checks":false
+    },
+    "aws": {
+        "access_key_id":"AKIAZCTTRDBS6ZYNOIV6",
+        "account_id":"624086292581",
+        "secret_access_key":"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"
+    }
+}

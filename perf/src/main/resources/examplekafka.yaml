@@ -1,0 +1,232 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: <NAME>
+  namespace: <NAMESPACE>
+spec:
+  kafka:
+    version: 2.7.0
+    replicas: 3
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+      - name: external
+        port: 9094
+        type: route
+        tls: true
+        configuration:
+          bootstrap:
+            host: <NAME>-<UUID>.<CLUSTER_DOMAIN_NAME>
+          brokers:
+          - broker: 0
+            host: broker-0-<NAME>-<UUID>.<CLUSTER_DOMAIN_NAME>
+          - broker: 1
+            host: broker-1-<NAME>-<UUID>.<CLUSTER_DOMAIN_NAME>
+          - broker: 2
+            host: broker-2-<NAME>-<UUID>.<CLUSTER_DOMAIN_NAME>
+    storage:
+      type: jbod
+      volumes:
+      - id: 0
+        type: persistent-claim
+        size: <PVC_SIZE>
+        deleteClaim: false
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      log.message.format.version: "2.7"
+    logging:
+      type: external
+      name: kafka-logging
+    template:
+      podDisruptionBudget:
+        maxUnavailable: 0
+    metrics:
+      lowercaseOutputName: true
+      rules:
+        # begin SLI-Defined metrics
+        - pattern: kafka.controller<type=KafkaController, name=OfflinePartitionsCount><>Value
+          name: kafka_controller_kafkacontroller_offline_partitions_count
+          type: GAUGE
+        - pattern: kafka.server<type=ReplicaManager, name=UnderReplicatedPartitions><>Value
+          name: kafka_server_replicamanager_under_replicated_partitions
+          type: GAUGE
+        - pattern: kafka.server<type=ReplicaManager, name=AtMinIsrPartitionCount><>Value
+          name: kafka_server_replicamanager_at_min_isr_partition_count
+          type: GAUGE
+        - pattern: kafka.cluster<type=Partition, name=AtMinIsr, topic=(.+), partition=(.*)><>Value
+          name: kafka_cluster_partition_at_min_isr
+          type: GAUGE
+          labels:
+            topic: "$1"
+            partition: "$2"
+        - pattern: kafka.server<type=ReplicaManager, name=UnderMinIsrPartitionCount><>Value
+          name: kafka_server_replicamanager_under_min_isr_partition_count
+          type: GAUGE
+        - pattern: kafka.cluster<type=Partition, name=UnderMinIsr, topic=(.+), partition=(.*)><>Value
+          name: kafka_cluster_partition_under_min_isr
+          type: GAUGE
+          labels:
+            topic: "$1"
+            partition: "$2"
+        - pattern: kafka.controller<type=KafkaController, name=ActiveControllerCount><>Value
+          name: kafka_controller_kafkacontroller_active_controller_count
+          type: GAUGE
+        - pattern: kafka.server<type=ReplicaManager, name=LeaderCount><>Value
+          name: kafka_server_replicamanager_leader_count
+          type: GAUGE
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=BytesInPerSec, topic=(.+)><>Count
+          name: kafka_server_brokertopicmetrics_bytes_in_total
+          type: GAUGE
+          labels:
+            topic: "$1"
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=BytesOutPerSec, topic=(.+)><>Count
+          name: kafka_server_brokertopicmetrics_bytes_out_total
+          type: GAUGE
+          labels:
+            topic: "$1"
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=MessagesInPerSec, topic=(.+)><>Count
+          name: kafka_server_brokertopicmetrics_messages_in_total
+          type: GAUGE
+          labels:
+            topic: "$1"
+        - pattern: kafka.controller<type=KafkaController, name=GlobalPartitionCount><>Value
+          name: kafka_controller_kafkacontroller_global_partition_count
+          type: GAUGE
+        - pattern: kafka.log<type=Log, name=Size, topic=(.+), partition=(.*)><>Value
+          name: kafka_log_log_size
+          type: GAUGE
+          labels:
+            topic: "$1"
+            partition: "$2"
+        # begin additional required metrics for upstream dashboards
+        - pattern: kafka.log<type=LogManager, name=OfflineLogDirectoryCount><>Value
+          name: kafka_log_logmanager_offline_log_directory_count
+          type: GAUGE
+        - pattern: kafka.controller<type=ControllerStats, name=UncleanLeaderElectionsPerSec><>Count
+          name: kafka_controller_controllerstats_unclean_leader_elections_total
+          type: COUNTER
+        - pattern: kafka.server<type=ReplicaManager, name=PartitionCount><>Value
+          name: kafka_server_replicamanager_partition_count
+          type: GAUGE
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=TotalProduceRequestsPerSec, topic=(.+)><>Count
+          name: kafka_server_brokertopicmetrics_total_produce_requests_total
+          type: COUNTER
+          labels:
+            topic: "$1"
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=FailedProduceRequestsPerSec><>Count
+          name: kafka_server_brokertopicmetrics_failed_produce_requests_total
+          type: COUNTER
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=TotalFetchRequestsPerSec, topic=(.+)><>Count
+          name: kafka_server_brokertopicmetrics_total_fetch_requests_total
+          type: COUNTER
+          labels:
+            topic: "$1"
+        - pattern: kafka.server<type=BrokerTopicMetrics, name=FailedFetchRequestsPerSec><>Count
+          name: kafka_server_brokertopicmetrics_failed_fetch_requests_total
+          type: COUNTER
+        - pattern: kafka.network<type=SocketServer, name=NetworkProcessorAvgIdlePercent><>Value
+          name: kafka_network_socketserver_network_processor_avg_idle_percent
+          type: GAUGE
+        - pattern: kafka.server<type=KafkaRequestHandlerPool, name=RequestHandlerAvgIdlePercent><>MeanRate
+          name: kafka_server_kafkarequesthandlerpool_request_handler_avg_idle_percent
+          type: GAUGE
+        - pattern: kafka.cluster<type=Partition, name=ReplicasCount, topic=(.+), partition=(.*)><>Value
+          name: kafka_cluster_partition_replicas_count
+          type: GAUGE
+          labels:
+            topic: "$1"
+            partition: "$2"
+        - pattern: kafka.network<type=RequestMetrics, name=TotalTimeMs, (.+)=(.+)><>(\d+)thPercentile
+          name: kafka_network_requestmetrics_total_time_ms
+          labels:
+            "$1": "$2"
+            quantile: "0.$3"
+        - pattern: kafka.server<type=socket-server-metrics, listener=(.+), networkProcessor=(.+)><>connection-count
+          name: kafka_server_socket_listener_connection_count
+          type: GAUGE
+          labels:
+            listener: "$1"
+            networkProcessor: "$2"
+        - pattern: kafka.server<type=socket-server-metrics, listener=(.+), networkProcessor=(.+)><>connection-creation-rate
+          name: kafka_server_socket_listener_connection_creation_rate
+          type: GAUGE
+          labels:
+            listener: "$1"
+            networkProcessor: "$2"
+        - pattern: kafka.server<type=socket-server-metrics><>broker-connection-accept-rate
+          name: kafka_server_socket_broker_connection_accept_rate
+          type: GAUGE
+  zookeeper:
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: <PVC_SIZE>
+      deleteClaim: false
+    logging:
+      loggers:
+        zookeeper.root.logger: WARN
+      type: inline
+    template:
+      podDisruptionBudget:
+        maxUnavailable: 0
+    metrics:
+      lowercaseOutputName: true
+      rules:
+        # begin SLI-Defined metrics
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+))><>OutstandingRequests
+          name: zookeeper_outstanding_requests
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+))><>AvgRequestLatency
+          name: zookeeper_avg_request_latency
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+))><>QuorumSize
+          name: zookeeper_quorum_size
+          type: GAUGE
+        # begin additional required metrics for upstream dashboards
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+))><>NumAliveConnections
+          name: zookeeper_num_alive_connections
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+), name3=InMemoryDataTree)><>NodeCount
+          name: zookeeper_in_memory_data_tree_node_count
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+), name3=InMemoryDataTree)><>WatchCount
+          name: zookeeper_in_memory_data_tree_watch_count
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+))><>MinRequestLatency
+          name: zookeeper_min_request_latency
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+        - pattern: org.apache.ZooKeeperService<(name0=ReplicatedServer_id(\d+), name1=replica.(\d+), name2=(\w+))><>MaxRequestLatency
+          name: zookeeper_max_request_latency
+          type: GAUGE
+          labels:
+            replicaId: "$2"
+            memberType: "$3"
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"

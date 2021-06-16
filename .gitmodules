@@ -1,0 +1,9 @@
+[submodule "perf/openmessaging-benchmark"]
+	path = perf/openmessaging-benchmark
+	url = git@github.com:lulf/openmessaging-benchmark.git
+[submodule "perf/remote-write"]
+	path = perf/remote-write
+	url = git@github.com:jhellar/remote-write.git
+[submodule "perf/kafka-monitoring-stuff"]
+	path = perf/kafka-monitoring-stuff
+	url = git@github.com:bf2fc6cc711aee1a0c2a/kas-sre-sops.git
