@@ -138,12 +138,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @ConfigProperty(name = "kafka.broker.restrict-one-instance-per-node")
     boolean restrictOneInstancePerNode;
 
-    @ConfigProperty(name = "kafka.colocate-broker-with-zookeeper", defaultValue = "false")
-    boolean colocateBrokerWithZookeeper;
-
-    @ConfigProperty(name = "kafka.colocate-exporter-with-broker", defaultValue = "false")
-    boolean colocateExporterWithBroker;
-
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         secretManager.createOrUpdate(managedKafka);
@@ -235,7 +229,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(getKafkaStorage(managedKafka, current))
                         .withListeners(getListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
-                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode, this.colocateBrokerWithZookeeper))
+                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                         .withAuthorization(getKafkaAuthorization())
                         .withImage(kafkaImage.orElse(null))
@@ -251,7 +245,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withImage(zookeeperImage.orElse(null))
                         .withExternalLogging(getZookeeperExternalLogging(managedKafka))
                     .endZookeeper()
-                    .withKafkaExporter(getKafkaExporter(managedKafka))
+                    .withKafkaExporter(getKafkaExporter(managedKafka, this.restrictOneInstancePerNode))
                 .endSpec()
                 .build();
 
@@ -336,12 +330,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka, boolean onePerNode, boolean colocateWithZK) {
+    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka, boolean oneBrokerPerNode) {
 
         // onePerNode = true - one kafka broker per node with across the fleet of clusters,
         // onePerNode = false - one kafka broker per node per cluster
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                .withRequiredDuringSchedulingIgnoredDuringExecution(brokerPodAffinityTerm(onePerNode))
+                .withRequiredDuringSchedulingIgnoredDuringExecution(brokerPodAffinityTerm(oneBrokerPerNode))
                 .build();
 
         // adds preference to co-locate Kafka broker pods with ZK pods with same cluster label
@@ -372,7 +366,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         affinityBuilder.withPodAntiAffinity(podAntiAffinity);
-        if (colocateWithZK) {
+        if (oneBrokerPerNode) {
             affinityBuilder.withPodAffinity(zkPodAffinity);
         }
 
@@ -466,7 +460,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return resources;
     }
 
-    private KafkaExporterSpec getKafkaExporter(ManagedKafka managedKafka) {
+    private KafkaExporterSpec getKafkaExporter(ManagedKafka managedKafka, boolean oneBrokerPerNode) {
         ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
@@ -484,7 +478,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
         }
 
-        if(this.colocateExporterWithBroker) {
+        if(oneBrokerPerNode) {
             specBuilder
                 .editOrNewTemplate()
                     .editOrNewPod()

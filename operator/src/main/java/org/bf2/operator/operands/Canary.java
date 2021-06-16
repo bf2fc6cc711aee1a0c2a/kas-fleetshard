@@ -50,7 +50,7 @@ public class Canary extends AbstractCanary {
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
-    @ConfigProperty(name = "canary.colocate-with-broker", defaultValue = "false")
+    @ConfigProperty(name = "kafka.restrict-one-broker-per-node", defaultValue = "false")
     boolean colocateWithBroker;
 
     @Override
