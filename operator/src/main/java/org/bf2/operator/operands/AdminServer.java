@@ -84,6 +84,9 @@ public class AdminServer extends AbstractAdminServer {
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
+    @ConfigProperty(name = "adminserver.colocate-with-broker", defaultValue = "false")
+    boolean colocateWithBroker;
+
     OpenShiftClient openShiftClient;
 
     @Inject
@@ -123,30 +126,41 @@ public class AdminServer extends AbstractAdminServer {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
-        Deployment deployment = builder
-                .editOrNewMetadata()
-                    .withName(adminServerName)
-                    .withNamespace(adminServerNamespace(managedKafka))
-                    .withLabels(getLabels(adminServerName))
-                .endMetadata()
+        builder
+            .editOrNewMetadata()
+                .withName(adminServerName)
+                .withNamespace(adminServerNamespace(managedKafka))
+                .withLabels(getLabels(adminServerName))
+            .endMetadata()
+            .editOrNewSpec()
+                .withReplicas(1)
+                .editOrNewSelector()
+                    .withMatchLabels(getSelectorLabels(adminServerName))
+                .endSelector()
+                .editOrNewTemplate()
+                    .editOrNewMetadata()
+                        .withLabels(getLabels(adminServerName))
+                    .endMetadata()
+                    .editOrNewSpec()
+                        .withContainers(getContainers(managedKafka))
+                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                        .withVolumes(getVolumes(managedKafka))
+                    .endSpec()
+                .endTemplate()
+            .endSpec();
+
+        if(this.colocateWithBroker) {
+            builder
                 .editOrNewSpec()
-                    .withReplicas(1)
-                    .editOrNewSelector()
-                        .withMatchLabels(getSelectorLabels(adminServerName))
-                    .endSelector()
                     .editOrNewTemplate()
-                        .editOrNewMetadata()
-                            .withLabels(getLabels(adminServerName))
-                        .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(getContainers(managedKafka))
-                            .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                            .withVolumes(getVolumes(managedKafka))
-                            .withAffinity(kafkaPodAffinity(managedKafka))
+                        .withAffinity(kafkaPodAffinity(managedKafka))
                         .endSpec()
                     .endTemplate()
-                .endSpec()
-                .build();
+                .endSpec();
+        }
+
+        Deployment deployment = builder.build();
 
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly

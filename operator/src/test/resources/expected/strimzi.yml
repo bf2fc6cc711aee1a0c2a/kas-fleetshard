@@ -155,14 +155,6 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: "kubernetes.io/hostname"
-          podAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-            - podAffinityTerm:
-                labelSelector:
-                  matchLabels:
-                    strimzi.io/name: "test-mk-zookeeper"
-                topologyKey: "kubernetes.io/hostname"
-              weight: 50
         topologySpreadConstraints:
         - labelSelector:
             matchLabels:

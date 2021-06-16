@@ -138,6 +138,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @ConfigProperty(name = "kafka.broker.restrict-one-instance-per-node")
     boolean restrictOneInstancePerNode;
 
+    @ConfigProperty(name = "kafka.colocate-broker-with-zookeeper", defaultValue = "false")
+    boolean colocateBrokerWithZookeeper;
+
+    @ConfigProperty(name = "kafka.colocate-exporter-with-broker", defaultValue = "false")
+    boolean colocateExporterWithBroker;
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         secretManager.createOrUpdate(managedKafka);
@@ -229,7 +235,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(getKafkaStorage(managedKafka, current))
                         .withListeners(getListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
-                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode))
+                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode, this.colocateBrokerWithZookeeper))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                         .withAuthorization(getKafkaAuthorization())
                         .withImage(kafkaImage.orElse(null))
@@ -330,7 +336,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka, boolean onePerNode) {
+    private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka, boolean onePerNode, boolean colocateWithZK) {
 
         // onePerNode = true - one kafka broker per node with across the fleet of clusters,
         // onePerNode = false - one kafka broker per node per cluster
@@ -341,7 +347,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // adds preference to co-locate Kafka broker pods with ZK pods with same cluster label
         LinkedHashMap<String, String> clusterSelectorLabels = new LinkedHashMap<>(1);
         clusterSelectorLabels.put("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper");
-        PodAffinity podAffinity = new PodAffinityBuilder()
+        PodAffinity zkPodAffinity = new PodAffinityBuilder()
                 .withPreferredDuringSchedulingIgnoredDuringExecution(new WeightedPodAffinityTerm(new PodAffinityTermBuilder()
                         .withTopologyKey("kubernetes.io/hostname")
                         .withNewLabelSelector()
@@ -364,12 +370,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withWhenUnsatisfiable("ScheduleAnyway")
                 .build();
 
+        AffinityBuilder affinityBuilder = new AffinityBuilder();
+        affinityBuilder.withPodAntiAffinity(podAntiAffinity);
+        if (colocateWithZK) {
+            affinityBuilder.withPodAffinity(zkPodAffinity);
+        }
+
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
-                        .withAffinity(new AffinityBuilder()
-                                .withPodAntiAffinity(podAntiAffinity)
-                                .withPodAffinity(podAffinity)
-                                .build())
+                        .withAffinity(affinityBuilder.build())
                         .withTopologySpreadConstraints(topologyConstraint)
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .build());
@@ -473,6 +482,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
             if (Boolean.valueOf(saramaLogging)) {
                 specBuilder.withEnableSaramaLogging(true);
             }
+        }
+
+        if(this.colocateExporterWithBroker) {
+            specBuilder
+                .editOrNewTemplate()
+                    .editOrNewPod()
+                        .withAffinity(kafkaPodAffinity(managedKafka))
+                    .endPod()
+                .endTemplate();
         }
         return specBuilder.build();
     }

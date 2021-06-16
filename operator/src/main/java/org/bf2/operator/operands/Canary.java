@@ -50,35 +50,49 @@ public class Canary extends AbstractCanary {
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
+    @ConfigProperty(name = "canary.colocate-with-broker", defaultValue = "false")
+    boolean colocateWithBroker;
+
     @Override
     protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
-        Deployment deployment = builder
-                .editOrNewMetadata()
-                    .withName(canaryName)
-                    .withNamespace(canaryNamespace(managedKafka))
-                    .withLabels(getLabels(canaryName))
-                .endMetadata()
+        builder
+            .editOrNewMetadata()
+                .withName(canaryName)
+                .withNamespace(canaryNamespace(managedKafka))
+                .withLabels(getLabels(canaryName))
+            .endMetadata()
+            .editOrNewSpec()
+                .withReplicas(1)
+                .editOrNewSelector()
+                    .withMatchLabels(getSelectorLabels(canaryName))
+                .endSelector()
+                .editOrNewTemplate()
+                    .editOrNewMetadata()
+                        .withLabels(getLabels(canaryName))
+                    .endMetadata()
+                    .editOrNewSpec()
+                        .withContainers(getContainers(managedKafka))
+                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                    .endSpec()
+                .endTemplate()
+            .endSpec();
+
+        if(this.colocateWithBroker) {
+            builder
                 .editOrNewSpec()
-                    .withReplicas(1)
-                    .editOrNewSelector()
-                        .withMatchLabels(getSelectorLabels(canaryName))
-                    .endSelector()
                     .editOrNewTemplate()
-                        .editOrNewMetadata()
-                            .withLabels(getLabels(canaryName))
-                        .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(getContainers(managedKafka))
-                            .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                            .withAffinity(kafkaPodAffinity(managedKafka))
+                        .withAffinity(kafkaPodAffinity(managedKafka))
                         .endSpec()
                     .endTemplate()
-                .endSpec()
-                .build();
+                .endSpec();
+        }
+
+        Deployment deployment = builder.build();
 
         // setting the ManagedKafka has owner of the Canary deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
