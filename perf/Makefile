@@ -2,7 +2,7 @@ ROOT_DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 
 include ./Makefile.os
 
-TESTCASE ?= io.kafka.**
+TESTCASE ?= org.bf2.**
 OMB_DIR ?= $(ROOT_DIR)/openmessaging-benchmark
 DOCKER ?= docker
 

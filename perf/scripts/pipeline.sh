@@ -19,7 +19,7 @@ OMB_KUBECONFIG_FILE="${REPO_ROOT}/client-config"
 OSD="${DIR}/osd-provision.sh"
 KAFKA_CLUSTER_NAME_FILE="${REPO_ROOT}/kafka-cluster-name"
 OMB_CLUSTER_NAME_FILE="${REPO_ROOT}/omb-cluster-name"
-TESTCASE=${TESTCASE:-"io.kafka.performance.**"}
+TESTCASE=${TESTCASE:-"org.bf2.performance.**"}
 MULTI_AZ=${MULTI_AZ:-"false"}
 trap "echo script failed; exit 1" ERR
 
