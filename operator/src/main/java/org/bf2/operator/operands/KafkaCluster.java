@@ -747,4 +747,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
         return !Objects.equals(currentDigest, newDigest);
     }
+
+    /* test */
+    protected void setRestrictOneBrokerPerNode(boolean restrictOneBrokerPerNode) {
+        this.restrictOneBrokerPerNode = restrictOneBrokerPerNode;
+    }
 }

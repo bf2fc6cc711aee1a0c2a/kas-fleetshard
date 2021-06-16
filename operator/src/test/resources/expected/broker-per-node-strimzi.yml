@@ -1,7 +1,6 @@
 ---
 kind: "Kafka"
 metadata:
-  annotations: {}
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
@@ -21,6 +20,10 @@ spec:
       port: 9092
       type: "internal"
       tls: false
+    - name: "tls"
+      port: 9093
+      type: "internal"
+      tls: true
     - name: "external"
       port: 9094
       type: "ingress"
@@ -81,12 +84,12 @@ spec:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
     config:
-      ssl.protocol: "TLS"
+      ssl.protocol: "TLSv1.3"
       client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
-      ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
+      ssl.enabled.protocols: "TLSv1.3"
       min.insync.replicas: 2
       offsets.topic.replication.factor: 3
       quota.window.size.seconds: "2"
@@ -112,13 +115,7 @@ spec:
       - !<persistent-claim>
         type: "persistent-claim"
         size: "32212254720"
-        overrides:
-        - broker: 0
-          class: "default-storageclass"
-        - broker: 1
-          class: "default-storageclass"
-        - broker: 2
-          class: "default-storageclass"
+        class: "gp2"
         id: 0
         deleteClaim: true
       type: "jbod"
@@ -152,9 +149,20 @@ spec:
     template:
       pod:
         affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/name: "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 50
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: "kafka"
+              topologyKey: "kubernetes.io/hostname"
         topologySpreadConstraints:
         - labelSelector:
             matchLabels:
@@ -167,13 +175,7 @@ spec:
     storage: !<persistent-claim>
       type: "persistent-claim"
       size: "10Gi"
-      overrides:
-      - broker: 0
-        class: "default-storageclass"
-      - broker: 1
-        class: "default-storageclass"
-      - broker: 2
-        class: "default-storageclass"
+      class: "gp2"
       deleteClaim: true
     jvmOptions:
       "-Xmx": "512m"
@@ -215,3 +217,12 @@ spec:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    template:
+      pod:
+        affinity:
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-kafka"
+              topologyKey: "kubernetes.io/hostname"
