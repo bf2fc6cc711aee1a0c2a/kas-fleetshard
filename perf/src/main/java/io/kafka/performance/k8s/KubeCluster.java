@@ -1,8 +1,8 @@
-package io.kafka.performance.k8s.cluster;
+package io.kafka.performance.k8s;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.kafka.performance.k8s.KubeClient;
+import org.bf2.test.k8s.KubeClient;
 import org.bf2.test.k8s.cmdClient.KubeCmdClient;
 
 import java.io.IOException;
@@ -15,7 +15,7 @@ public interface KubeCluster {
      * Return a default CMD cmdClient for this kind of cluster.
      * @param client
      */
-    KubeCmdClient defaultCmdClient(String kubeconfig, KubeClient client);
+    KubeCmdClient<?> defaultCmdClient(String kubeconfig, KubeClient client);
 
     KubeClient defaultClient(String kubeconfig) throws IOException;
 

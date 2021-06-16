@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.openshift.api.model.ClusterRoleBinding;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.kafka.performance.k8s.KubeClusterResource;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
@@ -48,13 +49,13 @@ public class KafkaInstaller {
         if (Environment.KAFKA_COLLECT_LOG) {
             nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
-        cluster.kubeClient().createNamespace(namespace,
+        cluster.createNamespace(namespace,
                 nsAnnotations,
                 Map.of("openshift.io/cluster-monitoring", "true", "app", "kafka"));
 
         URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
         LOGGER.debug("Downloading cluster operator from {}", url.toString());
-        List<HasMetadata> opItems = cluster.kubeClient().getClient().load(url.openStream()).get();
+        List<HasMetadata> opItems = cluster.kubeClient().client().load(url.openStream()).get();
 
         Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
         if (operatorDeployment.isPresent()) {
@@ -71,7 +72,7 @@ public class KafkaInstaller {
             CLUSTER_WIDE_RESOURCE_DELETERS.putIfAbsent(namespace, new CopyOnWriteArrayList<>());
             CLUSTER_WIDE_RESOURCE_DELETERS.get(namespace).add(unused -> {
                 if (cwr instanceof ClusterRoleBinding) {
-                    cluster.kubeClient().getClient().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
+                    cluster.kubeClient().client().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
                 } else {
                     throw new IllegalStateException("Don't know how to delete a : " + cwr.getClass());
                 }
@@ -80,7 +81,7 @@ public class KafkaInstaller {
 
         opItems.forEach(i -> {
             i.getMetadata().setNamespace(namespace);
-            cluster.kubeClient().getClient().resource(i).inNamespace(namespace).createOrReplace();
+            cluster.kubeClient().client().resource(i).inNamespace(namespace).createOrReplace();
         });
         LOGGER.info("Done installing Strimzi in namespace {}", namespace);
 
@@ -93,7 +94,7 @@ public class KafkaInstaller {
 
         // Create cluster CA.
         // TODO: is this needed?
-        cluster.kubeClient().namespace(namespace).createSecret(new SecretBuilder()
+        cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName(String.format("%s-cluster-ca", managedKafka.getMetadata().getName()))
                 .withNamespace(namespace)
@@ -102,7 +103,7 @@ public class KafkaInstaller {
                 .endMetadata()
                 .addToStringData("ca.key", Files.readString(new File("src/test/resources/cert/cakey.pem").toPath()))
                 .build());
-        cluster.kubeClient().namespace(namespace).createSecret(new SecretBuilder()
+        cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName(String.format("%s-cluster-ca-cert", managedKafka.getMetadata().getName()))
                 .withNamespace(namespace)
@@ -112,7 +113,7 @@ public class KafkaInstaller {
                 .addToStringData("ca.crt", Files.readString(new File("src/test/resources/cert/ca.pem").toPath()))
                 .build());
 
-        var configMapClient = cluster.kubeClient().getClient().configMaps().inNamespace(namespace);
+        var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
 
         // set kafka and zookeeper metrics
         if (Files.exists(Environment.MONITORING_STUFF_DIR)) {
@@ -152,11 +153,11 @@ public class KafkaInstaller {
             });
         }*/
 
-        var managedKakfaClient = cluster.kubeClient().getClient().customResources(ManagedKafka.class);
+        var managedKakfaClient = cluster.kubeClient().client().customResources(ManagedKafka.class);
 
         managedKafka = managedKakfaClient.inNamespace(namespace).createOrReplace(managedKafka);
 
-        var kafkaClient = cluster.kubeClient().getClient().customResources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
+        var kafkaClient = cluster.kubeClient().client().customResources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
 
         try {
             kafkaClient.waitUntilCondition(Objects::nonNull, 5, TimeUnit.MINUTES);
@@ -177,7 +178,7 @@ public class KafkaInstaller {
     }
 
     static String createIngressController(KubeClusterResource cluster) throws IOException {
-        var client = cluster.kubeClient().getClient().operator().ingressControllers();
+        var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
 
         IngressController ingressController = client.withName("default").get();
 
@@ -187,7 +188,7 @@ public class KafkaInstaller {
             domain = ingressController.getStatus().getDomain().trim().replace("apps.", "mk.");
             if (ingressController.getStatus().getDomain().trim().contains("no value")) {
                 create = false;
-                domain = cluster.kubeClient().getClient().getMasterUrl().getHost().replaceFirst("api", "apps");
+                domain = cluster.kubeClient().client().getMasterUrl().getHost().replaceFirst("api", "apps");
             }
         }
         if (create) {
@@ -199,7 +200,7 @@ public class KafkaInstaller {
     }
 
     static List<RouterConfig> createIngressControllers(KubeClusterResource cluster, int numIngressControllers) throws IOException {
-        var client = cluster.kubeClient().getClient().operator().ingressControllers();
+        var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
         String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR).withName("default").get().getStatus().getDomain();
 
         List<RouterConfig> routerConfigs = new ArrayList<>();
@@ -245,6 +246,6 @@ public class KafkaInstaller {
     }
 
     static void deleteIngressController(KubeClusterResource cluster) {
-        cluster.kubeClient().getClient().operator().ingressControllers().withName("sharded").delete();
+        cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers().withName("sharded").delete();
     }
 }

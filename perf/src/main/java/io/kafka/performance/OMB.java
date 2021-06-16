@@ -23,7 +23,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.kafka.performance.framework.ActualTestMetadata;
-import io.kafka.performance.k8s.KubeClient;
 import io.kafka.performance.k8s.KubeClusterResource;
 import io.openmessaging.benchmark.TestResult;
 import io.openmessaging.benchmark.WorkloadGenerator;
@@ -31,6 +30,7 @@ import io.openmessaging.benchmark.worker.DistributedWorkersEnsemble;
 import io.openmessaging.benchmark.worker.Worker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.KubeClient;
 
 import java.io.File;
 import java.io.IOException;
@@ -116,9 +116,9 @@ public class OMB {
         if (Environment.OMB_COLLECT_LOG) {
             nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
-        ombCluster.kubeClient().createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
+        ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
         String keystore = Base64.getEncoder().encodeToString(Files.readAllBytes(new File(Constants.SUITE_ROOT + "/src/test/resources/cert/ca.jks").toPath()));
-        ombCluster.kubeClient().namespace(Constants.OMB_NAMESPACE).createSecret(new SecretBuilder()
+        ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName("kafka-ca")
                 .withNamespace(Constants.OMB_NAMESPACE)
@@ -157,7 +157,7 @@ public class OMB {
         LOGGER.info("Collecting hosts");
 
         List<String> hostnames = new ArrayList<>();
-        ombCluster.kubeClient().getClient().adapt(OpenShiftClient.class).routes().inNamespace(Constants.OMB_NAMESPACE).withLabel("app", "worker").list().getItems().forEach(r -> {
+        ombCluster.kubeClient().client().adapt(OpenShiftClient.class).routes().inNamespace(Constants.OMB_NAMESPACE).withLabel("app", "worker").list().getItems().forEach(r -> {
             String host = r.getSpec().getHost();
             if (host == null || host.isEmpty()) {
                 throw new IllegalStateException("Host node not defined");
@@ -167,14 +167,14 @@ public class OMB {
 
         LOGGER.info("Waiting for worker pods to run");
         // Wait until workers are running
-        List<Pod> pods = ombCluster.kubeClient().namespace(Constants.OMB_NAMESPACE).listPods("app", "worker");
+        List<Pod> pods = ombCluster.kubeClient().client().pods().inNamespace(Constants.OMB_NAMESPACE).withLabel("app", "worker").list().getItems();
         while (pods.size() != workers) {
-            pods = ombCluster.kubeClient().namespace(Constants.OMB_NAMESPACE).listPods("app", "worker");
+            pods = ombCluster.kubeClient().client().pods().inNamespace(Constants.OMB_NAMESPACE).withLabel("app", "worker").list().getItems();
             LOGGER.info("Found {} pods, expecting {}", pods.size(), workers);
             Thread.sleep(5000);
         }
         for (Pod pod : pods) {
-            ombCluster.kubeClient().getClient().pods().inNamespace(Constants.OMB_NAMESPACE).withName(pod.getMetadata().getName()).waitUntilReady(10, TimeUnit.MINUTES);
+            ombCluster.kubeClient().client().pods().inNamespace(Constants.OMB_NAMESPACE).withName(pod.getMetadata().getName()).waitUntilReady(10, TimeUnit.MINUTES);
         }
 
         HttpClient client = HttpClient.newHttpClient();
@@ -203,7 +203,7 @@ public class OMB {
 
     private void createWorker(String jvmOpts, String name) throws IOException {
         KubeClient kubeClient = ombCluster.kubeClient();
-        kubeClient.getClient().apps().deployments().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new DeploymentBuilder()
+        kubeClient.client().apps().deployments().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new DeploymentBuilder()
                 .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(Constants.OMB_NAMESPACE)
@@ -262,7 +262,7 @@ public class OMB {
                 .endSpec()
                 .build());
 
-        kubeClient.createOrReplaceService(Constants.OMB_NAMESPACE, new ServiceBuilder()
+        kubeClient.client().services().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new ServiceBuilder()
                 .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(Constants.OMB_NAMESPACE)
@@ -278,7 +278,7 @@ public class OMB {
                 .endSpec()
                 .build());
 
-        kubeClient.createOrReplaceRoute(Constants.OMB_NAMESPACE, new RouteBuilder()
+        kubeClient.client().adapt(OpenShiftClient.class).routes().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new RouteBuilder()
                 .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(Constants.OMB_NAMESPACE)
@@ -356,7 +356,7 @@ public class OMB {
 
     public void uninstall() throws IOException {
         LOGGER.info("Deleting namespace {}", Constants.OMB_NAMESPACE);
-        ombCluster.kubeClient().waitForDeleteNamespace(Constants.OMB_NAMESPACE);
+        ombCluster.waitForDeleteNamespace(Constants.OMB_NAMESPACE);
     }
 
     public KubeClusterResource getOmbCluster() {
@@ -368,7 +368,7 @@ public class OMB {
      */
     public void deleteWorkers() throws Exception {
         LOGGER.info("Deleting {} workers", workerNames.size());
-        OpenShiftClient client = ombCluster.kubeClient().getClient().adapt(OpenShiftClient.class);
+        OpenShiftClient client = ombCluster.kubeClient().client().adapt(OpenShiftClient.class);
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
         List<Future<Void>> futures = new ArrayList<>();
         try {
@@ -426,10 +426,10 @@ public class OMB {
     private void pullAndHoldWorkerImageToAllNodesUsingDaemonSet() {
         String ombWorkerImageHolder = "omb-worker-image-holder";
 
-        ombCluster.kubeClient().getClient().namespaces()
+        ombCluster.kubeClient().client().namespaces()
             .createOrReplace(new NamespaceBuilder().withNewMetadata().withName(ombWorkerImageHolder).endMetadata().build());
 
-        ombCluster.kubeClient().getClient().apps().daemonSets().inNamespace(ombWorkerImageHolder)
+        ombCluster.kubeClient().client().apps().daemonSets().inNamespace(ombWorkerImageHolder)
             .createOrReplace(new DaemonSetBuilder()
                              .withNewMetadata().withName(ombWorkerImageHolder).endMetadata()
                              .withNewSpec()
@@ -460,7 +460,7 @@ public class OMB {
             DaemonSetStatus daemonSetStatus;
             do {
                 Thread.sleep(5000);
-                daemonSetStatus = ombCluster.kubeClient().getClient().apps().daemonSets().inNamespace(ombWorkerImageHolder)
+                daemonSetStatus = ombCluster.kubeClient().client().apps().daemonSets().inNamespace(ombWorkerImageHolder)
                     .withName(ombWorkerImageHolder).get().getStatus();
                 LOGGER.info("DaemonSet reporting {} pods ready, expecting {}", daemonSetStatus.getNumberReady(), daemonSetStatus.getDesiredNumberScheduled());
             } while (daemonSetStatus.getNumberReady() != daemonSetStatus.getDesiredNumberScheduled());

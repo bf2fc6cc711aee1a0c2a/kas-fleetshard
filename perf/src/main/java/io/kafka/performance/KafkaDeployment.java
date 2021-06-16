@@ -82,11 +82,11 @@ public class KafkaDeployment {
 
     private String waitUntilReadyOrCancelled() {
         try {
-            var client = cluster.kubeClient().getClient().customResources(Kafka.class);
+            var client = cluster.kubeClient().client().customResources(Kafka.class);
             int count = 0;
             while (!readyFuture.isCancelled()) {
                 ManagedKafka currentManagedKafka = cluster.kubeClient()
-                        .getClient()
+                        .client()
                         .customResources(ManagedKafka.class)
                         .inNamespace(managedKafka.getMetadata().getNamespace())
                         .withName(managedKafka.getMetadata().getName())
@@ -112,7 +112,7 @@ public class KafkaDeployment {
                 }
                 if (count++ % 15 == 0) {
                     ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
-                    cluster.kubeClient().getClient().pods().inNamespace(kafka.getMetadata().getNamespace())
+                    cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace())
                             .withLabel("app.kubernetes.io/instance", kafka.getMetadata().getName()).list(opts).getItems().forEach(KafkaDeployment::checkUnschedulablePod);
                 }
                 try {

@@ -62,7 +62,7 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
 
         // convert the profile into simple configmap values - the operator should restart with these values
         ConfigMap override = toConfigMap(profile);
-        cluster.kubeClient().getClient().configMaps().inNamespace(namespace).createOrReplace(override);
+        cluster.kubeClient().client().configMaps().inNamespace(namespace).createOrReplace(override);
         // TODO: bounce or otherwise confirm the operator has restarted
 
         KafkaDeployment kafkaDeployment = KafkaInstaller.deployCluster(cluster, namespace, managedKafka, routerConfig.getDomain());
@@ -87,7 +87,7 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
      * @throws IOException
      */
     private void removeClusters() throws IOException {
-        var client = cluster.kubeClient().getClient().customResources(ManagedKafka.class);
+        var client = cluster.kubeClient().client().customResources(ManagedKafka.class);
         Iterator<ManagedKafka> kafkaIterator = clusters.iterator();
         while (kafkaIterator.hasNext()) {
             ManagedKafka k = kafkaIterator.next();
@@ -106,11 +106,11 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
     public void uninstall() throws Exception {
         removeClusters();
         LOGGER.info("Deleting namespace {}", Constants.KAFKA_NAMESPACE);
-        cluster.kubeClient().waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
+        cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
         KafkaInstaller.uninstallStrimziClusterWideResources(Constants.KAFKA_NAMESPACE);
         if (Environment.ENABLE_DRAIN_CLEANER) {
             LOGGER.info("Deleting namespace {}", Constants.DRAIN_CLEANER_NAMESPACE);
-            cluster.kubeClient().waitForDeleteNamespace(Constants.DRAIN_CLEANER_NAMESPACE);
+            cluster.waitForDeleteNamespace(Constants.DRAIN_CLEANER_NAMESPACE);
         }
     }
 

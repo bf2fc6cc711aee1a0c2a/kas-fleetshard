@@ -83,9 +83,9 @@ public class KafkaClusterData {
         kafkaLimitResources = kafka.getSpec().getKafka().getResources().getLimits();
         zookeeperRequestResources = kafka.getSpec().getZookeeper().getResources().getRequests();
         zookeeperLimitResources = kafka.getSpec().getZookeeper().getResources().getLimits();
-        brokers = cluster.kubeClient().namespace(kafka.getMetadata().getNamespace()).listPods(Map.of("app.kubernetes.io/name", "kafka", "strimzi.io/cluster", kafka.getMetadata().getName()));
+        brokers = cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace()).withLabels(Map.of("app.kubernetes.io/name", "kafka", "strimzi.io/cluster", kafka.getMetadata().getName())).list().getItems();
         brokers.forEach(KafkaClusterData::cleanManagedFields);
-        zookeepers = cluster.kubeClient().namespace(kafka.getMetadata().getNamespace()).listPods(Map.of("app.kubernetes.io/name", "zookeeper", "strimzi.io/cluster", kafka.getMetadata().getName()));
+        zookeepers = cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace()).withLabels(Map.of("app.kubernetes.io/name", "zookeeper", "strimzi.io/cluster", kafka.getMetadata().getName())).list().getItems();
         zookeepers.forEach(KafkaClusterData::cleanManagedFields);
     }
 

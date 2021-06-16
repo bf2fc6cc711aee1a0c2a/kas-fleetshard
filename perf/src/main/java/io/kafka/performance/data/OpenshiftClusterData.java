@@ -37,7 +37,7 @@ public class OpenshiftClusterData {
     }
 
     public OpenshiftClusterData(KubeClusterResource cluster) throws IOException {
-        List<Node> nodes = cluster.kubeClient().listNodes();
+        List<Node> nodes = cluster.kubeClient().client().nodes().list().getItems();
         this.countOfNodes = nodes.size();
         this.countOfWorkers = (int) nodes.stream().filter(OpenshiftClusterData::isWorker).count();
         this.workerInstanceType = nodes.stream().filter(OpenshiftClusterData::isWorker).map(OpenshiftClusterData::instanceType).filter(Objects::nonNull).findFirst().orElse(null);

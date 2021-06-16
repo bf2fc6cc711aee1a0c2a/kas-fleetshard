@@ -67,7 +67,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         return NOOP;
     }
 
-    // Admin context tis not implemented now, because it's not needed
+    // Admin context is not implemented now, because it's not needed
     // In case it will be neded in future, we should change the kubeconfig and apply it for both oc and kubectl
     protected Context adminContext() {
         return defaultContext();

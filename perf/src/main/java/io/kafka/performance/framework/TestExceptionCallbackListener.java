@@ -2,13 +2,16 @@ package io.kafka.performance.framework;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
+import io.fabric8.kubernetes.client.dsl.PodResource;
 import io.kafka.performance.Constants;
 import io.kafka.performance.Environment;
 import io.kafka.performance.TestUtils;
-import io.kafka.performance.k8s.KubeClient;
 import io.kafka.performance.k8s.KubeClusterResource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.LifecycleMethodExecutionExceptionHandler;
@@ -71,7 +74,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
             try {
                 storeClusterInfo(kubeClusterResource, logPath.resolve(kubeClusterResource.getName()));
             } catch (IOException e) {
-                LOGGER.error("Cannot save logs from cluster {}", kubeClusterResource.kubeClient().getClient().getConfiguration().getMasterUrl(), e);
+                LOGGER.error("Cannot save logs from cluster {}", kubeClusterResource.kubeClient().client().getConfiguration().getMasterUrl(), e);
             }
         }
         throw throwable;
@@ -86,29 +89,29 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
      */
     private void storeClusterInfo(KubeClusterResource cluster, Path logPath) throws IOException {
         Files.createDirectories(logPath);
-        LOGGER.info("Storing cluster info for {}", cluster.kubeClient().getClient().getConfiguration().getMasterUrl());
+        LOGGER.info("Storing cluster info for {}", cluster.kubeClient().client().getConfiguration().getMasterUrl());
         Files.writeString(logPath.resolve("describe_cluster.log"), cluster.cmdKubeClient().exec(false, false, "describe", "nodes").out());
         Files.writeString(logPath.resolve("events.log"), cluster.cmdKubeClient().exec(false, false, "get", "events", "--all-namespaces").out());
 
         ExecutorService executorService = Executors.newFixedThreadPool(4);
         try {
             KubeClient kubeClient = cluster.kubeClient();
-            cluster.kubeClient().getClient().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG)).forEach(ns -> {
+            cluster.kubeClient().client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG)).forEach(ns -> {
                 try {
                     Files.writeString(logPath.resolve(String.format("describe_%s_pods.log", ns.getMetadata().getName())), cluster.cmdKubeClient().exec(false, false, "describe", "pods", "-n", ns.getMetadata().getName()).out());
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
-                KubeClient namespace = kubeClient.namespace(ns.getMetadata().getName());
-                List<Pod> pods = namespace.listPods();
+                NonNamespaceOperation<Pod, PodList, PodResource<Pod>> podsOp = kubeClient.client().pods().inNamespace(ns.getMetadata().getName());
+                List<Pod> pods = podsOp.list().getItems();
                 for (Pod p : pods) {
                     try {
-                        List<Container> containers = namespace.getContainersFromPod(p.getMetadata().getName());
+                        List<Container> containers = podsOp.withName(p.getMetadata().getName()).get().getSpec().getContainers();
                         for (Container c : containers) {
                             executorService.submit(() -> {
                                 Path filePath = logPath.resolve(String.format("%s_%s.log", p.getMetadata().getName(), c.getName()));
                                 try {
-                                    Files.writeString(filePath, namespace.logs(p.getMetadata().getName(), c.getName()));
+                                    Files.writeString(filePath, podsOp.withName(p.getMetadata().getName()).inContainer(c.getName()).getLog());
                                 } catch (IOException e) {
                                     LOGGER.warn("Cannot write file {}", filePath, e);
                                 }
@@ -122,7 +125,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
                         executorService.submit(() -> {
                             Path filePath = logPath.resolve(String.format("%s_%s_terminated.log", p.getMetadata().getName(), cs.getName()));
                             try {
-                                Files.writeString(filePath, namespace.terminatedLogs(p.getMetadata().getName(), cs.getName()));
+                                Files.writeString(filePath, podsOp.withName(p.getMetadata().getName()).inContainer(cs.getName()).terminated().getLog());
                             } catch (IOException e) {
                                 LOGGER.warn("Cannot write file {}", filePath, e);
                             }
@@ -145,10 +148,19 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
         for (KubeClusterResource kubeClusterResource : ClusterConnectionFactory.getCurrentConnectedClusters()) {
 
             KubeClient kubeClient = kubeClusterResource.kubeClient();
-            kubeClient.getClient().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_CHECKRESTARTEDCONTAINERS)).forEach(ns -> {
+            kubeClient.client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_CHECKRESTARTEDCONTAINERS)).forEach(ns -> {
 
-                KubeClient namespace = kubeClient.namespace(ns.getMetadata().getName());
-                List<Pod> podsWithRestartedContainers = namespace.listPods().stream().filter(p -> p.getStatus().getContainerStatuses().stream().anyMatch(cs -> cs.getRestartCount() > 0)).collect(Collectors.toList());
+                List<Pod> podsWithRestartedContainers = kubeClient.client()
+                        .pods()
+                        .inNamespace(ns.getMetadata().getName())
+                        .list()
+                        .getItems()
+                        .stream()
+                        .filter(p -> p.getStatus()
+                                .getContainerStatuses()
+                                .stream()
+                                .anyMatch(cs -> cs.getRestartCount() > 0))
+                        .collect(Collectors.toList());
                 if (!podsWithRestartedContainers.isEmpty()) {
 
                     LOGGER.error("Found {} pod(s) with containers that had restarted at least once", podsWithRestartedContainers.size());

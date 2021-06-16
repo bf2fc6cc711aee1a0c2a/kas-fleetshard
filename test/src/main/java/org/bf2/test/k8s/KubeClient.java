@@ -33,9 +33,8 @@ public class KubeClient {
     private final KubernetesClient client;
     private static KubeClient instance;
 
-
-    private KubeClient() {
-        this.client = new DefaultKubernetesClient();
+    public KubeClient(KubernetesClient client) {
+        this.client = client;
         if (isGenericKubernetes()) {
             LOGGER.info("Running tests against generic kubernetes cluster");
             this.cmdClient = new Kubectl();
@@ -43,6 +42,10 @@ public class KubeClient {
             LOGGER.info("Running tests against openshift cluster");
             this.cmdClient = new Oc();
         }
+    }
+
+    private KubeClient() {
+        this(new DefaultKubernetesClient());
     }
 
     /**
@@ -68,7 +71,7 @@ public class KubeClient {
     }
 
     public boolean isGenericKubernetes() {
-        List<APIService> services = new DefaultKubernetesClient().apiServices().list().getItems();
+        List<APIService> services = this.client.apiServices().list().getItems();
         for (APIService apiService : services) {
             if (apiService.getMetadata().getName().contains("openshift.io")) {
                 return false;
@@ -166,4 +169,5 @@ public class KubeClient {
     public boolean namespaceExists(String namespace) {
         return client.namespaces().withName(namespace).get() != null;
     }
+
 }

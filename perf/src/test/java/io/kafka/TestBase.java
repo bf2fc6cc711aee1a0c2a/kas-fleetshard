@@ -53,7 +53,7 @@ public abstract class TestBase {
 
     protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerSize) throws IOException {
         BigDecimal requiredWorkerMemory = Quantity.getAmountInBytes(workerSize).multiply(new BigDecimal(numberOfWorkers));
-        NodeList nodes = ombCluster.kubeClient().getClient().nodes().withLabel("node-role.kubernetes.io/worker", "").list();
+        NodeList nodes = ombCluster.kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker", "").list();
         BigDecimal nodeMem = BigDecimal.ZERO;
         for (Node node : nodes.getItems()) {
             Quantity nodeMemory = Quantity.parse(String.valueOf(node.getStatus().getAllocatable().get("memory")));

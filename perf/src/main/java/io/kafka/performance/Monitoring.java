@@ -29,7 +29,8 @@ public class Monitoring {
     public static void connectNamespaceToMonitoringStack(KubeClusterResource cluster, String namespace) throws IOException {
         LOGGER.info("Installing monitoring stack and adding {} into stack", namespace);
         if ((Files.exists(Environment.MONITORING_STUFF_DIR) && !SCRAPED_NAMESPACES.contains(namespace)) ||
-                cluster.kubeClient().getNamespace("managed-services-monitoring-grafana") == null || cluster.kubeClient().getNamespace("managed-services-monitoring-prometheus") == null) {
+                cluster.kubeClient().client().namespaces().withName("managed-services-monitoring-grafana").get() == null
+                || cluster.kubeClient().client().namespaces().withName("managed-services-monitoring-prometheus").get() == null) {
             addNamespace(namespace);
             ExecResult res = new ExecBuilder()
                     .withCommand("make",
