@@ -1,0 +1,30 @@
+{
+      "kind": "IngressController",
+      "spec": {
+        "domain": "mk.##DOMAIN##",
+        "replicas": 3,
+        "nodePlacement": {
+          "nodeSelector": {
+            "matchLabels": {
+              "node-role.kubernetes.io/worker": ""
+            }
+          }
+        },
+        "routeSelector": {
+          "matchLabels": {
+            "ingressType": "sharded"
+          }
+        }
+      },
+      "status": {
+        "domain": "",
+        "selector": "",
+        "availableReplicas": 0
+      },
+      "metadata": {
+        "name": "sharded",
+        "namespace": "openshift-ingress-operator",
+        "creationTimestamp": null
+      },
+      "apiVersion": "operator.openshift.io/v1"
+}

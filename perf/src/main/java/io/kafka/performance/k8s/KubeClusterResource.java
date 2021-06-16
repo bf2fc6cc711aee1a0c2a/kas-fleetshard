@@ -55,7 +55,7 @@ public class KubeClusterResource {
     }
 
     private void initNamespaces() {
-        this.namespace=cmdKubeClient().defaultNamespace();
+        this.namespace = cmdKubeClient().defaultNamespace();
     }
 
     public List<String> getBindingsNamespaces() {
