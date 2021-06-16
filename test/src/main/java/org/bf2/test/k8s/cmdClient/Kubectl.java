@@ -11,15 +11,22 @@ public class Kubectl extends BaseCmdKubeClient<Kubectl> {
 
     public static final String KUBECTL = "kubectl";
 
-    public Kubectl() { }
+    public Kubectl() {
+        this(null);
+    }
 
-    Kubectl(String futureNamespace) {
+    public Kubectl(String config) {
+        super(config);
+    }
+
+    private Kubectl(String futureNamespace, String config) {
+        super(config);
         namespace = futureNamespace;
     }
 
     @Override
     public Kubectl namespace(String namespace) {
-        return new Kubectl(namespace);
+        return new Kubectl(namespace, config);
     }
 
     @Override

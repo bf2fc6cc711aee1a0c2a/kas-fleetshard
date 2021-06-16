@@ -2,11 +2,11 @@ package io.kafka.performance;
 
 import com.google.common.base.Strings;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.kafka.performance.executor.ExecBuilder;
-import io.kafka.performance.executor.ExecResult;
 import io.kafka.performance.k8s.KubeClusterResource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.executor.ExecBuilder;
+import org.bf2.test.executor.ExecResult;
 
 import java.io.IOException;
 import java.nio.file.Files;

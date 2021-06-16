@@ -16,9 +16,16 @@ public class Oc extends BaseCmdKubeClient<Oc> {
 
     private static final String OC = "oc";
 
-    public Oc() { }
+    public Oc() {
+        this(null);
+    }
 
-    private Oc(String futureNamespace) {
+    public Oc(String config) {
+        super(config);
+    }
+
+    public Oc(String futureNamespace, String config) {
+        super(config);
         namespace = futureNamespace;
     }
 
@@ -34,7 +41,7 @@ public class Oc extends BaseCmdKubeClient<Oc> {
 
     @Override
     public Oc namespace(String namespace) {
-        return new Oc(namespace);
+        return new Oc(namespace, config);
     }
 
     @Override

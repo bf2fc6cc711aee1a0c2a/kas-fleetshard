@@ -1,10 +1,10 @@
 package io.kafka.performance;
 
 import com.google.common.base.Strings;
-import io.kafka.performance.executor.ExecBuilder;
-import io.kafka.performance.executor.ExecResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.executor.ExecBuilder;
+import org.bf2.test.executor.ExecResult;
 
 import java.io.File;
 import java.nio.file.Files;

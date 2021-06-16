@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static java.lang.String.join;
@@ -31,11 +32,18 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     private static final String APPLY = "apply";
     private static final String DELETE = "delete";
     private static final String REPLACE = "replace";
+    private static final String PROCESS = "process";
 
     public static final String STATEFUL_SET = "statefulset";
     public static final String CM = "cm";
 
+    protected String config;
+
     String namespace = defaultNamespace();
+
+    protected BaseCmdKubeClient(String config) {
+        this.config = config;
+    }
 
     @Override
     public abstract String cmd();
@@ -59,23 +67,14 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         return NOOP;
     }
 
-    // Admin contex tis not implemented now, because it's not needed
+    // Admin context tis not implemented now, because it's not needed
     // In case it will be neded in future, we should change the kubeconfig and apply it for both oc and kubectl
     protected Context adminContext() {
         return defaultContext();
     }
 
     protected List<String> namespacedCommand(String... rest) {
-        return namespacedCommand(asList(rest));
-    }
-
-    private List<String> namespacedCommand(List<String> rest) {
-        List<String> result = new ArrayList<>();
-        result.add(cmd());
-        result.add("--namespace");
-        result.add(namespace);
-        result.addAll(rest);
-        return result;
+        return command(asList(rest), true);
     }
 
     @Override
@@ -239,17 +238,12 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
 
     @Override
     public ExecResult exec(boolean throwError, String... command) {
-        List<String> cmd = new ArrayList<>();
-        cmd.add(cmd());
-        cmd.addAll(asList(command));
-        return Exec.exec(null, cmd, 0, true, throwError);
+        return exec(throwError, true, command);
     }
 
     @Override
     public ExecResult exec(boolean throwError, boolean logToOutput, String... command) {
-        List<String> cmd = new ArrayList<>();
-        cmd.add(cmd());
-        cmd.addAll(asList(command));
+        List<String> cmd = command(asList(command), false);
         return Exec.exec(null, cmd, 0, logToOutput, throwError);
     }
 
@@ -356,4 +350,33 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     public List<String> listResourcesByLabel(String resourceType, String label) {
         return asList(Exec.exec(namespacedCommand("get", resourceType, "-l", label, "-o", "jsonpath={range .items[*]}{.metadata.name} ")).out().split("\\s+"));
     }
+
+    private List<String> command(List<String> rest, boolean namespaced) {
+        List<String> result = new ArrayList<>();
+        result.add(cmd());
+        if (config != null) {
+            result.add("--kubeconfig");
+            result.add(config);
+        }
+        if (namespaced) {
+            result.add("--namespace");
+            result.add(namespace);
+        }
+        result.addAll(rest);
+        return result;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public K process(Map<String, String> parameters, String file, Consumer<String> c) {
+        List<String> command = command(asList(PROCESS, "-f", file), false);
+        command.addAll(parameters.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(Collectors.toList()));
+        ExecResult exec = Exec.builder()
+                .throwErrors(true)
+                .withCommand(command)
+                .exec();
+        c.accept(exec.out());
+        return (K) this;
+    }
+
 }

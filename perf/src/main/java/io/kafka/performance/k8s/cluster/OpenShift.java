@@ -4,8 +4,8 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftConfig;
 import io.kafka.performance.k8s.KubeClient;
-import io.kafka.performance.k8s.cmd.KubeCmdClient;
-import io.kafka.performance.k8s.cmd.Oc;
+import org.bf2.test.k8s.cmdClient.KubeCmdClient;
+import org.bf2.test.k8s.cmdClient.Oc;
 
 import java.io.IOException;
 

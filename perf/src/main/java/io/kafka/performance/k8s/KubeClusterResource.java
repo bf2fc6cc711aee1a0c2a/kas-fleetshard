@@ -2,9 +2,9 @@ package io.kafka.performance.k8s;
 
 import io.fabric8.kubernetes.api.model.Node;
 import io.kafka.performance.k8s.cluster.KubeCluster;
-import io.kafka.performance.k8s.cmd.KubeCmdClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.test.k8s.cmdClient.KubeCmdClient;
 import org.junit.jupiter.api.Assumptions;
 
 import java.io.IOException;

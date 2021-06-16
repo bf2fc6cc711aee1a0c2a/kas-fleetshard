@@ -3,7 +3,7 @@ package io.kafka.performance.k8s.cluster;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.kafka.performance.k8s.KubeClient;
-import io.kafka.performance.k8s.cmd.KubeCmdClient;
+import org.bf2.test.k8s.cmdClient.KubeCmdClient;
 
 import java.io.IOException;
 import java.nio.file.Files;
