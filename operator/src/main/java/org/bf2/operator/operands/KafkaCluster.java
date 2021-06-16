@@ -135,8 +135,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @Inject
     protected StorageClassManager storageClassManager;
 
-    @ConfigProperty(name = "kafka.broker.restrict-one-instance-per-node")
-    boolean restrictOneInstancePerNode;
+    @ConfigProperty(name = "kafka.restrict-one-broker-per-node")
+    boolean restrictOneBrokerPerNode;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -229,7 +229,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(getKafkaStorage(managedKafka, current))
                         .withListeners(getListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
-                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneInstancePerNode))
+                        .withTemplate(getKafkaTemplate(managedKafka, this.restrictOneBrokerPerNode))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
                         .withAuthorization(getKafkaAuthorization())
                         .withImage(kafkaImage.orElse(null))
@@ -245,7 +245,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withImage(zookeeperImage.orElse(null))
                         .withExternalLogging(getZookeeperExternalLogging(managedKafka))
                     .endZookeeper()
-                    .withKafkaExporter(getKafkaExporter(managedKafka, this.restrictOneInstancePerNode))
+                    .withKafkaExporter(getKafkaExporter(managedKafka, this.restrictOneBrokerPerNode))
                 .endSpec()
                 .build();
 
