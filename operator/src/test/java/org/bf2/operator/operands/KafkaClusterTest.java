@@ -61,51 +61,61 @@ class KafkaClusterTest {
 
     @Test
     void testManagedKafkaToKafka() throws IOException {
-        ManagedKafka mk = exampleManagedKafka("60Gi");
-
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-        JsonNode patch = diffToExpected(kafka, "/expected/strimzi.yml");
-        assertEquals("[]", patch.toString());
-
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
-        kafkaCli.create(kafka);
-        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
-    }
-
-    @Test
-    void testManagedKafkaToKafkaWithSizeChanges() throws IOException {
-        Kafka kafka = kafkaCluster.kafkaFrom(exampleManagedKafka("60Gi"), null);
-
-        Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
-
-        // should not change to a smaller size
-        JsonNode patch = diffToExpected(reduced, "/expected/strimzi.yml");
-        assertEquals("[]", patch.toString());
-
-        Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
-
-        // should change to a larger size
-        patch = diffToExpected(larger, "/expected/strimzi.yml");
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
-    }
-
-    @Test
-    void testManagedKafkaToKafkaBrokerPerNode() throws IOException {
         try {
-            kafkaCluster.setRestrictOneBrokerPerNode(true);
+            kafkaCluster.setRestrictOneBrokerPerNode(false);
+
             ManagedKafka mk = exampleManagedKafka("60Gi");
+
             Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-            JsonNode patch = diffToExpected(kafka, "/expected/broker-per-node-strimzi.yml");
+            JsonNode patch = diffToExpected(kafka, "/expected/strimzi.yml");
             assertEquals("[]", patch.toString());
 
             var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
             kafkaCli.create(kafka);
             assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
         } finally {
-            kafkaCluster.setRestrictOneBrokerPerNode(false);
+            kafkaCluster.setRestrictOneBrokerPerNode(true);
         }
+    }
+
+    @Test
+    void testManagedKafkaToKafkaWithSizeChanges() throws IOException {
+        try {
+            kafkaCluster.setRestrictOneBrokerPerNode(false);
+
+            ManagedKafka mk = exampleManagedKafka("60Gi");
+
+            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+            Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
+
+            // should not change to a smaller size
+            JsonNode patch = diffToExpected(reduced, "/expected/strimzi.yml");
+            assertEquals("[]", patch.toString());
+
+            Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
+
+            // should change to a larger size
+            patch = diffToExpected(larger, "/expected/strimzi.yml");
+            assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
+        } finally {
+            kafkaCluster.setRestrictOneBrokerPerNode(true);
+        }
+
+    }
+
+    @Test
+    void testManagedKafkaToKafkaBrokerPerNode() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        JsonNode patch = diffToExpected(kafka, "/expected/broker-per-node-strimzi.yml");
+        assertEquals("[]", patch.toString());
+
+        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
+        kafkaCli.create(kafka);
+        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }
 
     private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
