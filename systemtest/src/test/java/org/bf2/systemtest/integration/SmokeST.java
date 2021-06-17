@@ -10,10 +10,12 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.api.SyncApiClient;
 import org.bf2.systemtest.framework.AssertUtils;
+import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.TestTags;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
+import org.bf2.systemtest.operator.KeycloakOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.TestUtils;
 import org.junit.jupiter.api.AfterAll;
@@ -31,13 +33,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
     private String syncEndpoint;
+    private StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
+    private KeycloakInstance keycloak;
 
     @BeforeAll
     void deploy() throws Exception {
         CompletableFuture.allOf(
-                StrimziOperatorManager.installStrimzi(kube),
+                KeycloakOperatorManager.installKeycloak(kube),
+                strimziOperatorManager.installStrimzi(kube),
                 FleetShardOperatorManager.deployFleetShardOperator(kube),
                 FleetShardOperatorManager.deployFleetShardSync(kube)).join();
+
+        keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
@@ -45,8 +52,9 @@ public class SmokeST extends AbstractST {
     @AfterAll
     void clean() {
         CompletableFuture.allOf(
+                KeycloakOperatorManager.uninstallKeycloak(kube),
                 FleetShardOperatorManager.deleteFleetShard(kube),
-                StrimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
+                strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
     }
 
     @Tag(TestTags.SMOKE)
@@ -58,7 +66,7 @@ public class SmokeST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
 
         resourceManager.createResource(extensionContext, mk);
 
@@ -69,7 +77,7 @@ public class SmokeST extends AbstractST {
     @ParallelTest
     void testCreateManagedKafkaBySync(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-deploy-api";
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
 
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
