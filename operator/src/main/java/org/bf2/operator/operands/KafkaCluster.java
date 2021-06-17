@@ -61,6 +61,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.DrainCleanerManager;
+import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -136,6 +137,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected DrainCleanerManager drainCleanerManager;
+
+    @Inject
+    protected StrimziManager strimziManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -216,6 +220,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withLabels(getKafkaLabels(managedKafka))
+                    .withAnnotations(getKafkaAnnotations(managedKafka, current))
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
@@ -702,9 +707,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, String> getKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
-        labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
+        this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
+        log.debugf("Kafka %s/%s labels: %s",
+                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), labels);
         return labels;
+    }
+
+    private Map<String, String> getKafkaAnnotations(ManagedKafka managedKafka, Kafka current) {
+        Map<String, String> annotations = current != null ? current.getMetadata().getAnnotations() : null;
+        if (annotations == null) {
+            annotations = new HashMap<>();
+        }
+        this.strimziManager.togglePauseReconciliation(managedKafka, this, annotations);
+        log.debugf("Kafka %s/%s annotations: %s",
+                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotations);
+        return annotations;
     }
 
     @Override

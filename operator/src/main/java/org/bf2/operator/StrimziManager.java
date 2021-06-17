@@ -4,6 +4,11 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -11,16 +16,135 @@ import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
 public class StrimziManager {
+
+    public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
 
     @Inject
     Logger log;
 
     @Inject
     KubernetesClient kubernetesClient;
+
+    @Inject
+    protected InformerManager informerManager;
+
+    // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
+    @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
+    protected String versionLabel;
+
+    /**
+     * Handle the Kafka pause/unpause reconciliation mechanism by adding the corresponding annotation on the Kafka custom resource
+     *
+     * @param managedKafka ManagedKafka instance
+     * @param kafkaCluster KafkaCluster instance on which fleetshard reconcile is operating
+     * @param annotations Kafka custom resource annotations on which adding/removing the pause
+     */
+    public void togglePauseReconciliation(ManagedKafka managedKafka, AbstractKafkaCluster kafkaCluster, Map<String, String> annotations) {
+        // a Strimzi version change was asked via the ManagedKafka resource
+        if (this.hasStrimziChanged(managedKafka)) {
+            log.infof("Strimzi change from %s to %s",
+                    managedKafka.getStatus().getVersions().getStrimzi(), managedKafka.getSpec().getVersions().getStrimzi());
+            // Kafka cluster is running and ready --> pause reconcile
+            if (kafkaCluster.isReady(managedKafka)) {
+                pauseReconcile(managedKafka, annotations);
+                annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+            // Kafka cluster reconcile is paused --> unpause to restart reconcile
+            } else if (kafkaCluster.isReconciliationPaused(managedKafka)) {
+                unpauseReconcile(managedKafka, annotations);
+            }
+        } else {
+            // Strimzi version is consistent, Kafka is running and ready --> remove any reason for a previous pausing
+            if (kafkaCluster.isReady(managedKafka)) {
+                if (annotations.containsKey(STRIMZI_PAUSE_REASON_ANNOTATION)) {
+                    annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle the handover of the Kafka custom resource from a Strimzi operator version to another
+     * by changing the corresponding selector label value
+     *
+     * @param managedKafka ManagedKafka instance
+     * @param kafkaCluster KafkaCluster instance on which fleetshard reconcile is operating
+     * @param labels Kafka custom resource annotations on which adding the selector label value
+     */
+    public void changeStrimziVersion(ManagedKafka managedKafka, AbstractKafkaCluster kafkaCluster, Map<String, String> labels) {
+        String kafkaStrimziVersion = this.currentStrimziVersion(managedKafka);
+
+        // Kafka cluster reconcile is paused, a Strimzi change was asked via the ManagedKafka resource --> apply version from spec to handover
+        if (kafkaCluster.isReconciliationPaused(managedKafka) && this.hasStrimziChanged(managedKafka)) {
+            labels.put(this.versionLabel, managedKafka.getSpec().getVersions().getStrimzi());
+        // any other state always get Strimzi version from Kafka custom resource label
+        } else {
+            labels.put(this.versionLabel, kafkaStrimziVersion);
+        }
+    }
+
+    /**
+     * Compare current Strimzi version from the Kafka custom resource with the requested one in the ManagedKafka spec
+     * in order to return if a version change happened
+     *
+     * @param managedKafka ManagedKafka instance
+     * @return if a Strimzi version change was requested
+     */
+    private boolean hasStrimziChanged(ManagedKafka managedKafka) {
+        return !this.currentStrimziVersion(managedKafka).equals(managedKafka.getSpec().getVersions().getStrimzi());
+    }
+
+    /**
+     * Returns the current Strimzi version for the Kafka instance
+     * It comes directly from the Kafka custom resource label or from the ManagedKafka in case of creation
+     *
+     * @param managedKafka ManagedKafka instance
+     * @return current Strimzi version for the Kafka instance
+     */
+    private String currentStrimziVersion(ManagedKafka managedKafka) {
+        Kafka kafka = cachedKafka(managedKafka);
+        // on first time Kafka resource creation, we take the Strimzi version from the ManagedKafka resource spec
+        String kafkaStrimziVersion = kafka != null && kafka.getMetadata().getLabels() != null ?
+                kafka.getMetadata().getLabels().get(this.versionLabel) :
+                managedKafka.getSpec().getVersions().getStrimzi();
+        return kafkaStrimziVersion;
+    }
+
+    /**
+     * Pause reconcile of the Kafka custom resource corresponding to the ManagedKafka one
+     * by adding the pause-reconciliation annotation on the provided annotations list
+     *
+     * @param managedKafka ManagedKafka instance
+     * @param annotations Kafka custom resource annotations on which adding the pause
+     */
+    private void pauseReconcile(ManagedKafka managedKafka, Map<String, String> annotations) {
+        if (!annotations.containsKey("strimzi.io/pause-reconciliation")) {
+            log.debugf("Pause reconcile for %s", managedKafka.getMetadata().getName());
+            annotations.put("strimzi.io/pause-reconciliation", "true");
+        }
+    }
+
+    /**
+     * Unpause reconcile of the Kafka custom resource corresponding to the ManagedKafka one
+     * by removing the pause-reconciliation annotation from the provided annotations list
+     *
+     * @param managedKafka ManagedKafka instance
+     * @param annotations Kafka custom resource annotations from which removing the pause
+     */
+    private void unpauseReconcile(ManagedKafka managedKafka, Map<String, String> annotations) {
+        if (annotations.containsKey("strimzi.io/pause-reconciliation")) {
+            log.debugf("Unpause reconcile for %s", managedKafka.getMetadata().getName());
+            annotations.remove("strimzi.io/pause-reconciliation");
+        }
+    }
+
+    private Kafka cachedKafka(ManagedKafka managedKafka) {
+        return informerManager.getLocalKafka(AbstractKafkaCluster.kafkaClusterNamespace(managedKafka), AbstractKafkaCluster.kafkaClusterName(managedKafka));
+    }
 
     /**
      * Execute the discovery of the Strimzi operators installed on the Kubernetes cluster
@@ -63,5 +187,9 @@ public class StrimziManager {
             }
         }
         return strimziVersions;
+    }
+
+    public String getVersionLabel() {
+        return versionLabel;
     }
 }

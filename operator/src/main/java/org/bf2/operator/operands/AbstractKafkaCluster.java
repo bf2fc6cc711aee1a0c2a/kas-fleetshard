@@ -74,6 +74,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return isError;
     }
 
+    public boolean isReconciliationPaused(ManagedKafka managedKafka) {
+        Kafka kafka = cachedKafka(managedKafka);
+        boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
+                && kafkaCondition(kafka, c->c.getType().equals("ReconciliationPaused")
+                && c.getStatus().equals("True"));
+        log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
+        return isReconciliationPaused;
+    }
+
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedKafka(managedKafka) == null;

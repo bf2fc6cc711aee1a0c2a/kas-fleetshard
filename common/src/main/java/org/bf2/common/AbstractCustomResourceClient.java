@@ -71,7 +71,7 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
     }
 
     public T updateStatus(T resource) {
-        return resourceClient.updateStatus(resource);
+        return resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).updateStatus(resource);
     }
 
     /**

@@ -23,7 +23,8 @@ public class ManagedKafkaCondition {
         Installing,
         Deleted,
         Error,
-        Rejected;
+        Rejected,
+        StrimziUpdating;
     }
 
     public enum Status {
