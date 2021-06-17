@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.systemtest.operator.FleetShardOperatorManager;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -23,6 +24,7 @@ import java.util.Properties;
 public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
     private static final Logger LOGGER = LogManager.getLogger(ClusterKafkaProvisioner.class);
     private final List<ManagedKafka> clusters = new ArrayList<>();
+    private PerformanceStrimziOperatorManager strimziOperatorManager = new PerformanceStrimziOperatorManager(Constants.KAFKA_NAMESPACE);
 
     ClusterKafkaProvisioner(KubeClusterResource cluster) {
         super(cluster);
@@ -33,8 +35,15 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
         if (Environment.ENABLE_DRAIN_CLEANER) {
             DrainCleanerInstaller.install(cluster, Constants.DRAIN_CLEANER_NAMESPACE);
         }
-        KafkaInstaller.installStrimzi(cluster, Constants.KAFKA_NAMESPACE);
-        // TODO: install operator
+
+        cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
+
+        // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
+        strimziOperatorManager.installStrimzi(cluster.kubeClient());
+
+        // installs a cluster wide fleetshard operator
+        FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
+        FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
     }
 
     @Override
@@ -63,7 +72,7 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
         // convert the profile into simple configmap values - the operator should restart with these values
         ConfigMap override = toConfigMap(profile);
         cluster.kubeClient().client().configMaps().inNamespace(namespace).createOrReplace(override);
-        // TODO: bounce or otherwise confirm the operator has restarted
+        // TODO: bounce the operator has restarted
 
         KafkaDeployment kafkaDeployment = KafkaInstaller.deployCluster(cluster, namespace, managedKafka, routerConfig.getDomain());
         kafkaDeployment.start();
@@ -105,9 +114,10 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
     @Override
     public void uninstall() throws Exception {
         removeClusters();
+        FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient());
         LOGGER.info("Deleting namespace {}", Constants.KAFKA_NAMESPACE);
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
-        KafkaInstaller.uninstallStrimziClusterWideResources(Constants.KAFKA_NAMESPACE);
+        strimziOperatorManager.uninstallStrimziClusterWideResources(cluster.kubeClient());
         if (Environment.ENABLE_DRAIN_CLEANER) {
             LOGGER.info("Deleting namespace {}", Constants.DRAIN_CLEANER_NAMESPACE);
             cluster.waitForDeleteNamespace(Constants.DRAIN_CLEANER_NAMESPACE);

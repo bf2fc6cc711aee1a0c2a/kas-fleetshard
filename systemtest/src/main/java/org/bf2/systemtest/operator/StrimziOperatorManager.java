@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.NamespaceFluent.MetadataNested;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
@@ -15,14 +16,17 @@ import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
@@ -32,38 +36,48 @@ import java.util.function.Consumer;
 public class StrimziOperatorManager {
     private static final Logger LOGGER = LogManager.getLogger(StrimziOperatorManager.class);
     private static final String OPERATOR_NS = "strimzi-cluster-operator";
-    private static final List<Consumer<Void>> CLUSTER_WIDE_RESOURCE_DELETERS = new LinkedList<>();
 
-    public static CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
+    private final Map<String, List<Consumer<Void>>> clusterWideResourceDeleters = new ConcurrentHashMap<>();
+    protected String operatorNs;
+
+    /**
+     * Provides an operator manager that defines a cluster scoped strimzi
+     */
+    public StrimziOperatorManager() {
+        this.operatorNs = OPERATOR_NS;
+    }
+
+    public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
                         .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
-            LOGGER.info("Installing Strimzi : {}", OPERATOR_NS);
+            LOGGER.info("Installing Strimzi : {}", operatorNs);
 
-            kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
-            URL url = new URL("https://strimzi.io/install/latest?namespace=" + OPERATOR_NS);
-            List<HasMetadata> opItems = kubeClient.client().load(url.openStream()).get();
+            MetadataNested<NamespaceBuilder> withName = new NamespaceBuilder().withNewMetadata().withName(operatorNs);
+            kubeClient.client().namespaces().createOrReplace(withName.endMetadata().build());
+
+            List<HasMetadata> opItems = getInstallItems(kubeClient, new URL("https://strimzi.io/install/latest?namespace=" + operatorNs));
 
             Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
             if (operatorDeployment.isPresent()) {
-                Container container = operatorDeployment.get().getSpec().getTemplate().getSpec().getContainers().get(0);
-                List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
-                EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
-                env.remove(strimziNS);
-                env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
-                container.setEnv(env);
+                Deployment deployment = operatorDeployment.get();
+                modifyDeployment(operatorDeployment.get());
+                if (!OPERATOR_NS.equals(operatorNs)) {
+                    makeClusterScoped(deployment);
+                }
             }
             opItems.stream().filter(ClusterRoleBinding.class::isInstance).forEach(cwr -> {
-                cwr.getMetadata().setName(cwr.getMetadata().getName() + "." + OPERATOR_NS);
-                CLUSTER_WIDE_RESOURCE_DELETERS.add(unused -> {
+                cwr.getMetadata().setName(cwr.getMetadata().getName() + "." + operatorNs);
+                clusterWideResourceDeleters.putIfAbsent(operatorNs, new CopyOnWriteArrayList<>());
+                clusterWideResourceDeleters.get(operatorNs).add(unused -> {
                     kubeClient.client().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
                 });
             });
             String crbID = UUID.randomUUID().toString().substring(0, 5);
             opItems.stream().filter(RoleBinding.class::isInstance).forEach(roleBinding -> {
-                roleBinding.getMetadata().setNamespace(OPERATOR_NS);
+                roleBinding.getMetadata().setNamespace(operatorNs);
                 RoleBinding rb = (RoleBinding) roleBinding;
-                rb.getSubjects().forEach(sbj -> sbj.setNamespace(OPERATOR_NS));
+                rb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
 
                 ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
                         .withNewMetadata()
@@ -77,15 +91,16 @@ public class StrimziOperatorManager {
 
                 LOGGER.info("Creating {} named {}", crb.getKind(), crb.getMetadata().getName());
                 kubeClient.client().rbac().clusterRoleBindings().createOrReplace(crb);
-                CLUSTER_WIDE_RESOURCE_DELETERS.add(unused -> {
+                clusterWideResourceDeleters.putIfAbsent(operatorNs, new CopyOnWriteArrayList<>());
+                clusterWideResourceDeleters.get(operatorNs).add(unused -> {
                     kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
                 });
             });
 
-            opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(OPERATOR_NS).createOrReplace());
-            LOGGER.info("Done installing Strimzi : {}", OPERATOR_NS);
+            opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(operatorNs).createOrReplace());
+            LOGGER.info("Done installing Strimzi : {}", operatorNs);
             return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, 120_000, () ->
-                    TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                    TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(operatorNs)
                             .list().getItems().stream().filter(pod ->
                                     pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
         } else {
@@ -94,18 +109,42 @@ public class StrimziOperatorManager {
         }
     }
 
-    public static CompletableFuture<Void> uninstallStrimziClusterWideResources(KubeClient kubeClient) {
-        if (kubeClient.namespaceExists(OPERATOR_NS) && !Environment.SKIP_TEARDOWN) {
-            LOGGER.info("Deleting Strimzi : {}", OPERATOR_NS);
-            kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
-            CLUSTER_WIDE_RESOURCE_DELETERS.forEach(delete -> delete.accept(null));
+    protected List<HasMetadata> getInstallItems(KubeClient kubeClient, URL url) throws IOException {
+        return kubeClient.client().load(url.openStream()).get();
+    }
+
+    protected void modifyNamespace(MetadataNested<NamespaceBuilder> withName) {
+    }
+
+    protected void modifyDeployment(Deployment deployment) {
+
+    }
+
+    protected void makeClusterScoped(Deployment deployment) {
+        Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
+        List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
+        EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
+        env.remove(strimziNS);
+        env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
+        container.setEnv(env);
+    }
+
+    public CompletableFuture<Void> uninstallStrimziClusterWideResources(KubeClient kubeClient) {
+        if (kubeClient.namespaceExists(operatorNs) && !Environment.SKIP_TEARDOWN) {
+            LOGGER.info("Deleting Strimzi : {}", operatorNs);
+            kubeClient.client().namespaces().withName(operatorNs).delete();
+            List<Consumer<Void>> remove = clusterWideResourceDeleters.remove(operatorNs);
+            if (remove != null) {
+                remove.forEach(delete -> delete.accept(null));
+            }
             return TestUtils.asyncWaitFor("Delete strimzi", 2_000, 120_000, () ->
-                    kubeClient.client().pods().inNamespace(OPERATOR_NS).list().getItems().stream().noneMatch(pod ->
+                    kubeClient.client().pods().inNamespace(operatorNs).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
-                            !kubeClient.namespaceExists(OPERATOR_NS));
+                            !kubeClient.namespaceExists(operatorNs));
         } else {
             LOGGER.info("No need to uninstall strimzi operator");
             return CompletableFuture.completedFuture(null);
         }
     }
+
 }

@@ -1,92 +1,29 @@
 package org.bf2.performance;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.openshift.api.model.ClusterRoleBinding;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.k8s.KubeClusterResource;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 /**
  * Helper class for all things installing and deploying Kafka
  */
 public class KafkaInstaller {
-    private static final Logger LOGGER = LogManager.getLogger(KafkaInstaller.class);
-    private static final Map<String, List<Consumer<Void>>> CLUSTER_WIDE_RESOURCE_DELETERS = new ConcurrentHashMap<>();
-    private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
-
-    static void installStrimzi(KubeClusterResource cluster, String namespace) throws Exception {
-        LOGGER.info("Installing Strimzi in namespace {}", namespace);
-        Map<String, String> nsAnnotations = new HashMap<>();
-        if (Environment.KAFKA_COLLECT_LOG) {
-            nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
-        }
-        cluster.createNamespace(namespace,
-                nsAnnotations,
-                Map.of("openshift.io/cluster-monitoring", "true", "app", "kafka"));
-
-        URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
-        LOGGER.debug("Downloading cluster operator from {}", url.toString());
-        List<HasMetadata> opItems = cluster.kubeClient().client().load(url.openStream()).get();
-
-        Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
-        if (operatorDeployment.isPresent()) {
-            Container container = operatorDeployment.get().getSpec().getTemplate().getSpec().getContainers().get(0);
-            Map<String, Quantity> limits = container.getResources().getLimits();
-            limits.put("memory", Quantity.parse("1536Mi"));
-            limits.put("cpu", Quantity.parse("3000m"));
-            List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
-            env.add(new EnvVarBuilder().withName("STRIMZI_IMAGE_PULL_POLICY").withValue("IfNotPresent").build());
-            container.setEnv(env);
-        }
-        opItems.stream().filter(ClusterRoleBinding.class::isInstance).forEach(cwr -> {
-            cwr.getMetadata().setName(cwr.getMetadata().getName() + "." + namespace);
-            CLUSTER_WIDE_RESOURCE_DELETERS.putIfAbsent(namespace, new CopyOnWriteArrayList<>());
-            CLUSTER_WIDE_RESOURCE_DELETERS.get(namespace).add(unused -> {
-                if (cwr instanceof ClusterRoleBinding) {
-                    cluster.kubeClient().client().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
-                } else {
-                    throw new IllegalStateException("Don't know how to delete a : " + cwr.getClass());
-                }
-            });
-        });
-
-        opItems.forEach(i -> {
-            i.getMetadata().setNamespace(namespace);
-            cluster.kubeClient().client().resource(i).inNamespace(namespace).createOrReplace();
-        });
-        LOGGER.info("Done installing Strimzi in namespace {}", namespace);
-
-        Monitoring.connectNamespaceToMonitoringStack(cluster, namespace);
-    }
 
     static KafkaDeployment deployCluster(KubeClusterResource cluster, String namespace, ManagedKafka managedKafka, String domain) throws IOException {
         // set the bootstrap server host
@@ -167,14 +104,6 @@ public class KafkaInstaller {
         }
 
         return new KafkaDeployment(managedKafka, kafkaClient.require(), cluster);
-    }
-
-    static void uninstallStrimziClusterWideResources(String name) {
-        LOGGER.info("Uninstalling Strimzi cluster wide resources");
-        List<Consumer<Void>> remove = CLUSTER_WIDE_RESOURCE_DELETERS.remove(name);
-        if (remove != null) {
-            remove.forEach(delete -> delete.accept(null));
-        }
     }
 
     static String createIngressController(KubeClusterResource cluster) throws IOException {

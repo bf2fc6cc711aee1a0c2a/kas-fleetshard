@@ -36,11 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class ManagedKafkaST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaST.class);
     private String syncEndpoint;
+    private StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
 
     @BeforeAll
     void deploy() throws Exception {
         CompletableFuture.allOf(
-                StrimziOperatorManager.installStrimzi(kube),
+                strimziOperatorManager.installStrimzi(kube),
                 FleetShardOperatorManager.deployFleetShardOperator(kube),
                 FleetShardOperatorManager.deployFleetShardSync(kube)).join();
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
@@ -51,7 +52,7 @@ public class ManagedKafkaST extends AbstractST {
     void clean() {
         CompletableFuture.allOf(
                 FleetShardOperatorManager.deleteFleetShard(kube),
-                StrimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
+                strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
     }
 
     @ParallelTest
