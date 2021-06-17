@@ -106,7 +106,7 @@ public class KafkaDeployment {
                     if (ready.isPresent() && ready.get() && bootstrap.isPresent()) {
                         LOGGER.info("Cluster {} deployed", managedKafka.getMetadata().getName());
                         TestMetadataCapture.getInstance().storeKafkaCluster(cluster, kafka);
-                        Monitoring.connectNamespaceToMonitoringStack(cluster, managedKafka.getMetadata().getNamespace());
+                        Monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), managedKafka.getMetadata().getNamespace());
                         return bootstrap.get();
                     }
                 }

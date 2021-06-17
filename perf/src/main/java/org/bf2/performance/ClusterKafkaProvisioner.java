@@ -24,7 +24,7 @@ import java.util.Properties;
 public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
     private static final Logger LOGGER = LogManager.getLogger(ClusterKafkaProvisioner.class);
     private final List<ManagedKafka> clusters = new ArrayList<>();
-    private PerformanceStrimziOperatorManager strimziOperatorManager = new PerformanceStrimziOperatorManager(Constants.KAFKA_NAMESPACE);
+    private PerformanceStrimziOperatorManager strimziOperatorManager = new PerformanceStrimziOperatorManager();
 
     ClusterKafkaProvisioner(KubeClusterResource cluster) {
         super(cluster);
@@ -36,14 +36,16 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
             DrainCleanerInstaller.install(cluster, Constants.DRAIN_CLEANER_NAMESPACE);
         }
 
+        // delete the namespaces to be used
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
+        cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
 
         // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         strimziOperatorManager.installStrimzi(cluster.kubeClient());
 
         // installs a cluster wide fleetshard operator
         FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
-        FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
+        //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
     }
 
     @Override
@@ -53,7 +55,7 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
 
         clusters.add(managedKafka);
 
-        // TODO: should this be a fixed namespace
+        // TODO: should this be a fixed namespace.  The assumption currently is that the operator and managedkafka will be in the same namespace
         String namespace = Constants.KAFKA_NAMESPACE;
 
         managedKafka.getMetadata().setNamespace(namespace);

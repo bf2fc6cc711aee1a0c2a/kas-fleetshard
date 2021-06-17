@@ -86,6 +86,19 @@ make omb-install
 make rw-install
 ```
 
+## Providing Fleetshard Images
+
+Re-use of systemtest means that the fleetshard component install will be based upon your local build.  Typically you will want to build/push production images.  From the parent directory / fleetshard root run:
+
+```
+mvn -Pquickly package -pl operator,sync \
+-Dquarkus.container-image.registry=quay.io \
+-Dquarkus.container-image.group=${USER} \
+-Dquarkus.container-image.tag=latest \
+-Dquarkus.container-image.build=true \ 
+-Dquarkus.container-image.push=true 
+```
+
 ## Running tests
 Assuming that the kubeconfigs are stored in the root folder of this repository, running the maven tests from the command
 line or from the IDE should work:

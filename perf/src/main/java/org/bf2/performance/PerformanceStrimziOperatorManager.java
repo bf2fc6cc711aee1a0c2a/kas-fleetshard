@@ -4,11 +4,13 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.NamespaceFluent.MetadataNested;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.k8s.KubeClient;
 
@@ -19,16 +21,29 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * An operator manager scoped to a single namespace and specific version
+ * Overrides the simple operator manager to add monitoring, version control, and operator resource limits
  */
 public class PerformanceStrimziOperatorManager extends StrimziOperatorManager {
 
     private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
 
-    public PerformanceStrimziOperatorManager(String namespace) {
-        this.operatorNs = namespace;
+    public PerformanceStrimziOperatorManager() {
+        this.operatorNs = Constants.KAFKA_NAMESPACE;
+    }
+
+    @Override
+    public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
+        CompletableFuture<Void> result = super.doInstall(kubeClient);
+        Monitoring.connectNamespaceToMonitoringStack(kubeClient, operatorNs);
+        return result;
+    }
+
+    @Override
+    protected void createClusterRoleBinding(KubeClient kubeClient, ClusterRoleBinding crb) {
+        kubeClient.client().rbac().clusterRoleBindings().createOrReplace(crb);
     }
 
     @Override
@@ -44,16 +59,20 @@ public class PerformanceStrimziOperatorManager extends StrimziOperatorManager {
     }
 
     @Override
-    protected void modifyNamespace(MetadataNested<NamespaceBuilder> withName) {
+    protected Namespace nameSpaceToCreate(MetadataNested<NamespaceBuilder> withName) {
         Map<String, String> nsAnnotations = new HashMap<>();
         if (Environment.KAFKA_COLLECT_LOG) {
             nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         withName.withAnnotations(nsAnnotations).withLabels(Map.of("openshift.io/cluster-monitoring", "true", "app", "kafka"));
+        return withName.endMetadata().build();
     }
 
     @Override
     protected void modifyDeployment(Deployment deployment) {
+        // don't call the super, it makes the operator cluster scoped
+
+        // TODO: this is probably needed only when testing bin-packing
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
         Map<String, Quantity> limits = container.getResources().getLimits();
         limits.put("memory", Quantity.parse("1536Mi"));

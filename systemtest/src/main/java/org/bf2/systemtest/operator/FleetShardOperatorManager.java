@@ -44,7 +44,7 @@ public class FleetShardOperatorManager {
     }
 
     public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isOperatorInstalled()) {
+        if (Environment.SKIP_DEPLOY || isOperatorInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or operator is already installed, skipping deployment of operator");
             return CompletableFuture.completedFuture(null);
         }
@@ -64,18 +64,18 @@ public class FleetShardOperatorManager {
         }
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
-        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient));
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isSyncInstalled()) {
+        if (Environment.SKIP_DEPLOY || isSyncInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or sync is already installed, skipping deployment of sync");
             return CompletableFuture.completedFuture(null);
         }
         LOGGER.info("Installing {}", SYNC_NAME);
         kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
-        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, () -> isSyncInstalled(kubeClient));
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {
@@ -83,18 +83,18 @@ public class FleetShardOperatorManager {
         kubeClient.apply(OPERATOR_NS, Path.of(FLEET_SHARD_PULL_SECRET_PATH));
     }
 
-    public static boolean isOperatorInstalled() {
-        return KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+    public static boolean isOperatorInstalled(KubeClient kubeClient) {
+        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(OPERATOR_NAME)) &&
-                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains(OPERATOR_NAME)).findFirst().get());
     }
 
-    public static boolean isSyncInstalled() {
-        return KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+    public static boolean isSyncInstalled(KubeClient kubeClient) {
+        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(SYNC_NAME)) &&
-                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains(SYNC_NAME)).findFirst().get());
     }

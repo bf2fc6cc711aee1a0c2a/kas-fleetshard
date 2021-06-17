@@ -8,7 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.test.k8s.KubeClient;
 import org.bf2.test.k8s.cmdClient.KubeCmdClient;
-import org.junit.jupiter.api.Assumptions;
+import org.gradle.api.UncheckedIOException;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -49,8 +49,8 @@ public class KubeClusterResource {
             initNamespaces();
             LOGGER.info("Cluster default namespace is {}", getNamespace());
             LOGGER.info("Cluster command line client default namespace is {}", getNamespace());
-        } catch (RuntimeException | IOException e) {
-            Assumptions.assumeTrue(false, e.getMessage());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

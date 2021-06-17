@@ -52,6 +52,10 @@ public class KubeClient {
      * Return singleton of kube client
      * contains kubernetes client and cmd kube client
      *
+     * Works only if your local kubectl context is already setup, otherwise
+     * you need to use an instance created with a specific config - usage from
+     * performance tests for example is problematic
+     *
      * @return
      */
     public static synchronized KubeClient getInstance() {

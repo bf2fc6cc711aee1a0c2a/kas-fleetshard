@@ -4,9 +4,9 @@ import com.google.common.base.Strings;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.performance.k8s.KubeClusterResource;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.executor.ExecResult;
+import org.bf2.test.k8s.KubeClient;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -26,11 +26,11 @@ public class Monitoring {
      *
      * @param namespace namespace to scrape
      */
-    public static void connectNamespaceToMonitoringStack(KubeClusterResource cluster, String namespace) throws IOException {
+    public static void connectNamespaceToMonitoringStack(KubeClient kubeClient, String namespace) throws IOException {
         LOGGER.info("Installing monitoring stack and adding {} into stack", namespace);
         if ((Files.exists(Environment.MONITORING_STUFF_DIR) && !SCRAPED_NAMESPACES.contains(namespace)) ||
-                cluster.kubeClient().client().namespaces().withName("managed-services-monitoring-grafana").get() == null
-                || cluster.kubeClient().client().namespaces().withName("managed-services-monitoring-prometheus").get() == null) {
+                kubeClient.client().namespaces().withName("managed-services-monitoring-grafana").get() == null
+                || kubeClient.client().namespaces().withName("managed-services-monitoring-prometheus").get() == null) {
             addNamespace(namespace);
             ExecResult res = new ExecBuilder()
                     .withCommand("make",
