@@ -1,16 +1,15 @@
 package org.bf2.operator.operands;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.quarkus.arc.config.ConfigProperties;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("serial")
 @ConfigProperties(prefix = "kafka")
-public class KafkaConfiguration implements Serializable {
+public class KafkaConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
@@ -40,15 +39,21 @@ public class KafkaConfiguration implements Serializable {
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
 
-    private int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
-    private int maxConnections = DEFAULT_MAX_CONNECTIONS;
-    private String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
-    private String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
-    private Broker broker;
-    private Zookeeper zookeeper;
-    private Exporter exporter;
+    protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
+    protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
+    protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+    protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
 
-    public static class Broker implements Serializable {
+    // unwrapping used to make this class work with testing framework where a properties
+    // file can be bound directly as the bean
+    @JsonUnwrapped(prefix = "broker.")
+    protected Broker broker;
+    @JsonUnwrapped(prefix = "zookeeper.")
+    protected Zookeeper zookeeper;
+    @JsonUnwrapped(prefix = "exporter.")
+    protected Exporter exporter;
+
+    public static class Broker {
         private int replicas = KAFKA_BROKERS;
         private String storageClass = KAFKA_STORAGE_CLASS;
         private String containerMemory = KAFKA_CONTAINER_MEMORY;
@@ -115,7 +120,7 @@ public class KafkaConfiguration implements Serializable {
         }
     }
 
-    public static class Zookeeper implements Serializable {
+    public static class Zookeeper {
         private int replicas = ZOOKEEPER_NODES;
         private String volumeSize = ZOOKEEPER_VOLUME_SIZE;
         private String containerMemory = ZOOKEEPER_CONTAINER_MEMORY;
@@ -175,7 +180,7 @@ public class KafkaConfiguration implements Serializable {
         }
     }
 
-    public static class Exporter implements Serializable {
+    public static class Exporter {
         private String containerMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT;
         private String containerCpu = KAFKA_EXPORTER_CONTAINER_CPU_LIMIT;
         private String containerRequestMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST;

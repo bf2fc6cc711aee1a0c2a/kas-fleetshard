@@ -18,7 +18,6 @@ import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.StorageClassManager;
-import org.apache.commons.lang3.SerializationUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,7 +107,11 @@ class KafkaClusterTest {
     void testManagedKafkaToKafkaWithCustomConfiguation() throws IOException {
         KafkaConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
-            KafkaConfiguration clone = SerializationUtils.clone(config);
+            ObjectMapper objectMapper = new ObjectMapper();
+            System.out.println(
+                objectMapper.writeValueAsString(config)
+            );
+            KafkaConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaConfiguration.class);
 
             clone.setConnectionAttemptsPerSec(300);
             clone.getBroker().setReplicas(4);
