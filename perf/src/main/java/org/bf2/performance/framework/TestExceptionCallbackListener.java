@@ -8,8 +8,6 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.performance.Constants;
-import org.bf2.performance.Environment;
-import org.bf2.performance.TestUtils;
 import org.bf2.performance.k8s.KubeClusterResource;
 import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
@@ -67,7 +65,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
      * @throws Throwable
      */
     private void saveKubernetesState(String description, ExtensionContext extensionContext, Throwable throwable) throws Throwable {
-        Path logPath = TestUtils.getLogPath(Environment.LOG_DIR.resolve("failed-test").toString(), extensionContext);
+        Path logPath = org.bf2.test.TestUtils.getLogPath(org.bf2.test.Environment.LOG_DIR.resolve("failed-test").toString(), extensionContext);
         LOGGER.error("Test failed at {} : {}", description, throwable.getMessage(), throwable);
         LOGGER.info("Storing cluster info into {}", logPath.toString());
         for (KubeClusterResource kubeClusterResource : ClusterConnectionFactory.getCurrentConnectedClusters()) {
@@ -96,7 +94,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
         ExecutorService executorService = Executors.newFixedThreadPool(4);
         try {
             KubeClient kubeClient = cluster.kubeClient();
-            cluster.kubeClient().client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG)).forEach(ns -> {
+            cluster.kubeClient().client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG)).forEach(ns -> {
                 try {
                     Files.writeString(logPath.resolve(String.format("describe_%s_pods.log", ns.getMetadata().getName())), cluster.cmdKubeClient().exec(false, false, "describe", "pods", "-n", ns.getMetadata().getName()).out());
                 } catch (IOException e) {
@@ -148,7 +146,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
         for (KubeClusterResource kubeClusterResource : ClusterConnectionFactory.getCurrentConnectedClusters()) {
 
             KubeClient kubeClient = kubeClusterResource.kubeClient();
-            kubeClient.client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.IO_KAFKA_PERFORMANCE_CHECKRESTARTEDCONTAINERS)).forEach(ns -> {
+            kubeClient.client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.ORG_BF2_PERFORMANCE_CHECKRESTARTEDCONTAINERS)).forEach(ns -> {
 
                 List<Pod> podsWithRestartedContainers = kubeClient.client()
                         .pods()

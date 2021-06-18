@@ -3,10 +3,10 @@ package org.bf2.performance;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Quantity;
-import org.bf2.performance.framework.IndicativeSentences;
 import org.bf2.performance.framework.TestCallbackListener;
 import org.bf2.performance.framework.TestExceptionCallbackListener;
 import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.systemtest.framework.IndicativeSentences;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -36,7 +36,7 @@ public abstract class TestBase {
 
     @BeforeAll
     void beforeAll(TestInfo info) throws IOException {
-        testDir = TestUtils.getLogPath(Environment.LOG_DIR.toString(), info).toFile();
+        testDir = org.bf2.test.TestUtils.getLogPath(org.bf2.test.Environment.LOG_DIR.toString(), info).toFile();
         Files.createDirectories(testDir.toPath());
     }
 

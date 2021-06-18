@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.NamespaceFluent.MetadataNested;
+import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
@@ -34,18 +35,13 @@ import java.util.function.Consumer;
  * TODO remove when fleetshard operator will be able to deploy it itself
  */
 public class StrimziOperatorManager {
+    private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
+
     private static final Logger LOGGER = LogManager.getLogger(StrimziOperatorManager.class);
-    private static final String OPERATOR_NS = "strimzi-cluster-operator";
+    public static final String OPERATOR_NS = "strimzi-cluster-operator";
 
     private final List<Consumer<Void>> clusterWideResourceDeleters = new LinkedList<>();
-    protected String operatorNs;
-
-    /**
-     * Provides an operator manager that defines a cluster scoped strimzi
-     */
-    public StrimziOperatorManager() {
-        this.operatorNs = OPERATOR_NS;
-    }
+    protected String operatorNs = OPERATOR_NS;
 
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
@@ -61,9 +57,14 @@ public class StrimziOperatorManager {
         LOGGER.info("Installing Strimzi : {}", operatorNs);
 
         MetadataNested<NamespaceBuilder> withName = new NamespaceBuilder().withNewMetadata().withName(operatorNs);
-        kubeClient.client().namespaces().createOrReplace(nameSpaceToCreate(withName));
-        URL url = new URL("https://strimzi.io/install/latest?namespace=" + operatorNs);
-        List<HasMetadata> opItems = getInstallItems(kubeClient, url);
+        kubeClient.client().namespaces().createOrReplace(namespaceToCreate(withName));
+        URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
+        List<HasMetadata> opItems = kubeClient.client().load(url.openStream()).get();
+        opItems.forEach(i -> {
+            if (i instanceof Namespaced) {
+                i.getMetadata().setNamespace(operatorNs);
+            }
+        });
 
         Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
         if (operatorDeployment.isPresent()) {
@@ -112,11 +113,7 @@ public class StrimziOperatorManager {
         kubeClient.client().rbac().clusterRoleBindings().createOrReplace(crb);
     }
 
-    protected List<HasMetadata> getInstallItems(KubeClient kubeClient, URL url) throws IOException {
-        return kubeClient.client().load(url.openStream()).get();
-    }
-
-    protected Namespace nameSpaceToCreate(MetadataNested<NamespaceBuilder> withName) {
+    protected Namespace namespaceToCreate(MetadataNested<NamespaceBuilder> withName) {
         return withName.endMetadata().build();
     }
 

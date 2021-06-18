@@ -1,7 +1,6 @@
 package org.bf2.performance.k8s;
 
 import io.fabric8.kubernetes.client.Config;
-import io.fabric8.kubernetes.client.ConfigBuilder;
 import org.bf2.test.k8s.KubeClient;
 import org.bf2.test.k8s.cmdClient.KubeCmdClient;
 
@@ -34,11 +33,4 @@ public interface KubeCluster {
         return Config.fromKubeconfig(content);
     }
 
-    default Config getConfig(String apiUrl, String username, String token) {
-        return new ConfigBuilder()
-                .withMasterUrl(apiUrl)
-                .withUsername(username)
-                .withOauthToken(token)
-                .build();
-    }
 }

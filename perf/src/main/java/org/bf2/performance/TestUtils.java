@@ -8,14 +8,11 @@ import io.openmessaging.benchmark.TestResult;
 import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 
@@ -24,26 +21,6 @@ import java.util.Random;
  */
 public class TestUtils {
     private static final Logger LOGGER = LogManager.getLogger(TestUtils.class);
-
-    public static Path getLogPath(String folderName, ExtensionContext context) {
-        String testMethod = context.getDisplayName();
-        Class<?> testClass = context.getTestClass().get();
-        return getLogPath(folderName, testClass, testMethod);
-    }
-
-    public static Path getLogPath(String folderName, TestInfo info) {
-        String testMethod = info.getDisplayName();
-        Class<?> testClass = info.getTestClass().get();
-        return getLogPath(folderName, testClass, testMethod);
-    }
-
-    public static Path getLogPath(String folderName, Class<?> testClass, String testMethod) {
-        Path path = Environment.LOG_DIR.resolve(Paths.get(folderName, testClass.getName()));
-        if (testMethod != null) {
-            path = path.resolve(testMethod.replace("(", "").replace(")", ""));
-        }
-        return path;
-    }
 
     public static double getAvg(List<? extends Number> obj) {
         double sum = 0.0;

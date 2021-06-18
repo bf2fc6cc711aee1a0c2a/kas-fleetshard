@@ -15,10 +15,6 @@ The primary goal is to be able to run these tests locally against multiple OSD c
 Normally, we use an OSD cluster for the kafka instances, and a separate OSD cluster for the test workers.  
 However, it is also possible co-deploy to a single cluster if desired.
 
-The AWS account ids etc are linked here:
-
-https://docs.google.com/document/d/1y0KL5WrL9qbZ4lJbL8d16xKM8xgDViZSprBXfEFR14Y/edit?usp=sharing
-
 Create clusters like this:
 
 ```
@@ -38,13 +34,6 @@ See [OHSS-2174](https://issues.redhat.com/browse/OHSS-2174) for more details.
 
 ```
 ./scripts/osd-provision.sh --infra-pod-rebalance --name ${USER}-kafka
-```
-
-## Configuring Storage Class for the Kafka Cluster
-This step works around a sporadic issue we see when OpenShift provisions an encyrpted volume from OpenShift. It affects Kafka.
-
-```
-./scripts/osd-provision.sh --set-storageclass --name ${USER}-kafka
 ```
 
 ## Getting Cluster Admin

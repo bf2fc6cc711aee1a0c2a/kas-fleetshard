@@ -8,16 +8,12 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.function.Function;
 
 /**
@@ -28,7 +24,6 @@ public class Environment {
     private static final Logger LOGGER = LogManager.getLogger(Environment.class);
     private static final Map<String, String> VALUES = new HashMap<>();
     private static final JsonNode JSON_DATA = loadConfigurationFile();
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH:mm");
 
     /**
      * Specify the system test configuration file path from an environmental variable
@@ -45,10 +40,8 @@ public class Environment {
     private static final String APPLY_BROKER_QUOTA_ENV = "APPLY_BROKER_QUOTA";
     private static final String KAFKA_KUBECONFIG_ENV = "KAFKA_KUBECONFIG";
     private static final String OMB_DIR_ENV = "OMB_DIR";
-    private static final String LOG_DIR_ENV = "LOG_DIR";
     private static final String REMOTE_WRITE_DIR_ENV = "REMOTE_WRITE_DIR";
     private static final String MONITORING_STUFF_DIR_ENV = "MONITORING_STUFF_DIR";
-    private static final String STRIMZI_INSTALL_MODE_ENV = "STRIMZI_INSTALL_MODE";
     private static final String STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV = "STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS";
     private static final String THANOS_URL_ENV = "THANOS_URL";
     private static final String THANOS_TOKEN_ENV = "THANOS_TOKEN";
@@ -58,7 +51,6 @@ public class Environment {
     private static final String MAX_KAFKA_INSTANCES_ENV = "MAX_KAFKA_INSTANCES";
     private static final String NUM_INGRESS_CONTROLLERS_ENV = "NUM_INGRESS_CONTROLLERS";
     private static final String PROVIDED_KAFKA_CLUSTERS_FILE_ENV = "PROVIDED_KAFKA_CLUSTERS_FILE";
-    private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
     private static final String ENABLE_DRAIN_CLEANER_ENV = "ENABLE_DRAIN_CLEANER";
     private static final String CONSUMER_PER_SUBSCRIPTION_ENV = "CONSUMER_PER_SUBSCRIPTION";
     private static final String TARGET_RATE_ENV = "TARGET_RATE";
@@ -74,8 +66,6 @@ public class Environment {
     public static final String KAFKA_KUBECONFIG = getOrDefault(KAFKA_KUBECONFIG_ENV, Constants.SUITE_ROOT + "/kafka-config");
 
     public static final String OMB_DIR = getOrDefault(OMB_DIR_ENV, Constants.SUITE_ROOT + "/openmessaging-benchmark");
-    public static final Path LOG_DIR = getOrDefault(LOG_DIR_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "target", "logs")).resolve("test-results-" + DATE_FORMAT.format(LocalDateTime.now()));
-    public static final InstallMode STRIMZI_INSTALL_MODE = InstallMode.valueOf(getOrDefault(STRIMZI_INSTALL_MODE_ENV, "CLUSTER"));
     public static final String THANOS_URL = getOrDefault(THANOS_URL_ENV, "");
     public static final String OBSERVATORIUM_ROUTE = getOrDefault(OBSERVATORIUM_ROUTE_ENV, "");
     public static final String THANOS_TOKEN = getOrDefault(THANOS_TOKEN_ENV, "");
@@ -91,7 +81,6 @@ public class Environment {
     public static final int MAX_KAFKA_INSTANCES = getOrDefault(MAX_KAFKA_INSTANCES_ENV, Integer::parseInt, Integer.MAX_VALUE);
     public static final int NUM_INGRESS_CONTROLLERS = getOrDefault(NUM_INGRESS_CONTROLLERS_ENV, Integer::parseInt, 1);
     public static final Path PROVIDED_KAFKA_CLUSTERS_FILE = getOrDefault(PROVIDED_KAFKA_CLUSTERS_FILE_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "provided_clusters.yaml"));
-    public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, Objects.requireNonNullElse(System.getProperty("strimziVersion"), versionFromMetaInf("io.strimzi/api")));
     public static final Boolean ENABLE_DRAIN_CLEANER = getOrDefault(ENABLE_DRAIN_CLEANER_ENV, Boolean::parseBoolean, Boolean.FALSE);
     public static final int CONSUMER_PER_SUBSCRIPTION = getOrDefault(CONSUMER_PER_SUBSCRIPTION_ENV, Integer::parseInt, 1);
     public static final int TARGET_RATE = getOrDefault(TARGET_RATE_ENV, Integer::parseInt, 2000);
@@ -112,18 +101,6 @@ public class Environment {
         LOGGER.info("Used environment variables:");
         LOGGER.info(debugFormat, "CONFIG", config);
         VALUES.forEach((key, value) -> LOGGER.info(debugFormat, key, value));
-    }
-
-    static String versionFromMetaInf(String dep) {
-        try (InputStream is = Environment.class.getResourceAsStream("/META-INF/maven/" + dep + "/pom.properties")) {
-            if (is != null) {
-                Properties properties = new Properties();
-                properties.load(is);
-                return properties.getProperty("version");
-            }
-        } catch (IOException e) {
-        }
-        return null;
     }
 
     private static String getOrDefault(String varName, String defaultValue) {

@@ -34,9 +34,6 @@ public class KubeClusterResource {
     private KubeCmdClient<?> cmdClient;
     private KubeClient client;
 
-    private String namespace;
-
-    protected List<String> bindingsNamespaces = new ArrayList<>();
     private final List<String> deploymentNamespaces = new ArrayList<>();
 
     public KubeClusterResource(String kubeconfig) {
@@ -46,29 +43,10 @@ public class KubeClusterResource {
             kubeCluster = KubeCluster.bootstrap();
             client = kubeCluster.defaultClient(kubeconfig);
             cmdClient = kubeCluster.defaultCmdClient(kubeconfig, client);
-            initNamespaces();
-            LOGGER.info("Cluster default namespace is {}", getNamespace());
-            LOGGER.info("Cluster command line client default namespace is {}", getNamespace());
+            LOGGER.info("Cluster {} default namespace is {}", kubeconfig, cmdClient.defaultNamespace());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    private void initNamespaces() {
-        this.namespace = cmdKubeClient().defaultNamespace();
-    }
-
-    public List<String> getBindingsNamespaces() {
-        return bindingsNamespaces;
-    }
-
-    /**
-     * Gets namespace which is used in Kubernetes clients at the moment
-     *
-     * @return Used namespace
-     */
-    public String getNamespace() {
-        return namespace;
     }
 
     /**
@@ -77,7 +55,7 @@ public class KubeClusterResource {
      * @return CMD client
      */
     public KubeCmdClient<?> cmdKubeClient() {
-        return cmdClient.namespace(getNamespace());
+        return cmdClient;
     }
 
     /**
@@ -109,7 +87,6 @@ public class KubeClusterResource {
             waitForDeleteNamespace(namespace);
         }
         deploymentNamespaces.clear();
-        bindingsNamespaces = null;
     }
 
     /*

@@ -112,9 +112,9 @@ public class OMB {
         pullAndHoldWorkerImageToAllNodesUsingDaemonSet();
 
         Map<String, String> nsAnnotations = new HashMap<>();
-        nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_CHECKRESTARTEDCONTAINERS, "true");
+        nsAnnotations.put(Constants.ORG_BF2_PERFORMANCE_CHECKRESTARTEDCONTAINERS, "true");
         if (Environment.OMB_COLLECT_LOG) {
-            nsAnnotations.put(Constants.IO_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
+            nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
         String keystore = Base64.getEncoder().encodeToString(Files.readAllBytes(new File(Constants.SUITE_ROOT + "/src/test/resources/cert/ca.jks").toPath()));

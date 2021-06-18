@@ -9,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.k8s.KubeClusterResource;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
+import org.bf2.systemtest.operator.StrimziOperatorManager;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -36,16 +38,20 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
             DrainCleanerInstaller.install(cluster, Constants.DRAIN_CLEANER_NAMESPACE);
         }
 
-        // delete the namespaces to be used
-        cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
+        // delete/create the namespaces to be used
+        cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
+        cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
 
         // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         strimziOperatorManager.installStrimzi(cluster.kubeClient());
+        Monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
 
         // installs a cluster wide fleetshard operator
         FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
+        Monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), FleetShardOperatorManager.OPERATOR_NS);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
+
     }
 
     @Override
