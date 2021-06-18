@@ -84,7 +84,7 @@ public class AdminServer extends AbstractAdminServer {
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
-    @ConfigProperty(name = "kafka.restrict-one-broker-per-node", defaultValue = "false")
+    @ConfigProperty(name = "kafka.restrict-one-broker-per-node")
     boolean colocateWithBroker;
 
     OpenShiftClient openShiftClient;
