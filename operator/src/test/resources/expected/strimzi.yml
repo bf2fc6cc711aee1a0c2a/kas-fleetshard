@@ -155,13 +155,6 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: "kubernetes.io/hostname"
-        topologySpreadConstraints:
-        - labelSelector:
-            matchLabels:
-              strimzi.io/name: "test-mk-kafka"
-          maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "ScheduleAnyway"
   zookeeper:
     replicas: 3
     storage: !<persistent-claim>

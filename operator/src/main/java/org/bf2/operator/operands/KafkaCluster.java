@@ -14,8 +14,6 @@ import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
-import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
-import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.WeightedPodAffinityTerm;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
@@ -350,20 +348,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .build(), 50))
                 .build();
 
-        // ensures even distribution of the Kafka pods in a given cluster across the availability zones
-        // the previous affinity make sure single per node or not
-        // this only comes into picture when there are more number of nodes than the brokers
-        LinkedHashMap<String, String> topologySelectorLabels = new LinkedHashMap<>(1);
-        topologySelectorLabels.put("strimzi.io/name", managedKafka.getMetadata().getName()+"-kafka");
-        TopologySpreadConstraint topologyConstraint = new TopologySpreadConstraintBuilder()
-                .withMaxSkew(1)
-                .withTopologyKey("topology.kubernetes.io/zone")
-                .withNewLabelSelector()
-                    .withMatchLabels(topologySelectorLabels)
-                .endLabelSelector()
-                .withWhenUnsatisfiable("ScheduleAnyway")
-                .build();
-
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         affinityBuilder.withPodAntiAffinity(podAntiAffinity);
         if (oneBrokerPerNode) {
@@ -373,7 +357,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
                         .withAffinity(affinityBuilder.build())
-                        .withTopologySpreadConstraints(topologyConstraint)
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .build());
 
