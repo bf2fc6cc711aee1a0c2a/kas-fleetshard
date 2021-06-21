@@ -21,8 +21,8 @@ public class TokenReplacingStream extends InputStream {
             throw new RuntimeException("Nothing to replace");
         }
         this.source = source;
-        this.oldBytes = oldBytes;
-        this.newBytes = newBytes;
+        this.oldBytes = oldBytes.clone();
+        this.newBytes = newBytes.clone();
     }
 
     @Override
