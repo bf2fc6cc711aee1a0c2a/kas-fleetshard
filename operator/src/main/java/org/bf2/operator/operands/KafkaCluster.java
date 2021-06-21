@@ -198,7 +198,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
                         .withConfig(getKafkaConfig(managedKafka, current))
-                        .withReplicas(this.config.getBroker().getReplicas())
+                        .withReplicas(this.config.getReplicas())
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
                         .withStorage(getKafkaStorage(managedKafka, current))
@@ -356,36 +356,36 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms(this.config.getBroker().getJvmXms())
-                .withXmx(this.config.getBroker().getJvmXmx())
-                .withXx(this.config.getBroker().getJvmXxMap())
+                .withXms(this.config.getJvmXms())
+                .withXmx(this.config.getJvmXmx())
+                .withXx(this.config.getJvmXxMap())
                 .build();
     }
 
     private JvmOptions getZooKeeperJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms(this.config.getZookeeper().getJvmXms())
-                .withXmx(this.config.getZookeeper().getJvmXmx())
-                .withXx(this.config.getZookeeper().getJvmXxMap())
+                .withXms(this.config.getZooKeeper().getJvmXms())
+                .withXmx(this.config.getZooKeeper().getJvmXmx())
+                .withXx(this.config.getZooKeeper().getJvmXxMap())
                 .build();
     }
 
     private ResourceRequirements getKafkaResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getBroker().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getBroker().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getBroker().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getBroker().getContainerCpu()))
+                .addToRequests("memory", new Quantity(this.config.getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getContainerCpu()))
                 .build();
         return resources;
     }
 
     private ResourceRequirements getZooKeeperResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
+                .addToRequests("memory", new Quantity(this.config.getZooKeeper().getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getZooKeeper().getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getZooKeeper().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getZooKeeper().getContainerCpu()))
                 .build();
         return resources;
     }
@@ -441,7 +441,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getIngressThroughputPerSec()))).doubleValue() / this.config.getBroker().getReplicas());
+        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getIngressThroughputPerSec()))).doubleValue() / this.config.getReplicas());
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
@@ -536,13 +536,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
         long bytes;
         if (maxDataRetentionSize == null) {
-            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getBroker().getVolumeSize())).longValue();
+            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getVolumeSize())).longValue();
         } else {
             bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
         }
 
         // this is per broker
-        bytes /= this.config.getBroker().getReplicas();
+        bytes /= this.config.getReplicas();
 
         // pad to give a margin before soft/hard limits kick in
         bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
@@ -672,11 +672,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     /* test */
-    protected KafkaConfiguration getKafkaConfiguration() {
+    protected KafkaInstanceConfiguration getKafkaConfiguration() {
         return this.config;
     }
     /* test */
-    protected void setKafkaConfiguration(KafkaConfiguration config) {
+    protected void setKafkaConfiguration(KafkaInstanceConfiguration config) {
         this.config = config;
     }
 }

@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @ConfigProperties(prefix = "kafka")
-public class KafkaConfiguration {
+public class KafkaInstanceConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
@@ -43,84 +43,93 @@ public class KafkaConfiguration {
     protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
     protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
     protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+    protected int replicas = KAFKA_BROKERS;
+    protected String storageClass = KAFKA_STORAGE_CLASS;
+    protected String containerMemory = KAFKA_CONTAINER_MEMORY;
+    protected String containerCpu = KAFKA_CONTAINER_CPU;
+    protected String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
+    protected String jvmXms = KAFKA_JVM_XMS;
+    protected String jvmXmx = KAFKA_JVM_XMX;
+    protected List<String> jvmXx = new ArrayList<>();
 
-    // unwrapping used to make this class work with testing framework where a properties
-    // file can be bound directly as the bean
-    @JsonUnwrapped(prefix = "broker.")
-    protected Broker broker;
-    @JsonUnwrapped(prefix = "zookeeper.")
-    protected Zookeeper zookeeper;
+    @JsonUnwrapped(prefix = "zoo-keeper.")
+    protected ZooKeeper zooKeeper;
     @JsonUnwrapped(prefix = "exporter.")
     protected Exporter exporter;
 
-    public static class Broker {
-        private int replicas = KAFKA_BROKERS;
-        private String storageClass = KAFKA_STORAGE_CLASS;
-        private String containerMemory = KAFKA_CONTAINER_MEMORY;
-        private String containerCpu = KAFKA_CONTAINER_CPU;
-        private String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
-        private String jvmXms = KAFKA_JVM_XMS;
-        private String jvmXmx = KAFKA_JVM_XMX;
-        private List<String> jvmXx = new ArrayList<>();
-
-        public Broker() {
-            this.jvmXx.add(JVM_OPTIONS_XX);
-        }
-
-        public int getReplicas() {
-            return replicas;
-        }
-        public void setReplicas(int replicas) {
-            this.replicas = replicas;
-        }
-        public String getStorageClass() {
-            return storageClass;
-        }
-        public void setStorageClass(String storageClass) {
-            this.storageClass = storageClass;
-        }
-        public String getContainerMemory() {
-            return containerMemory;
-        }
-        public void setContainerMemory(String containerMemory) {
-            this.containerMemory = containerMemory;
-        }
-        public String getContainerCpu() {
-            return containerCpu;
-        }
-        public void setContainerCpu(String containerCpu) {
-            this.containerCpu = containerCpu;
-        }
-        public String getVolumeSize() {
-            return volumeSize;
-        }
-        public void setVolumeSize(String volumeSize) {
-            this.volumeSize = volumeSize;
-        }
-        public String getJvmXms() {
-            return jvmXms;
-        }
-        public void setJvmXms(String jvmXms) {
-            this.jvmXms = jvmXms;
-        }
-        public String getJvmXmx() {
-            return jvmXmx;
-        }
-        public void setJvmXmx(String jvmXmx) {
-            this.jvmXmx = jvmXmx;
-        }
-        public List<String> getJvmXx() {
-            return jvmXx;
-        }
-        public void setJvmXx(List<String> jvmXx) {
-            this.jvmXx = jvmXx;
-        }
-        public Map<String, String> getJvmXxMap() {
-            return listToMap(this.jvmXx);
-        }
+    public KafkaInstanceConfiguration() {
+        this.jvmXx.add(JVM_OPTIONS_XX);
     }
 
-    public static class Zookeeper {
+    public int getReplicas() {
+        return replicas;
+    }
+
+    public void setReplicas(int replicas) {
+        this.replicas = replicas;
+    }
+
+    public String getStorageClass() {
+        return storageClass;
+    }
+
+    public void setStorageClass(String storageClass) {
+        this.storageClass = storageClass;
+    }
+
+    public String getContainerMemory() {
+        return containerMemory;
+    }
+
+    public void setContainerMemory(String containerMemory) {
+        this.containerMemory = containerMemory;
+    }
+
+    public String getContainerCpu() {
+        return containerCpu;
+    }
+
+    public void setContainerCpu(String containerCpu) {
+        this.containerCpu = containerCpu;
+    }
+
+    public String getVolumeSize() {
+        return volumeSize;
+    }
+
+    public void setVolumeSize(String volumeSize) {
+        this.volumeSize = volumeSize;
+    }
+
+    public String getJvmXms() {
+        return jvmXms;
+    }
+
+    public void setJvmXms(String jvmXms) {
+        this.jvmXms = jvmXms;
+    }
+
+    public String getJvmXmx() {
+        return jvmXmx;
+    }
+
+    public void setJvmXmx(String jvmXmx) {
+        this.jvmXmx = jvmXmx;
+    }
+
+    public List<String> getJvmXx() {
+        return jvmXx;
+    }
+
+    public void setJvmXx(List<String> jvmXx) {
+        this.jvmXx = jvmXx;
+    }
+
+    public Map<String, String> getJvmXxMap() {
+        return listToMap(this.jvmXx);
+    }
+
+    public static class ZooKeeper {
         private int replicas = ZOOKEEPER_NODES;
         private String volumeSize = ZOOKEEPER_VOLUME_SIZE;
         private String containerMemory = ZOOKEEPER_CONTAINER_MEMORY;
@@ -129,7 +138,7 @@ public class KafkaConfiguration {
         private String jvmXmx = ZOOKEEPER_JVM_XMX;
         private List<String> jvmXx = new ArrayList<>();
 
-        public Zookeeper() {
+        public ZooKeeper() {
             this.jvmXx.add(JVM_OPTIONS_XX);
         }
 
@@ -253,20 +262,12 @@ public class KafkaConfiguration {
         this.egressThroughputPerSec = egressThroughputPerSec;
     }
 
-    public Broker getBroker() {
-        return broker;
+    public ZooKeeper getZooKeeper() {
+        return zooKeeper;
     }
 
-    public void setBroker(Broker broker) {
-        this.broker = broker;
-    }
-
-    public Zookeeper getZookeeper() {
-        return zookeeper;
-    }
-
-    public void setZookeeper(Zookeeper zookeeper) {
-        this.zookeeper = zookeeper;
+    public void setZooKeeper(ZooKeeper zookeeper) {
+        this.zooKeeper = zookeeper;
     }
 
     public Exporter getExporter() {

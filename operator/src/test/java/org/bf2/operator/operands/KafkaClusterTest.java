@@ -105,24 +105,24 @@ class KafkaClusterTest {
     }
 
     void testManagedKafkaToKafkaWithCustomConfiguation() throws IOException {
-        KafkaConfiguration config = kafkaCluster.getKafkaConfiguration();
+        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             System.out.println(
                 objectMapper.writeValueAsString(config)
             );
-            KafkaConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaConfiguration.class);
+            KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
 
             clone.setConnectionAttemptsPerSec(300);
-            clone.getBroker().setReplicas(4);
-            clone.getBroker().setContainerMemory("2Gi");
-            clone.getBroker().getJvmXx().add("foo bar");
-            clone.getBroker().getJvmXx().add("foo2 bar2");
+            clone.setReplicas(4);
+            clone.setContainerMemory("2Gi");
+            clone.getJvmXx().add("foo bar");
+            clone.getJvmXx().add("foo2 bar2");
 
-            clone.getZookeeper().setReplicas(10);
-            clone.getZookeeper().setContainerMemory("11Gi");
-            clone.getZookeeper().getJvmXx().add("zkfoo zkbar");
-            clone.getZookeeper().getJvmXx().add("zkfoo2 zkbar2");
+            clone.getZooKeeper().setReplicas(10);
+            clone.getZooKeeper().setContainerMemory("11Gi");
+            clone.getZooKeeper().getJvmXx().add("zkfoo zkbar");
+            clone.getZooKeeper().getJvmXx().add("zkfoo2 zkbar2");
 
             kafkaCluster.setKafkaConfiguration(clone);
 
