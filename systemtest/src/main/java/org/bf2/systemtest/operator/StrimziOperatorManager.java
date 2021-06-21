@@ -11,11 +11,14 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.framework.TokenReplacingStream;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
+import java.io.InputStream;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -33,6 +36,8 @@ public class StrimziOperatorManager {
     private static final Logger LOGGER = LogManager.getLogger(StrimziOperatorManager.class);
     private static final String OPERATOR_NS = "strimzi-cluster-operator";
     private static final List<Consumer<Void>> CLUSTER_WIDE_RESOURCE_DELETERS = new LinkedList<>();
+    private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
+    private static final String STRIMZI_VERSION = Environment.getOrDefault("STRIMZI_VERSION", "0.23.0");
 
     public static CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
@@ -40,9 +45,10 @@ public class StrimziOperatorManager {
                         .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
             LOGGER.info("Installing Strimzi : {}", OPERATOR_NS);
 
+            URL url = new URL(String.format(STRIMZI_URL_FORMAT, STRIMZI_VERSION));
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
-            URL url = new URL("https://strimzi.io/install/latest?namespace=" + OPERATOR_NS);
-            List<HasMetadata> opItems = kubeClient.client().load(url.openStream()).get();
+            InputStream ris = new TokenReplacingStream(url.openStream(), "namespace:".getBytes(StandardCharsets.UTF_8), ("namespace: " + OPERATOR_NS + " #").getBytes(StandardCharsets.UTF_8));
+            List<HasMetadata> opItems = kubeClient.client().load(ris).get();
 
             Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
             if (operatorDeployment.isPresent()) {
