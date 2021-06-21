@@ -438,6 +438,24 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
+        if (this.config.isEnableQuota()) {
+            addQuotaConfig(managedKafka, current, config);
+        }
+
+        // Limit client connections per broker
+        Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+        config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getMaxConnections()) / this.config.getReplicas())));
+        // Limit connection attempts per broker
+        Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+        config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getConnectionAttemptsPerSec()) / this.config.getReplicas()));
+
+        // custom authorizer configuration
+        addKafkaAuthorizerConfig(config);
+
+        return config;
+    }
+
+    private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
@@ -459,6 +477,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
+<<<<<<< HEAD
 
         if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
          // Limit client connections per broker
@@ -473,6 +492,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         addKafkaAuthorizerConfig(config);
 
         return config;
+=======
+>>>>>>> 3bcb9fc (ability enable/disable the quota plugin using configuration)
     }
 
     private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {

@@ -51,6 +51,7 @@ public class KafkaInstanceConfiguration {
     protected String jvmXms = KAFKA_JVM_XMS;
     protected String jvmXmx = KAFKA_JVM_XMX;
     protected List<String> jvmXx = new ArrayList<>();
+    protected boolean enableQuota = true;
 
     @JsonUnwrapped(prefix = "zoo-keeper.")
     protected ZooKeeper zooKeeper;
@@ -276,5 +277,13 @@ public class KafkaInstanceConfiguration {
 
     public void setExporter(Exporter exporter) {
         this.exporter = exporter;
+    }
+
+    public boolean isEnableQuota() {
+        return enableQuota;
+    }
+
+    public void setEnableQuota(boolean enableQuota) {
+        this.enableQuota = enableQuota;
     }
 }
