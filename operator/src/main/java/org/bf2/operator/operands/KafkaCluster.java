@@ -33,6 +33,8 @@ import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
@@ -58,8 +60,10 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -117,6 +121,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StrimziManager strimziManager;
+
+    @Inject
+    protected StorageClassManager storageClassManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -485,10 +492,24 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                 .withId(JBOD_VOLUME_ID)
                                 .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
                                 .withDeleteClaim(DELETE_CLAIM)
-                                .withStorageClass(KAFKA_STORAGE_CLASS)
+                                .withOverrides(getStorageOverrides(KAFKA_BROKERS))
                                 .build()
                 )
                 .build();
+    }
+
+    private List<PersistentClaimStorageOverride> getStorageOverrides(int num) {
+        List<String> storageClasses = storageClassManager.getStorageClassNames();
+
+        List<PersistentClaimStorageOverride> overrides = new ArrayList<>(num);
+        for (int i = 0; i < num; i++) {
+            overrides.add(
+                    new PersistentClaimStorageOverrideBuilder()
+                    .withBroker(i)
+                    .withStorageClass(storageClasses.get(i % storageClasses.size()))
+                    .build());
+        }
+        return overrides;
     }
 
     /**
@@ -533,7 +554,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new PersistentClaimStorageBuilder()
                 .withSize(ZOOKEEPER_VOLUME_SIZE.toString())
                 .withDeleteClaim(DELETE_CLAIM)
-                .withStorageClass(KAFKA_STORAGE_CLASS)
+                .withOverrides(getStorageOverrides(ZOOKEEPER_NODES))
                 .build();
     }
 

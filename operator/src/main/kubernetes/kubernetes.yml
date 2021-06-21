@@ -114,6 +114,28 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      # the operator creates StorageClasses for per-AZ broker storage
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      # the operator reads nodes to get AZ information
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

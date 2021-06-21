@@ -112,7 +112,13 @@ spec:
       - !<persistent-claim>
         type: "persistent-claim"
         size: "32212254720"
-        class: "gp2"
+        overrides:
+        - broker: 0
+          class: ""
+        - broker: 1
+          class: ""
+        - broker: 2
+          class: ""
         id: 0
         deleteClaim: true
       type: "jbod"
@@ -154,7 +160,13 @@ spec:
     storage: !<persistent-claim>
       type: "persistent-claim"
       size: "10Gi"
-      class: "gp2"
+      overrides:
+      - broker: 0
+        class: ""
+      - broker: 1
+        class: ""
+      - broker: 2
+        class: ""
       deleteClaim: true
     jvmOptions:
       "-Xmx": "512m"
