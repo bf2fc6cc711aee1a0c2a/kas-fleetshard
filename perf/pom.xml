@@ -3,25 +3,57 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.bf2</groupId>
+    <parent>
+        <artifactId>kas-fleetshard</artifactId>
+        <groupId>org.bf2</groupId>
+        <version>999-SNAPSHOT</version>
+    </parent>
     <artifactId>kas-fleetshard-perf</artifactId>
-    <version>1.0-SNAPSHOT</version>
-
+    
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <minimum-maven-version>3.3.1</minimum-maven-version>
-        <minimum-java-version>11</minimum-java-version>
-
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-        <maven.checkstyle.version>3.1.0</maven.checkstyle.version>
-        <jackson.core.version>2.12.1</jackson.core.version>
-        <openshift.client>5.5-SNAPSHOT</openshift.client>
-        <strimzi.version>0.22.1</strimzi.version>
-
-        <groups></groups>
+        <skipTests>true</skipTests>
+        <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
+        <fabric8.version>5.5-SNAPSHOT</fabric8.version>
+        <okhttp.version>3.12.12</okhttp.version>
+        <!-- TODO: remove me -->
+        <basepom.check.skip-all>true</basepom.check.skip-all>
     </properties>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client</artifactId>
+                <version>${fabric8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>openshift-client</artifactId>
+                <version>${fabric8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model</artifactId>
+                <version>${fabric8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-common</artifactId>
+                <version>${fabric8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-model-core</artifactId>
+                <version>${fabric8.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>${okhttp.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement> 
+    
     <dependencies>
         <dependency>
             <groupId>io.openmessaging.benchmark</groupId>
@@ -35,101 +67,24 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>${jackson.core.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.core.version}</version>
-        </dependency>
-        <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>openshift-client</artifactId>
-            <version>${openshift.client}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model</artifactId>
-            <version>${openshift.client}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-common</artifactId>
-            <version>${openshift.client}</version>
         </dependency>
         <dependency>
            <groupId>com.squareup.okhttp3</groupId>
            <artifactId>okhttp</artifactId>
-           <version>3.12.12</version>
-        </dependency>
-        <dependency>
-            <groupId>io.strimzi</groupId>
-            <artifactId>api</artifactId>
-            <version>${strimzi.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.6.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-            <scope>test</scope>
-            <version>5.6.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.platform</groupId>
-            <artifactId>junit-platform-launcher</artifactId>
-            <scope>compile</scope>
-            <version>1.6.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <version>5.6.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.13.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.13.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <version>2.13.3</version>
-        </dependency>
-        <dependency>
-            <groupId>com.jayway.jsonpath</groupId>
-            <artifactId>json-path</artifactId>
-            <version>2.4.0</version>
-        </dependency>
-        <dependency>
-            <groupId>io.vertx</groupId>
-            <artifactId>vertx-web-client</artifactId>
-            <version>3.9.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-java</artifactId>
-            <version>3.141.59</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-            <version>2.6</version>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>kas-fleetshard-api</artifactId>
-            <version>999-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
@@ -143,56 +98,11 @@
         </dependency>
     </dependencies>
     
-    <repositories>
-        <repository>
-            <id>oss-sonatype</id>
-            <name>oss-sonatype</name>
-            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
-    </repositories>
-
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>${maven.checkstyle.version}</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>com.puppycrawl.tools</groupId>
-                        <artifactId>checkstyle</artifactId>
-                        <version>8.29</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>validate</id>
-                        <phase>validate</phase>
-                        <configuration>
-                            <configLocation>.checkstyle/checkstyle.xml</configLocation>
-                            <headerLocation>.checkstyle/java.header</headerLocation>
-                            <suppressionsLocation>.checkstyle/suppressions.xml</suppressionsLocation>
-                            <includeTestSourceDirectory>true</includeTestSourceDirectory>
-                            <encoding>UTF-8</encoding>
-                            <consoleOutput>true</consoleOutput>
-                            <failsOnError>true</failsOnError>
-                        </configuration>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M5</version>
                 <configuration>
                     <groups>${groups}</groups>
                     <forkCount>0</forkCount>
@@ -232,19 +142,15 @@
         <profile>
             <id>ci</id>
             <properties>
+                <skipTests>false</skipTests>
                 <groups>ci</groups>
             </properties>
         </profile>
         <profile>
             <id>perf</id>
             <properties>
+                <skipTests>false</skipTests>
                 <groups>perf</groups>
-            </properties>
-        </profile>
-        <profile>
-            <id>fault</id>
-            <properties>
-                <groups>fault</groups>
             </properties>
         </profile>
     </profiles>

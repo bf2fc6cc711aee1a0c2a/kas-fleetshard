@@ -92,7 +92,7 @@ mvn -Pquickly package -pl operator,sync \
 Assuming that the kubeconfigs are stored in the root folder of this repository, running the maven tests from the command
 line or from the IDE should work:
 ```
-mvn test -Dtest=ManagedKafkaValueProdMinimumTest
+mvn test -Dtest=ManagedKafkaValueProdMinimumTest -DskipTests=false
 ```
 
 Or select test by tag:

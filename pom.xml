@@ -80,6 +80,7 @@
         <module>sync</module>
         <module>systemtest</module>
         <module>test</module>
+        <module>perf</module>
     </modules>
 
     <dependencyManagement>
