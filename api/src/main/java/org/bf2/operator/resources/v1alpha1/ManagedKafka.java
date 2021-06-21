@@ -81,43 +81,55 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
             String endpointTlsCert, String endpointTlsKey, String oauthClientId, String oauthTlsCert,
             String oauthClientSecret, String oauthUserClaim, String oauthJwksEndpoint, String oauthTokenEndpoint,
             String oauthIssuerEndpoint) {
-        ManagedKafka mk = new ManagedKafkaBuilder()
+
+        ManagedKafkaAuthenticationOAuth oauth = null;
+        TlsKeyPair tls = null;
+
+        if (endpointTlsCert != null && endpointTlsKey != null) {
+            tls = new TlsKeyPairBuilder()
+                    .withNewCert(endpointTlsCert)
+                    .withNewKey(endpointTlsKey)
+                    .build();
+        }
+
+        if (oauthClientId != null || oauthJwksEndpoint != null) {
+            oauth = new ManagedKafkaAuthenticationOAuthBuilder()
+                    .withClientId(oauthClientId)
+                    .withNewTlsTrustedCertificate(oauthTlsCert)
+                    .withClientSecret(oauthClientSecret)
+                    .withUserNameClaim(oauthUserClaim)
+                    .withNewJwksEndpointURI(oauthJwksEndpoint)
+                    .withNewTokenEndpointURI(oauthTokenEndpoint)
+                    .withNewValidIssuerEndpointURI(oauthIssuerEndpoint)
+                    .build();
+        }
+
+        return new ManagedKafkaBuilder()
                 .withMetadata(new ObjectMetaBuilder()
                         .withNamespace(namespace)
                         .withName(name)
                         .addToAnnotations(ID, UUID.randomUUID().toString())
                         .addToAnnotations(PLACEMENT_ID, name)
                         .build())
-                .withSpec(new ManagedKafkaSpecBuilder().withNewVersions()
-                        .withKafka("2.7.0")
-                        .withStrimzi("0.22.1")
-                        .endVersions()
+                .withSpec(new ManagedKafkaSpecBuilder()
+                        .withNewVersions()
+                            .withKafka("2.7.0")
+                            .withStrimzi("0.22.1")
+                            .endVersions()
                         .withNewCapacity()
-                        .withNewIngressEgressThroughputPerSec("4Mi")
-                        .withNewMaxDataRetentionPeriod("P14D")
-                        .withNewMaxDataRetentionSize("100Gi")
-                        .withTotalMaxConnections(500)
-                        .withMaxPartitions(100)
-                        .endCapacity()
+                            .withNewIngressEgressThroughputPerSec("4Mi")
+                            .withNewMaxDataRetentionPeriod("P14D")
+                            .withNewMaxDataRetentionSize("100Gi")
+                            .withTotalMaxConnections(500)
+                            .withMaxPartitions(100)
+                            .endCapacity()
                         .withNewEndpoint()
-                        .withNewBootstrapServerHost(String.format("%s.%s", name, bootstrapHostDomain))
-                        .withNewTls()
-                        .withNewCert(endpointTlsCert)
-                        .withNewKey(endpointTlsKey)
-                        .endTls()
-                        .endEndpoint()
-                        .withNewOauth()
-                        .withClientId(oauthClientId)
-                        .withNewTlsTrustedCertificate(oauthTlsCert)
-                        .withClientSecret(oauthClientSecret)
-                        .withUserNameClaim(oauthUserClaim)
-                        .withNewJwksEndpointURI(oauthJwksEndpoint)
-                        .withNewTokenEndpointURI(oauthTokenEndpoint)
-                        .withNewValidIssuerEndpointURI(oauthIssuerEndpoint)
-                        .endOauth()
+                            .withNewBootstrapServerHost(String.format("%s.%s", name, bootstrapHostDomain))
+                            .withTls(tls)
+                            .endEndpoint()
+                        .withOauth(oauth)
                         .build())
                 .build();
-        return mk;
     }
 
     /**
