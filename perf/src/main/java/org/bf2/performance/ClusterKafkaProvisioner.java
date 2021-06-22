@@ -39,9 +39,9 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
         }
 
         // delete/create the namespaces to be used
+        cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
-        cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
 
         // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         strimziOperatorManager.installStrimzi(cluster.kubeClient());
