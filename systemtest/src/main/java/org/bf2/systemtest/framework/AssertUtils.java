@@ -26,7 +26,7 @@ public class AssertUtils {
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
         assertEquals(3, ManagedKafkaResourceType.getKafkaPods(mk).size());
-        if (!kube.isGenericKubernetes()) {
+        if (!kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get().getMetadata().getLabels().containsKey("dev-kafka")) {
             assertEquals(1, ManagedKafkaResourceType.getKafkaExporterPods(mk).size());
         }
         assertEquals(3, ManagedKafkaResourceType.getZookeeperPods(mk).size());

@@ -123,7 +123,9 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
     }
 
     private Map<String, String> getLabels() {
-        return OperandUtils.getDefaultLabels();
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
+        labels.put("dev-kafka", "");
+        return labels;
     }
 
     private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
