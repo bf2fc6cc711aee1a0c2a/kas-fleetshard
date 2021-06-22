@@ -86,7 +86,7 @@ public class Canary extends AbstractCanary {
                 .editOrNewSpec()
                     .editOrNewTemplate()
                         .editOrNewSpec()
-                        .withAffinity(kafkaPodAffinity(managedKafka))
+                        .withAffinity(OperandUtils.kafkaPodAffinity(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec();

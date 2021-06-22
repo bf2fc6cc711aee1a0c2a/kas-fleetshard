@@ -154,7 +154,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .editOrNewTemplate()
                         .editOrNewSpec()
-                        .withAffinity(kafkaPodAffinity(managedKafka))
+                        .withAffinity(OperandUtils.kafkaPodAffinity(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec();

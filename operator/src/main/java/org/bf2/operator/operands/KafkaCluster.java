@@ -465,7 +465,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             specBuilder
                 .editOrNewTemplate()
                     .editOrNewPod()
-                        .withAffinity(kafkaPodAffinity(managedKafka))
+                        .withAffinity(OperandUtils.kafkaPodAffinity(managedKafka))
                     .endPod()
                 .endTemplate();
         }
