@@ -39,7 +39,6 @@ public class Environment {
     private static final String OMB_WARMUP_DURATION_ENV = "OMB_WARMUP_DURATION";
     private static final String APPLY_BROKER_QUOTA_ENV = "APPLY_BROKER_QUOTA";
     private static final String KAFKA_KUBECONFIG_ENV = "KAFKA_KUBECONFIG";
-    private static final String OMB_DIR_ENV = "OMB_DIR";
     private static final String REMOTE_WRITE_DIR_ENV = "REMOTE_WRITE_DIR";
     private static final String MONITORING_STUFF_DIR_ENV = "MONITORING_STUFF_DIR";
     private static final String STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV = "STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS";
@@ -65,7 +64,6 @@ public class Environment {
     public static final String OMB_KUBECONFIG = getOrDefault(OMB_KUBECONFIG_ENV, Constants.SUITE_ROOT + "/client-config");
     public static final String KAFKA_KUBECONFIG = getOrDefault(KAFKA_KUBECONFIG_ENV, Constants.SUITE_ROOT + "/kafka-config");
 
-    public static final String OMB_DIR = getOrDefault(OMB_DIR_ENV, Constants.SUITE_ROOT + "/openmessaging-benchmark");
     public static final String THANOS_URL = getOrDefault(THANOS_URL_ENV, "");
     public static final String OBSERVATORIUM_ROUTE = getOrDefault(OBSERVATORIUM_ROUTE_ENV, "");
     public static final String THANOS_TOKEN = getOrDefault(THANOS_TOKEN_ENV, "");

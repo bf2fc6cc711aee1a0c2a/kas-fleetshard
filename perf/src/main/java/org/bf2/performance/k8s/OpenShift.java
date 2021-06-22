@@ -22,8 +22,9 @@ public class OpenShift implements KubeCluster {
     public KubeClient defaultClient(String kubeconfig) throws IOException {
         Config config = getConfig(kubeconfig);
         config.setConnectionTimeout(30_000);
-        config.setRequestRetryBackoffInterval(1000);
-        config.setRequestRetryBackoffLimit(5);
+        // TODO: enable with fabric8 5.5+
+        //config.setRequestRetryBackoffInterval(1000);
+        //config.setRequestRetryBackoffLimit(5);
         return new KubeClient(new DefaultOpenShiftClient(new OpenShiftConfig(config)));
     }
 

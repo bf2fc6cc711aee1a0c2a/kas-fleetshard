@@ -3,14 +3,13 @@ ROOT_DIR = $(dir $(lastword $(MAKEFILE_LIST)))
 include ./Makefile.os
 
 TESTCASE ?= org.bf2.**
-OMB_DIR ?= $(ROOT_DIR)/openmessaging-benchmark
 DOCKER ?= docker
 
 ifdef PROFILE
 	PROFILE_ARGS = "-P$(PROFILE)"
 endif
 
-all: clean submodule-init rw-install omb-install test
+all: clean submodule-init rw-install test
 
 clean: clean_java
 
@@ -23,19 +22,13 @@ submodule-init:
 submodule-update:
 	git submodule update --remote --merge
 
-omb-install:
-	pushd openmessaging-benchmark; mvn install -DskipTests -Dlicense.failIfMissing=false -Dlicense.failIfUnknown=false; popd
-
-omb-install-ci:
-	pushd openmessaging-benchmark; mvn install -DskipTests -Dlicense.failIfMissing=false -Dlicense.failIfUnknown=false --no-transfer-progress --quiet; popd
-
 rw-install:
 	pushd remote-write; make remote-write; popd
 
 test:
-	OMB_DIR=$(OMB_DIR) mvn test -Dtest=$(TESTCASE) $(PROFILE_ARGS)
+	mvn test -Dtest=$(TESTCASE) $(PROFILE_ARGS)
 
-pipeline: rw-install omb-install-ci
+pipeline: rw-install
 	./scripts/pipeline.sh
 
 pipeline/cleanup:
@@ -73,4 +66,4 @@ ci/pipeline/cleanup:
 				-u $(shell id -u) \
 				quay.io/app-sre/mk-ci-tools:latest make pipeline/cleanup
 
-.PHONY: clean rw-install omb-install test pipeline pipeline/cleanup ci/pipeline ci/pipeline/cleanup
+.PHONY: clean rw-install test pipeline pipeline/cleanup ci/pipeline ci/pipeline/cleanup

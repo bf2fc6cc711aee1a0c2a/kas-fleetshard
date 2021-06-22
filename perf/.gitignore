@@ -1,6 +1,5 @@
 **/target/*
 .idea
-openmessaging-benchmark/
 remote-write/
 kafka-monitoring-stuff/
 **/*.iml

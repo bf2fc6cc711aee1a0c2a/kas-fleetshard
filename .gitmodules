@@ -1,6 +1,3 @@
-[submodule "perf/openmessaging-benchmark"]
-	path = perf/openmessaging-benchmark
-	url = git@github.com:lulf/openmessaging-benchmark.git
 [submodule "perf/remote-write"]
 	path = perf/remote-write
 	url = git@github.com:jhellar/remote-write.git

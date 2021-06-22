@@ -65,10 +65,13 @@ You need to use a personal access token from GitHub developer settings when prom
 make submodule-init
 ```
 
-## Preparing clients
-```
-make omb-install
-```
+## openmessaging-benchmark
+
+Until we find a more suitable place, the benchmark jars have been published into the makeshift [github maven repo](https://github.com/shawkins/repo).
+
+If changes are needed to the openmessaging-benchmark, that will require updating that project and temp repo, or creating another one.
+
+The temp repo is simply a copy of the contents of ~/.m2/repository/io/openmessaging after running `mvn clean install -DcreateChecksum=true` in [the project](https://github.com/lulf/openmessaging-benchmark).
 
 ## Preparing thanos writer [optional]
 ```
@@ -117,7 +120,6 @@ KUBECONFIG=kafka-config oc get route grafana-route -n managed-services-monitorin
 | OMB_TEST_DURATION | Specifies the length of the test. | PT1M |
 | OMB_KUBECONFIG | Kubeconfig with connection for OMB cluster. | $(pwd)/client-config |
 | KAFKA_KUBECONFIG | Kubeconfig with connection for KAFKA cluster. | $(pwd)/kafka-config |
-| OMB_DIR | Path where OMB repoitory is stored. | $(pwd)/openmessaging-benchmark |
 | REMOTE_WRITE_DIR | Path where Thanos remote write is stored. | $(pwd)/remote-write |
 | MONITORING_STUFF_DIR | Path where monitoring repo is stored. | $(pwd)/kafka-monitoring-stuff |
 | STRIMZI_INSTALL_MODE | Mode for Kafka instances [CLUSTER, NAMESPACE]. Namespace is deprecated. | CLUSTER |
