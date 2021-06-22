@@ -66,6 +66,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -224,7 +225,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(ZOOKEEPER_NODES)
-                        .withStorage((SingleVolumeStorage)getZooKeeperStorage())
+                        .withStorage((SingleVolumeStorage)getZooKeeperStorage(current))
                         .withResources(getZooKeeperResources(managedKafka))
                         .withJvmOptions(getZooKeeperJvmOptions(managedKafka))
                         .withTemplate(getZookeeperTemplate(managedKafka))
@@ -486,16 +487,23 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {
-        return new JbodStorageBuilder()
-                .withVolumes(
-                        new PersistentClaimStorageBuilder()
-                                .withId(JBOD_VOLUME_ID)
-                                .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
-                                .withDeleteClaim(DELETE_CLAIM)
-                                .withOverrides(getStorageOverrides(KAFKA_BROKERS))
-                                .build()
-                )
-                .build();
+        PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
+                .withId(JBOD_VOLUME_ID)
+                .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
+                .withDeleteClaim(DELETE_CLAIM);
+
+        Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
+            .filter(s -> s instanceof JbodStorage)
+            .map(s -> (JbodStorage) s)
+            .map(s -> s.getVolumes().get(JBOD_VOLUME_ID))
+            .filter(v -> v instanceof PersistentClaimStorage)
+            .map(v -> (PersistentClaimStorage) v)
+            .filter(pcs -> KAFKA_STORAGE_CLASS.equals(pcs.getStorageClass()))
+            .ifPresentOrElse(
+                    old -> builder.withStorageClass(KAFKA_STORAGE_CLASS),
+                    () -> builder.withOverrides(getStorageOverrides(KAFKA_BROKERS)));
+
+        return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
 
     private List<PersistentClaimStorageOverride> getStorageOverrides(int num) {
@@ -550,12 +558,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new Quantity(String.valueOf(bytes));
     }
 
-    private Storage getZooKeeperStorage() {
-        return new PersistentClaimStorageBuilder()
+    private Storage getZooKeeperStorage(Kafka current) {
+        PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
                 .withSize(ZOOKEEPER_VOLUME_SIZE.toString())
-                .withDeleteClaim(DELETE_CLAIM)
-                .withOverrides(getStorageOverrides(ZOOKEEPER_NODES))
-                .build();
+                .withDeleteClaim(DELETE_CLAIM);
+
+        Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
+            .filter(s -> s instanceof PersistentClaimStorage)
+            .map(v -> (PersistentClaimStorage) v)
+            .filter(pcs -> KAFKA_STORAGE_CLASS.equals(pcs.getStorageClass()))
+            .ifPresentOrElse(
+                    old -> builder.withStorageClass(KAFKA_STORAGE_CLASS),
+                    () -> builder.withOverrides(getStorageOverrides(ZOOKEEPER_NODES)));
+
+        return builder.build();
     }
 
     private KafkaAuthorization getKafkaAuthorization() {

@@ -107,6 +107,7 @@ public class StorageClassManager {
                     .map(sc -> sc.getMetadata().getName())
                     .findFirst().orElse("");
 
+            log.warn("Not enough AZs were discovered from node metadata, so the default storage class will be used instead: " + defaultStorageClass);
             storageClassNames = List.of(defaultStorageClass, defaultStorageClass, defaultStorageClass);
         }
     }
@@ -131,8 +132,8 @@ public class StorageClassManager {
             StorageClassBuilder builder = e.getValue() != null ? new StorageClassBuilder(e.getValue()) : new StorageClassBuilder();
             return builder
                     .editOrNewMetadata()
-                    .withName("kas-" + e.getKey())
-                    .withLabels(OperandUtils.getDefaultLabels())
+                        .withName("kas-" + e.getKey())
+                        .withLabels(OperandUtils.getDefaultLabels())
                     .endMetadata()
                     .withProvisioner("kubernetes.io/aws-ebs")
                     .withReclaimPolicy("Delete")
