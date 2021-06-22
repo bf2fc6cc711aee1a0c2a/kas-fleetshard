@@ -60,11 +60,6 @@ public class StrimziOperatorManager {
         kubeClient.client().namespaces().createOrReplace(namespaceToCreate(withName));
         URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
         List<HasMetadata> opItems = kubeClient.client().load(url.openStream()).get();
-        opItems.forEach(i -> {
-            if (i instanceof Namespaced) {
-                i.getMetadata().setNamespace(operatorNs);
-            }
-        });
 
         Optional<Deployment> operatorDeployment = opItems.stream().filter(h -> "strimzi-cluster-operator".equals(h.getMetadata().getName()) && h.getKind().equals("Deployment")).map(Deployment.class::cast).findFirst();
         if (operatorDeployment.isPresent()) {
@@ -77,27 +72,36 @@ public class StrimziOperatorManager {
                 kubeClient.client().rbac().clusterRoleBindings().withName(cwr.getMetadata().getName()).delete();
             });
         });
+
+        // modify namespaces and convert rolebinding to clusterrolebindings
         String crbID = UUID.randomUUID().toString().substring(0, 5);
-        opItems.stream().filter(RoleBinding.class::isInstance).forEach(roleBinding -> {
-            roleBinding.getMetadata().setNamespace(operatorNs);
-            RoleBinding rb = (RoleBinding) roleBinding;
-            rb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
+        opItems.stream().forEach(i -> {
+            if (i instanceof Namespaced) {
+                i.getMetadata().setNamespace(operatorNs);
+            }
+            if (i instanceof ClusterRoleBinding) {
+                ClusterRoleBinding crb = (ClusterRoleBinding)i;
+                crb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
+            } else if (i instanceof RoleBinding) {
+                RoleBinding rb = (RoleBinding) i;
+                rb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
 
-            ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
-                    .withNewMetadata()
-                    .withName(rb.getMetadata().getName() + "-all-ns-" + crbID)
-                    .withAnnotations(rb.getMetadata().getAnnotations())
-                    .withLabels(rb.getMetadata().getLabels())
-                    .endMetadata()
-                    .withRoleRef(rb.getRoleRef())
-                    .withSubjects(rb.getSubjects())
-                    .build();
+                ClusterRoleBinding crb = new ClusterRoleBindingBuilder()
+                        .withNewMetadata()
+                        .withName(rb.getMetadata().getName() + "-all-ns-" + crbID)
+                        .withAnnotations(rb.getMetadata().getAnnotations())
+                        .withLabels(rb.getMetadata().getLabels())
+                        .endMetadata()
+                        .withRoleRef(rb.getRoleRef())
+                        .withSubjects(rb.getSubjects())
+                        .build();
 
-            LOGGER.info("Creating {} named {}", crb.getKind(), crb.getMetadata().getName());
-            createClusterRoleBinding(kubeClient, crb);
-            clusterWideResourceDeleters.add(unused -> {
-                kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
-            });
+                LOGGER.info("Creating {} named {}", crb.getKind(), crb.getMetadata().getName());
+                createClusterRoleBinding(kubeClient, crb);
+                clusterWideResourceDeleters.add(unused -> {
+                    kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
+                });
+            }
         });
 
         opItems.forEach(i -> kubeClient.client().resource(i).inNamespace(operatorNs).createOrReplace());

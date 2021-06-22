@@ -3,18 +3,13 @@ package org.bf2.performance;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.openmessaging.benchmark.TestResult;
 import io.vertx.core.json.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Random;
 
 /**
  * Test utils contains static help methods
@@ -53,19 +48,4 @@ public class TestUtils {
         LOGGER.info("Wrote perf results to {}", resultFile.getAbsolutePath());
     }
 
-    public static void logWithSeparator(String pattern, String text) {
-        LOGGER.info("============================================================");
-        LOGGER.info(pattern, text);
-        LOGGER.info("============================================================");
-    }
-
-    public static String payloadFileOfSize(Quantity size) throws IOException {
-        byte[] bytes = new byte[Quantity.getAmountInBytes(size).intValueExact()];
-        new Random().nextBytes(bytes);
-
-        Path file = Files.createTempFile(String.format("payload-%s-", size), ".data");
-        Files.write(file, bytes);
-        file.toFile().deleteOnExit();
-        return file.toAbsolutePath().toString();
-    }
 }

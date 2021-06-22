@@ -13,10 +13,7 @@ import org.gradle.api.UncheckedIOException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -33,8 +30,6 @@ public class KubeClusterResource {
     private KubeCluster kubeCluster;
     private KubeCmdClient<?> cmdClient;
     private KubeClient client;
-
-    private final List<String> deploymentNamespaces = new ArrayList<>();
 
     public KubeClusterResource(String kubeconfig) {
         Path path = Paths.get(kubeconfig);
@@ -77,18 +72,6 @@ public class KubeClusterResource {
         return client;
     }
 
-    /**
-     * Delete all created namespaces. Namespaces are deleted in the reverse order than they were created.
-     */
-    public void deleteNamespaces() throws IOException {
-        Collections.reverse(deploymentNamespaces);
-        for (String namespace : deploymentNamespaces) {
-            LOGGER.info("Deleting Namespace {}", namespace);
-            waitForDeleteNamespace(namespace);
-        }
-        deploymentNamespaces.clear();
-    }
-
     /*
      * Returns true if Cluster availability is multizone
      */
@@ -124,9 +107,7 @@ public class KubeClusterResource {
     }
 
     public void createNamespace(String name, Map<String, String> annotations, Map<String, String> labels) {
-        if (client.client().namespaces().withName(name).get() != null) {
-            waitForDeleteNamespace(name);
-        }
+        waitForDeleteNamespace(name);
         Namespace ns = new NamespaceBuilder().
                 withNewMetadata()
                 .withName(name)

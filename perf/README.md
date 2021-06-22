@@ -78,16 +78,16 @@ The temp repo is simply a copy of the contents of ~/.m2/repository/io/openmessag
 make rw-install
 ```
 
-## Providing Fleetshard Images
+## Providing Fleetshard Images / Deployment Artifacts
 
-Re-use of systemtest means that the fleetshard component install will be based upon your local build.  Typically you will want to build/push production images.  From the parent directory / fleetshard root run:
+Re-use of systemtest means that the fleetshard component install will be based upon your local build.  Typically you will want to build/push prod images.  From the parent directory / fleetshard root run:
 
 ```
 mvn -Pquickly package -pl operator,sync \
 -Dquarkus.container-image.registry=quay.io \
 -Dquarkus.container-image.group=${USER} \
 -Dquarkus.container-image.tag=latest \
--Dquarkus.container-image.build=true \ 
+-Dquarkus.container-image.build=true \
 -Dquarkus.container-image.push=true 
 ```
 

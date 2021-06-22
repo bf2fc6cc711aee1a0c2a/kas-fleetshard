@@ -57,7 +57,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
         omb.deleteWorkers();
     }
 
-    @ParameterizedTest(name = "testValueProdMinimumKafkaMem_{4}_{5}")
+    @ParameterizedTest(name = "testValueProdMinimumKafkaMem_{3}_{4}")
     @CsvSource({
             "41943040, 60000, 500, 12Gi, 2Gi",
             "41943040, 60000, 500, 12Gi, 3Gi",

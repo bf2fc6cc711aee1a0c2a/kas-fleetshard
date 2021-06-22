@@ -80,7 +80,7 @@ public class ClusterKafkaProvisioner extends AbstractKafkaProvisioner {
         // convert the profile into simple configmap values - the operator should restart with these values
         ConfigMap override = toConfigMap(profile);
         cluster.kubeClient().client().configMaps().inNamespace(namespace).createOrReplace(override);
-        // TODO: bounce the operator has restarted
+        // TODO: bounce the operator - or move the profile to install
 
         KafkaDeployment kafkaDeployment = KafkaInstaller.deployCluster(cluster, namespace, managedKafka, routerConfig.getDomain());
         kafkaDeployment.start();
