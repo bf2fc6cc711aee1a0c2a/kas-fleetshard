@@ -1,25 +1,22 @@
 package org.bf2.test.k8s;
 
+import com.google.common.base.Functions;
 import io.fabric8.kubernetes.api.model.APIService;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.test.k8s.cmdClient.KubeCmdClient;
 import org.bf2.test.k8s.cmdClient.Kubectl;
 import org.bf2.test.k8s.cmdClient.Oc;
+import org.gradle.api.UncheckedIOException;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -85,86 +82,20 @@ public class KubeClient {
     }
 
     /**
-     * Apply yaml files on kube cluster
-     *
-     * @param namespace         namespace where to apply
-     * @param streamManipulator replacer
-     * @param paths             folders
-     */
-    public void apply(String namespace, final Function<InputStream, InputStream> streamManipulator, final Path... paths) throws Exception {
-        loadDirectories(streamManipulator, item ->
-                item.inNamespace(namespace).createOrReplace(), paths);
-    }
-
-    /**
      * Apply resources from files
      *
      * @param namespace namessppace where to apply
      * @param paths     folders
      */
-    public void apply(String namespace, final Path... paths) throws Exception {
-        apply(namespace, inputStream -> inputStream, paths);
-    }
-
-    /**
-     * Delete resources from files
-     *
-     * @param streamManipulator replaces
-     * @param paths             folders
-     */
-    public void delete(final Function<InputStream, InputStream> streamManipulator, final Path... paths) throws Exception {
-        loadDirectories(streamManipulator, o ->
-                o.fromServer().get().forEach(item ->
-                        client.resource(item).delete()), paths);
-    }
-
-    private void loadDirectories(final Function<InputStream, InputStream> streamManipulator,
-                                 Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer, final Path... paths) throws Exception {
-        for (Path path : paths) {
-            loadDirectory(streamManipulator, consumer, path);
+    public void apply(String namespace, InputStream is, Function<HasMetadata, HasMetadata> modifier) throws IOException {
+        try (is) {
+            client.load(is).get().stream().forEach(i -> {
+                HasMetadata h = modifier.apply(i);
+                if (h != null) {
+                    client.resource(h).inNamespace(namespace).createOrReplace();
+                }
+            });
         }
-    }
-
-    private void loadDirectory(final Function<InputStream, InputStream> streamManipulator,
-                               Consumer<ParameterNamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata>> consumer, final Path path) throws Exception {
-
-        LOGGER.info("Loading resources from: {}", path);
-
-        Files.walkFileTree(path, new SimpleFileVisitor<>() {
-            public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) throws IOException {
-
-                LOGGER.debug("Found: {}", file);
-
-                if (!Files.isRegularFile(file)) {
-                    LOGGER.debug("File is not a regular file: {}", file);
-                    return FileVisitResult.CONTINUE;
-                }
-
-                if (!file.getFileName().toString().endsWith(".yaml") && !file.getFileName().toString().endsWith(".yml")) {
-                    LOGGER.info("Skipping file: does not end with '.yaml': {}", file);
-                    return FileVisitResult.CONTINUE;
-                }
-
-                LOGGER.info("Processing: {}", file);
-
-                try (InputStream f = Files.newInputStream(file)) {
-
-                    final InputStream in;
-                    if (streamManipulator != null) {
-                        in = streamManipulator.apply(f);
-                    } else {
-                        in = f;
-                    }
-
-                    if (in != null) {
-                        consumer.accept(client.load(in));
-                    }
-                }
-
-                return FileVisitResult.CONTINUE;
-            }
-        });
-
     }
 
     /**
@@ -172,6 +103,19 @@ public class KubeClient {
      */
     public boolean namespaceExists(String namespace) {
         return client.namespaces().withName(namespace).get() != null;
+    }
+
+    /**
+     * Apply resources from a non-directory file
+     *
+     * @param namespace namesspace where to apply
+     */
+    public void apply(String namespace, Path path) {
+        try {
+            apply(namespace, Files.newInputStream(path), Functions.identity());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
 }

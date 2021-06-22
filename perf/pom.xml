@@ -78,6 +78,11 @@
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
+            <artifactId>kas-fleetshard-operator</artifactId>
+            <version>999-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bf2</groupId>
             <artifactId>test</artifactId>
             <version>999-SNAPSHOT</version>
         </dependency>

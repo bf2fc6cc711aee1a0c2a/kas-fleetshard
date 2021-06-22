@@ -14,9 +14,11 @@ import org.bf2.test.k8s.KubeClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class FleetShardOperatorManager {
     private static final String CRD_FILE_SUFFIX = "-v1.yml";
@@ -35,7 +37,7 @@ public class FleetShardOperatorManager {
     public static final String OPERATOR_NS = "kas-fleetshard";
     public static final String OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String SYNC_NAME = "kas-fleetshard-sync";
-    private static Path[] installedCrds = new Path[0];
+    private static List<Path> installedCrds = new ArrayList<>();
 
     private static void printVar() {
         LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
@@ -52,9 +54,9 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
         installedCrds =
-                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).toArray(Path[]::new);
-        LOGGER.info("Installing CRDs {}", Arrays.toString(installedCrds));
-        kubeClient.apply(OPERATOR_NS, installedCrds);
+                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).collect(Collectors.toList());
+        LOGGER.info("Installing CRDs {}", installedCrds);
+        installedCrds.forEach(crd -> kubeClient.apply(OPERATOR_NAME, crd));
 
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
@@ -128,7 +130,7 @@ public class FleetShardOperatorManager {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
             var mkCli = kubeClient.client().customResources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
-            Arrays.asList(installedCrds).forEach(crd -> {
+            installedCrds.forEach(crd -> {
                 String fileName = crd.getFileName().toString();
                 String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
                 LOGGER.info("Delete CRD {}", crdName);

@@ -9,6 +9,7 @@ import io.strimzi.api.kafka.model.status.ListenerStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.performance.k8s.KubeClusterResource;
 
@@ -94,8 +95,16 @@ public class KafkaDeployment {
                 boolean mkReady = false;
                 if (currentManagedKafka != null) {
                     ManagedKafkaStatus status = currentManagedKafka.getStatus();
-                    Optional<Boolean> ready = status.getConditions().stream().filter(c -> "Ready".equals(c.getType())).map(c -> Boolean.parseBoolean(c.getStatus())).findFirst();
-                    mkReady = ready.isPresent() && ready.get();
+                    if (status != null && status.getConditions() != null) {
+                        Optional<ManagedKafkaCondition> ready = status.getConditions().stream().filter(c -> ManagedKafkaCondition.Type.Ready.name().equals(c.getType())).findFirst();
+                        if (ready.isPresent()) {
+                            if (Boolean.valueOf(ready.get().getStatus())) {
+                                mkReady = true;
+                            } else if (ManagedKafkaCondition.Reason.Error.name().equals(ready.get().getReason())) {
+                                throw new IllegalStateException("Error creating ManagedKafka");
+                            }
+                        }
+                    }
                 }
 
                 Kafka current = client.inNamespace(kafka.getMetadata().getNamespace()).withName(kafka.getMetadata().getName()).get();
