@@ -68,7 +68,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withLabels(getLabels())
+                    .withLabels(getLabels(managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
@@ -122,8 +122,11 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         return new EphemeralStorageBuilder().build();
     }
 
-    private Map<String, String> getLabels() {
-        return OperandUtils.getDefaultLabels();
+    private Map<String, String> getLabels(ManagedKafka managedKafka) {
+        Map<String, String> labels = OperandUtils.getDefaultLabels();
+        labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
+        labels.put("dev-kafka", "");
+        return labels;
     }
 
     private KafkaClusterTemplate getKafkaTemplate(ManagedKafka managedKafka) {
