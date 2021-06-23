@@ -39,6 +39,7 @@ import java.util.function.Predicate;
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public static final int KAFKA_BROKERS = 3;
+    public static final int ZOOKEEPER_NODES = 3;
 
     @Inject
     Logger log;

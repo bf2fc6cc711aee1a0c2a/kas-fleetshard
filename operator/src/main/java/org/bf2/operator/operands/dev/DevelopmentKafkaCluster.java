@@ -31,8 +31,6 @@ import java.util.Map;
 @IfBuildProperty(name = "kafka", stringValue = "dev")
 public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
-    public static final int KAFKA_BROKERS = 3;
-
     @Inject
     protected SecuritySecretManager secretManager;
 
@@ -79,7 +77,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(3)
+                        .withReplicas(ZOOKEEPER_NODES)
                         .withStorage((SingleVolumeStorage)getStorage())
                         .withTemplate(getZookeeperTemplate(managedKafka))
                         .withImage(zookeeperImage.orElse(null))

@@ -68,8 +68,6 @@ import java.util.Objects;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
-    public static final int KAFKA_BROKERS = 3;
-    private static final int ZOOKEEPER_NODES = 3;
     // storage related constants
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
