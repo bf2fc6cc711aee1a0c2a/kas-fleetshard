@@ -12,24 +12,16 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
-import io.strimzi.api.kafka.model.CertAndKeySecretSource;
-import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
-import io.strimzi.api.kafka.model.CertSecretSource;
-import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.ExternalLogging;
 import io.strimzi.api.kafka.model.ExternalLoggingBuilder;
-import io.strimzi.api.kafka.model.GenericSecretSource;
-import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.JmxPrometheusExporterMetricsBuilder;
 import io.strimzi.api.kafka.model.JvmOptions;
 import io.strimzi.api.kafka.model.JvmOptionsBuilder;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaAuthorization;
-import io.strimzi.api.kafka.model.KafkaAuthorizationCustom;
 import io.strimzi.api.kafka.model.KafkaAuthorizationCustomBuilder;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.KafkaExporterSpec;
@@ -37,16 +29,6 @@ import io.strimzi.api.kafka.model.KafkaExporterSpecBuilder;
 import io.strimzi.api.kafka.model.MetricsConfig;
 import io.strimzi.api.kafka.model.Rack;
 import io.strimzi.api.kafka.model.RackBuilder;
-import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
-import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBootstrapBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBroker;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBrokerBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
@@ -62,7 +44,6 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.jboss.logging.Logger;
@@ -76,10 +57,8 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -91,8 +70,6 @@ import java.util.Objects;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
-    public static final int KAFKA_BROKERS = 3;
-    private static final int ZOOKEEPER_NODES = 3;
     // storage related constants
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
@@ -225,11 +202,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
                         .withStorage(getKafkaStorage(managedKafka, current))
-                        .withListeners(getKafkaListeners(managedKafka))
+                        .withListeners(getListeners(managedKafka))
                         .withRack(getKafkaRack(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
                         .withMetricsConfig(getKafkaMetricsConfig(managedKafka))
-                        .withAuthorization(getKafkaAuthorization(managedKafka))
+                        .withAuthorization(getKafkaAuthorization())
                         .withImage(kafkaImage.orElse(null))
                         .withExternalLogging(getKafkaExternalLogging(managedKafka))
                     .endKafka()
@@ -290,34 +267,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         OperandUtils.setAsOwner(managedKafka, configMap);
 
         return configMap;
-    }
-
-    protected GenericSecretSource getSsoClientGenericSecretSource(ManagedKafka managedKafka) {
-        return new GenericSecretSourceBuilder()
-                .withSecretName(SecuritySecretManager.ssoClientSecretName(managedKafka))
-                .withKey("ssoClientSecret")
-                .build();
-    }
-
-    protected CertSecretSource getSsoTlsCertSecretSource(ManagedKafka managedKafka) {
-        if (!SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka) || managedKafka.getSpec().getOauth().getTlsTrustedCertificate() == null) {
-            return null;
-        }
-        return new CertSecretSourceBuilder()
-                .withSecretName(SecuritySecretManager.ssoTlsSecretName(managedKafka))
-                .withCertificate("keycloak.crt")
-                .build();
-    }
-
-    protected CertAndKeySecretSource getTlsCertAndKeySecretSource(ManagedKafka managedKafka) {
-        if (!SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            return null;
-        }
-        return new CertAndKeySecretSourceBuilder()
-                .withSecretName(SecuritySecretManager.kafkaTlsSecretName(managedKafka))
-                .withCertificate("tls.crt")
-                .withKey("tls.key")
-                .build();
     }
 
     private MetricsConfig getKafkaMetricsConfig(ManagedKafka managedKafka) {
@@ -524,101 +473,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return config;
     }
 
-    private ArrayOrObjectKafkaListeners getKafkaListeners(ManagedKafka managedKafka) {
-
-        KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
-        KafkaListenerAuthentication oauthAuthenticationListener = null;
-
-        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
-            ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
-
-            CertSecretSource ssoTlsCertSecretSource = getSsoTlsCertSecretSource(managedKafka);
-
-            KafkaListenerAuthenticationOAuthBuilder plainOverOauthAuthenticationListenerBuilder = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
-                    .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
-                    .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
-                    .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
-                    .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
-                    .withEnablePlain(true)
-                    .withTokenEndpointUri(managedKafkaAuthenticationOAuth.getTokenEndpointURI());
-
-            if (ssoTlsCertSecretSource != null) {
-                plainOverOauthAuthenticationListenerBuilder.withTlsTrustedCertificates(ssoTlsCertSecretSource);
-            }
-            plainOverOauthAuthenticationListener = plainOverOauthAuthenticationListenerBuilder.build();
-
-            KafkaListenerAuthenticationOAuthBuilder oauthAuthenticationListenerBuilder = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
-                    .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
-                    .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
-                    .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
-                    .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka));
-
-            if (ssoTlsCertSecretSource != null) {
-                oauthAuthenticationListenerBuilder.withTlsTrustedCertificates(ssoTlsCertSecretSource);
-            }
-            oauthAuthenticationListener = oauthAuthenticationListenerBuilder.build();
-        }
-
-        KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
-
-        return new ArrayOrObjectKafkaListenersBuilder()
-                .withGenericKafkaListeners(
-                        new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withPort(9092)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
-                                .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName("external")
-                                .withPort(9094)
-                                .withType(externalListenerType)
-                                .withTls(true)
-                                .withAuth(plainOverOauthAuthenticationListener)
-                                .withConfiguration(
-                                        new GenericKafkaListenerConfigurationBuilder()
-                                                .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
-                                                        .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                                                        .build()
-                                                )
-                                                .withBrokers(getBrokerOverrides(managedKafka))
-                                                .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka))
-                                        .build()
-                                )
-                                .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName("oauth")
-                                .withPort(9095)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
-                                .withAuth(oauthAuthenticationListener)
-                                .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName("sre")
-                                .withPort(9096)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
-                                .build()
-                ).build();
-    }
-
-    private List<GenericKafkaListenerConfigurationBroker> getBrokerOverrides(ManagedKafka managedKafka) {
-        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(KAFKA_BROKERS);
-        for (int i = 0; i < KAFKA_BROKERS; i++) {
-            brokerOverrides.add(
-                    new GenericKafkaListenerConfigurationBrokerBuilder()
-                            .withHost(String.format("broker-%d-%s", i, managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))
-                            .withBroker(i)
-                    .build()
-            );
-        }
-        return brokerOverrides;
-    }
-
     private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {
         return new JbodStorageBuilder()
                 .withVolumes(
@@ -678,11 +532,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaAuthorization getKafkaAuthorization(ManagedKafka managedKafka) {
-        KafkaAuthorizationCustom authorization = new KafkaAuthorizationCustomBuilder()
+    private KafkaAuthorization getKafkaAuthorization() {
+        return new KafkaAuthorizationCustomBuilder()
                 .withAuthorizerClass(KAFKA_AUTHORIZER_CLASS)
                 .build();
-        return authorization;
     }
 
     private void addKafkaAuthorizerConfig(Map<String, Object> config) {

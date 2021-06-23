@@ -4,10 +4,6 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
@@ -73,15 +69,15 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                        .withReplicas(3)
-                        .withListeners(getListeners())
+                        .withReplicas(KAFKA_BROKERS)
+                        .withListeners(getListeners(managedKafka))
                         .withStorage(getStorage())
                         .withConfig(getKafkaConfig(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(3)
+                        .withReplicas(ZOOKEEPER_NODES)
                         .withStorage((SingleVolumeStorage)getStorage())
                         .withTemplate(getZookeeperTemplate(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
@@ -104,18 +100,6 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
         return config;
-    }
-
-    private ArrayOrObjectKafkaListeners getListeners() {
-        return new ArrayOrObjectKafkaListenersBuilder()
-                .withGenericKafkaListeners(
-                        new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withPort(9092)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
-                                .build()
-                ).build();
     }
 
     private Storage getStorage() {
@@ -144,5 +128,4 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .endPod()
             .build();
     }
-
 }
