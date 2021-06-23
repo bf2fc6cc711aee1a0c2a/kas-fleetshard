@@ -493,17 +493,37 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
-            .filter(s -> s instanceof JbodStorage)
-            .map(s -> (JbodStorage) s)
-            .map(s -> s.getVolumes().get(JBOD_VOLUME_ID))
-            .filter(v -> v instanceof PersistentClaimStorage)
-            .map(v -> (PersistentClaimStorage) v)
-            .filter(pcs -> KAFKA_STORAGE_CLASS.equals(pcs.getStorageClass()))
-            .ifPresentOrElse(
-                    old -> builder.withStorageClass(KAFKA_STORAGE_CLASS),
-                    () -> builder.withOverrides(getStorageOverrides(KAFKA_BROKERS)));
+                .map(this::getExistingVolumesFromJbodStorage)
+                .ifPresentOrElse(
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, KAFKA_BROKERS)),
+                        () -> builder.withOverrides(getStorageOverrides(KAFKA_BROKERS)));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
+    }
+
+    private <S extends Storage> List<SingleVolumeStorage> getExistingVolumesFromJbodStorage(S storage) {
+        if (storage instanceof JbodStorage) {
+            return ((JbodStorage) storage).getVolumes();
+        }
+        return null;
+    }
+
+    private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
+        if (v instanceof PersistentClaimStorage) {
+            PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
+            if (KAFKA_STORAGE_CLASS.equals(persistentClaimStorage.getStorageClass())) {
+                log.trace("Not setting storage overrides for pre-existing Kafka with storage class set");
+                builder.withStorageClass(KAFKA_STORAGE_CLASS);
+            } else if (!persistentClaimStorage.getOverrides().isEmpty()) {
+                log.trace("Reusing storage overrides on existing Kafka");
+                builder.withOverrides(persistentClaimStorage.getOverrides());
+            } else {
+                log.trace("Setting per-AZ storage overrides on Kafka");
+                builder.withOverrides(getStorageOverrides(numInstances));
+            }
+        } else {
+            log.error("Existing Volume is not an instance of PersistentClaimStorage. This shouldn't happen.");
+        }
     }
 
     private List<PersistentClaimStorageOverride> getStorageOverrides(int num) {
@@ -564,11 +584,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
-            .filter(s -> s instanceof PersistentClaimStorage)
-            .map(v -> (PersistentClaimStorage) v)
-            .filter(pcs -> KAFKA_STORAGE_CLASS.equals(pcs.getStorageClass()))
             .ifPresentOrElse(
-                    old -> builder.withStorageClass(KAFKA_STORAGE_CLASS),
+                    existing -> handleExistingVolume(existing, builder, ZOOKEEPER_NODES),
                     () -> builder.withOverrides(getStorageOverrides(ZOOKEEPER_NODES)));
 
         return builder.build();
