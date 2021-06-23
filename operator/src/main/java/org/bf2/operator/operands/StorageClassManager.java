@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class StorageClassManager {
 
+    private static final int EXPECTED_NUM_ZONES = 3;
+
     private static final String TOPOLOGY_KEY = "topology.kubernetes.io/zone";
 
     @Inject
@@ -48,7 +50,7 @@ public class StorageClassManager {
     }
 
     @PostConstruct
-    protected void onStart() throws InterruptedException {
+    protected void onStart() {
         MixedOperation<StorageClass, StorageClassList, Resource<StorageClass>> storageClasses =
                 kubernetesClient.storage().storageClasses();
 
@@ -101,19 +103,20 @@ public class StorageClassManager {
         List<StorageClass> storageClasses = storageClassesFrom(mapStorageClassesToZones(zones, cachedstorageClasses));
         storageClasses.stream().forEach(storageClass -> OperandUtils.createOrUpdate(kubernetesClient.storage().storageClasses(), storageClass));
 
-        if (storageClasses.size() >= 3) {
+        if (storageClasses.size() == EXPECTED_NUM_ZONES) {
             storageClassNames = storageClasses.stream().map(sc -> sc.getMetadata().getName()).sorted().collect(Collectors.toList());
-        } else {
+        } else if (storageClasses.isEmpty()) {
             String defaultStorageClass = storageClassInformer.getList().stream()
                     .filter(sc -> sc.getMetadata().getAnnotations() != null && "true".equals(sc.getMetadata().getAnnotations().get("storageclass.kubernetes.io/is-default-class")))
                     .map(sc -> sc.getMetadata().getName())
                     .findFirst().orElse("");
 
-            log.warn("Not enough AZs were discovered from node metadata, so the default storage class will be used instead: " + defaultStorageClass);
+            log.info("No AZs were discovered from node metadata, so the default storage class will be used instead: " + defaultStorageClass);
             storageClassNames = List.of(defaultStorageClass, defaultStorageClass, defaultStorageClass);
+        } else {
+            throw new RuntimeException(String.format("Wrong number of per-AZ StorageClasses found: %d", storageClasses.size()));
         }
     }
-
 
     private Map<String, StorageClass> mapStorageClassesToZones(List<String> zones, List<StorageClass> storageClasses) {
         Map<String, StorageClass> zonedStorageClasses = storageClasses.stream()
