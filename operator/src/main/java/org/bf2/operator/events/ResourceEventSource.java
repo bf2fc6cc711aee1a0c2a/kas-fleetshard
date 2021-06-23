@@ -9,8 +9,6 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.util.Objects;
-
 @ApplicationScoped
 public class ResourceEventSource extends AbstractEventSource implements ResourceEventHandler<HasMetadata> {
 
@@ -25,9 +23,6 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
 
     @Override
     public void onUpdate(HasMetadata oldResource, HasMetadata newResource) {
-        if (Objects.equals(oldResource.getMetadata().getResourceVersion(), newResource.getMetadata().getResourceVersion())) {
-            return; // no need to handle an event where nothing has changed
-        }
         log.debugf("Update event received for %s %s/%s", oldResource.getKind(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
         handleEvent(newResource, Watcher.Action.MODIFIED);
     }

@@ -24,6 +24,8 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.List;
+
 @Startup
 @ApplicationScoped
 public class InformerManager {
@@ -107,5 +109,16 @@ public class InformerManager {
                 && configMapInformer.isReady()
                 && secretInformer.isReady()
                 && (!isOpenShift() || routeInformer.isReady());
+    }
+
+    /**
+     * Trigger Kafka CR changes following external context changes.
+     */
+    public void resyncKafkas() {
+        List<Kafka> kafkaList = kafkaInformer.getList();
+        log.debugf("Kafka instances to be resynced: %d", kafkaList.size());
+        kafkaList.forEach(k -> {
+            this.eventSource.onUpdate(k, k);
+        });
     }
 }

@@ -55,10 +55,12 @@ import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
+import io.strimzi.api.kafka.model.template.PodDisruptionBudgetTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -132,6 +134,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
+    @Inject
+    protected DrainCleanerManager drainCleanerManager;
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         secretManager.createOrUpdate(managedKafka);
@@ -204,7 +209,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     /* test */
     @Override
     protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
-
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
         Kafka kafka = builder
@@ -243,7 +247,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endSpec()
                 .build();
 
-        // setting the ManagedKafka has owner of the Kafka resource is needed
+        // setting the ManagedKafka as owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly
         OperandUtils.setAsOwner(managedKafka, kafka);
 
@@ -358,14 +362,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
                 ).build();
 
-        return new KafkaClusterTemplateBuilder()
+        KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
                         .withAffinity(new AffinityBuilder()
                                 .withPodAntiAffinity(podAntiAffinity)
                                 .build())
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                        .build())
-                .build();
+                        .build());
+
+        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+            templateBuilder.withPodDisruptionBudget(
+                new PodDisruptionBudgetTemplateBuilder()
+                    .withMaxUnavailable(0)
+                    .build());
+        }
+
+        return templateBuilder.build();
     }
 
     private ZookeeperClusterTemplate getZookeeperTemplate(ManagedKafka managedKafka) {
@@ -375,14 +387,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         new PodAffinityTermBuilder().withTopologyKey("topology.kubernetes.io/zone").build()
                 ).build();
 
-        return new ZookeeperClusterTemplateBuilder()
+        ZookeeperClusterTemplateBuilder templateBuilder = new ZookeeperClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
                         .withAffinity(new AffinityBuilder()
                                 .withPodAntiAffinity(podAntiAffinity)
                                 .build())
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                        .build())
-                .build();
+                        .build());
+
+        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+            templateBuilder.withPodDisruptionBudget(
+                new PodDisruptionBudgetTemplateBuilder()
+                    .withMaxUnavailable(0)
+                    .build());
+        }
+
+        return templateBuilder.build();
     }
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
