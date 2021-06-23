@@ -4,10 +4,6 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.storage.EphemeralStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
@@ -34,6 +30,8 @@ import java.util.Map;
 @ApplicationScoped
 @IfBuildProperty(name = "kafka", stringValue = "dev")
 public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
+
+    public static final int KAFKA_BROKERS = 3;
 
     @Inject
     protected SecuritySecretManager secretManager;
@@ -73,8 +71,8 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                        .withReplicas(3)
-                        .withListeners(getListeners())
+                        .withReplicas(KAFKA_BROKERS)
+                        .withListeners(getListeners(managedKafka))
                         .withStorage(getStorage())
                         .withConfig(getKafkaConfig(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
@@ -106,18 +104,6 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         return config;
     }
 
-    private ArrayOrObjectKafkaListeners getListeners() {
-        return new ArrayOrObjectKafkaListenersBuilder()
-                .withGenericKafkaListeners(
-                        new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withPort(9092)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
-                                .build()
-                ).build();
-    }
-
     private Storage getStorage() {
         return new EphemeralStorageBuilder().build();
     }
@@ -144,5 +130,4 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .endPod()
             .build();
     }
-
 }
