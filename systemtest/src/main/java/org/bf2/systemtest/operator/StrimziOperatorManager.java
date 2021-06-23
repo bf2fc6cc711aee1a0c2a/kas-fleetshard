@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.NamespaceFluent.MetadataNested;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
@@ -54,8 +53,8 @@ public class StrimziOperatorManager {
     protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws MalformedURLException, IOException {
         LOGGER.info("Installing Strimzi : {}", operatorNs);
 
-        MetadataNested<NamespaceBuilder> withName = new NamespaceBuilder().withNewMetadata().withName(operatorNs);
-        kubeClient.client().namespaces().createOrReplace(namespaceToCreate(withName));
+        Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
+        kubeClient.client().namespaces().createOrReplace(namespace);
         URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
 
         // modify namespaces, convert rolebinding to clusterrolebindings, update deployment if needed
@@ -86,7 +85,7 @@ public class StrimziOperatorManager {
                         .build();
 
                 LOGGER.info("Creating {} named {}", crb.getKind(), crb.getMetadata().getName());
-                createClusterRoleBinding(kubeClient, crb);
+                kubeClient.client().rbac().clusterRoleBindings().createOrReplace(crb);
                 clusterWideResourceDeleters.add(unused -> {
                     kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
                 });
@@ -101,15 +100,6 @@ public class StrimziOperatorManager {
                 TestUtils.isPodReady(kubeClient.client().pods().inNamespace(operatorNs)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
-    }
-
-    // needed only until the strimzi version is aligned between perf and systemtest
-    protected void createClusterRoleBinding(KubeClient kubeClient, ClusterRoleBinding crb) {
-        kubeClient.client().rbac().clusterRoleBindings().createOrReplace(crb);
-    }
-
-    protected Namespace namespaceToCreate(MetadataNested<NamespaceBuilder> withName) {
-        return withName.endMetadata().build();
     }
 
     protected void modifyDeployment(Deployment deployment) {

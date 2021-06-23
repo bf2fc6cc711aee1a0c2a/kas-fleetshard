@@ -27,15 +27,17 @@ import java.util.concurrent.TimeoutException;
  */
 public class KafkaDeployment {
     private static final Logger LOGGER = LogManager.getLogger(KafkaDeployment.class);
+    private final ClusterKafkaProvisioner provisioner;
     private final KubeClusterResource cluster;
     private final Kafka kafka;
     private final CompletableFuture<String> readyFuture = new CompletableFuture<>();
     private final ManagedKafka managedKafka;
 
-    public KafkaDeployment(ManagedKafka managedKafka, Kafka kafka, KubeClusterResource cluster) {
+    public KafkaDeployment(ManagedKafka managedKafka, Kafka kafka, ClusterKafkaProvisioner clusterKafkaProvisioner) {
         this.managedKafka = managedKafka;
         this.kafka = kafka;
-        this.cluster = cluster;
+        this.provisioner = clusterKafkaProvisioner;
+        this.cluster = clusterKafkaProvisioner.getKubernetesCluster();
     }
 
     public void start() {
@@ -115,7 +117,7 @@ public class KafkaDeployment {
                     if (ready.isPresent() && ready.get() && bootstrap.isPresent()) {
                         LOGGER.info("Cluster {} deployed", managedKafka.getMetadata().getName());
                         TestMetadataCapture.getInstance().storeKafkaCluster(cluster, kafka);
-                        Monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), managedKafka.getMetadata().getNamespace());
+                        provisioner.getMonitoring().connectNamespaceToMonitoringStack(cluster.kubeClient(), managedKafka.getMetadata().getNamespace());
                         return bootstrap.get();
                     }
                 }

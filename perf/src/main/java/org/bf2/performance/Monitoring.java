@@ -10,8 +10,7 @@ import org.bf2.test.k8s.KubeClient;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -19,19 +18,19 @@ import java.util.Set;
  */
 public class Monitoring {
     private static final Logger LOGGER = LogManager.getLogger(Monitoring.class);
-    private static final List<String> SCRAPED_NAMESPACES = new LinkedList<>();
+    private final Set<String> scrappedNamespaces = new LinkedHashSet<>();
 
     /**
      * Installs monitoring stack if not exists and connect namespace to scrape in case it is not already connected
      *
      * @param namespace namespace to scrape
      */
-    public static void connectNamespaceToMonitoringStack(KubeClient kubeClient, String namespace) throws IOException {
+    public void connectNamespaceToMonitoringStack(KubeClient kubeClient, String namespace) throws IOException {
         LOGGER.info("Installing monitoring stack and adding {} into stack", namespace);
-        if ((Files.exists(Environment.MONITORING_STUFF_DIR) && !SCRAPED_NAMESPACES.contains(namespace)) ||
+        if ((Files.exists(Environment.MONITORING_STUFF_DIR) && !scrappedNamespaces.contains(namespace)) ||
                 kubeClient.client().namespaces().withName("managed-services-monitoring-grafana").get() == null
                 || kubeClient.client().namespaces().withName("managed-services-monitoring-prometheus").get() == null) {
-            addNamespace(namespace);
+            scrappedNamespaces.add(namespace);
             ExecResult res = new ExecBuilder()
                     .withCommand("make",
                             "--directory", Environment.MONITORING_STUFF_DIR.toString(), "install/monitoring/cluster")
@@ -39,8 +38,8 @@ public class Monitoring {
                             new EnvVarBuilder().withName("KUBECONFIG").withValue(Environment.KAFKA_KUBECONFIG).build(),
                             new EnvVarBuilder().withName("PROMETHEUS_REMOTE_WRITE_URL").withValue(Environment.THANOS_URL).build(),
                             new EnvVarBuilder().withName("CLUSTER_ID").withValue("perf-test-cluster").build(),
-                            new EnvVarBuilder().withName("METRICS_SCRAPE_NAMESPACES").withValue(String.join(",", SCRAPED_NAMESPACES)).build(),
-                            new EnvVarBuilder().withName("LOG_SCRAPE_NAMESPACES").withValue(String.join(",", SCRAPED_NAMESPACES)).build()))
+                            new EnvVarBuilder().withName("METRICS_SCRAPE_NAMESPACES").withValue(String.join(",", scrappedNamespaces)).build(),
+                            new EnvVarBuilder().withName("LOG_SCRAPE_NAMESPACES").withValue(String.join(",", scrappedNamespaces)).build()))
                     .logToOutput(false)
                     .exec();
             if (!res.exitStatus()) {
@@ -56,8 +55,8 @@ public class Monitoring {
                                 new EnvVarBuilder().withName("KUBECONFIG").withValue(Environment.KAFKA_KUBECONFIG).build(),
                                 new EnvVarBuilder().withName("OBSERVATORIUM_APPS_URL").withValue(Environment.OBSERVATORIUM_ROUTE).build(),
                                 new EnvVarBuilder().withName("CLUSTER_ID").withValue("perf-test-cluster").build(),
-                                new EnvVarBuilder().withName("METRICS_SCRAPE_NAMESPACES").withValue(String.join(",", SCRAPED_NAMESPACES)).build(),
-                                new EnvVarBuilder().withName("LOG_SCRAPE_NAMESPACES").withValue(String.join(",", SCRAPED_NAMESPACES)).build()))
+                                new EnvVarBuilder().withName("METRICS_SCRAPE_NAMESPACES").withValue(String.join(",", scrappedNamespaces)).build(),
+                                new EnvVarBuilder().withName("LOG_SCRAPE_NAMESPACES").withValue(String.join(",", scrappedNamespaces)).build()))
                         .logToOutput(false)
                         .exec();
                 if (!res.exitStatus()) {
@@ -70,9 +69,4 @@ public class Monitoring {
         }
     }
 
-    private static void addNamespace(String namespace) {
-        if (!SCRAPED_NAMESPACES.contains(namespace)) {
-            SCRAPED_NAMESPACES.add(namespace);
-        }
-    }
 }

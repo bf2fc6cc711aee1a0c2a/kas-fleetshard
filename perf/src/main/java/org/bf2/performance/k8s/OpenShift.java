@@ -25,7 +25,7 @@ public class OpenShift implements KubeCluster {
         // TODO: enable with fabric8 5.5+
         //config.setRequestRetryBackoffInterval(1000);
         //config.setRequestRetryBackoffLimit(5);
-        return new KubeClient(new DefaultOpenShiftClient(new OpenShiftConfig(config)));
+        return new KubeClient(new DefaultOpenShiftClient(new OpenShiftConfig(config)), kubeconfig);
     }
 
     @Override

@@ -30,19 +30,19 @@ public class KubeClient {
     private final KubernetesClient client;
     private static KubeClient instance;
 
-    public KubeClient(KubernetesClient client) {
+    public KubeClient(KubernetesClient client, String kubeConfig) {
         this.client = client;
         if (isGenericKubernetes()) {
             LOGGER.info("Running tests against generic kubernetes cluster");
             this.cmdClient = new Kubectl();
         } else {
             LOGGER.info("Running tests against openshift cluster");
-            this.cmdClient = new Oc();
+            this.cmdClient = new Oc(kubeConfig);
         }
     }
 
     private KubeClient() {
-        this(new DefaultKubernetesClient());
+        this(new DefaultKubernetesClient(), null);
     }
 
     /**

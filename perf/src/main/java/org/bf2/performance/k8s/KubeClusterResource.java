@@ -28,7 +28,6 @@ public class KubeClusterResource {
 
     private final String name;
     private KubeCluster kubeCluster;
-    private KubeCmdClient<?> cmdClient;
     private KubeClient client;
 
     public KubeClusterResource(String kubeconfig) {
@@ -37,8 +36,7 @@ public class KubeClusterResource {
         try {
             kubeCluster = KubeCluster.bootstrap();
             client = kubeCluster.defaultClient(kubeconfig);
-            cmdClient = kubeCluster.defaultCmdClient(kubeconfig, client);
-            LOGGER.info("Cluster {} default namespace is {}", kubeconfig, cmdClient.defaultNamespace());
+            LOGGER.info("Cluster {} default namespace is {}", kubeconfig, client.cmdClient().defaultNamespace());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -50,17 +48,7 @@ public class KubeClusterResource {
      * @return CMD client
      */
     public KubeCmdClient<?> cmdKubeClient() {
-        return cmdClient;
-    }
-
-    /**
-     * Provides appropriate CMD client with expected namespace for running cluster
-     *
-     * @param inNamespace Namespace will be used as a current namespace for client
-     * @return CMD client with expected namespace in configuration
-     */
-    public KubeCmdClient<?> cmdKubeClient(String inNamespace) {
-        return cmdClient.namespace(inNamespace);
+        return client.cmdClient();
     }
 
     /**
@@ -83,13 +71,6 @@ public class KubeClusterResource {
             }
         }
         return zones.size() > 1;
-    }
-
-    /**
-     * Gets the namespace in use
-     */
-    public String defaultNamespace() {
-        return cmdClient.defaultNamespace();
     }
 
     public String getName() {
