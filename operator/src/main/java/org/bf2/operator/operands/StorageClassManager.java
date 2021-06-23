@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.quarkus.runtime.Startup;
+import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.jboss.logging.Logger;
@@ -78,7 +79,8 @@ public class StorageClassManager {
         reconcileStorageClasses();
     }
 
-    private void reconcileStorageClasses() {
+    @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void reconcileStorageClasses() {
         if (null == nodeInformer || !nodeInformer.isReady() || null == storageClassInformer || !storageClassInformer.isReady()) {
             log.warn("Informers not yet initialized or ready");
             return;
