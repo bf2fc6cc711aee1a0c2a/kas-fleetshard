@@ -82,7 +82,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
                                       int clients, String kafkaContainerMemory, String kafkaJavaMemory, TestInfo info) throws Exception {
         ManagedKafkaCapacity config = KafkaConfigurations.defaultCapacity(throughput);
         doTestValueProdMinimum(config, workerProducerRate, clients,
-                "4Gi", "2Gi", kafkaContainerMemory, kafkaJavaMemory, null, 10, 205,
+                "4Gi", "2Gi", kafkaContainerMemory, kafkaJavaMemory, "2000m", 10, 205,
                 String.format("kf%s-%s", kafkaContainerMemory, kafkaJavaMemory), info.getDisplayName());
     }
 
