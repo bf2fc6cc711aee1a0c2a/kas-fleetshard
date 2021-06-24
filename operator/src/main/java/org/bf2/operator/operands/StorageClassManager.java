@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.OperandUtils;
@@ -24,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Startup
@@ -89,18 +91,18 @@ public class StorageClassManager {
         }
 
         List<String> zones = nodeInformer.getList().stream()
-                .filter(Objects::nonNull)
+                .filter(node -> node != null && node.getMetadata().getLabels() != null)
                 .map(node -> node.getMetadata().getLabels().get(TOPOLOGY_KEY))
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
 
-        List<StorageClass> cachedstorageClasses = storageClassInformer.getList().stream()
-                .filter(Objects::nonNull)
-                .filter(sc -> sc.getMetadata().getLabels() != null)
-                .filter(sc -> sc.getMetadata().getLabels().containsKey(OperandUtils.getDefaultLabels().keySet().iterator().next()))
-                .collect(Collectors.toList());
+        Map<String, StorageClass> zoneToStorageClass = zones.stream()
+                .collect(Collectors.toMap(Function.identity(),
+                        z -> storageClassInformer.getByKey(Cache.namespaceKeyFunc(null, "kas-" + z))));
 
-        List<StorageClass> storageClasses = storageClassesFrom(mapStorageClassesToZones(zones, cachedstorageClasses));
+        List<StorageClass> storageClasses = storageClassesFrom(zoneToStorageClass);
+
         storageClasses.stream().forEach(storageClass -> OperandUtils.createOrUpdate(kubernetesClient.storage().storageClasses(), storageClass));
 
         if (storageClasses.size() == EXPECTED_NUM_ZONES) {
@@ -116,20 +118,6 @@ public class StorageClassManager {
         } else {
             throw new RuntimeException(String.format("Wrong number of per-AZ StorageClasses found: %d", storageClasses.size()));
         }
-    }
-
-    private Map<String, StorageClass> mapStorageClassesToZones(List<String> zones, List<StorageClass> storageClasses) {
-        Map<String, StorageClass> zonedStorageClasses = storageClasses.stream()
-                .filter(sc -> sc.getMetadata().getLabels().containsKey(TOPOLOGY_KEY))
-                .collect(Collectors.toMap(sc -> sc.getMetadata().getLabels().get(TOPOLOGY_KEY), sc -> sc));
-
-        zones.forEach(zone -> {
-            if (!zonedStorageClasses.keySet().contains(zone)) {
-                zonedStorageClasses.put(zone, null);
-            }
-        });
-
-        return zonedStorageClasses;
     }
 
     private List<StorageClass> storageClassesFrom(Map<String, StorageClass> storageClasses) {
