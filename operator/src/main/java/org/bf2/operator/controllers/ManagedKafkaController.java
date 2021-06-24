@@ -1,6 +1,5 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -36,9 +35,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     Logger log;
-
-    @Inject
-    KubernetesClient kubernetesClient;
 
     @Inject
     ResourceEventSource eventSource;
