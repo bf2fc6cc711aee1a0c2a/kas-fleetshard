@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
@@ -93,7 +92,7 @@ public class KafkaDeployment {
                     Optional<ManagedKafkaCondition> ready = status.getConditions().stream().filter(c -> ManagedKafkaCondition.Type.Ready.name().equals(c.getType())).findFirst();
                     if (ready.isPresent()) {
                         if (Boolean.valueOf(ready.get().getStatus())) {
-                            return String.format("%s:%s", currentManagedKafka.getSpec().getEndpoint().getBootstrapServerHost(), AbstractKafkaCluster.EXTERNAL_PORT);
+                            return String.format("%s:%s", currentManagedKafka.getSpec().getEndpoint().getBootstrapServerHost(), 443);
                         } else if (ManagedKafkaCondition.Reason.Error.name().equals(ready.get().getReason())) {
                             throw new IllegalStateException("Error creating ManagedKafka");
                         }

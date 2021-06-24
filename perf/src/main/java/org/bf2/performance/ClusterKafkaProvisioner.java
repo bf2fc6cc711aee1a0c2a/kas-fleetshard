@@ -69,8 +69,8 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         cluster.connectNamespaceToMonitoringStack(StrimziOperatorManager.OPERATOR_NS);
 
         // installs a cluster wide fleetshard operator
-        FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
         // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
+        FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
         cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
 
@@ -148,7 +148,6 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         managedKafka.getSpec().getEndpoint().setBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", managedKafka.getMetadata().getName(), namespace, domain));
 
         // Create cluster CA.
-        // TODO: is this needed?
         cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName(String.format("%s-cluster-ca", managedKafka.getMetadata().getName()))
@@ -179,34 +178,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
             ConfigMap zookeeperMetrics = configMapClient.load(ClusterKafkaProvisioner.class.getClassLoader().getResource("zookeeper-metrics.yaml")).get();
             zookeeperMetrics.getMetadata().setName(managedKafka.getMetadata().getName() + "-zookeeper-metrics");
             configMapClient.createOrReplace(zookeeperMetrics);
-
-            // set by the operator
-            // kafka.getSpec().setKafkaExporter(new KafkaExporterSpecBuilder()
-               // .withGroupRegex(".*")
-               // .withTopicRegex(".*")
-               // .build());
         }
-
-        // handled by the operator
-        /* List<GenericKafkaListener> listeners = kafka.getSpec().getKafka().getListeners().getGenericKafkaListeners();
-        if (listeners != null) {
-            listeners.forEach(l -> {
-                if (KafkaListenerType.ROUTE.equals(l.getType())) {
-                    GenericKafkaListenerConfigurationBuilder genericKafkaListenerConfigurationBuilder = new GenericKafkaListenerConfigurationBuilder()
-                            .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
-                                    .withHost(String.format("%s-kafka-bootstrap-%s.%s", kafka.getMetadata().getName(), kafka.getMetadata().getNamespace(), domain))
-                                    .build());
-
-                    for (int i = 0; i < kafka.getSpec().getKafka().getReplicas(); i++) {
-                        genericKafkaListenerConfigurationBuilder.addNewBroker()
-                                .withBroker(i)
-                                .withHost(String.format("%s-kafka-%d-%s.%s", kafka.getMetadata().getName(), i, kafka.getMetadata().getNamespace(), domain))
-                                .endBroker();
-                    }
-                    l.setConfiguration(genericKafkaListenerConfigurationBuilder.build());
-                }
-            });
-        }*/
 
         var managedKakfaClient = cluster.kubeClient().client().customResources(ManagedKafka.class);
 
