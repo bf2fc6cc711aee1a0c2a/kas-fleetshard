@@ -45,6 +45,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.DrainCleanerManager;
+import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;

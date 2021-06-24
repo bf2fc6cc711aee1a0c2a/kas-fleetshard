@@ -1,4 +1,4 @@
-package org.bf2.operator.operands;
+package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.TopologySelectorLabelRequirement;
@@ -112,7 +112,7 @@ public class StorageClassManager {
                     .map(sc -> sc.getMetadata().getName())
                     .findFirst().orElse("");
 
-            log.info("No AZs were discovered from node metadata, so the default storage class will be used instead: " + defaultStorageClass);
+            log.infof("No AZs were discovered from node metadata, so the default storage class will be used instead: %s", defaultStorageClass);
             storageClassNames = List.of(defaultStorageClass, defaultStorageClass, defaultStorageClass);
         } else {
             throw new RuntimeException(String.format("Wrong number of per-AZ StorageClasses found: %d", storageClasses.size()));
