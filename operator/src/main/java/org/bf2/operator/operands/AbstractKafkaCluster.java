@@ -47,7 +47,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public boolean isInstalling(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isInstalling = kafka == null || kafka.getStatus() == null ||
-                kafkaCondition(kafka, c->c.getType().equals("NotReady")
+                kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("NotReady")
                 && c.getStatus().equals("True")
                 && c.getReason().equals("Creating"));
         log.tracef("KafkaCluster isInstalling = %s", isInstalling);
@@ -58,7 +58,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public boolean isReady(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReady = kafka != null && (kafka.getStatus() == null ||
-                kafkaCondition(kafka, c->c.getType().equals("Ready") && c.getStatus().equals("True")));
+                kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("Ready") && c.getStatus().equals("True")));
         log.tracef("KafkaCluster isReady = %s", isReady);
         return isReady;
     }
@@ -67,7 +67,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public boolean isError(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isError = kafka != null && kafka.getStatus() != null
-            && kafkaCondition(kafka, c->c.getType().equals("NotReady")
+            && kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("NotReady")
             && c.getStatus().equals("True")
             && !c.getReason().equals("Creating"));
         log.tracef("KafkaCluster isError = %s", isError);
@@ -77,7 +77,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public boolean isReconciliationPaused(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
-                && kafkaCondition(kafka, c->c.getType().equals("ReconciliationPaused")
+                && kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("ReconciliationPaused")
                 && c.getStatus().equals("True"));
         log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
         return isReconciliationPaused;

@@ -109,7 +109,7 @@ public class StrimziManager {
     private String currentStrimziVersion(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         // on first time Kafka resource creation, we take the Strimzi version from the ManagedKafka resource spec
-        String kafkaStrimziVersion = kafka != null && kafka.getMetadata().getLabels() != null ?
+        String kafkaStrimziVersion = kafka != null && kafka.getMetadata().getLabels() != null && kafka.getMetadata().getLabels().containsKey(this.versionLabel) ?
                 kafka.getMetadata().getLabels().get(this.versionLabel) :
                 managedKafka.getSpec().getVersions().getStrimzi();
         return kafkaStrimziVersion;
