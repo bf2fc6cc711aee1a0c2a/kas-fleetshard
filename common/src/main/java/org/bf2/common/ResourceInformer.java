@@ -9,13 +9,11 @@ import io.fabric8.kubernetes.client.WatcherException;
 import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
-import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,8 +25,9 @@ import java.util.stream.Collectors;
  * <br>https://github.com/fabric8io/kubernetes-client/issues/2991
  *
  * <br>All updates to the cache happen from the Watcher thread.
- * <br>All calls to the ResourceEventHandler happen inline - it's expected to be fast/non-blocking.
- * <br>start forces the initial sync inline with the calling thread.
+ * <br>All calls to the ResourceEventHandler happen from either the calling or Watcher thread - it's expected to be fast/non-blocking.
+ * <br>start forces the initial sync inline with the calling thread - which may be relied upon in code that use the inform
+ *     upstream fabric8-client should be able to accomodate this behavior in 5.5 with the Informable interface.
  */
 public class ResourceInformer<T extends HasMetadata> {
     private static final int WATCH_WAIT = 5000; // time between watch attempts
@@ -42,9 +41,7 @@ public class ResourceInformer<T extends HasMetadata> {
     private ConcurrentHashMap<String, T> cache = new ConcurrentHashMap<>();
 
     private volatile String lastResourceVersion;
-    private volatile boolean ready;
-
-    private static Optional<Long> WATCH_TIMEOUT = ConfigProvider.getConfig().getOptionalValue("resourceinformer.watch.timeout.seconds", Long.class);
+    private volatile boolean watching;
 
     private Watcher<T> watcher = new Watcher<T>() {
         @Override
@@ -71,36 +68,29 @@ public class ResourceInformer<T extends HasMetadata> {
          */
         @Override
         public void onClose(WatcherException cause) {
-            boolean restarted = false;
-            try {
-                log.infof("%s Informer watch needs restarted", typeName, cause);
-                if (cause.isHttpGone()) {
-                    try {
+            log.infof("%s Informer watch needs restarted", typeName, cause);
+            boolean gone = cause.isHttpGone();
+            while (true) {
+                try {
+                    if (gone) {
                         list();
-                    } catch (Exception e) {
-                        log.warnf("%s Informer Error re-listing", typeName, e);
-                    }
-                } else {
-                    try {
+                        gone = false;
+                    } else {
+                        watching = false;
                         // note this (and the other watch restart not related to a relist) should not necessary
                         // in 5.3.1 or later with reconnecting support see https://github.com/fabric8io/kubernetes-client/pull/3018
                         Thread.sleep(WATCH_WAIT);
-                    } catch (InterruptedException e) {
-                        log.warn("Terminating watch due to interrupt");
-                        Thread.currentThread().interrupt();
-                        return;
                     }
-                }
-                try {
                     watch();
-                    restarted = true;
+                    return;
+                } catch (InterruptedException e) {
+                    watching = false;
+                    log.warn("Terminating watch due to interrupt");
+                    Thread.currentThread().interrupt();
+                    return;
                 } catch (Exception e) {
+                    watching = false;
                     log.errorf("Error restarting %s informer watch", typeName, e);
-                }
-            } finally {
-                if (!restarted) {
-                    log.errorf("%s Informer watch was not successfully restarted", typeName);
-                    ready = false;
                 }
             }
         }
@@ -108,26 +98,19 @@ public class ResourceInformer<T extends HasMetadata> {
         @Override
         public void onClose() {
             log.errorf("%s Informer watch closing without error", typeName);
-            ready = false;
+            watching = false;
             throw new IllegalStateException();
         }
 
     };
 
-    public static <T extends HasMetadata> ResourceInformer<T> start(Class<T> type,
-            WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
-            ResourceEventHandler<? super T> eventHandler) {
-        ResourceInformer<T> result = new ResourceInformer<>(type, watchListDeletable, eventHandler);
-        result.list();
-        result.watch();
-        return result;
-    }
-
-    private ResourceInformer(Class<T> type, WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
+    ResourceInformer(Class<T> type, WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
         this.typeName = type.getSimpleName();
         this.watchListDeletable = watchListDeletable;
         this.eventHandler = eventHandler;
+        list();
+        watch();
     }
 
     private void watch() {
@@ -135,9 +118,8 @@ public class ResourceInformer<T extends HasMetadata> {
         watchListDeletable.watch(new ListOptionsBuilder()
                 .withWatch(Boolean.TRUE)
                 .withResourceVersion(lastResourceVersion)
-                .withTimeoutSeconds(WATCH_TIMEOUT.orElseGet(()->null))
                 .build(), watcher);
-        ready = true;
+        watching = true;
     }
 
     private void list() {
@@ -197,8 +179,8 @@ public class ResourceInformer<T extends HasMetadata> {
         return lastResourceVersion;
     }
 
-    public boolean isReady() {
-        return ready;
+    public boolean isWatching() {
+        return watching;
     }
 
 }

@@ -6,7 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.quarkus.runtime.Startup;
-import org.bf2.common.ResourceInformer;
+import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.KafkaCluster;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -30,6 +30,9 @@ public class DrainCleanerManager {
     @Inject
     KubernetesClient kubernetesClient;
 
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
     @ConfigProperty(name = "drain.cleaner.webhook.label.key")
     String drainCleanerWebhookLabelKey;
 
@@ -50,7 +53,7 @@ public class DrainCleanerManager {
                 .validatingWebhookConfigurations()
                 .withLabel(drainCleanerWebhookLabelKey, drainCleanerWebhookLabelValue);
 
-        ResourceInformer.start(ValidatingWebhookConfiguration.class,
+        resourceInformerFactory.create(ValidatingWebhookConfiguration.class,
             withLabel,
             new ResourceEventHandler<ValidatingWebhookConfiguration>() {
                 @Override

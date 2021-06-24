@@ -20,5 +20,4 @@ public interface LocalLookup {
 
     ManagedKafkaAgent getLocalManagedKafkaAgent();
 
-    boolean isReady();
 }

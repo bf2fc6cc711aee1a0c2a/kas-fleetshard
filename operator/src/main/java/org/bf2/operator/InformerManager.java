@@ -17,6 +17,7 @@ import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
+import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.events.ResourceEventSource;
 import org.jboss.logging.Logger;
 
@@ -39,6 +40,9 @@ public class InformerManager {
     @Inject
     ResourceEventSource eventSource;
 
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
     private ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
@@ -53,18 +57,18 @@ public class InformerManager {
 
     @PostConstruct
     protected void onStart() {
-        kafkaInformer = ResourceInformer.start(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
+        kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
 
-        deploymentInformer = ResourceInformer.start(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
+        deploymentInformer = resourceInformerFactory.create(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
 
-        serviceInformer = ResourceInformer.start(Service.class, filter(kubernetesClient.services()), eventSource);
+        serviceInformer = resourceInformerFactory.create(Service.class, filter(kubernetesClient.services()), eventSource);
 
-        configMapInformer = ResourceInformer.start(ConfigMap.class, filter(kubernetesClient.configMaps()), eventSource);
+        configMapInformer = resourceInformerFactory.create(ConfigMap.class, filter(kubernetesClient.configMaps()), eventSource);
 
-        secretInformer = ResourceInformer.start(Secret.class, filter(kubernetesClient.secrets()), eventSource);
+        secretInformer = resourceInformerFactory.create(Secret.class, filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = ResourceInformer.start(Route.class, filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
+            routeInformer = resourceInformerFactory.create(Route.class, filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
     }
 
@@ -100,15 +104,6 @@ public class InformerManager {
             log.warn("Not running on OpenShift cluster, Routes are not available");
             return null;
         }
-    }
-
-    public boolean isReady() {
-        return kafkaInformer.isReady()
-                && deploymentInformer.isReady()
-                && serviceInformer.isReady()
-                && configMapInformer.isReady()
-                && secretInformer.isReady()
-                && (!isOpenShift() || routeInformer.isReady());
     }
 
     /**

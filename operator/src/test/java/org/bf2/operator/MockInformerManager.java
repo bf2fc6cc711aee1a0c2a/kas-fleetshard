@@ -57,9 +57,4 @@ public class MockInformerManager extends InformerManager {
         return kubeClient.services().inNamespace(namespace).withName(name).get();
     }
 
-    @Override
-    public boolean isReady() {
-        return true;
-    }
-
 }

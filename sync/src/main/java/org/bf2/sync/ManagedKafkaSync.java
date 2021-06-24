@@ -248,10 +248,6 @@ public class ManagedKafkaSync {
 
     @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void pollKafkaClusters() {
-        if (!lookup.isReady()) {
-            log.debug("Not ready to poll, the lookup is not ready");
-            return;
-        }
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
         // based upon a delta revision / timestmap to get a smaller list

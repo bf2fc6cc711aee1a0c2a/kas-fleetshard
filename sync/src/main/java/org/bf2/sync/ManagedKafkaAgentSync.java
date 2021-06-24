@@ -34,10 +34,6 @@ public class ManagedKafkaAgentSync {
     @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of polling calls")
     @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void loop() {
-        if (!lookup.isReady()) {
-            log.debug("Not ready to poll, the lookup is not ready");
-            return;
-        }
         ManagedKafkaAgent managedKafkaAgent = controlPlane.getManagedKafkaAgent();
         Objects.requireNonNull(managedKafkaAgent);
         createOrUpdateManagedKafkaAgent(managedKafkaAgent);

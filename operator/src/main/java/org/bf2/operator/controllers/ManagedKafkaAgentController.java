@@ -89,10 +89,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
     @Scheduled(every = "{agent.status.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void statusUpdateLoop() {
-        if (!manager.isReady()) {
-            log.debug("Not ready to update agent status, the informers are not reader");
-            return;
-        }
         ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
         if (resource != null) {
             // check and reinstate if the observability config changed
