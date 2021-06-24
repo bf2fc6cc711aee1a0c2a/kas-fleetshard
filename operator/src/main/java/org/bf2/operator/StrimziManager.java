@@ -22,6 +22,7 @@ import java.util.Optional;
 @ApplicationScoped
 public class StrimziManager {
 
+    public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
     public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
 
     @Inject
@@ -53,14 +54,14 @@ public class StrimziManager {
             if (kafkaCluster.isReady(managedKafka)) {
                 pauseReconcile(managedKafka, annotations);
                 annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
-            // Kafka cluster reconcile is paused --> unpause to restart reconcile
-            } else if (kafkaCluster.isReconciliationPaused(managedKafka)) {
+            // Kafka cluster reconcile is paused because of Strimzi updating --> unpause to restart reconcile
+            } else if (kafkaCluster.isReconciliationPaused(managedKafka) && isPauseReasonStrimziUpdate(annotations)) {
                 unpauseReconcile(managedKafka, annotations);
             }
         } else {
-            // Strimzi version is consistent, Kafka is running and ready --> remove any reason for a previous pausing
+            // Strimzi version is consistent, Kafka is running and ready --> remove pausing reason for Strimzi updatingf
             if (kafkaCluster.isReady(managedKafka)) {
-                if (annotations.containsKey(STRIMZI_PAUSE_REASON_ANNOTATION)) {
+                if (isPauseReasonStrimziUpdate(annotations)) {
                     annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
                 }
             }
@@ -122,9 +123,9 @@ public class StrimziManager {
      * @param annotations Kafka custom resource annotations on which adding the pause
      */
     private void pauseReconcile(ManagedKafka managedKafka, Map<String, String> annotations) {
-        if (!annotations.containsKey("strimzi.io/pause-reconciliation")) {
+        if (!annotations.containsKey(STRIMZI_PAUSE_RECONCILE_ANNOTATION)) {
             log.debugf("Pause reconcile for %s", managedKafka.getMetadata().getName());
-            annotations.put("strimzi.io/pause-reconciliation", "true");
+            annotations.put(STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true");
         }
     }
 
@@ -136,10 +137,21 @@ public class StrimziManager {
      * @param annotations Kafka custom resource annotations from which removing the pause
      */
     private void unpauseReconcile(ManagedKafka managedKafka, Map<String, String> annotations) {
-        if (annotations.containsKey("strimzi.io/pause-reconciliation")) {
+        if (annotations.containsKey(STRIMZI_PAUSE_RECONCILE_ANNOTATION)) {
             log.debugf("Unpause reconcile for %s", managedKafka.getMetadata().getName());
-            annotations.remove("strimzi.io/pause-reconciliation");
+            annotations.remove(STRIMZI_PAUSE_RECONCILE_ANNOTATION);
         }
+    }
+
+    /**
+     * Check if Kafka reconcile is paused due to Strimzi updating request
+     *
+     * @param annotations Kafka custom resource annotations from which checking the pause reason
+     * @return if pausing is due to Strimzi updating
+     */
+    private boolean isPauseReasonStrimziUpdate(Map<String, String> annotations) {
+        return annotations.containsKey(STRIMZI_PAUSE_REASON_ANNOTATION) &&
+                annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION).equals(ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
     }
 
     private Kafka cachedKafka(ManagedKafka managedKafka) {
