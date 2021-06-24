@@ -31,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.performance.framework.ActualTestMetadata;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestMetadataCapture;
+import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.File;
@@ -50,12 +51,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -174,9 +175,12 @@ public class OMB {
             LOGGER.info("Found {} pods, expecting {}", pods.size(), workers);
             Thread.sleep(5000);
         }
-        for (Pod pod : pods) {
-            ombCluster.kubeClient().client().pods().inNamespace(Constants.OMB_NAMESPACE).withName(pod.getMetadata().getName()).waitUntilReady(10, TimeUnit.MINUTES);
+        CompletableFuture<?>[] ready = new CompletableFuture<?>[pods.size()];
+        for (int i = 0; i < pods.size(); i++) {
+            Pod pod = pods.get(i);
+            ready[i] = TestUtils.asyncWaitFor("pod ready", 1_000, 600_000, () -> ombCluster.kubeClient().client().pods().inNamespace(Constants.OMB_NAMESPACE).withName(pod.getMetadata().getName()).isReady());
         }
+        CompletableFuture.allOf(ready).get();
 
         HttpClient client = HttpClient.newHttpClient();
         List<URI> notReady = hostnames.stream().map(u -> u + "/counters-stats").map(URI::create).collect(Collectors.toList());

@@ -88,8 +88,7 @@ mvn clean -Pquickly package -pl operator,sync \
 -Dquarkus.container-image.group=${USER} \
 -Dquarkus.container-image.tag=latest \
 -Dquarkus.container-image.build=true \
--Dquarkus.container-image.push=true \
--Dquarkus.kubernetes.env.vars.\"image.kafka\"="quay.io/mk-ci-cd/kafka-27@sha256:4490251a47a0e3efc472cb9416fb8234022dd6951145f6cd851f10956a0483c3"
+-Dquarkus.container-image.push=true
 ```
 
 ## Running tests

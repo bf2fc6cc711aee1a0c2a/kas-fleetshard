@@ -3,11 +3,8 @@ package org.bf2.performance;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -29,9 +26,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Abstraction for managing strimzi/kafka
@@ -59,14 +54,6 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
     @Override
     public KubeClusterResource getKubernetesCluster() {
         return cluster;
-    }
-
-    protected void awaitKafkaDeploymentRemoval(MixedOperation<ManagedKafka, KubernetesResourceList<ManagedKafka>, Resource<ManagedKafka>> client, ManagedKafka k) {
-        try {
-            client.inNamespace(k.getMetadata().getNamespace()).withName(k.getMetadata().getName()).waitUntilCondition(Objects::isNull, 600, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 
     @Override
@@ -142,7 +129,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         kafkaIterator = clusters.iterator();
         while (kafkaIterator.hasNext()) {
             ManagedKafka k = kafkaIterator.next();
-            awaitKafkaDeploymentRemoval(client, k);
+            org.bf2.test.TestUtils.waitFor("await delete deployment", 1_000, 600_000, () -> client.inNamespace(Constants.KAFKA_NAMESPACE).withName(k.getMetadata().getName()).get() == null);
             kafkaIterator.remove();
         }
     }
@@ -227,12 +214,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
 
         var kafkaClient = cluster.kubeClient().client().customResources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
 
-        try {
-            kafkaClient.waitUntilCondition(Objects::nonNull, 5, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
+        org.bf2.test.TestUtils.waitFor("kafka resource", 1_000, 300_000, () -> kafkaClient.get() != null);
 
         return new KafkaDeployment(managedKafka, kafkaClient.require(), cluster);
     }

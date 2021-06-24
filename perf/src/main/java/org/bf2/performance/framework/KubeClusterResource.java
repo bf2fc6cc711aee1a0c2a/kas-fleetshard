@@ -12,6 +12,7 @@ import io.fabric8.openshift.client.OpenShiftConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.performance.Environment;
+import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.executor.ExecResult;
 import org.bf2.test.k8s.KubeClient;
@@ -27,9 +28,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Abstraction around an openshift KubeClient for tracking and additional helper methods
@@ -113,12 +112,7 @@ public class KubeClusterResource {
 
     public void waitForDeleteNamespace(String name) {
         client.client().namespaces().withName(name).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
-        try {
-            client.client().namespaces().withName(name).waitUntilCondition(Objects::isNull, 600, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
+        TestUtils.waitFor("namespace delete", 1_000, 600_000, () -> client.client().namespaces().withName(name).get() == null);
     }
 
     public void createNamespace(String name, Map<String, String> annotations, Map<String, String> labels) {
