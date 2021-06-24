@@ -4,18 +4,13 @@ import io.fabric8.kubernetes.api.model.ListOptions;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.Kafka;
-import io.strimzi.api.kafka.model.status.KafkaStatus;
-import io.strimzi.api.kafka.model.status.ListenerStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.performance.framework.KubeClusterResource;
-import org.bf2.performance.framework.TestMetadataCapture;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -83,57 +78,39 @@ public class KafkaDeployment {
     }
 
     private String waitUntilReadyOrCancelled() {
-        try {
-            var client = cluster.kubeClient().client().customResources(Kafka.class);
-            int count = 0;
-            while (!readyFuture.isCancelled()) {
-                ManagedKafka currentManagedKafka = cluster.kubeClient()
-                        .client()
-                        .customResources(ManagedKafka.class)
-                        .inNamespace(managedKafka.getMetadata().getNamespace())
-                        .withName(managedKafka.getMetadata().getName())
-                        .get();
-                boolean mkReady = false;
-                if (currentManagedKafka != null) {
-                    ManagedKafkaStatus status = currentManagedKafka.getStatus();
-                    if (status != null && status.getConditions() != null) {
-                        Optional<ManagedKafkaCondition> ready = status.getConditions().stream().filter(c -> ManagedKafkaCondition.Type.Ready.name().equals(c.getType())).findFirst();
-                        if (ready.isPresent()) {
-                            if (Boolean.valueOf(ready.get().getStatus())) {
-                                mkReady = true;
-                            } else if (ManagedKafkaCondition.Reason.Error.name().equals(ready.get().getReason())) {
-                                throw new IllegalStateException("Error creating ManagedKafka");
-                            }
+        int count = 0;
+        while (!readyFuture.isCancelled()) {
+            ManagedKafka currentManagedKafka = cluster.kubeClient()
+                    .client()
+                    .customResources(ManagedKafka.class)
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(managedKafka.getMetadata().getName())
+                    .get();
+            if (currentManagedKafka != null) {
+                ManagedKafkaStatus status = currentManagedKafka.getStatus();
+                if (status != null && status.getConditions() != null) {
+                    Optional<ManagedKafkaCondition> ready = status.getConditions().stream().filter(c -> ManagedKafkaCondition.Type.Ready.name().equals(c.getType())).findFirst();
+                    if (ready.isPresent()) {
+                        if (Boolean.valueOf(ready.get().getStatus())) {
+                            return currentManagedKafka.getSpec().getEndpoint().getBootstrapServerHost();
+                        } else if (ManagedKafkaCondition.Reason.Error.name().equals(ready.get().getReason())) {
+                            throw new IllegalStateException("Error creating ManagedKafka");
                         }
                     }
                 }
-
-                Kafka current = client.inNamespace(kafka.getMetadata().getNamespace()).withName(kafka.getMetadata().getName()).get();
-                if (mkReady && current != null && current.getStatus() != null && current.getStatus().getListeners() != null && current.getStatus().getConditions() != null) {
-                    KafkaStatus status = current.getStatus();
-                    Optional<Boolean> ready = status.getConditions().stream().filter(c -> "Ready".equals(c.getType())).map(c -> Boolean.parseBoolean(c.getStatus())).findFirst();
-                    Optional<String> bootstrap = status.getListeners().stream().filter(l -> l.getBootstrapServers() != null).map(ListenerStatus::getBootstrapServers).findFirst();
-                    if (ready.isPresent() && ready.get() && bootstrap.isPresent()) {
-                        LOGGER.info("Cluster {} deployed", managedKafka.getMetadata().getName());
-                        TestMetadataCapture.getInstance().storeKafkaCluster(cluster, kafka);
-                        cluster.connectNamespaceToMonitoringStack(managedKafka.getMetadata().getNamespace());
-                        return bootstrap.get();
-                    }
-                }
-                if (count++ % 15 == 0) {
-                    ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
-                    cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace())
-                            .withLabel("app.kubernetes.io/instance", kafka.getMetadata().getName()).list(opts).getItems().forEach(KafkaDeployment::checkUnschedulablePod);
-                }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+
+            if (count++ % 15 == 0) {
+                ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
+                cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace())
+                        .withLabel("app.kubernetes.io/instance", kafka.getMetadata().getName()).list(opts).getItems().forEach(KafkaDeployment::checkUnschedulablePod);
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
         return null;
     }

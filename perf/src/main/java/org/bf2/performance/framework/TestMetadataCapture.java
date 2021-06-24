@@ -74,14 +74,9 @@ public class TestMetadataCapture {
         clusters = new Clusters();
     }
 
-    /*public void saveTestMetadata() throws IOException {
-        Files.write(new File(logDir, "test-metadata.json").toPath(), instance.toString().getBytes());
-    }*/
-
-    @Override
-    public String toString() {
+    public String toYaml() {
         try {
-            return Serialization.jsonMapper().writeValueAsString(this);
+            return Serialization.yamlMapper().writeValueAsString(this);
         } catch (JsonProcessingException e) {
             return e.getClass().getName() + " " + e.getMessage();
         }

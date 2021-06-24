@@ -52,7 +52,7 @@ public abstract class TestBase {
 
     @AfterEach
     void afterEach(TestInfo info) throws IOException {
-        Files.write(new File(instanceDir, "test-metadata.json").toPath(), TestMetadataCapture.getInstance().toString().getBytes(StandardCharsets.UTF_8));
+        Files.write(new File(instanceDir, "test-metadata.yaml").toPath(), TestMetadataCapture.getInstance().toYaml().getBytes(StandardCharsets.UTF_8));
     }
 
     protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerSize) throws IOException {
