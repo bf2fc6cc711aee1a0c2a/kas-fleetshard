@@ -40,6 +40,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public static final int KAFKA_BROKERS = 3;
     public static final int ZOOKEEPER_NODES = 3;
+    public static final int EXTERNAL_PORT = 9094;
 
     @Inject
     Logger log;
@@ -182,7 +183,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("external")
-                                .withPort(9094)
+                                .withPort(EXTERNAL_PORT)
                                 .withType(externalListenerType)
                                 .withTls(true)
                                 .withAuth(plainOverOauthAuthenticationListener)
