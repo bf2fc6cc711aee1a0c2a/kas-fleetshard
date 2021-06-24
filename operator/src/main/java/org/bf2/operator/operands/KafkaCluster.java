@@ -555,8 +555,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, String> getKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
+        labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
         labels.put("ingressType", "sharded");
-        labels.put("managedkafka.bf2.org/strimziVersion", "strimzi-cluster-operator.v0.22.1-5");
         return labels;
     }
 
