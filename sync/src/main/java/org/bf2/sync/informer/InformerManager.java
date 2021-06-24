@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ResourceInformer;
+import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -30,29 +31,26 @@ public class InformerManager implements LocalLookup {
     @Inject
     MeterRegistry meterRegistry;
 
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
     private ResourceInformer<ManagedKafka> managedKafkaInformer;
     private ResourceInformer<ManagedKafkaAgent> managedAgentInformer;
 
     @PostConstruct
     protected void onStart() {
-        managedKafkaInformer = ResourceInformer.start(ManagedKafka.class, client.customResources(ManagedKafka.class).inAnyNamespace(),
+        managedKafkaInformer = resourceInformerFactory.start(ManagedKafka.class, client.customResources(ManagedKafka.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateKafkaClusterStatus));
 
         // for the Agent
-        managedAgentInformer = ResourceInformer.start(ManagedKafkaAgent.class, client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
+        managedAgentInformer = resourceInformerFactory.start(ManagedKafkaAgent.class, client.customResources(ManagedKafkaAgent.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         meterRegistry.gauge("managedkafkas", this, (informer) -> {
-            if (!informer.isReady()) {
-                throw new IllegalStateException();
-            }
             return informer.getLocalManagedKafkas().size();
         });
 
         meterRegistry.gauge("managedkafkas.ready", this, (informer) -> {
-            if (!informer.isReady()) {
-                throw new IllegalStateException();
-            }
             return informer.getLocalManagedKafkas()
                     .stream()
                     .filter(mk -> mk.getStatus() != null && ConditionUtils
@@ -71,12 +69,6 @@ public class InformerManager implements LocalLookup {
     @Override
     public List<ManagedKafka> getLocalManagedKafkas() {
         return managedKafkaInformer.getList();
-    }
-
-    @Override
-    public boolean isReady() {
-        return managedKafkaInformer.isReady()
-                && managedAgentInformer.isReady();
     }
 
     @Override

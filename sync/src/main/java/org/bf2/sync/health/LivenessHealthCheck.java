@@ -1,6 +1,6 @@
 package org.bf2.sync.health;
 
-import org.bf2.sync.informer.InformerManager;
+import org.bf2.common.ResourceInformerFactory;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Liveness;
@@ -13,13 +13,13 @@ import javax.inject.Inject;
 public class LivenessHealthCheck implements HealthCheck {
 
     @Inject
-    InformerManager informers;
+    ResourceInformerFactory resourceInformerFactory;
 
     @Override
     public HealthCheckResponse call() {
-        if (this.informers != null && this.informers.isReady()) {
-            return HealthCheckResponse.up("Informers are Ready");
+        if (this.resourceInformerFactory.allInformersWatching()) {
+            return HealthCheckResponse.up("Informers are watching");
         }
-        return HealthCheckResponse.down("Informers are not ready yet");
+        return HealthCheckResponse.down("Informers are not watching");
     }
 }
