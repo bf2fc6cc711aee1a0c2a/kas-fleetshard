@@ -34,6 +34,7 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -288,37 +289,47 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(4);
+        List<EnvVar> envVars = new ArrayList<>();
 
-        envVars.add(new EnvVarBuilder()
-                    .withName("KAFKA_ADMIN_BOOTSTRAP_SERVERS")
-                    .withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095")
-                    .build());
+        addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            envVars.add(new EnvVarBuilder()
-                        .withName("KAFKA_ADMIN_TLS_CERT")
-                        .withNewValueFrom()
-                            .withNewSecretKeyRef("tls.crt", SecuritySecretManager.kafkaTlsSecretName(managedKafka), false)
-                        .endValueFrom()
-                        .build());
+            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
+            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key");
+        }
 
-            envVars.add(new EnvVarBuilder()
-                        .withName("KAFKA_ADMIN_TLS_KEY")
-                        .withNewValueFrom()
-                            .withNewSecretKeyRef("tls.key", SecuritySecretManager.kafkaTlsSecretName(managedKafka), false)
-                        .endValueFrom()
-                        .build());
+        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
+            ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
+
+            if (oauth.getTlsTrustedCertificate() != null) {
+                addEnvVarSecret(envVars, "KAFKA_ADMIN_OAUTH_TRUSTED_CERT", SecuritySecretManager.ssoTlsSecretName(managedKafka), "keycloak.crt");
+            }
+
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI", oauth.getJwksEndpointURI());
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI", oauth.getValidIssuerEndpointURI());
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI", oauth.getTokenEndpointURI());
+        } else {
+            addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_ENABLED", "false");
         }
 
         if (corsAllowList.isPresent()) {
-            envVars.add(new EnvVarBuilder()
-                        .withName("CORS_ALLOW_LIST_REGEX")
-                        .withValue(corsAllowList.get())
-                        .build());
+            addEnvVar(envVars, "CORS_ALLOW_LIST_REGEX", corsAllowList.get());
         }
 
         return envVars;
+    }
+
+    private void addEnvVar(List<EnvVar> envVars, String name, String value) {
+        envVars.add(new EnvVarBuilder().withName(name).withValue(value).build());
+    }
+
+    private void addEnvVarSecret(List<EnvVar> envVars, String envName, String secretName, String secretEntry) {
+        envVars.add(new EnvVarBuilder()
+                        .withName(envName)
+                        .withNewValueFrom()
+                            .withNewSecretKeyRef(secretEntry, secretName, false)
+                            .endValueFrom()
+                        .build());
     }
 
     private List<ContainerPort> getContainerPorts(ManagedKafka managedKafka) {

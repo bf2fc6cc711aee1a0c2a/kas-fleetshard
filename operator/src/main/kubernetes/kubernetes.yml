@@ -105,6 +105,15 @@ rules:
       - delete
       - patch
       - update
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      # created by the OLM for the DrainCleaner
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - list
+      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

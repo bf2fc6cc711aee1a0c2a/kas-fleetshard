@@ -5,30 +5,29 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaEndpointBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
 import java.io.IOException;
 
+import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -54,49 +53,9 @@ class KafkaClusterTest {
         assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }
 
-    private ManagedKafka exampleManagedKafka(String size) {
-        ManagedKafka mk = new ManagedKafkaBuilder()
-                .withMetadata(
-                        new ObjectMetaBuilder()
-                                .withNamespace("test")
-                                .withName("test-mk")
-                                .build())
-                .withSpec(
-                        new ManagedKafkaSpecBuilder()
-                                .withEndpoint(
-                                        new ManagedKafkaEndpointBuilder()
-                                                .withBootstrapServerHost("xxx.yyy.zzz")
-                                                .build()
-                                )
-                                .withOauth(
-                                        new ManagedKafkaAuthenticationOAuthBuilder()
-                                                .withClientId("clientId")
-                                                .withClientSecret("clientSecret")
-                                                .withTokenEndpointURI("https://tokenEndpointURI")
-                                                .withJwksEndpointURI("https://jwksEndpointURI")
-                                                .withValidIssuerEndpointURI("https://validIssuerEndpointURI")
-                                                .withUserNameClaim("userNameClaim")
-                                                .withTlsTrustedCertificate("TLS trusted cert")
-                                                .build()
-                                )
-                                .withNewCapacity()
-                                .withMaxDataRetentionSize(Quantity.parse(size))
-                                .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
-                                .endCapacity()
-                                .withNewVersions()
-                                    .withKafka("2.6.0")
-                                    .withStrimzi("0.22.1")
-                                .endVersions()
-                                .build())
-                .build();
-        return mk;
-    }
-
     @Test
     void testManagedKafkaToKafkaWithSizeChanges() throws IOException {
-        ManagedKafka mk = exampleManagedKafka("60Gi");
-
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        Kafka kafka = kafkaCluster.kafkaFrom(exampleManagedKafka("60Gi"), null);
 
         Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
 
@@ -117,5 +76,31 @@ class KafkaClusterTest {
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
         JsonNode patch = JsonDiff.asJson(file1, file2);
         return patch;
+    }
+
+    @Test
+    void testDrainCleanerWebhookFound() throws IOException {
+        DrainCleanerManager mock = Mockito.mock(DrainCleanerManager.class);
+        Mockito.when(mock.isDrainCleanerWebhookFound()).thenReturn(true);
+        QuarkusMock.installMockForType(mock, DrainCleanerManager.class);
+
+        ManagedKafka mk = exampleManagedKafka("40Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        assertEquals(0, kafka.getSpec().getKafka().getTemplate().getPodDisruptionBudget().getMaxUnavailable());
+        assertEquals(0, kafka.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget().getMaxUnavailable());
+    }
+
+    @Test
+    void testDrainCleanerWebhookNotFound() throws IOException {
+        DrainCleanerManager mock = Mockito.mock(DrainCleanerManager.class);
+        Mockito.when(mock.isDrainCleanerWebhookFound()).thenReturn(false);
+        QuarkusMock.installMockForType(mock, DrainCleanerManager.class);
+
+        ManagedKafka mk = exampleManagedKafka("40Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        assertNull(kafka.getSpec().getKafka().getTemplate().getPodDisruptionBudget());
+        assertNull(kafka.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget());
     }
 }
