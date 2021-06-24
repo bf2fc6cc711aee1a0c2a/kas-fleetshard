@@ -72,14 +72,13 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
 
     @Override
     public void install() throws Exception {
-        if (Environment.ENABLE_DRAIN_CLEANER) {
-            DrainCleanerInstaller.install(cluster, Constants.DRAIN_CLEANER_NAMESPACE);
-        }
-
         // delete/create the namespaces to be used
         cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
+
+        // installs the Strimzi Operator using the OLM bundle
+        OlmBasedStrimziOperatorManager.deployStrimziOperator(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
 
         monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
 
@@ -159,6 +158,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
     @Override
     public void uninstall() throws Exception {
         removeClusters();
+        OlmBasedStrimziOperatorManager.deleteStrimziOperator(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
         FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient());
         LOGGER.info("Deleting namespace {}", Constants.KAFKA_NAMESPACE);
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
