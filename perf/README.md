@@ -132,8 +132,6 @@ KUBECONFIG=kafka-config oc get route grafana-route -n managed-services-monitorin
 | NUM_INGRESS_CONTROLLERS | Number of IngressControllers to split Kafka instances across. | 1 |
 | PROVIDED_KAFKA_CLUSTERS_FILE | File containing a list of Kafka bootstrap URLs, one per line. This is only used for decoupled tests. | provided_clusters.yaml |
 | STRIMZI_VERSION | Strimzi version to use. | pom.xml/properties/strimzi.version |
-| ENABLE_DRAIN_CLEANER | Enable the DrainCleaner application to avoid pub/sub rate drop during node draining (i.e. OpenShift upgrade). | false |
-| CONSUMER_PER_SUBSCRIPTION | Number of Consumers per subscription | 1 |
 | TARGET_RATE | Number of records for each producer to send per second | 2000 |
 | WORKERS_PER_INSTANCE | Number of workers per Kafka instance | 2 |
 | TOPICS_PER_KAFKA | Number of topics per Kafka instance | 1 |

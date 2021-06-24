@@ -29,7 +29,8 @@ import io.openmessaging.benchmark.worker.Worker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.performance.framework.ActualTestMetadata;
-import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.performance.framework.KubeClusterResource;
+import org.bf2.performance.framework.TestMetadataCapture;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.File;

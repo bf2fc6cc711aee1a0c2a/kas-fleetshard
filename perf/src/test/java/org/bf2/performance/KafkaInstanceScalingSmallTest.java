@@ -7,9 +7,8 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
-import org.bf2.performance.framework.ClusterConnectionFactory;
+import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestTags;
-import org.bf2.performance.k8s.KubeClusterResource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -52,17 +51,16 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
 
     @BeforeAll
     void beforeAll() throws Exception {
-        kafkaCluster = ClusterConnectionFactory.connectToKubeCluster(Environment.KAFKA_KUBECONFIG);
+        kafkaCluster = KubeClusterResource.connectToKubeCluster(Environment.KAFKA_KUBECONFIG);
         kafkaProvisioner = KafkaProvisioner.create(kafkaCluster);
         kafkaProvisioner.setup();
-        omb = new OMB(ClusterConnectionFactory.connectToKubeCluster(Environment.OMB_KUBECONFIG));
+        omb = new OMB(KubeClusterResource.connectToKubeCluster(Environment.OMB_KUBECONFIG));
         omb.install();
     }
 
     @AfterAll
     void afterAll() throws Exception {
         omb.uninstall();
-        ClusterConnectionFactory.disconnectFromAllClusters();
         kafkaProvisioner.teardown();
     }
 

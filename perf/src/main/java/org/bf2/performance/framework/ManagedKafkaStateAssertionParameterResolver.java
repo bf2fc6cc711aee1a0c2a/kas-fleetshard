@@ -1,8 +1,7 @@
-package org.bf2.performance;
+package org.bf2.performance.framework;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.performance.data.OpenshiftClusterData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.AfterEachCallback;

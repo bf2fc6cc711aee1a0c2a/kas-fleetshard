@@ -16,7 +16,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 
@@ -39,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 public class ClusterKafkaProvisioner implements KafkaProvisioner {
     private static final Logger LOGGER = LogManager.getLogger(ClusterKafkaProvisioner.class);
     private final List<ManagedKafka> clusters = new ArrayList<>();
-    private final Monitoring monitoring = new Monitoring();
     protected KubeClusterResource cluster;
     protected List<RouterConfig> routerConfigs;
 
@@ -80,12 +79,12 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         // installs the Strimzi Operator using the OLM bundle
         OlmBasedStrimziOperatorManager.deployStrimziOperator(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
 
-        monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
+        cluster.connectNamespaceToMonitoringStack(StrimziOperatorManager.OPERATOR_NS);
 
         // installs a cluster wide fleetshard operator
         FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
         // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
-        monitoring.connectNamespaceToMonitoringStack(cluster.kubeClient(), FleetShardOperatorManager.OPERATOR_NS);
+        cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
 
     }
@@ -103,13 +102,6 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         managedKafka.getMetadata().setNamespace(namespace);
         // TODO: the operator is not doing this, just setting ingressType to sharded
         // kafka.getMetadata().getLabels().putAll(routerConfig.getRouteSelectorLabels());
-
-        // TODO: drain cleaner is not supported
-        if (Environment.ENABLE_DRAIN_CLEANER) {
-            // this settings blocks K8s draining as it is done by the DrainCleaner application
-            //kafka.getSpec().getKafka().getTemplate().setPodDisruptionBudget(new PodDisruptionBudgetTemplateBuilder().withMaxUnavailable(0).build());
-            //kafka.getSpec().getZookeeper().getTemplate().setPodDisruptionBudget(new PodDisruptionBudgetTemplateBuilder().withMaxUnavailable(0).build());
-        }
 
         LOGGER.info("Cluster {} deploy with domain {}", managedKafka.getMetadata().getName(), routerConfig.getDomain());
 
@@ -162,10 +154,6 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient());
         LOGGER.info("Deleting namespace {}", Constants.KAFKA_NAMESPACE);
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
-        if (Environment.ENABLE_DRAIN_CLEANER) {
-            LOGGER.info("Deleting namespace {}", Constants.DRAIN_CLEANER_NAMESPACE);
-            cluster.waitForDeleteNamespace(Constants.DRAIN_CLEANER_NAMESPACE);
-        }
     }
 
     KafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka, String domain) throws IOException {
@@ -246,11 +234,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
             throw new RuntimeException(e);
         }
 
-        return new KafkaDeployment(managedKafka, kafkaClient.require(), this);
-    }
-
-    public Monitoring getMonitoring() {
-        return monitoring;
+        return new KafkaDeployment(managedKafka, kafkaClient.require(), cluster);
     }
 
     static List<RouterConfig> createIngressControllers(KubeClusterResource cluster, int numIngressControllers) throws IOException {

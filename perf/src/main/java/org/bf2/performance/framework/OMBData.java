@@ -1,13 +1,12 @@
-package org.bf2.performance.data;
+package org.bf2.performance.framework;
 
 import org.bf2.performance.OMB;
 import org.bf2.performance.OMBDriver;
 import org.bf2.performance.OMBWorkload;
-import org.bf2.performance.k8s.KubeClusterResource;
 
 import java.util.List;
 
-public class OMBData {
+class OMBData {
     Integer workerCount;
     List<String> workerNames;
     OMBWorkload workload;

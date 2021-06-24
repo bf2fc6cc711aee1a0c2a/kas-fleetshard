@@ -1,4 +1,4 @@
-package org.bf2.performance;
+package org.bf2.performance.framework;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Repeatable;

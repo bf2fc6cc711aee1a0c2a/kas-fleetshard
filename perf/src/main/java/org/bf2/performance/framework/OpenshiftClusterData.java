@@ -1,14 +1,13 @@
-package org.bf2.performance.data;
+package org.bf2.performance.framework;
 
 import io.fabric8.kubernetes.api.model.Node;
-import org.bf2.performance.k8s.KubeClusterResource;
 
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
-public class OpenshiftClusterData {
+class OpenshiftClusterData {
     Integer countOfNodes;
     Integer countOfWorkers;
     String workerInstanceType;

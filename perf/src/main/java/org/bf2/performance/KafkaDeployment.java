@@ -11,7 +11,8 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.performance.framework.KubeClusterResource;
+import org.bf2.performance.framework.TestMetadataCapture;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -27,17 +28,15 @@ import java.util.concurrent.TimeoutException;
  */
 public class KafkaDeployment {
     private static final Logger LOGGER = LogManager.getLogger(KafkaDeployment.class);
-    private final ClusterKafkaProvisioner provisioner;
     private final KubeClusterResource cluster;
     private final Kafka kafka;
     private final CompletableFuture<String> readyFuture = new CompletableFuture<>();
     private final ManagedKafka managedKafka;
 
-    public KafkaDeployment(ManagedKafka managedKafka, Kafka kafka, ClusterKafkaProvisioner clusterKafkaProvisioner) {
+    public KafkaDeployment(ManagedKafka managedKafka, Kafka kafka, KubeClusterResource cluster) {
         this.managedKafka = managedKafka;
         this.kafka = kafka;
-        this.provisioner = clusterKafkaProvisioner;
-        this.cluster = clusterKafkaProvisioner.getKubernetesCluster();
+        this.cluster = cluster;
     }
 
     public void start() {
@@ -117,7 +116,7 @@ public class KafkaDeployment {
                     if (ready.isPresent() && ready.get() && bootstrap.isPresent()) {
                         LOGGER.info("Cluster {} deployed", managedKafka.getMetadata().getName());
                         TestMetadataCapture.getInstance().storeKafkaCluster(cluster, kafka);
-                        provisioner.getMonitoring().connectNamespaceToMonitoringStack(cluster.kubeClient(), managedKafka.getMetadata().getNamespace());
+                        cluster.connectNamespaceToMonitoringStack(managedKafka.getMetadata().getNamespace());
                         return bootstrap.get();
                     }
                 }

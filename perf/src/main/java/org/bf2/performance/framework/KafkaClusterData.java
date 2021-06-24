@@ -1,16 +1,15 @@
-package org.bf2.performance.data;
+package org.bf2.performance.framework;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.strimzi.api.kafka.model.JvmOptions;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.performance.k8s.KubeClusterResource;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-public class KafkaClusterData {
+class KafkaClusterData {
     String name;
     Integer brokerCount;
     Integer zookeeperCount;

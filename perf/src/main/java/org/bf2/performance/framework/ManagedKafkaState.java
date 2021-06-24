@@ -1,4 +1,4 @@
-package org.bf2.performance;
+package org.bf2.performance.framework;
 
 public class ManagedKafkaState {
     private int kafkaInstances;

@@ -3,10 +3,13 @@ package org.bf2.performance;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Quantity;
+import org.bf2.performance.framework.KubeClusterResource;
+import org.bf2.performance.framework.ManagedKafkaStateAssertionParameterResolver;
 import org.bf2.performance.framework.TestCallbackListener;
 import org.bf2.performance.framework.TestExceptionCallbackListener;
-import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.performance.framework.TestMetadataCapture;
 import org.bf2.systemtest.framework.IndicativeSentences;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
@@ -17,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -43,8 +47,12 @@ public abstract class TestBase {
     @BeforeEach
     void beforeEach(TestInfo info) throws IOException {
         instanceDir = new File(testDir, info.getDisplayName());
-        TestMetadataCapture.getInstance().setLogDir(instanceDir);
         Files.createDirectories(instanceDir.toPath());
+    }
+
+    @AfterEach
+    void afterEach(TestInfo info) throws IOException {
+        Files.write(new File(instanceDir, "test-metadata.json").toPath(), TestMetadataCapture.getInstance().toString().getBytes(StandardCharsets.UTF_8));
     }
 
     protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerSize) throws IOException {

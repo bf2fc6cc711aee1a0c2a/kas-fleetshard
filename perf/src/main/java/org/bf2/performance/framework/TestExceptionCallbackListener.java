@@ -8,7 +8,6 @@ import io.fabric8.kubernetes.client.dsl.PodResource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.performance.Constants;
-import org.bf2.performance.k8s.KubeClusterResource;
 import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -68,7 +67,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
         Path logPath = org.bf2.test.TestUtils.getLogPath(org.bf2.test.Environment.LOG_DIR.resolve("failed-test").toString(), extensionContext);
         LOGGER.error("Test failed at {} : {}", description, throwable.getMessage(), throwable);
         LOGGER.info("Storing cluster info into {}", logPath.toString());
-        for (KubeClusterResource kubeClusterResource : ClusterConnectionFactory.getCurrentConnectedClusters()) {
+        for (KubeClusterResource kubeClusterResource : KubeClusterResource.getCurrentConnectedClusters()) {
             try {
                 storeClusterInfo(kubeClusterResource, logPath.resolve(kubeClusterResource.getName()));
             } catch (IOException e) {
@@ -143,7 +142,7 @@ public class TestExceptionCallbackListener implements TestExecutionExceptionHand
 
     @Override
     public void afterTestExecution(ExtensionContext context) throws Exception {
-        for (KubeClusterResource kubeClusterResource : ClusterConnectionFactory.getCurrentConnectedClusters()) {
+        for (KubeClusterResource kubeClusterResource : KubeClusterResource.getCurrentConnectedClusters()) {
 
             KubeClient kubeClient = kubeClusterResource.kubeClient();
             kubeClient.client().namespaces().list().getItems().stream().filter(ns -> checkAnnotation(ns, Constants.ORG_BF2_PERFORMANCE_CHECKRESTARTEDCONTAINERS)).forEach(ns -> {

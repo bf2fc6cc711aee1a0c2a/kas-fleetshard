@@ -1,7 +1,8 @@
 package org.bf2.performance;
 
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.performance.k8s.KubeClusterResource;
+import org.bf2.performance.framework.KubeClusterResource;
+import org.bf2.performance.framework.TestMetadataCapture;
 
 import java.io.IOException;
 

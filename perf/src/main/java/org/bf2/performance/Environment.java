@@ -50,7 +50,6 @@ public class Environment {
     private static final String MAX_KAFKA_INSTANCES_ENV = "MAX_KAFKA_INSTANCES";
     private static final String NUM_INGRESS_CONTROLLERS_ENV = "NUM_INGRESS_CONTROLLERS";
     private static final String PROVIDED_KAFKA_CLUSTERS_FILE_ENV = "PROVIDED_KAFKA_CLUSTERS_FILE";
-    private static final String ENABLE_DRAIN_CLEANER_ENV = "ENABLE_DRAIN_CLEANER";
     private static final String CONSUMER_PER_SUBSCRIPTION_ENV = "CONSUMER_PER_SUBSCRIPTION";
     private static final String TARGET_RATE_ENV = "TARGET_RATE";
     private static final String WORKERS_PER_INSTANCE_ENV = "WORKERS_PER_INSTANCE";
@@ -79,7 +78,6 @@ public class Environment {
     public static final int MAX_KAFKA_INSTANCES = getOrDefault(MAX_KAFKA_INSTANCES_ENV, Integer::parseInt, Integer.MAX_VALUE);
     public static final int NUM_INGRESS_CONTROLLERS = getOrDefault(NUM_INGRESS_CONTROLLERS_ENV, Integer::parseInt, 1);
     public static final Path PROVIDED_KAFKA_CLUSTERS_FILE = getOrDefault(PROVIDED_KAFKA_CLUSTERS_FILE_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "provided_clusters.yaml"));
-    public static final Boolean ENABLE_DRAIN_CLEANER = getOrDefault(ENABLE_DRAIN_CLEANER_ENV, Boolean::parseBoolean, Boolean.FALSE);
     public static final int CONSUMER_PER_SUBSCRIPTION = getOrDefault(CONSUMER_PER_SUBSCRIPTION_ENV, Integer::parseInt, 1);
     public static final int TARGET_RATE = getOrDefault(TARGET_RATE_ENV, Integer::parseInt, 2000);
     public static final int WORKERS_PER_INSTANCE = getOrDefault(WORKERS_PER_INSTANCE_ENV, Integer::parseInt, 2);

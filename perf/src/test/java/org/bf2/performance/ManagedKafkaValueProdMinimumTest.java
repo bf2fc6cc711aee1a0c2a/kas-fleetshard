@@ -6,7 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
-import org.bf2.performance.framework.ClusterConnectionFactory;
+import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestTags;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -31,9 +31,9 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
 
     @BeforeAll
     void beforeAll() throws Exception {
-        kafkaProvisioner = KafkaProvisioner.create(ClusterConnectionFactory.connectToKubeCluster(Environment.KAFKA_KUBECONFIG));
+        kafkaProvisioner = KafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(Environment.KAFKA_KUBECONFIG));
         kafkaProvisioner.setup();
-        omb = new OMB(ClusterConnectionFactory.connectToKubeCluster(Environment.OMB_KUBECONFIG));
+        omb = new OMB(KubeClusterResource.connectToKubeCluster(Environment.OMB_KUBECONFIG));
         omb.install();
         omb.setWorkerContainerMemory(WORKER_SIZE);
         omb.addToEnv(new EnvVar("HISTOGRAM_NUMBER_OF_SIGNIFICANT_VALUE_DIGITS", "0", null));
@@ -42,7 +42,6 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
     @AfterAll
     void afterAll() throws Exception {
         omb.uninstall();
-        ClusterConnectionFactory.disconnectFromAllClusters();
         kafkaProvisioner.teardown();
     }
 

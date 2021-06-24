@@ -1,4 +1,4 @@
-package org.bf2.performance.data;
+package org.bf2.performance.framework;
 
 import io.fabric8.kubernetes.api.model.Node;
 

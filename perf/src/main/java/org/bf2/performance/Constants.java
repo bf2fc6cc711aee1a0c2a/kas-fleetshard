@@ -11,7 +11,4 @@ public class Constants {
     public static final String ORG_BF2_PERFORMANCE_CHECKRESTARTEDCONTAINERS = "org.bf2.performance/checkrestartedcontainers";
     public static final String KAFKA_NAMESPACE = "kafka";
     public static final String MK_STORAGECLASS = "mk-storageclass";
-    public static final String DRAIN_CLEANER_INSTALL_DIR = "src/main/resources/drain-cleaner";
-    // changing DrainCleaner namespace requires webhook and certs update to match the new address
-    public static final String DRAIN_CLEANER_NAMESPACE = "strimzi-drain-cleaner";
 }
