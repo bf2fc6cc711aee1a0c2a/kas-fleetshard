@@ -23,9 +23,8 @@ public class ResourceInformerFactory {
     }
 
     /**
-     * Return true if all informers are watching.  May be false during normal operation
-     * on http gone or watches otherwise failing - this is fine for probes as long as it
-     * takes multiple failure probes to restart.
+     * Return true if all informers are watching.  Will be false only after something
+     * has abnormally failed with the watch.
      */
     public boolean allInformersWatching() {
         return startedInformers.stream().allMatch(ResourceInformer::isWatching);

@@ -68,7 +68,6 @@ public class ResourceInformer<T extends HasMetadata> {
          */
         @Override
         public void onClose(WatcherException cause) {
-            watching = false;
             log.infof("%s Informer watch needs restarted", typeName, cause);
             boolean gone = cause.isHttpGone();
             while (true) {
@@ -77,6 +76,7 @@ public class ResourceInformer<T extends HasMetadata> {
                         list();
                         gone = false;
                     } else {
+                        watching = false;
                         // note this (and the other watch restart not related to a relist) should not necessary
                         // in 5.3.1 or later with reconnecting support see https://github.com/fabric8io/kubernetes-client/pull/3018
                         Thread.sleep(WATCH_WAIT);
@@ -84,10 +84,12 @@ public class ResourceInformer<T extends HasMetadata> {
                     watch();
                     return;
                 } catch (InterruptedException e) {
+                    watching = false;
                     log.warn("Terminating watch due to interrupt");
                     Thread.currentThread().interrupt();
                     return;
                 } catch (Exception e) {
+                    watching = false;
                     log.errorf("Error restarting %s informer watch", typeName, e);
                 }
             }
