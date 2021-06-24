@@ -15,6 +15,7 @@ import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
+import org.bf2.common.ResourceInformerFactory;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -42,6 +43,9 @@ public class StorageClassManager {
     @Inject
     KubernetesClient kubernetesClient;
 
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<StorageClass> storageClassInformer;
 
@@ -56,13 +60,8 @@ public class StorageClassManager {
         MixedOperation<StorageClass, StorageClassList, Resource<StorageClass>> storageClasses =
                 kubernetesClient.storage().storageClasses();
 
-        nodeInformer = ResourceInformer.start(Node.class, kubernetesClient.nodes().withLabel("node-role.kubernetes.io/worker"), new ResourceEventHandler<Node>() {
-            @Override public void onAdd(Node obj) {/* do nothing */}
-            @Override public void onUpdate(Node oldObj, Node newObj) {/* do nothing */}
-            @Override public void onDelete(Node obj, boolean deletedFinalStateUnknown) {/* do nothing */}
-        });
-
-        storageClassInformer = ResourceInformer.start(StorageClass.class, storageClasses, new ResourceEventHandler<StorageClass>() {
+        nodeInformer = resourceInformerFactory.create(Node.class, kubernetesClient.nodes().withLabel("node-role.kubernetes.io/worker"), null);
+        storageClassInformer = resourceInformerFactory.create(StorageClass.class, storageClasses, new ResourceEventHandler<StorageClass>() {
 
             @Override
             public void onAdd(StorageClass obj) {
@@ -85,8 +84,8 @@ public class StorageClassManager {
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void reconcileStorageClasses() {
-        if (null == nodeInformer || !nodeInformer.isReady() || null == storageClassInformer || !storageClassInformer.isReady()) {
-            log.warn("Informers not yet initialized or ready");
+        if (nodeInformer == null || storageClassInformer == null) {
+            log.warn("One or more informers are not yet ready");
             return;
         }
 

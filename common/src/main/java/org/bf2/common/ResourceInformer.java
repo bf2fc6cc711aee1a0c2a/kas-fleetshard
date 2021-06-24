@@ -108,9 +108,24 @@ public class ResourceInformer<T extends HasMetadata> {
             ResourceEventHandler<? super T> eventHandler) {
         this.typeName = type.getSimpleName();
         this.watchListDeletable = watchListDeletable;
-        this.eventHandler = eventHandler;
+
+        if (eventHandler != null) {
+            this.eventHandler = eventHandler;
+        } else {
+            log.debugf("Got a null informer for %s, so will do nothing for events", type);
+            this.eventHandler = doNothingEventHandler(type);
+        }
+
         list();
         watch();
+    }
+
+    private ResourceEventHandler<? super T> doNothingEventHandler(Class<T> type) {
+        return new ResourceEventHandler<T>() {
+            @Override public void onAdd(T obj) {}
+            @Override public void onUpdate(T oldObj, T newObj) {}
+            @Override public void onDelete(T obj, boolean deletedFinalStateUnknown) {}
+        };
     }
 
     private void watch() {
