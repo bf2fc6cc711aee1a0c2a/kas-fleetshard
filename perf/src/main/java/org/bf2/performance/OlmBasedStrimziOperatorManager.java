@@ -61,14 +61,10 @@ public class OlmBasedStrimziOperatorManager {
 
         LOGGER.info("All the Kafka Instances deleted");
 
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).delete();
-            client.operatorHub().operatorGroups().inNamespace(namespace).withName(OLM_OPERATOR_GROUP_NAME).delete();
-            client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).delete();
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
-        }
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).delete();
+        client.operatorHub().operatorGroups().inNamespace(namespace).withName(OLM_OPERATOR_GROUP_NAME).delete();
+        client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).delete();
         kubeClient.client().namespaces().withName(namespace).withGracePeriod(60_000).delete();
         return org.bf2.test.TestUtils.asyncWaitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(namespace));
     }
@@ -88,25 +84,17 @@ public class OlmBasedStrimziOperatorManager {
                 .endSpec()
                 .build();
 
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            client.operatorHub().catalogSources().inNamespace(namespace).createOrReplace(catalogSource);
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
-        }
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        client.operatorHub().catalogSources().inNamespace(namespace).createOrReplace(catalogSource);
     }
 
     private static boolean isCatalogSourceInstalled(KubeClient kubeClient, String namespace) {
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            CatalogSource cs = client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).get();
-            if (cs != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
-                return true;
-            }
-            return false;
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        CatalogSource cs = client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).get();
+        if (cs != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
+            return true;
         }
+        return false;
     }
 
     private static void installSubscription(KubeClient kubeClient, String namespace) {
@@ -124,31 +112,23 @@ public class OlmBasedStrimziOperatorManager {
                 .endSpec()
                 .build();
 
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            client.operatorHub().subscriptions().inNamespace(namespace).createOrReplace(subscription);
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
-        }
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        client.operatorHub().subscriptions().inNamespace(namespace).createOrReplace(subscription);
     }
 
     private static boolean isSubscriptionInstalled(KubeClient kubeClient, String namespace) {
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            Subscription s = client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).get();
-            if (s != null && !s.getStatus().getCatalogHealth().isEmpty()) {
-                List<SubscriptionCatalogHealth> healths = s.getStatus().getCatalogHealth();
-                return !healths.stream()
-                    .filter(h -> h.getHealthy())
-                    .map(ref -> ref.getCatalogSourceRef())
-                    .filter(h -> h.getName().equals(CATALOG_SOURCE_NAME))
-                    .collect(Collectors.toList())
-                    .isEmpty();
-            }
-            return false;
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        Subscription s = client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).get();
+        if (s != null && !s.getStatus().getCatalogHealth().isEmpty()) {
+            List<SubscriptionCatalogHealth> healths = s.getStatus().getCatalogHealth();
+            return !healths.stream()
+                .filter(h -> h.getHealthy())
+                .map(ref -> ref.getCatalogSourceRef())
+                .filter(h -> h.getName().equals(CATALOG_SOURCE_NAME))
+                .collect(Collectors.toList())
+                .isEmpty();
         }
+        return false;
     }
 
     private static void installOperatorGroup(KubeClient kubeClient, String namespace) {
@@ -159,12 +139,8 @@ public class OlmBasedStrimziOperatorManager {
                 .endMetadata()
                 .build();
 
-        if (!kubeClient.isGenericKubernetes()) {
-            OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
-            client.operatorHub().operatorGroups().inNamespace(namespace).createOrReplace(operatorGroup);
-        } else {
-            throw new RuntimeException("OLM capabilities only available in OpenShift based cluster");
-        }
+        OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
+        client.operatorHub().operatorGroups().inNamespace(namespace).createOrReplace(operatorGroup);
     }
 
     public static boolean isOperatorInstalled(KubeClient kubeClient, String namespace) {
