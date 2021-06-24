@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
@@ -11,6 +11,14 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.status.ConditionBuilder;
+import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
+import org.bf2.operator.StrimziManager;
+import org.bf2.operator.clients.KafkaResourceClient;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -28,10 +38,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class StrimziManagerTest {
 
     @Inject
+    KafkaResourceClient kafkaClient;
+
+    @Inject
     KubernetesClient client;
 
     @Inject
     StrimziManager strimziManager;
+
+    @Inject
+    KafkaCluster kafkaCluster;
 
     @AfterEach
     public void clean() {
@@ -89,6 +105,40 @@ public class StrimziManagerTest {
         uninstallStrimziOperator("strimzi-cluster-operator.v2", "ns-2");
         strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
+    }
+
+    @Test
+    public void testStrimziVersionChange() {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getSpec().getVersions().setStrimzi("strimzi-cluster-operator.v1");
+
+        Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+        kafkaClient.create(kafka);
+        // Kafka reconcile not paused and current label version as the ManagedKafka one
+        assertFalse(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), mk.getSpec().getVersions().getStrimzi());
+
+        // ManagedKafka and Kafka updated their status information
+        mk.setStatus(new ManagedKafkaStatusBuilder().withVersions(new VersionsBuilder().withStrimzi("strimzi-cluster-operator.v1").build()).build());
+        kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("Ready").withStatus("True").build()).build());
+        kafkaClient.updateStatus(kafka);
+
+        // ask for a Strimzi version change on ManagedKafka
+        mk.getSpec().getVersions().setStrimzi("strimzi-cluster-operator.v2");
+
+        kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
+        // Kafka reconcile paused but label is still the current version
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), mk.getStatus().getVersions().getStrimzi());
+
+        // Kafka moves to be paused
+        kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build()).build());
+        kafkaClient.updateStatus(kafka);
+
+        kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
+        // Kafka reconcile not paused and Kafka label updated to requested Strimzi version
+        assertFalse(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 
     /**

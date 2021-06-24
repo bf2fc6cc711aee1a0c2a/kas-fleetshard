@@ -1,7 +1,10 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.Context;
+import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -86,6 +89,14 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         return kafkaCluster.isDeleted(managedKafka)
                 && canary.isDeleted(managedKafka)
                 && adminServer.isDeleted(managedKafka);
+    }
+
+    public boolean isStrimziUpdating(ManagedKafka managedKafka) {
+        Kafka kafka =  kafkaCluster.cachedKafka(managedKafka);
+        String pauseReason = kafka.getMetadata().getAnnotations() != null ?
+                kafka.getMetadata().getAnnotations().get(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION) : null;
+        return ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase().equals(pauseReason) &&
+                kafkaCluster.isReconciliationPaused(managedKafka);
     }
 
     public AbstractKafkaCluster getKafkaCluster() {

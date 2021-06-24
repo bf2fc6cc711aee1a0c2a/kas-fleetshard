@@ -1,6 +1,7 @@
 ---
 kind: "Kafka"
 metadata:
+  annotations: {}
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"

@@ -145,6 +145,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         } else if (kafkaInstance.isError(managedKafka)) {
             ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Error);
+        } else if (kafkaInstance.isStrimziUpdating(managedKafka)) {
+            ConditionUtils.updateConditionStatus(ready, Status.True, Reason.StrimziUpdating);
         } else {
             ConditionUtils.updateConditionStatus(ready, Status.Unknown, null);
         }
