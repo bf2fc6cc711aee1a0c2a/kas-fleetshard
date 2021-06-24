@@ -1,10 +1,13 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -13,6 +16,7 @@ import org.bf2.operator.resources.v1alpha1.StrimziVersionStatusBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
@@ -36,9 +40,41 @@ public class StrimziManager {
     @Inject
     protected InformerManager informerManager;
 
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
     protected String versionLabel;
+
+    @PostConstruct
+    protected void onStart() {
+
+        // watching for events coming for Strimzi operator Pods, then resync Kafka instances as way to generate events
+        // with owner reference to trigger the controller reconcile from the Java operator SDK
+        // TODO: move to watch Strimzi operator Deployments when they will be labeled (OLM operator 1.18.0 on OpenShift 4.8)
+        resourceInformerFactory.create(Pod.class,
+                kubernetesClient.pods().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                new ResourceEventHandler<Pod>() {
+                    @Override
+                    public void onAdd(Pod pod) {
+                        log.debugf("Add event received for Pod %s/%s", pod.getMetadata().getNamespace(), pod.getMetadata().getName());
+                        informerManager.resyncKafkas();
+                    }
+
+                    @Override
+                    public void onUpdate(Pod oldPod, Pod newPod) {
+                        log.debugf("Update event received for Pod %s/%s", newPod.getMetadata().getNamespace(), newPod.getMetadata().getName());
+                        informerManager.resyncKafkas();
+                    }
+
+                    @Override
+                    public void onDelete(Pod pod, boolean deletedFinalStateUnknown) {
+                        log.debugf("Delete event received for Pod %s/%s", pod.getMetadata().getNamespace(), pod.getMetadata().getName());
+                        informerManager.resyncKafkas();
+                    }
+                });
+    }
 
     /**
      * Handle the Kafka pause/unpause reconciliation mechanism by adding the corresponding annotation on the Kafka custom resource
@@ -102,13 +138,24 @@ public class StrimziManager {
     }
 
     /**
+     * Check if the Strimzi version requested in the ManagedKafka resource is installed or not
+     *
+     * @param managedKafka ManagedKafka instance
+     * @return if the Strimzi version specified in the ManagedKafka resource is installed or not
+     */
+    public boolean isStrimziVersionValid(ManagedKafka managedKafka) {
+        List<String> strimziVersions = this.getStrimziVersions();
+        return strimziVersions.contains(managedKafka.getSpec().getVersions().getStrimzi());
+    }
+
+    /**
      * Returns the current Strimzi version for the Kafka instance
      * It comes directly from the Kafka custom resource label or from the ManagedKafka in case of creation
      *
      * @param managedKafka ManagedKafka instance
      * @return current Strimzi version for the Kafka instance
      */
-    private String currentStrimziVersion(ManagedKafka managedKafka) {
+    public String currentStrimziVersion(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         // on first time Kafka resource creation, we take the Strimzi version from the ManagedKafka resource spec
         String kafkaStrimziVersion = kafka != null && kafka.getMetadata().getLabels() != null && kafka.getMetadata().getLabels().containsKey(this.versionLabel) ?

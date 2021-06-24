@@ -22,9 +22,11 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import org.bf2.operator.InformerManager;
+import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -38,7 +40,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
+public abstract class AbstractKafkaCluster implements Operand<ManagedKafka, ManagedKafkaCondition> {
 
     public static final int KAFKA_BROKERS = 3;
     public static final int ZOOKEEPER_NODES = 3;
@@ -56,6 +58,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @Inject
     protected InformerManager informerManager;
+
+    @Inject
+    protected StrimziManager strimziManager;
 
     @ConfigProperty(name = "image.kafka")
     protected Optional<String> kafkaImage;
@@ -116,6 +121,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         boolean isDeleted = cachedKafka(managedKafka) == null;
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
+    }
+
+    public String currentStrimziVersion(ManagedKafka managedKafka) {
+        return strimziManager.currentStrimziVersion(managedKafka);
+    }
+
+    public String currentKafkaVersion(ManagedKafka managedKafka) {
+        Kafka kafka = cachedKafka(managedKafka);
+        return kafka.getSpec().getKafka().getVersion();
     }
 
     protected boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {

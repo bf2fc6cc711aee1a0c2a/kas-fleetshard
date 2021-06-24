@@ -77,6 +77,15 @@ rules:
   - apiGroups:
       - ""
     resources:
+      # operator needs to watch Pods for checking Strimzi operators running or down
+      - pods
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
       # the operator creates Services for admin server UI
       - services
       # the operator creates ConfigMaps and Secrets for Kafka metrics configuration and TLS and Keycloak certificates

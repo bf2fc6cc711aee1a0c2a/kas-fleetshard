@@ -43,7 +43,10 @@ public class ManagedKafkaControllerTest {
                 .thenReturn(new EventList(Arrays.asList(new CustomResourceEvent(Action.ADDED, mk, null))));
 
         mkController.createOrUpdateResource(mk, context);
-        ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
+        ManagedKafkaCondition condition = mk.getStatus().getConditions().stream()
+                .filter(c -> c.getType().equals(ManagedKafkaCondition.Type.Ready.name()))
+                .findFirst()
+                .get();
         assertEquals(ManagedKafkaCondition.Reason.Installing.name(), condition.getReason());
 
         mk.getSpec().setDeleted(true);

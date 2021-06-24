@@ -41,6 +41,25 @@ public class ConditionUtils {
     }
 
     /**
+     * Build and return a ManagedKafkaCondition with provided type, status and reason
+     *
+     * @param type condition type
+     * @param status condition status
+     * @param reason condition reason
+     * @param message message to set on the condition
+     * @return created ManagedKafkaCondition
+     */
+    public static ManagedKafkaCondition buildCondition(ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status, ManagedKafkaCondition.Reason reason, String message) {
+        return new ManagedKafkaConditionBuilder()
+                .withType(type.name())
+                .withStatus(status.name())
+                .withReason(reason.name())
+                .withMessage(message)
+                .withLastTransitionTime(ConditionUtils.iso8601Now())
+                .build();
+    }
+
+    /**
      * Updated a condition to the provided status only if it's changed updating the last transition time as well
      *
      * @param condition condition on which updating the status

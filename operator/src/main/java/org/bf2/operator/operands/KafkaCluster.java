@@ -43,11 +43,12 @@ import io.strimzi.api.kafka.model.template.PodDisruptionBudgetTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
+import org.bf2.common.ConditionUtils;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.StorageClassManager;
-import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
@@ -119,9 +120,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected DrainCleanerManager drainCleanerManager;
-
-    @Inject
-    protected StrimziManager strimziManager;
 
     @Inject
     protected StorageClassManager storageClassManager;
@@ -643,6 +641,19 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
+    }
+
+    @Override
+    public List<ManagedKafkaCondition> validate(ManagedKafka managedKafka) {
+        List<ManagedKafkaCondition> warningConditions = new ArrayList<>(0);
+        if (!this.strimziManager.isStrimziVersionValid(managedKafka)) {
+            String message = String.format("Strimzi version %s unavailable", managedKafka.getSpec().getVersions().getStrimzi());
+            log.warn(message);
+            warningConditions.add(
+                    ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Warning, ManagedKafkaCondition.Status.True, ManagedKafkaCondition.Reason.UnavailableStrimziVersion, message)
+            );
+        }
+        return warningConditions;
     }
 
     private ConfigMap cachedConfigMap(ManagedKafka managedKafka, String name) {

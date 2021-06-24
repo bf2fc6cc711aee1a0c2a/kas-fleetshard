@@ -10,11 +10,14 @@ import org.bf2.operator.secrets.ImagePullSecretManager;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Represents an overall Kafka instance made by Kafka, Canary and AdminServer resources
  */
 @ApplicationScoped
-public class KafkaInstance implements Operand<ManagedKafka> {
+public class KafkaInstance implements Operand<ManagedKafka, ManagedKafkaCondition> {
 
     @Inject
     AbstractKafkaCluster kafkaCluster;
@@ -89,6 +92,15 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         return kafkaCluster.isDeleted(managedKafka)
                 && canary.isDeleted(managedKafka)
                 && adminServer.isDeleted(managedKafka);
+    }
+
+    @Override
+    public List<ManagedKafkaCondition> validate(ManagedKafka managedKafka) {
+        List<ManagedKafkaCondition> warningConditions = new ArrayList<>(0);
+        warningConditions.addAll(kafkaCluster.validate(managedKafka));
+        warningConditions.addAll(canary.validate(managedKafka));
+        warningConditions.addAll(adminServer.validate(managedKafka));
+        return warningConditions;
     }
 
     public boolean isStrimziUpdating(ManagedKafka managedKafka) {

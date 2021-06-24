@@ -8,11 +8,12 @@ import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 
-public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
+public abstract class AbstractAdminServer implements Operand<ManagedKafka, ManagedKafkaCondition> {
 
     @Inject
     Logger log;

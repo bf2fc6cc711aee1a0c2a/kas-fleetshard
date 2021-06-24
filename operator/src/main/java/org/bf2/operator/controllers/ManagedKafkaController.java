@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
@@ -78,8 +79,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             NDC.push(ManagedKafkaResourceClient.ID_LOG_KEY + "=" + managedKafka.getId());
         }
         try {
+            List<ManagedKafkaCondition> warningConditions = kafkaInstance.validate(managedKafka);
             handleUpdate(managedKafka, context);
-            updateManagedKafkaStatus(managedKafka);
+            updateManagedKafkaStatus(managedKafka, warningConditions);
             return UpdateControl.updateStatusSubResource(managedKafka);
         } finally {
             if (managedKafka.getId() != null) {
@@ -99,8 +101,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * a corresponding list of ManagedKafkaCondition(s) to set on the ManagedKafka status
      *
      * @param managedKafka ManagedKafka instance
+     * @param warningConditions warning related conditions to add to the status
      */
-    private void updateManagedKafkaStatus(ManagedKafka managedKafka) {
+    private void updateManagedKafkaStatus(ManagedKafka managedKafka, List<ManagedKafkaCondition> warningConditions) {
         // add status if not already available on the ManagedKafka resource
         ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
                 new ManagedKafkaStatusBuilder()
@@ -112,8 +115,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
         if (managedKafkaConditions == null) {
             managedKafkaConditions = new ArrayList<>();
-            status.setConditions(managedKafkaConditions);
+        } else {
+            // remove all current warning conditions to add the ones from the latest validation
+            managedKafkaConditions = managedKafkaConditions.stream()
+                    .filter(mk -> mk.getType() != null && !mk.getType().equals(ManagedKafkaCondition.Type.Warning.name()))
+                    .collect(Collectors.toList());
         }
+        managedKafkaConditions.addAll(warningConditions);
+        status.setConditions(managedKafkaConditions);
+
         Optional<ManagedKafkaCondition> optReady =
                 ConditionUtils.findManagedKafkaCondition(managedKafkaConditions, ManagedKafkaCondition.Type.Ready);
 
@@ -134,10 +144,14 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         } else if (kafkaInstance.isReady(managedKafka)) {
             ConditionUtils.updateConditionStatus(ready, Status.True, null);
 
-            // TODO: just reflecting for now what was defined in the spec
-            managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            managedKafka.getStatus().setVersions(
+                    new VersionsBuilder()
+                            .withKafka(kafkaInstance.getKafkaCluster().currentKafkaVersion(managedKafka))
+                            .withStrimzi(kafkaInstance.getKafkaCluster().currentStrimziVersion(managedKafka))
+                            .build());
             managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
+            // TODO: for capacity just reflecting for now what was defined in the spec
+            managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
 
         } else if (kafkaInstance.isError(managedKafka)) {
             ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Error);
