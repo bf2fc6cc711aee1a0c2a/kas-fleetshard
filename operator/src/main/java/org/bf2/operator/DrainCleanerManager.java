@@ -53,7 +53,7 @@ public class DrainCleanerManager {
                 .validatingWebhookConfigurations()
                 .withLabel(drainCleanerWebhookLabelKey, drainCleanerWebhookLabelValue);
 
-        resourceInformerFactory.start(ValidatingWebhookConfiguration.class,
+        resourceInformerFactory.create(ValidatingWebhookConfiguration.class,
             withLabel,
             new ResourceEventHandler<ValidatingWebhookConfiguration>() {
                 @Override

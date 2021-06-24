@@ -14,7 +14,7 @@ public class ResourceInformerFactory {
 
     private ConcurrentLinkedQueue<ResourceInformer<?>> startedInformers = new ConcurrentLinkedQueue<>();
 
-    public <T extends HasMetadata> ResourceInformer<T> start(Class<T> type,
+    public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type,
             WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
         ResourceInformer<T> result = new ResourceInformer<>(type, watchListDeletable, eventHandler);
