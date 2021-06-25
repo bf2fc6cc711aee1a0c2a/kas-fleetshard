@@ -43,7 +43,7 @@ public class OlmBasedStrimziOperatorManager {
         org.bf2.test.TestUtils.waitFor("catalog source ready", 1_000, 120_000, () -> isCatalogSourceInstalled(kubeClient, namespace));
         installOperatorGroup(kubeClient, namespace);
         installSubscription(kubeClient, namespace);
-        isSubscriptionInstalled(kubeClient, namespace);
+        org.bf2.test.TestUtils.waitFor("subscription source ready", 1_000, 120_000, () -> isSubscriptionInstalled(kubeClient, namespace));
 
         LOGGER.info("Operator is deployed");
         return org.bf2.test.TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient, namespace));
@@ -119,7 +119,7 @@ public class OlmBasedStrimziOperatorManager {
     private static boolean isSubscriptionInstalled(KubeClient kubeClient, String namespace) {
         OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
         Subscription s = client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).get();
-        if (s != null && !s.getStatus().getCatalogHealth().isEmpty()) {
+        if (s != null && s.getStatus() != null && !s.getStatus().getCatalogHealth().isEmpty()) {
             List<SubscriptionCatalogHealth> healths = s.getStatus().getCatalogHealth();
             return !healths.stream()
                 .filter(h -> h.getHealthy())
