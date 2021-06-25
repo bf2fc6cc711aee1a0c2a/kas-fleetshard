@@ -119,13 +119,13 @@ public class OMB {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
-        String keystore = Base64.getEncoder().encodeToString(Files.readAllBytes(new File(Constants.SUITE_ROOT + "/src/test/resources/cert/ca.jks").toPath()));
+        String keystore = Base64.getEncoder().encodeToString(Files.readAllBytes(new File("src/test/resources/cert/listener.jks").toPath()));
         ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
                 .editOrNewMetadata()
-                .withName("kafka-ca")
+                .withName("ext-listener-crt")
                 .withNamespace(Constants.OMB_NAMESPACE)
                 .endMetadata()
-                .addToData("ca.jks", keystore)
+                .addToData("listener.jks", keystore)
                 .build());
 
         LOGGER.info("Done installing OMB in namespace {}", Constants.OMB_NAMESPACE);
@@ -140,7 +140,7 @@ public class OMB {
     public List<String> deployWorkers(int workers) throws Exception {
         String javaHeapFormatted = String.format("%dK", Quantity.getAmountInBytes(workerContainerMemory).longValueExact() / 2 / 1024);
         LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}, JVM heap: {}", workers, workerContainerMemory, workerCpu, javaHeapFormatted);
-        String jvmOpts = String.format("-Xms%s -Xmx%s -XX:+ExitOnOutOfMemoryError", javaHeapFormatted, javaHeapFormatted);
+        String jvmOpts = String.format("-Xms%s -Xmx%s -XX:+ExitOnOutOfMemoryError -Djavax.net.debug=ssl", javaHeapFormatted, javaHeapFormatted);
         List<Future<Void>> futures = new ArrayList<>();
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
         try {
@@ -259,7 +259,7 @@ public class OMB {
                 .addNewVolume()
                 .withName("ca")
                 .editOrNewSecret()
-                .withSecretName("kafka-ca")
+                .withSecretName("ext-listener-crt")
                 .endSecret()
                 .endVolume()
                 .endSpec()

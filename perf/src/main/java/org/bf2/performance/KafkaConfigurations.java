@@ -6,6 +6,11 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.TlsKeyPairBuilder;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * Utils class which stores our kafka/zookeeper cluster configurations
@@ -24,12 +29,18 @@ public class KafkaConfigurations {
         return builder.build();
     }
 
-    public static ManagedKafkaBuilder apply(ManagedKafkaCapacity capacityConfig, String name) {
+    public static ManagedKafkaBuilder apply(ManagedKafkaCapacity capacityConfig, String name) throws IOException {
         ManagedKafkaBuilder builder = new ManagedKafkaBuilder();
         builder.withMetadata(new ObjectMetaBuilder().withName(name).build());
         builder.withSpec(new ManagedKafkaSpecBuilder()
                 .withCapacity(capacityConfig)
-                .withNewEndpoint().endEndpoint()
+                //.withNewEndpoint().endEndpoint()
+                .withNewEndpoint()
+                    .withTls(new TlsKeyPairBuilder()
+                        .withNewCert(Files.readString(new File("src/test/resources/cert/listener.crt").toPath()))
+                        .withNewKey(Files.readString(new File("src/test/resources/cert/listener.key").toPath()))
+                        .build())
+                    .endEndpoint()
                 // TODO: these need externalized
                 .withNewVersions().withKafka("2.7.0").withStrimzi("strimzi-cluster-operator.v0.22.1-5").endVersions()
                 .build());
