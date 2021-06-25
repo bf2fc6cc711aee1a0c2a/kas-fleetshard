@@ -296,6 +296,7 @@ public class AdminServer extends AbstractAdminServer {
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
             addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key");
+            addEnvVar(envVars, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3,TLSv1.2");
         }
 
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
