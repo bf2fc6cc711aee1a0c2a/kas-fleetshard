@@ -81,12 +81,12 @@ spec:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
     config:
-      ssl.protocol: "TLSv1.3"
+      ssl.protocol: "TLS"
       client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
-      ssl.enabled.protocols: "TLSv1.3"
+      ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
       min.insync.replicas: 2
       offsets.topic.replication.factor: 3
       quota.window.size.seconds: "2"
