@@ -3,11 +3,8 @@ package org.bf2.performance;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
-import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.fabric8.openshift.api.model.operator.v1.IngressController;
-import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
@@ -35,7 +32,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
     private static final Logger LOGGER = LogManager.getLogger(ClusterKafkaProvisioner.class);
     private final List<ManagedKafka> clusters = new ArrayList<>();
     protected KubeClusterResource cluster;
-    protected List<RouterConfig> routerConfigs;
+    protected RouterConfig routerConfig;
 
     ClusterKafkaProvisioner(KubeClusterResource cluster) {
         this.cluster = cluster;
@@ -43,7 +40,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
 
     @Override
     public void setup() throws Exception {
-        this.routerConfigs = createIngressControllers(cluster, Environment.NUM_INGRESS_CONTROLLERS);
+        this.routerConfig = createIngressController(cluster);
     }
 
     @Override
@@ -78,17 +75,12 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
 
     @Override
     public KafkaDeployment deployCluster(ManagedKafka managedKafka, AdopterProfile profile) throws Exception {
-        int clusterNumber = 1;
-        RouterConfig routerConfig = routerConfigs.get(clusterNumber % routerConfigs.size());
-
         clusters.add(managedKafka);
 
         // TODO: should this be a fixed namespace.  The assumption currently is that the operator and managedkafka will be in the same namespace
         String namespace = Constants.KAFKA_NAMESPACE;
 
         managedKafka.getMetadata().setNamespace(namespace);
-        // TODO: the operator is not doing this, just setting ingressType to sharded
-        // kafka.getMetadata().getLabels().putAll(routerConfig.getRouteSelectorLabels());
 
         LOGGER.info("Cluster {} deploy with domain {}", managedKafka.getMetadata().getName(), routerConfig.getDomain());
 
@@ -147,6 +139,13 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         // set the bootstrap server host
         managedKafka.getSpec().getEndpoint().setBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", managedKafka.getMetadata().getName(), namespace, domain));
 
+        /*managedKafka.getSpec()
+                .getEndpoint()
+                .setTls(new TlsKeyPairBuilder()
+                        .withCert(Files.readString(new File("src/test/resources/cert/ca.pem").toPath()))
+                        .withKey(Files.readString(new File("src/test/resources/cert/cakey.pem").toPath()))
+                        .build());*/
+
         // Create cluster CA.
         cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
                 .editOrNewMetadata()
@@ -191,18 +190,17 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         return new KafkaDeployment(managedKafka, kafkaClient.require(), cluster);
     }
 
-    static List<RouterConfig> createIngressControllers(KubeClusterResource cluster, int numIngressControllers) throws IOException {
+    static RouterConfig createIngressController(KubeClusterResource cluster) throws IOException {
         var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
         String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR).withName("default").get().getStatus().getDomain();
 
-        List<RouterConfig> routerConfigs = new ArrayList<>();
-        for (int i = 0; i < numIngressControllers; i++) {
-            String name = String.format("mk%s", i);
-            String domain = defaultDomain.replace("apps", name);
-            Map<String, String> routeSelectorLabel = Collections.singletonMap("ingressName", name);
-            IngressController ingressController = new IngressControllerBuilder()
+        return new RouterConfig(defaultDomain, null);
+        /*
+        String domain = defaultDomain.replace("apps", "bf2");
+        Map<String, String> routeSelectorLabel = Collections.singletonMap("ingressType", "sharded");
+        IngressController ingressController = new IngressControllerBuilder()
                 .editOrNewMetadata()
-                .withName(name)
+                .withName("sharded-nlb")
                 .withNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
                 .endMetadata()
                 .editOrNewSpec()
@@ -229,16 +227,15 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
                 .endSpec()
                 .build();
 
-            client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
-                    .createOrReplace(ingressController);
+        client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
+                .createOrReplace(ingressController);
 
-            routerConfigs.add(new RouterConfig(domain, routeSelectorLabel));
-        }
-        return routerConfigs;
+        return new RouterConfig(domain, routeSelectorLabel);
+        */
     }
 
     static void deleteIngressController(KubeClusterResource cluster) {
-        cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers().withName("sharded").delete();
+        cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers().withName("sharded-nlb").delete();
     }
 
 }
