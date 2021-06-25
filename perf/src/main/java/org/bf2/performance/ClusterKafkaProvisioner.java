@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.LabelSelector;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -16,6 +17,7 @@ import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
@@ -144,6 +146,26 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
     KafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka, String domain) throws IOException {
         // set the bootstrap server host
         managedKafka.getSpec().getEndpoint().setBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", managedKafka.getMetadata().getName(), namespace, domain));
+
+        // Create cluster CA.
+        cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
+                .editOrNewMetadata()
+                .withName(String.format("%s-cluster-ca", managedKafka.getMetadata().getName()))
+                .withNamespace(namespace)
+                .addToLabels("strimzi.io/kind", "Kafka")
+                .addToLabels("strimzi.io/cluster", managedKafka.getMetadata().getName())
+                .endMetadata()
+                .addToStringData("ca.key", Files.readString(new File("src/test/resources/cert/cakey.pem").toPath()))
+                .build());
+        cluster.kubeClient().client().secrets().inNamespace(namespace).create(new SecretBuilder()
+                .editOrNewMetadata()
+                .withName(String.format("%s-cluster-ca-cert", managedKafka.getMetadata().getName()))
+                .withNamespace(namespace)
+                .addToLabels("strimzi.io/kind", "Kafka")
+                .addToLabels("strimzi.io/cluster", managedKafka.getMetadata().getName())
+                .endMetadata()
+                .addToStringData("ca.crt", Files.readString(new File("src/test/resources/cert/ca.pem").toPath()))
+                .build());
 
         var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
 

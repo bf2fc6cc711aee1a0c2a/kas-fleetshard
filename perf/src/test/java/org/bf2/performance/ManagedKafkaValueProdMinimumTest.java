@@ -110,7 +110,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
         OMBDriver driver = new OMBDriver()
                 .setReplicationFactor(3)
                 .setTopicConfig("min.insync.replicas=2\n")
-                .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=changeit\nssl.truststore.type=JKS\nssl.truststore.location=/cert/listener.jks\n", bootstrapHosts))
+                .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=testing\nssl.truststore.type=JKS\nssl.truststore.location=/cert/ca.jks\n", bootstrapHosts))
                 .setProducerConfig("acks=all\n")
                 .setConsumerConfig("auto.offset.reset=earliest\nenable.auto.commit=false\n");
 
