@@ -7,7 +7,6 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.ResourceInformerFactory;
-import org.bf2.operator.operands.KafkaCluster;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -23,9 +22,6 @@ public class DrainCleanerManager {
 
     @Inject
     InformerManager informerManager;
-
-    @Inject
-    KafkaCluster kafkaCluster;
 
     @Inject
     KubernetesClient kubernetesClient;
