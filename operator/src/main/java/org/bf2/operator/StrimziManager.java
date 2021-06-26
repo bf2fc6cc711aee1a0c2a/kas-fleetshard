@@ -49,7 +49,7 @@ public class StrimziManager {
         // a Strimzi version change was asked via the ManagedKafka resource
         if (this.hasStrimziChanged(managedKafka)) {
             log.infof("Strimzi change from %s to %s",
-                    managedKafka.getStatus().getVersions().getStrimzi(), managedKafka.getSpec().getVersions().getStrimzi());
+                    this.currentStrimziVersion(managedKafka), managedKafka.getSpec().getVersions().getStrimzi());
             // Kafka cluster is running and ready --> pause reconcile
             if (kafkaCluster.isReady(managedKafka)) {
                 pauseReconcile(managedKafka, annotations);
