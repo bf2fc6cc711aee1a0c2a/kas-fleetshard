@@ -9,7 +9,7 @@
         <version>999-SNAPSHOT</version>
     </parent>
     <artifactId>kas-fleetshard-perf</artifactId>
-    
+
     <properties>
         <skipTests>true</skipTests>
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
@@ -17,7 +17,7 @@
         <basepom.check.skip-all>true</basepom.check.skip-all>
         <fabric8.version>5.2.1</fabric8.version>
     </properties>
-    
+
     <repositories>
         <repository>
             <id>shawkins-snapshot</id>
@@ -42,8 +42,8 @@
                 <version>${fabric8.version}</version>
             </dependency>
         </dependencies>
-    </dependencyManagement> 
-    
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>io.openmessaging.benchmark</groupId>
@@ -69,8 +69,8 @@
             <artifactId>kubernetes-model-common</artifactId>
         </dependency>
         <dependency>
-           <groupId>com.squareup.okhttp3</groupId>
-           <artifactId>okhttp</artifactId>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
@@ -92,7 +92,7 @@
             <version>999-SNAPSHOT</version>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>

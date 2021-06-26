@@ -3,6 +3,8 @@ package org.bf2.test.k8s;
 import com.google.common.base.Functions;
 import io.fabric8.kubernetes.api.model.APIService;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.apache.logging.log4j.LogManager;
@@ -18,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Abstraction over fabric8 client and cmd kube client
@@ -81,12 +84,6 @@ public class KubeClient {
         return true;
     }
 
-    /**
-     * Apply resources from files
-     *
-     * @param namespace namessppace where to apply
-     * @param paths     folders
-     */
     public void apply(String namespace, InputStream is, Function<HasMetadata, HasMetadata> modifier) throws IOException {
         try (is) {
             client.load(is).get().stream().forEach(i -> {
@@ -118,4 +115,32 @@ public class KubeClient {
         }
     }
 
+    /**
+     * Method which return list of kube cluster nodes
+     *
+     * @return list of nodes
+     */
+    public List<Node> getClusterNodes() {
+        return client.nodes().list().getItems();
+    }
+
+    /**
+     * Method which return list of kube cluster workers node
+     *
+     * @return list of worker nodes
+     */
+    public List<Node> getClusterWorkers() {
+        return getClusterNodes().stream().filter(node ->
+                node.getMetadata().getLabels().containsKey("node-role.kubernetes.io/worker")).collect(Collectors.toList());
+    }
+
+    /**
+     * List pods in a specific namespace.
+     *
+     * @param namespace namespace
+     * @return pod list
+     */
+    public List<Pod> listPods(String namespace) {
+        return client.pods().inNamespace(namespace).list().getItems();
+    }
 }

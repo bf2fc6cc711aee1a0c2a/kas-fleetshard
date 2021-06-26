@@ -101,7 +101,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
 
         ConfigMap override =
                 new ConfigMapBuilder().withNewMetadata().withName("operator-logging-config-override").endMetadata()
-                .withData(Collections.singletonMap("application.properties", writer.toString())).build();
+                        .withData(Collections.singletonMap("application.properties", writer.toString())).build();
         return override;
     }
 
