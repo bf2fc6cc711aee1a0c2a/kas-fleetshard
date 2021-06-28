@@ -18,6 +18,7 @@ import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.DrainCleanerManager;
+import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,8 @@ class KafkaClusterTest {
     @Inject
     KafkaCluster kafkaCluster;
 
+    @Inject StorageClassManager storageClassManager;
+
     @BeforeEach
     void createDefaultStorageClass() {
         StorageClass defaultStorageClass = new StorageClassBuilder()
@@ -57,6 +60,7 @@ class KafkaClusterTest {
                 .build();
 
         server.getClient().storage().storageClasses().createOrReplace(defaultStorageClass);
+        storageClassManager.reconcileStorageClasses();
     }
 
     @Test
