@@ -7,17 +7,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.api.model.storage.StorageClass;
 import io.fabric8.kubernetes.api.model.storage.StorageClassBuilder;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.DrainCleanerManager;
+import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,11 +37,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 @QuarkusTest
 class KafkaClusterTest {
 
-    @KubernetesTestServer
-    KubernetesServer server;
+    @Inject
+    KubernetesClient client;
 
     @Inject
     KafkaCluster kafkaCluster;
+
+    @Inject
+    StorageClassManager storageClassManager;
 
     @BeforeEach
     void createDefaultStorageClass() {
@@ -56,7 +59,8 @@ class KafkaClusterTest {
                 .withAllowVolumeExpansion(true)
                 .build();
 
-        server.getClient().storage().storageClasses().createOrReplace(defaultStorageClass);
+        client.storage().storageClasses().createOrReplace(defaultStorageClass);
+        storageClassManager.reconcileStorageClasses();
     }
 
     @Test
@@ -68,7 +72,7 @@ class KafkaClusterTest {
         JsonNode patch = diffToExpected(kafka);
         assertEquals("[]", patch.toString());
 
-        var kafkaCli = server.getClient().customResources(Kafka.class, KafkaList.class);
+        var kafkaCli = client.customResources(Kafka.class, KafkaList.class);
         kafkaCli.create(kafka);
         assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }

@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 public class SecuritySecretManager {
 
     @Inject
-    private KubernetesClient kubernetesClient;
+    KubernetesClient kubernetesClient;
 
     @Inject
-    private InformerManager informerManager;
+    InformerManager informerManager;
 
     public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
         return managedKafka.getSpec().getOauth() != null;
