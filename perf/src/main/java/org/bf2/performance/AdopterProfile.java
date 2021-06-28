@@ -107,4 +107,16 @@ public class AdopterProfile {
         return storageCheckInterval;
     }
 
+    public void setStorageCheckInterval(Integer storageCheckInterval) {
+        this.storageCheckInterval = storageCheckInterval;
+    }
+
+    public void setStorageQuotaHardBytes(Long storageQuotaHardBytes) {
+        this.storageQuotaHardBytes = storageQuotaHardBytes;
+    }
+
+    public void setStorageQuotaSoftBytes(Long storageQuotaSoftBytes) {
+        this.storageQuotaSoftBytes = storageQuotaSoftBytes;
+    }
+
 }

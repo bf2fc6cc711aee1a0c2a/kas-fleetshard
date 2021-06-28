@@ -4,6 +4,8 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
@@ -87,7 +89,15 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         // convert the profile into simple configmap values - the operator should restart with these values
         ConfigMap override = toConfigMap(profile);
         cluster.kubeClient().client().configMaps().inNamespace(namespace).createOrReplace(override);
-        // TODO: bounce the operator - or move the profile to install
+        RollableScalableResource<Deployment> fleetshardOperatorDeployment = cluster.kubeClient()
+                .client()
+                .apps()
+                .deployments()
+                .inNamespace(FleetShardOperatorManager.OPERATOR_NS)
+                .withName(FleetShardOperatorManager.OPERATOR_NAME);
+        // restart the operator deployment
+        fleetshardOperatorDeployment.scale(0, true);
+        fleetshardOperatorDeployment.scale(1, true);
 
         KafkaDeployment kafkaDeployment = deployCluster(namespace, managedKafka, routerConfig.getDomain());
         kafkaDeployment.start();
