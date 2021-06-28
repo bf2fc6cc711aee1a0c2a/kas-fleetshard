@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import io.fabric8.kubernetes.api.model.storage.StorageClass;
+import io.fabric8.kubernetes.api.model.storage.StorageClassBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
@@ -17,12 +19,14 @@ import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,6 +42,22 @@ class KafkaClusterTest {
 
     @Inject
     KafkaCluster kafkaCluster;
+
+    @BeforeEach
+    void createDefaultStorageClass() {
+        StorageClass defaultStorageClass = new StorageClassBuilder()
+                .editOrNewMetadata()
+                    .withName("default-storageclass")
+                    .withAnnotations(Map.of("storageclass.kubernetes.io/is-default-class", "true"))
+                .endMetadata()
+                .withProvisioner("kubernetes.io/aws-ebs")
+                .withReclaimPolicy("Delete")
+                .withVolumeBindingMode("WaitForFirstConsumer")
+                .withAllowVolumeExpansion(true)
+                .build();
+
+        server.getClient().storage().storageClasses().createOrReplace(defaultStorageClass);
+    }
 
     @Test
     void testManagedKafkaToKafka() throws IOException {

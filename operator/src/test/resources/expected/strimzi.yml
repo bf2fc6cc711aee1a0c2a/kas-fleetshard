@@ -114,11 +114,11 @@ spec:
         size: "32212254720"
         overrides:
         - broker: 0
-          class: ""
+          class: "default-storageclass"
         - broker: 1
-          class: ""
+          class: "default-storageclass"
         - broker: 2
-          class: ""
+          class: "default-storageclass"
         id: 0
         deleteClaim: true
       type: "jbod"
@@ -162,11 +162,11 @@ spec:
       size: "10Gi"
       overrides:
       - broker: 0
-        class: ""
+        class: "default-storageclass"
       - broker: 1
-        class: ""
+        class: "default-storageclass"
       - broker: 2
-        class: ""
+        class: "default-storageclass"
       deleteClaim: true
     jvmOptions:
       "-Xmx": "512m"
