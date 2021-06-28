@@ -27,7 +27,7 @@ public class KeycloakOperatorManager {
     private static final List<HasMetadata> INSTALLED_RESOURCES = new LinkedList<>();
 
     //env vars
-    private static final String KEYCLOAK_VERSION = Environment.getOrDefault("KEYCLOAK_VERSION", "12.0.1");
+    private static final String KEYCLOAK_VERSION = Environment.getOrDefault("KEYCLOAK_VERSION", "14.0.0");
     public static final boolean INSTALL_KEYCLOAK = Environment.getOrDefault("INSTALL_KEYCLOAK", Boolean::parseBoolean, true);
 
     public static CompletableFuture<Void> installKeycloak(KubeClient kubeClient) throws Exception {
