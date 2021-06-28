@@ -1,0 +1,8 @@
+---
+bootstrapURL: my-kafka1-bootstrap.example.com:443
+username: srvc-acct-1bb857d4-f052-4d7c-86b9-7fd0808ff6e5
+password: da46df8a-97ca-4c12-a2eb-3b64aea12fac
+---
+bootstrapURL: my-kafka2-bootstrap.example.com:443
+username: srvc-acct-5af492c6-970f-4e6d-991b-120207a7014b
+password: 09927609-c6c3-4a26-bca4-fe822d2d3879

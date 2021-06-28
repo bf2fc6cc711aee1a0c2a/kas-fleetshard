@@ -14,9 +14,11 @@ import org.bf2.test.k8s.KubeClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class FleetShardOperatorManager {
     private static final String CRD_FILE_SUFFIX = "-v1.yml";
@@ -35,7 +37,7 @@ public class FleetShardOperatorManager {
     public static final String OPERATOR_NS = "kas-fleetshard";
     public static final String OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String SYNC_NAME = "kas-fleetshard-sync";
-    private static Path[] installedCrds = new Path[0];
+    private static List<Path> installedCrds = new ArrayList<>();
 
     private static void printVar() {
         LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
@@ -44,7 +46,7 @@ public class FleetShardOperatorManager {
     }
 
     public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isOperatorInstalled()) {
+        if (Environment.SKIP_DEPLOY || isOperatorInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or operator is already installed, skipping deployment of operator");
             return CompletableFuture.completedFuture(null);
         }
@@ -52,9 +54,9 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
         installedCrds =
-                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).toArray(Path[]::new);
-        LOGGER.info("Installing CRDs {}", Arrays.toString(installedCrds));
-        kubeClient.apply(OPERATOR_NS, installedCrds);
+                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).collect(Collectors.toList());
+        LOGGER.info("Installing CRDs {}", installedCrds);
+        installedCrds.forEach(crd -> kubeClient.apply(OPERATOR_NAME, crd));
 
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
@@ -64,18 +66,18 @@ public class FleetShardOperatorManager {
         }
         kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
-        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, FleetShardOperatorManager::isOperatorInstalled);
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient));
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isSyncInstalled()) {
+        if (Environment.SKIP_DEPLOY || isSyncInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or sync is already installed, skipping deployment of sync");
             return CompletableFuture.completedFuture(null);
         }
         LOGGER.info("Installing {}", SYNC_NAME);
         kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
-        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, FleetShardOperatorManager::isSyncInstalled);
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, () -> isSyncInstalled(kubeClient));
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {
@@ -83,18 +85,18 @@ public class FleetShardOperatorManager {
         kubeClient.apply(OPERATOR_NS, Path.of(FLEET_SHARD_PULL_SECRET_PATH));
     }
 
-    public static boolean isOperatorInstalled() {
-        return KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+    public static boolean isOperatorInstalled(KubeClient kubeClient) {
+        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(OPERATOR_NAME)) &&
-                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains(OPERATOR_NAME)).findFirst().get());
     }
 
-    public static boolean isSyncInstalled() {
-        return KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+    public static boolean isSyncInstalled(KubeClient kubeClient) {
+        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(SYNC_NAME)) &&
-                TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains(SYNC_NAME)).findFirst().get());
     }
@@ -128,7 +130,7 @@ public class FleetShardOperatorManager {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
             var mkCli = kubeClient.client().customResources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
-            Arrays.asList(installedCrds).forEach(crd -> {
+            installedCrds.forEach(crd -> {
                 String fileName = crd.getFileName().toString();
                 String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
                 LOGGER.info("Delete CRD {}", crdName);

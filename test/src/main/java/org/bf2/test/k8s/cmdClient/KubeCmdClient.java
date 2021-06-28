@@ -9,6 +9,7 @@ import org.bf2.test.executor.ExecResult;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
@@ -194,4 +195,6 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
     List<String> listResourcesByLabel(String resourceType, String label);
 
     String cmd();
+
+    K process(Map<String, String> domain, String file, Consumer<String> c);
 }

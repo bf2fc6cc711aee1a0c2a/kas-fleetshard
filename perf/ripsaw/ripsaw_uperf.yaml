@@ -1,0 +1,34 @@
+apiVersion: ripsaw.cloudbulldozer.io/v1alpha1
+kind: Benchmark
+metadata:
+  name: uperf-benchmark
+  namespace: my-ripsaw
+spec:
+  clustername: myk8scluster
+  #elasticsearch:
+  #   server: elk.server.com
+  #   port: 9200
+  #test_user: username_to_attach_to_metadata
+  workload:
+    cleanup: false
+    name: uperf
+    args:
+      serviceip: false
+      hostnetwork: false
+      pin: false
+      multus:
+        enabled: false
+      pin_server: "ip-10-0-160-183.ec2.internal"
+      pin_client: "ip-10-0-179-49.ec2.internal"
+      samples: 1
+      kind: pod
+      pair: 1
+      test_types:
+        - stream
+      protos:
+        - tcp
+      sizes:
+        - 131072
+      nthrs:
+        - 1
+      runtime: 3600

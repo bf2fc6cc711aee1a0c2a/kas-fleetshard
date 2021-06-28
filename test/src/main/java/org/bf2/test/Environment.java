@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.function.Function;
 
 /**
@@ -46,6 +48,7 @@ public class Environment {
     private static final String OAUTH_TLS_CERT_ENV = "OAUTH_TLS_CERT";
     private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
     private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
+    private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
 
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     private static final String SKIP_DEPLOY_ENV = "SKIP_DEPLOY";
@@ -69,6 +72,7 @@ public class Environment {
     public static final String OAUTH_TLS_CERT = getOrDefault(OAUTH_TLS_CERT_ENV, DUMMY_CERT);
     public static final String ENDPOINT_TLS_CERT = getOrDefault(ENDPOINT_TLS_CERT_ENV, DUMMY_CERT);
     public static final String ENDPOINT_TLS_KEY = getOrDefault(ENDPOINT_TLS_KEY_ENV, "key");
+    public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, Objects.requireNonNullElse(System.getProperty("strimziVersion"), versionFromMetaInf("io.strimzi/api")));
 
     public static final boolean SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, false);
     public static final boolean SKIP_DEPLOY = getOrDefault(SKIP_DEPLOY_ENV, Boolean::parseBoolean, false);
@@ -85,6 +89,19 @@ public class Environment {
         VALUES.forEach((key, value) -> LOGGER.info(debugFormat, key, value));
         LOGGER.info("=======================================================================");
     }
+
+    public static String versionFromMetaInf(String dep) {
+        try (InputStream is = Environment.class.getResourceAsStream("/META-INF/maven/" + dep + "/pom.properties")) {
+            if (is != null) {
+                Properties properties = new Properties();
+                properties.load(is);
+                return properties.getProperty("version");
+            }
+        } catch (IOException e) {
+        }
+        return null;
+    }
+
 
     /**
      * Get value from env or  from config or default and parse it to String data type

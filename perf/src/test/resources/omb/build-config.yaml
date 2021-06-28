@@ -1,0 +1,20 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  name: "omb-build" 
+spec:
+  runPolicy: "Serial" 
+  source: 
+    git:
+      uri: "https://github.com/lulf/openmessaging-benchmark.git"
+  strategy: 
+    sourceStrategy:
+      from:
+        kind: "ImageStreamTag"
+        name: "openjdk-11-rhel8:1.0"
+        namespace: "openshift"
+  output: 
+    to:
+      kind: "ImageStreamTag"
+      name: "openmessaging-benchmark:latest"
+      namespace: "omb"

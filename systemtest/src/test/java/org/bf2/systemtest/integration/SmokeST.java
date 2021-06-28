@@ -33,13 +33,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
     private String syncEndpoint;
+    private StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
     private KeycloakInstance keycloak;
 
     @BeforeAll
     void deploy() throws Exception {
         CompletableFuture.allOf(
                 KeycloakOperatorManager.installKeycloak(kube),
-                StrimziOperatorManager.installStrimzi(kube),
+                strimziOperatorManager.installStrimzi(kube),
                 FleetShardOperatorManager.deployFleetShardOperator(kube),
                 FleetShardOperatorManager.deployFleetShardSync(kube)).join();
 
@@ -53,7 +54,7 @@ public class SmokeST extends AbstractST {
         CompletableFuture.allOf(
                 KeycloakOperatorManager.uninstallKeycloak(kube),
                 FleetShardOperatorManager.deleteFleetShard(kube),
-                StrimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
+                strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
     }
 
     @Tag(TestTags.SMOKE)
