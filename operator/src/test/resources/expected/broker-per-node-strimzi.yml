@@ -1,6 +1,7 @@
 ---
 kind: "Kafka"
 metadata:
+  annotations: {}
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
@@ -20,10 +21,6 @@ spec:
       port: 9092
       type: "internal"
       tls: false
-    - name: "tls"
-      port: 9093
-      type: "internal"
-      tls: true
     - name: "external"
       port: 9094
       type: "ingress"
@@ -84,12 +81,12 @@ spec:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
     config:
-      ssl.protocol: "TLSv1.3"
+      ssl.protocol: "TLS"
       client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
-      ssl.enabled.protocols: "TLSv1.3"
+      ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
       min.insync.replicas: 2
       offsets.topic.replication.factor: 3
       quota.window.size.seconds: "2"
@@ -115,7 +112,13 @@ spec:
       - !<persistent-claim>
         type: "persistent-claim"
         size: "32212254720"
-        class: "gp2"
+        overrides:
+        - broker: 0
+          class: "default-storageclass"
+        - broker: 1
+          class: "default-storageclass"
+        - broker: 2
+          class: "default-storageclass"
         id: 0
         deleteClaim: true
       type: "jbod"
@@ -168,7 +171,13 @@ spec:
     storage: !<persistent-claim>
       type: "persistent-claim"
       size: "10Gi"
-      class: "gp2"
+      overrides:
+      - broker: 0
+        class: "default-storageclass"
+      - broker: 1
+        class: "default-storageclass"
+      - broker: 2
+        class: "default-storageclass"
       deleteClaim: true
     jvmOptions:
       "-Xmx": "512m"
