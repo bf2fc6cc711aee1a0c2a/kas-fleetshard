@@ -23,10 +23,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Startup
@@ -96,9 +96,8 @@ public class StorageClassManager {
                 .distinct()
                 .collect(Collectors.toList());
 
-        Map<String, StorageClass> zoneToStorageClass = zones.stream()
-                .collect(Collectors.toMap(Function.identity(),
-                        z -> storageClassInformer.getByKey(Cache.namespaceKeyFunc(null, "kas-" + z))));
+        Map<String, StorageClass> zoneToStorageClass = new HashMap<>();
+        zones.stream().forEach(z -> zoneToStorageClass.put(z, storageClassInformer.getByKey(Cache.namespaceKeyFunc(null, "kas-" + z))));
 
         List<StorageClass> storageClasses = storageClassesFrom(zoneToStorageClass);
 
