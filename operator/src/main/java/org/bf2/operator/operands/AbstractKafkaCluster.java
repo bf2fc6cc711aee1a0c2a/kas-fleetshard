@@ -63,6 +63,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     @ConfigProperty(name = "image.zookeeper")
     protected Optional<String> zookeeperImage;
 
+    @Inject
+    protected KafkaInstanceConfiguration config;
+
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
     }
@@ -237,8 +240,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected List<GenericKafkaListenerConfigurationBroker> getBrokerOverrides(ManagedKafka managedKafka) {
-        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(KAFKA_BROKERS);
-        for (int i = 0; i < KAFKA_BROKERS; i++) {
+        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(this.config.getReplicas());
+        for (int i = 0; i < this.config.getReplicas(); i++) {
             brokerOverrides.add(
                     new GenericKafkaListenerConfigurationBrokerBuilder()
                             .withHost(String.format("broker-%d-%s", i, managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))

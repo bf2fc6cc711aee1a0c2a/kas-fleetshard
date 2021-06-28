@@ -111,8 +111,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     @Inject
     protected StorageClassManager storageClassManager;
 
-    protected KafkaConfiguration config;
-
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         secretManager.createOrUpdate(managedKafka);
@@ -211,7 +209,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withExternalLogging(getKafkaExternalLogging(managedKafka))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(this.config.getZookeeper().getReplicas())
+                        .withReplicas(this.config.getZooKeeper().getReplicas())
                         .withStorage((SingleVolumeStorage)getZooKeeperStorage(current))
                         .withResources(getZooKeeperResources(managedKafka))
                         .withJvmOptions(getZooKeeperJvmOptions(managedKafka))
@@ -442,13 +440,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
             addQuotaConfig(managedKafka, current, config);
         }
 
-        // Limit client connections per broker
-        Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-        config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getMaxConnections()) / this.config.getReplicas())));
-        // Limit connection attempts per broker
-        Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-        config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getConnectionAttemptsPerSec()) / this.config.getReplicas()));
+        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+            // Limit client connections per broker
+               Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+               config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
+               // Limit connection attempts per broker
+               Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+               config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
 
+        }
         // custom authorizer configuration
         addKafkaAuthorizerConfig(config);
 
@@ -477,23 +477,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
-<<<<<<< HEAD
-
-        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-         // Limit client connections per broker
-            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
-            // Limit connection attempts per broker
-            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
-        }
-
-        // custom authorizer configuration
-        addKafkaAuthorizerConfig(config);
-
-        return config;
-=======
->>>>>>> 3bcb9fc (ability enable/disable the quota plugin using configuration)
     }
 
     private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {
@@ -505,8 +488,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, KAFKA_BROKERS)),
-                        () -> builder.withOverrides(getStorageOverrides(KAFKA_BROKERS)));
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.config.getReplicas())),
+                        () -> builder.withOverrides(getStorageOverrides(this.config.getReplicas())));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
@@ -521,9 +504,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
         if (v instanceof PersistentClaimStorage) {
             PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
-            if (this.config.getBroker().getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
+            if (this.config.getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
                 log.trace("Not setting storage overrides for pre-existing Kafka with storage class set");
-                builder.withStorageClass(this.config.getBroker().getStorageClass());
+                builder.withStorageClass(this.config.getStorageClass());
             } else if (!persistentClaimStorage.getOverrides().isEmpty()) {
                 log.trace("Reusing storage overrides on existing Kafka");
                 builder.withOverrides(persistentClaimStorage.getOverrides());
@@ -590,13 +573,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Storage getZooKeeperStorage(Kafka current) {
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
-                .withSize(this.config.getZookeeper().getVolumeSize())
+                .withSize(this.config.getZooKeeper().getVolumeSize())
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
             .ifPresentOrElse(
-                    existing -> handleExistingVolume(existing, builder, ZOOKEEPER_NODES),
-                    () -> builder.withOverrides(getStorageOverrides(ZOOKEEPER_NODES)));
+                    existing -> handleExistingVolume(existing, builder, this.config.getZooKeeper().getReplicas()),
+                    () -> builder.withOverrides(getStorageOverrides(this.config.getZooKeeper().getReplicas())));
 
         return builder.build();
     }

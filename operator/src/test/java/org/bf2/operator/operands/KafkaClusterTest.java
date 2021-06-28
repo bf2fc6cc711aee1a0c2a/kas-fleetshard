@@ -108,9 +108,6 @@ class KafkaClusterTest {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
             ObjectMapper objectMapper = new ObjectMapper();
-            System.out.println(
-                objectMapper.writeValueAsString(config)
-            );
             KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
 
             clone.setConnectionAttemptsPerSec(300);
@@ -119,7 +116,7 @@ class KafkaClusterTest {
             clone.getJvmXx().add("foo bar");
             clone.getJvmXx().add("foo2 bar2");
 
-            clone.getZooKeeper().setReplicas(10);
+            clone.getZooKeeper().setReplicas(5);
             clone.getZooKeeper().setContainerMemory("11Gi");
             clone.getZooKeeper().getJvmXx().add("zkfoo zkbar");
             clone.getZooKeeper().getJvmXx().add("zkfoo2 zkbar2");
@@ -145,6 +142,9 @@ class KafkaClusterTest {
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
+        System.out.println(
+            Serialization.asYaml(kafka)
+        );
         JsonNode patch = JsonDiff.asJson(file1, file2);
         return patch;
     }
