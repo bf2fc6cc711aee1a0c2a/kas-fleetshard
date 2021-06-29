@@ -436,19 +436,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
+        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+            // Limit client connections per broker
+            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getMaxConnections()) / this.config.getReplicas())));
+            // Limit connection attempts per broker
+            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getConnectionAttemptsPerSec()) / this.config.getReplicas()));
+        }
+
+        // configure quota plugin
         if (this.config.isEnableQuota()) {
             addQuotaConfig(managedKafka, current, config);
         }
 
-        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-            // Limit client connections per broker
-               Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-               config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
-               // Limit connection attempts per broker
-               Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-               config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
-
-        }
         // custom authorizer configuration
         addKafkaAuthorizerConfig(config);
 

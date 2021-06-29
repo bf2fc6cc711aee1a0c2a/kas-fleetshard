@@ -40,11 +40,6 @@ import java.util.function.Predicate;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
-    public static final int KAFKA_BROKERS = 3;
-    public static final int ZOOKEEPER_NODES = 3;
-    public static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
-    public static final Integer DEFAULT_MAX_CONNECTIONS = 500;
-
     @Inject
     Logger log;
 
@@ -189,9 +184,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), DEFAULT_MAX_CONNECTIONS)/KAFKA_BROKERS;
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getMaxConnections())/this.config.getReplicas();
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), DEFAULT_CONNECTION_ATTEMPTS_PER_SEC)/KAFKA_BROKERS;
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getConnectionAttemptsPerSec())/this.config.getReplicas();
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder =  new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
