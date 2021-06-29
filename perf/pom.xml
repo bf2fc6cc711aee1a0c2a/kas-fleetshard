@@ -94,43 +94,63 @@
     <build>
         <plugins>
             <plugin>
-	            <groupId>org.apache.maven.plugins</groupId>
-	            <artifactId>maven-scm-plugin</artifactId>
-	            <executions>
-	                <execution>
-	                    <id>Checkout remote-write</id>
-	                    <phase>generate-sources</phase>
-	                    <goals>
-	                       <goal>checkout</goal>
-	                    </goals>
-	                    <configuration>
-		                    <checkoutDirectory>remote-write</checkoutDirectory>
-		                    <developerConnectionUrl>scm:git:git://github.com/jhellar/remote-write</developerConnectionUrl>
-		                    <connectionUrl>scm:git:git://github.com/jhellar/remote-write</connectionUrl>
-		                </configuration>
-	                </execution>
-	            </executions>
-           </plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>Checkout remote-write</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                           <goal>checkout</goal>
+                        </goals>
+                        <configuration>
+                            <checkoutDirectory>remote-write</checkoutDirectory>
+                            <developerConnectionUrl>scm:git:git://github.com/jhellar/remote-write</developerConnectionUrl>
+                            <connectionUrl>scm:git:git://github.com/jhellar/remote-write</connectionUrl>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
-				<artifactId>exec-maven-plugin</artifactId>
-				<groupId>org.codehaus.mojo</groupId>
-				<executions>
-					<execution>
-						<id>Build Go binary</id>
-						<phase>generate-sources</phase>
-						<goals>
-							<goal>exec</goal>
-						</goals>
-						<configuration>
-						    <workingDirectory>${basedir}/remote-write</workingDirectory>
-							<executable>make</executable>
-							<arguments>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>Checkout kafka-monitoring-stuff</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                           <goal>checkout</goal>
+                        </goals>
+                        <configuration>
+                            <checkoutDirectory>kafka-monitoring-stuff</checkoutDirectory>
+                            <developerConnectionUrl>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-sre-sops.git</developerConnectionUrl>
+                            <connectionUrl>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-sre-sops.git</connectionUrl>
+                            <scmVersion>main</scmVersion>
+                            <scmVersionType>branch</scmVersionType>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>exec-maven-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <executions>
+                    <execution>
+                        <id>Build Go binary</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <workingDirectory>${basedir}/remote-write</workingDirectory>
+                            <executable>make</executable>
+                            <arguments>
                                 <argument>remote-write</argument>
                             </arguments>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
