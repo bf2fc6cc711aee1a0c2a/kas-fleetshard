@@ -25,6 +25,7 @@ import org.bf2.operator.InformerManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
+import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -41,8 +42,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public static final int KAFKA_BROKERS = 3;
     public static final int ZOOKEEPER_NODES = 3;
-    private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
-    private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
+    public static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
+    public static final Integer DEFAULT_MAX_CONNECTIONS = 500;
 
     @Inject
     Logger log;
@@ -189,6 +190,20 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         // Limit connection attempts per listener
         Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), DEFAULT_CONNECTION_ATTEMPTS_PER_SEC);
 
+        GenericKafkaListenerConfigurationBuilder listenerConfigBuilder =  new GenericKafkaListenerConfigurationBuilder()
+                .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
+                        .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
+                        .build()
+                )
+                .withBrokers(getBrokerOverrides(managedKafka))
+                .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka));
+
+        if(!managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+            listenerConfigBuilder
+                .withMaxConnections(totalMaxConnections)
+                .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
+        }
+
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
                         new GenericKafkaListenerBuilder()
@@ -203,18 +218,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withType(externalListenerType)
                                 .withTls(true)
                                 .withAuth(plainOverOauthAuthenticationListener)
-                                .withConfiguration(
-                                        new GenericKafkaListenerConfigurationBuilder()
-                                                .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
-                                                        .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                                                        .build()
-                                                )
-                                                .withBrokers(getBrokerOverrides(managedKafka))
-                                                .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka))
-                                                .withMaxConnections(totalMaxConnections)
-                                                .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec)
-                                                .build()
-                                )
+                                .withConfiguration(listenerConfigBuilder.build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("oauth")

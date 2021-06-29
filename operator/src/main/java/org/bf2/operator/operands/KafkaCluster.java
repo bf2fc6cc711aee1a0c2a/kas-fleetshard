@@ -48,6 +48,7 @@ import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.jboss.logging.Logger;
@@ -471,6 +472,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
+
+        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+         // Limit client connections per broker
+            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
+            // Limit connection attempts per broker
+            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
+        }
 
         // custom authorizer configuration
         addKafkaAuthorizerConfig(config);
