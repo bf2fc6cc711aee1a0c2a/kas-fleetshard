@@ -94,6 +94,16 @@ class KafkaClusterTest {
         assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
     }
 
+    @Test
+    void testManagedKafkaWithMaxConnections() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getVersions().setStrimzi("0.23.0");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        JsonNode patch = diffToExpected(kafka);
+        assertEquals("[{\"op\":\"add\",\"path\":\"/metadata/annotations/strimzi.io~1pause-reconciliation\",\"value\":\"true\"},{\"op\":\"add\",\"path\":\"/metadata/annotations/managedkafka.bf2.org~1pause-reason\",\"value\":\"strimziupdating\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
+    }
+
     private JsonNode diffToExpected(Kafka kafka) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream("/expected/strimzi.yml"));

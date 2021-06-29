@@ -48,6 +48,7 @@ import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.jboss.logging.Logger;
@@ -102,8 +103,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
-    private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
-    private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
     private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
     private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
     private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
@@ -474,12 +473,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
 
-        // Limit client connections per broker
-        Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-        config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
-        // Limit connection attempts per broker
-        Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-        config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
+        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+         // Limit client connections per broker
+            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
+            // Limit connection attempts per broker
+            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
+        }
 
         // custom authorizer configuration
         addKafkaAuthorizerConfig(config);
