@@ -129,8 +129,8 @@ spec:
     rack:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
-      "-Xmx": "512m"
-      "-Xms": "512m"
+      "-Xmx": "3G"
+      "-Xms": "3G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
         foo: "bar"
@@ -138,10 +138,10 @@ spec:
     resources:
       limits:
         memory: "2Gi"
-        cpu: "1000m"
+        cpu: "3000m"
       requests:
         memory: "2Gi"
-        cpu: "1000m"
+        cpu: "3000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
@@ -179,8 +179,8 @@ spec:
         class: "default-storageclass"        
       deleteClaim: true
     jvmOptions:
-      "-Xmx": "512m"
-      "-Xms": "512m"
+      "-Xmx": "2G"
+      "-Xms": "2G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
         zkfoo: "zkbar"
@@ -188,10 +188,10 @@ spec:
     resources:
       limits:
         memory: "11Gi"
-        cpu: "500m"
+        cpu: "1000m"
       requests:
         memory: "11Gi"
-        cpu: "500m"
+        cpu: "1000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:

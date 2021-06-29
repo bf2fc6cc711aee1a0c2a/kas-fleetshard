@@ -21,19 +21,19 @@ public class KafkaInstanceConfiguration {
     // broker
     public static final int KAFKA_BROKERS = 3;
     private static final String KAFKA_STORAGE_CLASS = "gp2";
-    private static final String KAFKA_CONTAINER_MEMORY = "1Gi";
-    private static final String KAFKA_CONTAINER_CPU = "1000m";
+    private static final String KAFKA_CONTAINER_MEMORY = "8Gi";
+    private static final String KAFKA_CONTAINER_CPU = "3000m";
     private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
-    private static final String KAFKA_JVM_XMS = "512m";
-    private static final String KAFKA_JVM_XMX = "512m";
+    private static final String KAFKA_JVM_XMS = "3G";
+    private static final String KAFKA_JVM_XMX = "3G";
 
     // zookeeper
     private static final int ZOOKEEPER_NODES = 3;
     private static final String ZOOKEEPER_VOLUME_SIZE = "10Gi";
-    private static final String ZOOKEEPER_CONTAINER_MEMORY = "1Gi";
-    private static final String ZOOKEEPER_CONTAINER_CPU = "500m";
-    private static final String ZOOKEEPER_JVM_XMS = "512m";
-    private static final String ZOOKEEPER_JVM_XMX = "512m";
+    private static final String ZOOKEEPER_CONTAINER_MEMORY = "4Gi";
+    private static final String ZOOKEEPER_CONTAINER_CPU = "1000m";
+    private static final String ZOOKEEPER_JVM_XMS = "2G";
+    private static final String ZOOKEEPER_JVM_XMX = "2G";
 
     // exporter
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = "128Mi";
