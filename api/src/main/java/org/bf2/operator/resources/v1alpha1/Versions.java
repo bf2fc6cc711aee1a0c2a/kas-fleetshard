@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Versions {
     public static String VERSION_0_22 = "0.22";
-    private static Pattern versionPattern = Pattern.compile("[a-z\\.\\-]*(\\d+\\.\\d+\\.\\d+)");
+    private static Pattern strimziVersionPattern = Pattern.compile("[a-z\\.\\-]*(\\d+\\.\\d+\\.\\d+)");
 
     @NotNull
     private String kafka;
@@ -47,7 +47,7 @@ public class Versions {
     }
 
     public boolean isStrimziVersionIn(String... versions) {
-        Matcher m = versionPattern.matcher(getStrimzi());
+        Matcher m = strimziVersionPattern.matcher(getStrimzi());
         if (m.matches()) {
             String currentVersion = m.group(1);
             return Arrays.stream(versions).anyMatch( v -> currentVersion.startsWith(v));
