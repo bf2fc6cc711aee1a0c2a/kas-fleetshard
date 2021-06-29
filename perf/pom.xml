@@ -13,8 +13,6 @@
     <properties>
         <skipTests>true</skipTests>
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
-        <!-- TODO: remove me -->
-        <basepom.check.skip-all>true</basepom.check.skip-all>
         <fabric8.version>5.2.1</fabric8.version>
     </properties>
 

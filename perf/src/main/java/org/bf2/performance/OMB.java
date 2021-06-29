@@ -50,6 +50,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -468,7 +469,7 @@ public class OMB {
                 daemonSetStatus = ombCluster.kubeClient().client().apps().daemonSets().inNamespace(ombWorkerImageHolder)
                     .withName(ombWorkerImageHolder).get().getStatus();
                 LOGGER.info("DaemonSet reporting {} pods ready, expecting {}", daemonSetStatus.getNumberReady(), daemonSetStatus.getDesiredNumberScheduled());
-            } while (daemonSetStatus.getNumberReady() != daemonSetStatus.getDesiredNumberScheduled());
+            } while (!Objects.equals(daemonSetStatus.getNumberReady(), daemonSetStatus.getDesiredNumberScheduled()));
         } catch (InterruptedException e) {
             throw new RuntimeException("Failed to wait for DaemonSet to become ready, received InterruptedException", e);
         }
