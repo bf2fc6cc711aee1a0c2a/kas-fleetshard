@@ -57,14 +57,6 @@ You can make use of these files interactively too.
  oc --kubeconfig client-config get pod --all-namespaces -o wide
 ```
 
-## Getting submodule
-**Make sure you update submodules!**
-
-You need to use a personal access token from GitHub developer settings when prompted for password.
-```
-make submodule-init
-```
-
 ## openmessaging-benchmark
 
 Until we find a more suitable place, the benchmark jars have been published into the makeshift [github maven repo](https://github.com/shawkins/repo).

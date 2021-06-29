@@ -9,32 +9,23 @@ ifdef PROFILE
 	PROFILE_ARGS = "-P$(PROFILE)"
 endif
 
-all: clean submodule-init rw-install test
+all: clean test
 
 clean: clean_java
 
 clean_java:
 	mvn clean
 
-submodule-init:
-	git submodule update --init --recursive --force
-
-submodule-update:
-	git submodule update --remote --merge
-
-rw-install:
-	pushd remote-write; make remote-write; popd
-
 test:
 	mvn test -Dtest=$(TESTCASE) $(PROFILE_ARGS)
 
-pipeline: rw-install
+pipeline:
 	./scripts/pipeline.sh
 
 pipeline/cleanup:
 	./scripts/pipeline.sh cleanup
 
-ci/pipeline: submodule-init
+ci/pipeline:
 	$(DOCKER) pull quay.io/app-sre/mk-ci-tools:latest
 	$(DOCKER) run -v $(ROOT_DIR):/opt/mk-performance-tests \
 	            -w /opt/mk-performance-tests \
@@ -66,4 +57,4 @@ ci/pipeline/cleanup:
 				-u $(shell id -u) \
 				quay.io/app-sre/mk-ci-tools:latest make pipeline/cleanup
 
-.PHONY: clean rw-install test pipeline pipeline/cleanup ci/pipeline ci/pipeline/cleanup
+.PHONY: clean test pipeline pipeline/cleanup ci/pipeline ci/pipeline/cleanup
