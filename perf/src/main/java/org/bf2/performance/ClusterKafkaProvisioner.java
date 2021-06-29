@@ -11,6 +11,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -76,7 +77,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
     }
 
     @Override
-    public KafkaDeployment deployCluster(ManagedKafka managedKafka, AdopterProfile profile) throws Exception {
+    public KafkaDeployment deployCluster(ManagedKafka managedKafka, KafkaInstanceConfiguration profile) throws Exception {
         clusters.add(managedKafka);
 
         // TODO: should this be a fixed namespace.  The assumption currently is that the operator and managedkafka will be in the same namespace
@@ -104,7 +105,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         return kafkaDeployment;
     }
 
-    static ConfigMap toConfigMap(AdopterProfile profile) throws IOException {
+    static ConfigMap toConfigMap(KafkaInstanceConfiguration profile) throws IOException {
         Properties propertyMap = Serialization.jsonMapper().convertValue(profile, Properties.class);
         StringWriter writer = new StringWriter();
         propertyMap.store(writer, null);
