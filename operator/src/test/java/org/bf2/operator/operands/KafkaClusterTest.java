@@ -27,6 +27,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -113,13 +114,11 @@ class KafkaClusterTest {
             clone.setConnectionAttemptsPerSec(300);
             clone.setReplicas(4);
             clone.setContainerMemory("2Gi");
-            clone.getJvmXx().add("foo bar");
-            clone.getJvmXx().add("foo2 bar2");
+            clone.setJvmXx("foo bar, foo2 bar2");
 
             clone.getZooKeeper().setReplicas(5);
             clone.getZooKeeper().setContainerMemory("11Gi");
-            clone.getZooKeeper().getJvmXx().add("zkfoo zkbar");
-            clone.getZooKeeper().getJvmXx().add("zkfoo2 zkbar2");
+            clone.getZooKeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
             kafkaCluster.setKafkaConfiguration(clone);
 
@@ -138,13 +137,34 @@ class KafkaClusterTest {
         }
     }
 
+    @Test
+    void testKafkaInstanceConfigurationSerialization() throws IOException {
+        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
+        ObjectMapper objectMapper = new ObjectMapper();
+        KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
+        clone.setConnectionAttemptsPerSec(300);
+        clone.setReplicas(4);
+        clone.setContainerMemory("2Gi");
+        clone.setJvmXx("foo bar, foo2 bar2");
+
+        clone.getZooKeeper().setReplicas(5);
+        clone.getZooKeeper().setContainerMemory("11Gi");
+        clone.getZooKeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
+
+        Properties propertyMap = Serialization.jsonMapper().convertValue(clone, Properties.class);
+        assertEquals("4", propertyMap.get("kafka.replicas"));
+        assertEquals("2Gi", propertyMap.get("kafka.container-memory"));
+        assertEquals("foo bar, foo2 bar2", propertyMap.get("kafka.jvm-xx"));
+
+        assertEquals("5", propertyMap.get("kafka.zoo-keeper.replicas"));
+        assertEquals("11Gi", propertyMap.get("kafka.zoo-keeper.container-memory"));
+        assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("kafka.zoo-keeper.jvm-xx"));
+
+    }
     private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
-        System.out.println(
-            Serialization.asYaml(kafka)
-        );
         JsonNode patch = JsonDiff.asJson(file1, file2);
         return patch;
     }

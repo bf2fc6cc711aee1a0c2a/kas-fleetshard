@@ -1,11 +1,13 @@
 package org.bf2.operator.operands;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.quarkus.arc.config.ConfigProperties;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 @ConfigProperties(prefix = "kafka")
@@ -39,28 +41,37 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
 
+    @JsonProperty("kafka.connection-attempts-per-sec")
     protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
+    @JsonProperty("kafka.max-connections")
     protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
+    @JsonProperty("kafka.ingress-throughput-per-sec")
     protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+    @JsonProperty("kafka.egress-throughput-per-sec")
     protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+    @JsonProperty("kafka.replicas")
     protected int replicas = KAFKA_BROKERS;
+    @JsonProperty("kafka.storage-class")
     protected String storageClass = KAFKA_STORAGE_CLASS;
+    @JsonProperty("kafka.container-memory")
     protected String containerMemory = KAFKA_CONTAINER_MEMORY;
+    @JsonProperty("kafka.container-cpu")
     protected String containerCpu = KAFKA_CONTAINER_CPU;
+    @JsonProperty("kafka.volume-size")
     protected String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
+    @JsonProperty("kafka.jvm-xms")
     protected String jvmXms = KAFKA_JVM_XMS;
+    @JsonProperty("kafka.jvm-xmx")
     protected String jvmXmx = KAFKA_JVM_XMX;
-    protected List<String> jvmXx = new ArrayList<>();
+    @JsonProperty("kafka.jvm-xx")
+    protected String jvmXx = JVM_OPTIONS_XX;
+    @JsonProperty("kafka.enable-quota")
     protected boolean enableQuota = true;
 
-    @JsonUnwrapped(prefix = "zoo-keeper.")
+    @JsonUnwrapped(prefix = "kafka.zoo-keeper.")
     protected ZooKeeper zooKeeper;
-    @JsonUnwrapped(prefix = "exporter.")
+    @JsonUnwrapped(prefix = "kafka.exporter.")
     protected Exporter exporter;
-
-    public KafkaInstanceConfiguration() {
-        this.jvmXx.add(JVM_OPTIONS_XX);
-    }
 
     public int getReplicas() {
         return replicas;
@@ -118,30 +129,34 @@ public class KafkaInstanceConfiguration {
         this.jvmXmx = jvmXmx;
     }
 
-    public List<String> getJvmXx() {
-        return jvmXx;
+    public String getJvmXx() {
+        return this.jvmXx;
     }
 
-    public void setJvmXx(List<String> jvmXx) {
+    public void setJvmXx(String jvmXx) {
         this.jvmXx = jvmXx;
     }
 
+    @JsonIgnore
     public Map<String, String> getJvmXxMap() {
-        return listToMap(this.jvmXx);
+        return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
     }
 
     public static class ZooKeeper {
+        @JsonProperty("replicas")
         private int replicas = ZOOKEEPER_NODES;
+        @JsonProperty("volume-size")
         private String volumeSize = ZOOKEEPER_VOLUME_SIZE;
+        @JsonProperty("container-memory")
         private String containerMemory = ZOOKEEPER_CONTAINER_MEMORY;
+        @JsonProperty("container-cpu")
         private String containerCpu = ZOOKEEPER_CONTAINER_CPU;
+        @JsonProperty("jvm-xms")
         private String jvmXms = ZOOKEEPER_JVM_XMS;
+        @JsonProperty("jvm-xmx")
         private String jvmXmx = ZOOKEEPER_JVM_XMX;
-        private List<String> jvmXx = new ArrayList<>();
-
-        public ZooKeeper() {
-            this.jvmXx.add(JVM_OPTIONS_XX);
-        }
+        @JsonProperty("jvm-xx")
+        protected String jvmXx = JVM_OPTIONS_XX;
 
         public int getReplicas() {
             return replicas;
@@ -179,21 +194,26 @@ public class KafkaInstanceConfiguration {
         public void setJvmXmx(String jvmXmx) {
             this.jvmXmx = jvmXmx;
         }
-        public List<String> getJvmXx() {
-            return jvmXx;
+        public String getJvmXx() {
+            return this.jvmXx;
         }
-        public void setJvmXx(List<String> jvmXx) {
+        public void setJvmXx(String jvmXx) {
             this.jvmXx = jvmXx;
         }
+        @JsonIgnore
         public Map<String, String> getJvmXxMap() {
-            return listToMap(this.jvmXx);
+            return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
         }
     }
 
     public static class Exporter {
+        @JsonProperty("container-memory")
         private String containerMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT;
+        @JsonProperty("container-cpu")
         private String containerCpu = KAFKA_EXPORTER_CONTAINER_CPU_LIMIT;
+        @JsonProperty("container-request-memory")
         private String containerRequestMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST;
+        @JsonProperty("container-request-cpu")
         private String containerRequestCpu = KAFKA_EXPORTER_CONTAINER_CPU_REQUEST;
 
         public String getContainerMemory() {
@@ -222,13 +242,15 @@ public class KafkaInstanceConfiguration {
         }
     }
 
-    private static Map<String, String> listToMap(List<String> strs) {
-        return strs
-                .stream()
-                .map(e -> e.trim())
-                .map(e -> e.split("\\s+"))
-                .filter(e -> e[0].trim().length() > 0)
-                .collect(Collectors.toMap(e -> e[0], e -> e[1]));
+    private static Map<String, String> strToMap(String strs) {
+        if (strs != null) {
+            return Arrays.stream(strs.split(","))
+                    .map(e -> e.trim())
+                    .map(e -> e.split("\\s+"))
+                    .filter(e -> e[0].trim().length() > 0)
+                    .collect(Collectors.toMap(e -> e[0], e -> e[1]));
+        }
+        return new TreeMap<>();
     }
 
     public int getConnectionAttemptsPerSec() {
