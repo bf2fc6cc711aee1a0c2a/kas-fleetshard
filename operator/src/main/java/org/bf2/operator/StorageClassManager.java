@@ -83,7 +83,7 @@ public class StorageClassManager {
     }
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
-    void reconcileStorageClasses() {
+    public void reconcileStorageClasses() {
         if (nodeInformer == null || storageClassInformer == null) {
             log.warn("One or more informers are not yet ready");
             return;
