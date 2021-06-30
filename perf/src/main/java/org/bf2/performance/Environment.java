@@ -39,12 +39,8 @@ public class Environment {
     private static final String OMB_WARMUP_DURATION_ENV = "OMB_WARMUP_DURATION";
     private static final String APPLY_BROKER_QUOTA_ENV = "APPLY_BROKER_QUOTA";
     private static final String KAFKA_KUBECONFIG_ENV = "KAFKA_KUBECONFIG";
-    private static final String REMOTE_WRITE_DIR_ENV = "REMOTE_WRITE_DIR";
-    private static final String MONITORING_STUFF_DIR_ENV = "MONITORING_STUFF_DIR";
+    private static final String ENABLE_METRICS_ENV = "ENABLE_METRICS";
     private static final String STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV = "STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS";
-    private static final String THANOS_URL_ENV = "THANOS_URL";
-    private static final String THANOS_TOKEN_ENV = "THANOS_TOKEN";
-    private static final String OBSERVATORIUM_ROUTE_ENV = "OBSERVATORIUM_ROUTE";
     private static final String OMB_COLLECT_LOG_ENV = "OMB_COLLECT_LOG";
     private static final String KAFKA_COLLECT_LOG_ENV = "KAFKA_COLLECT_LOG";
     private static final String MAX_KAFKA_INSTANCES_ENV = "MAX_KAFKA_INSTANCES";
@@ -63,11 +59,7 @@ public class Environment {
     public static final String OMB_KUBECONFIG = getOrDefault(OMB_KUBECONFIG_ENV, Constants.SUITE_ROOT + "/client-config");
     public static final String KAFKA_KUBECONFIG = getOrDefault(KAFKA_KUBECONFIG_ENV, Constants.SUITE_ROOT + "/kafka-config");
 
-    public static final String THANOS_URL = getOrDefault(THANOS_URL_ENV, "");
-    public static final String OBSERVATORIUM_ROUTE = getOrDefault(OBSERVATORIUM_ROUTE_ENV, "");
-    public static final String THANOS_TOKEN = getOrDefault(THANOS_TOKEN_ENV, "");
-    public static final Path REMOTE_WRITE_BIN = getOrDefault(REMOTE_WRITE_DIR_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "remote-write", "remote-write"));
-    public static final Path MONITORING_STUFF_DIR = getOrDefault(MONITORING_STUFF_DIR_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "kafka-monitoring-stuff", "install"));
+    public static final Boolean ENABLE_METRICS = getOrDefault(ENABLE_METRICS_ENV, Boolean::parseBoolean, true);
     public static final Duration OMB_TEST_DURATION = getOrDefault(OMB_TEST_DURATION_ENV, Duration::parse, Duration.parse("PT1M"));
     public static final Duration OMB_WARMUP_DURATION = getOrDefault(OMB_WARMUP_DURATION_ENV, Duration::parse, Duration.parse("PT1M"));
     public static final Boolean APPLY_BROKER_QUOTA = getOrDefault(APPLY_BROKER_QUOTA_ENV, Boolean::parseBoolean, Boolean.TRUE);

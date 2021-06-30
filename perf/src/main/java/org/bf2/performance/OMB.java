@@ -28,7 +28,6 @@ import io.openmessaging.benchmark.worker.DistributedWorkersEnsemble;
 import io.openmessaging.benchmark.worker.Worker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.performance.framework.ActualTestMetadata;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestMetadataCapture;
 import org.bf2.test.TestUtils;
@@ -355,8 +354,6 @@ public class OMB {
 
         TestMetadataCapture.getInstance().storeOmbData(ombCluster, workload, driver, this);
 
-        ThanosSender.sendOmbData(resultFile, Map.of("omb", workload.getName().replace(" ", "_"),
-                "testName", ActualTestMetadata.getInstance().getDisplayName()));
         return new OMBWorkloadResult(resultFile, createTestResult(resultFile));
     }
 

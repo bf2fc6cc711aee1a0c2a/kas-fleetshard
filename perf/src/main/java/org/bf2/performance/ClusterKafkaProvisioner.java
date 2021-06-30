@@ -68,18 +68,16 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         cluster.connectNamespaceToMonitoringStack(StrimziOperatorManager.OPERATOR_NS);
 
         // installs a cluster wide fleetshard operator
-        // TODO: I'm not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
+        // not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
-        cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
-
+        cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
     }
 
     @Override
     public KafkaDeployment deployCluster(ManagedKafka managedKafka, AdopterProfile profile) throws Exception {
         clusters.add(managedKafka);
 
-        // TODO: should this be a fixed namespace.  The assumption currently is that the operator and managedkafka will be in the same namespace
         String namespace = Constants.KAFKA_NAMESPACE;
 
         managedKafka.getMetadata().setNamespace(namespace);
@@ -179,7 +177,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
 
         // set kafka and zookeeper metrics
-        if (Files.exists(Environment.MONITORING_STUFF_DIR)) {
+        if (Environment.ENABLE_METRICS) {
             ConfigMap kafkaMetrics = configMapClient.load(ClusterKafkaProvisioner.class.getClassLoader().getResource("kafka-metrics.yaml")).get();
             kafkaMetrics.getMetadata().setName(managedKafka.getMetadata().getName() + "-kafka-metrics");
             configMapClient.createOrReplace(kafkaMetrics);
