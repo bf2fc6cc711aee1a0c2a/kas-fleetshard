@@ -6,6 +6,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
@@ -46,7 +47,7 @@ public class FleetShardOperatorManager {
     }
 
     public static CompletableFuture<Void> deployFleetShardOperator(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isOperatorInstalled(kubeClient)) {
+        if (SystemTestEnvironment.SKIP_DEPLOY || isOperatorInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or operator is already installed, skipping deployment of operator");
             return CompletableFuture.completedFuture(null);
         }
@@ -70,7 +71,7 @@ public class FleetShardOperatorManager {
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
-        if (Environment.SKIP_DEPLOY || isSyncInstalled(kubeClient)) {
+        if (SystemTestEnvironment.SKIP_DEPLOY || isSyncInstalled(kubeClient)) {
             LOGGER.info("SKIP_DEPLOY is set or sync is already installed, skipping deployment of sync");
             return CompletableFuture.completedFuture(null);
         }
@@ -126,7 +127,7 @@ public class FleetShardOperatorManager {
     }
 
     public static CompletableFuture<Void> deleteFleetShard(KubeClient kubeClient) {
-        if (!Environment.SKIP_TEARDOWN) {
+        if (!SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
             var mkCli = kubeClient.client().customResources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());

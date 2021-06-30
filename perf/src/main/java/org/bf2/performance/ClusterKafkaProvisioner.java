@@ -177,7 +177,7 @@ public class ClusterKafkaProvisioner implements KafkaProvisioner {
         var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
 
         // set kafka and zookeeper metrics
-        if (Environment.ENABLE_METRICS) {
+        if (PerformanceEnvironment.ENABLE_METRICS) {
             ConfigMap kafkaMetrics = configMapClient.load(ClusterKafkaProvisioner.class.getClassLoader().getResource("kafka-metrics.yaml")).get();
             kafkaMetrics.getMetadata().setName(managedKafka.getMetadata().getName() + "-kafka-metrics");
             configMapClient.createOrReplace(kafkaMetrics);

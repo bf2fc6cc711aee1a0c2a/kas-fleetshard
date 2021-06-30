@@ -115,7 +115,7 @@ public class OMB {
 
         Map<String, String> nsAnnotations = new HashMap<>();
         nsAnnotations.put(Constants.ORG_BF2_PERFORMANCE_CHECKRESTARTEDCONTAINERS, "true");
-        if (Environment.OMB_COLLECT_LOG) {
+        if (PerformanceEnvironment.OMB_COLLECT_LOG) {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());

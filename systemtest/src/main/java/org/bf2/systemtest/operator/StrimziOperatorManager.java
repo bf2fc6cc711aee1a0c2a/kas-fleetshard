@@ -12,7 +12,7 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.test.Environment;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
@@ -55,7 +55,7 @@ public class StrimziOperatorManager {
 
         Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
         kubeClient.client().namespaces().createOrReplace(namespace);
-        URL url = new URL(String.format(STRIMZI_URL_FORMAT, Environment.STRIMZI_VERSION));
+        URL url = new URL(String.format(STRIMZI_URL_FORMAT, SystemTestEnvironment.STRIMZI_VERSION));
 
         // modify namespaces, convert rolebinding to clusterrolebindings, update deployment if needed
         String crbID = UUID.randomUUID().toString().substring(0, 5);
@@ -112,7 +112,7 @@ public class StrimziOperatorManager {
     }
 
     public CompletableFuture<Void> uninstallStrimziClusterWideResources(KubeClient kubeClient) {
-        if (kubeClient.namespaceExists(operatorNs) && !Environment.SKIP_TEARDOWN) {
+        if (kubeClient.namespaceExists(operatorNs) && !SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting Strimzi : {}", operatorNs);
             kubeClient.client().namespaces().withName(operatorNs).delete();
             clusterWideResourceDeleters.forEach(delete -> delete.accept(null));

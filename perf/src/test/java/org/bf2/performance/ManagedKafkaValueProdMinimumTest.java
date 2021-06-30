@@ -31,9 +31,9 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
 
     @BeforeAll
     void beforeAll() throws Exception {
-        kafkaProvisioner = KafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(Environment.KAFKA_KUBECONFIG));
+        kafkaProvisioner = KafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
         kafkaProvisioner.setup();
-        omb = new OMB(KubeClusterResource.connectToKubeCluster(Environment.OMB_KUBECONFIG));
+        omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
         omb.install();
         omb.setWorkerContainerMemory(WORKER_SIZE);
         omb.addToEnv(new EnvVar("HISTOGRAM_NUMBER_OF_SIGNIFICANT_VALUE_DIGITS", "0", null));
