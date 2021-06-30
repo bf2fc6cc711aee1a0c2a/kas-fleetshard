@@ -184,9 +184,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getMaxConnections())/this.config.getReplicas();
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections())/this.config.getKafka().getReplicas();
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getConnectionAttemptsPerSec())/this.config.getReplicas();
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec())/this.config.getKafka().getReplicas();
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder =  new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
@@ -235,8 +235,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected List<GenericKafkaListenerConfigurationBroker> getBrokerOverrides(ManagedKafka managedKafka) {
-        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(this.config.getReplicas());
-        for (int i = 0; i < this.config.getReplicas(); i++) {
+        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(this.config.getKafka().getReplicas());
+        for (int i = 0; i < this.config.getKafka().getReplicas(); i++) {
             brokerOverrides.add(
                     new GenericKafkaListenerConfigurationBrokerBuilder()
                             .withHost(String.format("broker-%d-%s", i, managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))

@@ -111,14 +111,14 @@ class KafkaClusterTest {
             ObjectMapper objectMapper = new ObjectMapper();
             KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
 
-            clone.setConnectionAttemptsPerSec(300);
-            clone.setReplicas(4);
-            clone.setContainerMemory("2Gi");
-            clone.setJvmXx("foo bar, foo2 bar2");
+            clone.getKafka().setConnectionAttemptsPerSec(300);
+            clone.getKafka().setReplicas(4);
+            clone.getKafka().setContainerMemory("2Gi");
+            clone.getKafka().setJvmXx("foo bar, foo2 bar2");
 
-            clone.getZooKeeper().setReplicas(5);
-            clone.getZooKeeper().setContainerMemory("11Gi");
-            clone.getZooKeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
+            clone.getZookeeper().setReplicas(5);
+            clone.getZookeeper().setContainerMemory("11Gi");
+            clone.getZookeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
             kafkaCluster.setKafkaConfiguration(clone);
 
@@ -142,23 +142,23 @@ class KafkaClusterTest {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         ObjectMapper objectMapper = new ObjectMapper();
         KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
-        clone.setConnectionAttemptsPerSec(300);
-        clone.setReplicas(4);
-        clone.setContainerMemory("2Gi");
-        clone.setJvmXx("foo bar, foo2 bar2");
+        clone.getKafka().setConnectionAttemptsPerSec(300);
+        clone.getKafka().setReplicas(4);
+        clone.getKafka().setContainerMemory("2Gi");
+        clone.getKafka().setJvmXx("foo bar, foo2 bar2");
 
-        clone.getZooKeeper().setReplicas(5);
-        clone.getZooKeeper().setContainerMemory("11Gi");
-        clone.getZooKeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
+        clone.getZookeeper().setReplicas(5);
+        clone.getZookeeper().setContainerMemory("11Gi");
+        clone.getZookeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
         Properties propertyMap = Serialization.jsonMapper().convertValue(clone, Properties.class);
-        assertEquals("4", propertyMap.get("kafka.replicas"));
-        assertEquals("2Gi", propertyMap.get("kafka.container-memory"));
-        assertEquals("foo bar, foo2 bar2", propertyMap.get("kafka.jvm-xx"));
+        assertEquals("4", propertyMap.get("managedkafka.kafka.replicas"));
+        assertEquals("2Gi", propertyMap.get("managedkafka.kafka.container-memory"));
+        assertEquals("foo bar, foo2 bar2", propertyMap.get("managedkafka.kafka.jvm-xx"));
 
-        assertEquals("5", propertyMap.get("kafka.zoo-keeper.replicas"));
-        assertEquals("11Gi", propertyMap.get("kafka.zoo-keeper.container-memory"));
-        assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("kafka.zoo-keeper.jvm-xx"));
+        assertEquals("5", propertyMap.get("managedkafka.zookeeper.replicas"));
+        assertEquals("11Gi", propertyMap.get("managedkafka.zookeeper.container-memory"));
+        assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("managedkafka.zookeeper.jvm-xx"));
 
     }
     private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {

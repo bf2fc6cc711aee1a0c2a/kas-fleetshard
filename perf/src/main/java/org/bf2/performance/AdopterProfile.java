@@ -21,14 +21,12 @@ public class AdopterProfile {
     public static KafkaInstanceConfiguration buildProfile(String zookeeperContainerMemory, String zookeeperJavaMemory,
             String zookeeperCpu, String kafkaContainerMemory, String kafkaJavaMemory, String kafkaCpu) {
         KafkaInstanceConfiguration config = new KafkaInstanceConfiguration();
-        config.setContainerMemory(kafkaContainerMemory);
-        config.setContainerCpu(kafkaCpu);
-        config.setJvmXms(kafkaJavaMemory);
-        config.setJvmXmx(kafkaJavaMemory);
-        config.getZooKeeper().setContainerCpu(zookeeperCpu);
-        config.getZooKeeper().setContainerMemory(zookeeperContainerMemory);
-        config.getZooKeeper().setJvmXms(zookeeperJavaMemory);
-        config.getZooKeeper().setJvmXmx(zookeeperJavaMemory);
+        config.getKafka().setContainerMemory(kafkaContainerMemory);
+        config.getKafka().setContainerCpu(kafkaCpu);
+        config.getKafka().setJvmXms(kafkaJavaMemory);
+        config.getZookeeper().setContainerCpu(zookeeperCpu);
+        config.getZookeeper().setContainerMemory(zookeeperContainerMemory);
+        config.getZookeeper().setJvmXms(zookeeperJavaMemory);
         return config;
     }
 }

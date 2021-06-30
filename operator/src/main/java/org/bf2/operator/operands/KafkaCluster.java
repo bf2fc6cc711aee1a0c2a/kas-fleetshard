@@ -196,7 +196,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
                         .withConfig(getKafkaConfig(managedKafka, current))
-                        .withReplicas(this.config.getReplicas())
+                        .withReplicas(this.config.getKafka().getReplicas())
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
                         .withStorage(getKafkaStorage(managedKafka, current))
@@ -209,7 +209,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withExternalLogging(getKafkaExternalLogging(managedKafka))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(this.config.getZooKeeper().getReplicas())
+                        .withReplicas(this.config.getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage)getZooKeeperStorage(current))
                         .withResources(getZooKeeperResources(managedKafka))
                         .withJvmOptions(getZooKeeperJvmOptions(managedKafka))
@@ -354,36 +354,36 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms(this.config.getJvmXms())
-                .withXmx(this.config.getJvmXmx())
-                .withXx(this.config.getJvmXxMap())
+                .withXms(this.config.getKafka().getJvmXms())
+                .withXmx(this.config.getKafka().getJvmXms())
+                .withXx(this.config.getKafka().getJvmXxMap())
                 .build();
     }
 
     private JvmOptions getZooKeeperJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms(this.config.getZooKeeper().getJvmXms())
-                .withXmx(this.config.getZooKeeper().getJvmXmx())
-                .withXx(this.config.getZooKeeper().getJvmXxMap())
+                .withXms(this.config.getZookeeper().getJvmXms())
+                .withXmx(this.config.getZookeeper().getJvmXms())
+                .withXx(this.config.getZookeeper().getJvmXxMap())
                 .build();
     }
 
     private ResourceRequirements getKafkaResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getContainerCpu()))
+                .addToRequests("memory", new Quantity(this.config.getKafka().getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getKafka().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
                 .build();
         return resources;
     }
 
     private ResourceRequirements getZooKeeperResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getZooKeeper().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getZooKeeper().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getZooKeeper().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getZooKeeper().getContainerCpu()))
+                .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
                 .build();
         return resources;
     }
@@ -439,14 +439,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
             // Limit client connections per broker
             Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getMaxConnections()) / this.config.getReplicas())));
+            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas())));
             // Limit connection attempts per broker
             Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getConnectionAttemptsPerSec()) / this.config.getReplicas()));
+            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas()));
         }
 
         // configure quota plugin
-        if (this.config.isEnableQuota()) {
+        if (this.config.getKafka().isEnableQuota()) {
             addQuotaConfig(managedKafka, current, config);
         }
 
@@ -460,7 +460,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getIngressThroughputPerSec()))).doubleValue() / this.config.getReplicas());
+        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).doubleValue() / this.config.getKafka().getReplicas());
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
@@ -489,8 +489,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.config.getReplicas())),
-                        () -> builder.withOverrides(getStorageOverrides(this.config.getReplicas())));
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.config.getKafka().getReplicas())),
+                        () -> builder.withOverrides(getStorageOverrides(this.config.getKafka().getReplicas())));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
@@ -505,9 +505,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
         if (v instanceof PersistentClaimStorage) {
             PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
-            if (this.config.getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
+            if (this.config.getKafka().getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
                 log.trace("Not setting storage overrides for pre-existing Kafka with storage class set");
-                builder.withStorageClass(this.config.getStorageClass());
+                builder.withStorageClass(this.config.getKafka().getStorageClass());
             } else if (!persistentClaimStorage.getOverrides().isEmpty()) {
                 log.trace("Reusing storage overrides on existing Kafka");
                 builder.withOverrides(persistentClaimStorage.getOverrides());
@@ -541,13 +541,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
         long bytes;
         if (maxDataRetentionSize == null) {
-            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getVolumeSize())).longValue();
+            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getKafka().getVolumeSize())).longValue();
         } else {
             bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
         }
 
         // this is per broker
-        bytes /= this.config.getReplicas();
+        bytes /= this.config.getKafka().getReplicas();
 
         // pad to give a margin before soft/hard limits kick in
         bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
@@ -574,13 +574,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Storage getZooKeeperStorage(Kafka current) {
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
-                .withSize(this.config.getZooKeeper().getVolumeSize())
+                .withSize(this.config.getZookeeper().getVolumeSize())
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
             .ifPresentOrElse(
-                    existing -> handleExistingVolume(existing, builder, this.config.getZooKeeper().getReplicas()),
-                    () -> builder.withOverrides(getStorageOverrides(this.config.getZooKeeper().getReplicas())));
+                    existing -> handleExistingVolume(existing, builder, this.config.getZookeeper().getReplicas()),
+                    () -> builder.withOverrides(getStorageOverrides(this.config.getZookeeper().getReplicas())));
 
         return builder.build();
     }

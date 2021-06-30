@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-@ConfigProperties(prefix = "kafka")
+@ConfigProperties(prefix = "managedkafka")
 public class KafkaInstanceConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
@@ -25,7 +25,6 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_CONTAINER_CPU = "3000m";
     private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
     private static final String KAFKA_JVM_XMS = "3G";
-    private static final String KAFKA_JVM_XMX = "3G";
 
     // zookeeper
     private static final int ZOOKEEPER_NODES = 3;
@@ -33,7 +32,6 @@ public class KafkaInstanceConfiguration {
     private static final String ZOOKEEPER_CONTAINER_MEMORY = "4Gi";
     private static final String ZOOKEEPER_CONTAINER_CPU = "1000m";
     private static final String ZOOKEEPER_JVM_XMS = "2G";
-    private static final String ZOOKEEPER_JVM_XMX = "2G";
 
     // exporter
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = "128Mi";
@@ -41,105 +39,139 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
 
-    @JsonProperty("kafka.connection-attempts-per-sec")
-    protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
-    @JsonProperty("kafka.max-connections")
-    protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
-    @JsonProperty("kafka.ingress-throughput-per-sec")
-    protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
-    @JsonProperty("kafka.egress-throughput-per-sec")
-    protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
-    @JsonProperty("kafka.replicas")
-    protected int replicas = KAFKA_BROKERS;
-    @JsonProperty("kafka.storage-class")
-    protected String storageClass = KAFKA_STORAGE_CLASS;
-    @JsonProperty("kafka.container-memory")
-    protected String containerMemory = KAFKA_CONTAINER_MEMORY;
-    @JsonProperty("kafka.container-cpu")
-    protected String containerCpu = KAFKA_CONTAINER_CPU;
-    @JsonProperty("kafka.volume-size")
-    protected String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
-    @JsonProperty("kafka.jvm-xms")
-    protected String jvmXms = KAFKA_JVM_XMS;
-    @JsonProperty("kafka.jvm-xmx")
-    protected String jvmXmx = KAFKA_JVM_XMX;
-    @JsonProperty("kafka.jvm-xx")
-    protected String jvmXx = JVM_OPTIONS_XX;
-    @JsonProperty("kafka.enable-quota")
-    protected boolean enableQuota = true;
-
-    @JsonUnwrapped(prefix = "kafka.zoo-keeper.")
-    protected ZooKeeper zooKeeper;
-    @JsonUnwrapped(prefix = "kafka.exporter.")
+    @JsonUnwrapped(prefix = "managedkafka.kafka.")
+    protected Kafka kafka;
+    @JsonUnwrapped(prefix = "managedkafka.zookeeper.")
+    protected ZooKeeper zookeeper;
+    @JsonUnwrapped(prefix = "managedkafka.exporter.")
     protected Exporter exporter;
 
-    public int getReplicas() {
-        return replicas;
-    }
+    public static class Kafka {
+        @JsonProperty("connection-attempts-per-sec")
+        protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
+        @JsonProperty("max-connections")
+        protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
+        @JsonProperty("ingress-throughput-per-sec")
+        protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+        @JsonProperty("egress-throughput-per-sec")
+        protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+        @JsonProperty("replicas")
+        protected int replicas = KAFKA_BROKERS;
+        @JsonProperty("storage-class")
+        protected String storageClass = KAFKA_STORAGE_CLASS;
+        @JsonProperty("container-memory")
+        protected String containerMemory = KAFKA_CONTAINER_MEMORY;
+        @JsonProperty("container-cpu")
+        protected String containerCpu = KAFKA_CONTAINER_CPU;
+        @JsonProperty("volume-size")
+        protected String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
+        @JsonProperty("jvm-xms")
+        protected String jvmXms = KAFKA_JVM_XMS;
+        @JsonProperty("jvm-xx")
+        protected String jvmXx = JVM_OPTIONS_XX;
+        @JsonProperty("enable-quota")
+        protected boolean enableQuota = true;
 
-    public void setReplicas(int replicas) {
-        this.replicas = replicas;
-    }
+        public int getReplicas() {
+            return replicas;
+        }
 
-    public String getStorageClass() {
-        return storageClass;
-    }
+        public void setReplicas(int replicas) {
+            this.replicas = replicas;
+        }
 
-    public void setStorageClass(String storageClass) {
-        this.storageClass = storageClass;
-    }
+        public String getStorageClass() {
+            return storageClass;
+        }
 
-    public String getContainerMemory() {
-        return containerMemory;
-    }
+        public void setStorageClass(String storageClass) {
+            this.storageClass = storageClass;
+        }
 
-    public void setContainerMemory(String containerMemory) {
-        this.containerMemory = containerMemory;
-    }
+        public String getContainerMemory() {
+            return containerMemory;
+        }
 
-    public String getContainerCpu() {
-        return containerCpu;
-    }
+        public void setContainerMemory(String containerMemory) {
+            this.containerMemory = containerMemory;
+        }
 
-    public void setContainerCpu(String containerCpu) {
-        this.containerCpu = containerCpu;
-    }
+        public String getContainerCpu() {
+            return containerCpu;
+        }
 
-    public String getVolumeSize() {
-        return volumeSize;
-    }
+        public void setContainerCpu(String containerCpu) {
+            this.containerCpu = containerCpu;
+        }
 
-    public void setVolumeSize(String volumeSize) {
-        this.volumeSize = volumeSize;
-    }
+        public String getVolumeSize() {
+            return volumeSize;
+        }
 
-    public String getJvmXms() {
-        return jvmXms;
-    }
+        public void setVolumeSize(String volumeSize) {
+            this.volumeSize = volumeSize;
+        }
 
-    public void setJvmXms(String jvmXms) {
-        this.jvmXms = jvmXms;
-    }
+        public String getJvmXms() {
+            return jvmXms;
+        }
 
-    public String getJvmXmx() {
-        return jvmXmx;
-    }
+        public void setJvmXms(String jvmXms) {
+            this.jvmXms = jvmXms;
+        }
 
-    public void setJvmXmx(String jvmXmx) {
-        this.jvmXmx = jvmXmx;
-    }
+        public String getJvmXx() {
+            return this.jvmXx;
+        }
 
-    public String getJvmXx() {
-        return this.jvmXx;
-    }
+        public void setJvmXx(String jvmXx) {
+            this.jvmXx = jvmXx;
+        }
 
-    public void setJvmXx(String jvmXx) {
-        this.jvmXx = jvmXx;
-    }
+        public int getConnectionAttemptsPerSec() {
+            return connectionAttemptsPerSec;
+        }
 
-    @JsonIgnore
-    public Map<String, String> getJvmXxMap() {
-        return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
+        public void setConnectionAttemptsPerSec(int connectionAttemptsPerSec) {
+            this.connectionAttemptsPerSec = connectionAttemptsPerSec;
+        }
+
+        public int getMaxConnections() {
+            return maxConnections;
+        }
+
+        public void setMaxConnections(int maxConnections) {
+            this.maxConnections = maxConnections;
+        }
+
+        public String getIngressThroughputPerSec() {
+            return ingressThroughputPerSec;
+        }
+
+        public void setIngressThroughputPerSec(String ingressThroughputPerSec) {
+            this.ingressThroughputPerSec = ingressThroughputPerSec;
+        }
+
+        public String getEgressThroughputPerSec() {
+            return egressThroughputPerSec;
+        }
+
+        public void setEgressThroughputPerSec(String egressThroughputPerSec) {
+            this.egressThroughputPerSec = egressThroughputPerSec;
+        }
+
+        public boolean isEnableQuota() {
+            return enableQuota;
+        }
+
+        public void setEnableQuota(boolean enableQuota) {
+            this.enableQuota = enableQuota;
+        }
+
+        @JsonIgnore
+        public Map<String, String> getJvmXxMap() {
+            return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
+        }
     }
 
     public static class ZooKeeper {
@@ -153,53 +185,57 @@ public class KafkaInstanceConfiguration {
         private String containerCpu = ZOOKEEPER_CONTAINER_CPU;
         @JsonProperty("jvm-xms")
         private String jvmXms = ZOOKEEPER_JVM_XMS;
-        @JsonProperty("jvm-xmx")
-        private String jvmXmx = ZOOKEEPER_JVM_XMX;
         @JsonProperty("jvm-xx")
         protected String jvmXx = JVM_OPTIONS_XX;
 
         public int getReplicas() {
             return replicas;
         }
+
         public void setReplicas(int replicas) {
             this.replicas = replicas;
         }
+
         public String getVolumeSize() {
             return volumeSize;
         }
+
         public void setVolumeSize(String volumeSize) {
             this.volumeSize = volumeSize;
         }
+
         public String getContainerMemory() {
             return containerMemory;
         }
+
         public void setContainerMemory(String containerMemory) {
             this.containerMemory = containerMemory;
         }
+
         public String getContainerCpu() {
             return containerCpu;
         }
+
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
         }
+
         public String getJvmXms() {
             return jvmXms;
         }
+
         public void setJvmXms(String jvmXms) {
             this.jvmXms = jvmXms;
         }
-        public String getJvmXmx() {
-            return jvmXmx;
-        }
-        public void setJvmXmx(String jvmXmx) {
-            this.jvmXmx = jvmXmx;
-        }
+
         public String getJvmXx() {
             return this.jvmXx;
         }
+
         public void setJvmXx(String jvmXx) {
             this.jvmXx = jvmXx;
         }
+
         @JsonIgnore
         public Map<String, String> getJvmXxMap() {
             return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
@@ -219,24 +255,31 @@ public class KafkaInstanceConfiguration {
         public String getContainerMemory() {
             return containerMemory;
         }
+
         public void setContainerMemory(String containerMemory) {
             this.containerMemory = containerMemory;
         }
+
         public String getContainerCpu() {
             return containerCpu;
         }
+
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
         }
+
         public String getContainerRequestMemory() {
             return containerRequestMemory;
         }
+
         public void setContainerRequestMemory(String containerRequestMemory) {
             this.containerRequestMemory = containerRequestMemory;
         }
+
         public String getContainerRequestCpu() {
             return containerRequestCpu;
         }
+
         public void setContainerRequestCpu(String containerRequestCpu) {
             this.containerRequestCpu = containerRequestCpu;
         }
@@ -253,44 +296,20 @@ public class KafkaInstanceConfiguration {
         return new TreeMap<>();
     }
 
-    public int getConnectionAttemptsPerSec() {
-        return connectionAttemptsPerSec;
+    public Kafka getKafka() {
+        return kafka;
     }
 
-    public void setConnectionAttemptsPerSec(int connectionAttemptsPerSec) {
-        this.connectionAttemptsPerSec = connectionAttemptsPerSec;
+    public void setKafka(Kafka kafka) {
+        this.kafka = kafka;
     }
 
-    public int getMaxConnections() {
-        return maxConnections;
+    public ZooKeeper getZookeeper() {
+        return zookeeper;
     }
 
-    public void setMaxConnections(int maxConnections) {
-        this.maxConnections = maxConnections;
-    }
-
-    public String getIngressThroughputPerSec() {
-        return ingressThroughputPerSec;
-    }
-
-    public void setIngressThroughputPerSec(String ingressThroughputPerSec) {
-        this.ingressThroughputPerSec = ingressThroughputPerSec;
-    }
-
-    public String getEgressThroughputPerSec() {
-        return egressThroughputPerSec;
-    }
-
-    public void setEgressThroughputPerSec(String egressThroughputPerSec) {
-        this.egressThroughputPerSec = egressThroughputPerSec;
-    }
-
-    public ZooKeeper getZooKeeper() {
-        return zooKeeper;
-    }
-
-    public void setZooKeeper(ZooKeeper zookeeper) {
-        this.zooKeeper = zookeeper;
+    public void setZookeeper(ZooKeeper zookeeper) {
+        this.zookeeper = zookeeper;
     }
 
     public Exporter getExporter() {
@@ -299,13 +318,5 @@ public class KafkaInstanceConfiguration {
 
     public void setExporter(Exporter exporter) {
         this.exporter = exporter;
-    }
-
-    public boolean isEnableQuota() {
-        return enableQuota;
-    }
-
-    public void setEnableQuota(boolean enableQuota) {
-        this.enableQuota = enableQuota;
     }
 }
