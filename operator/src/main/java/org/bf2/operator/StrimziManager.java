@@ -144,8 +144,8 @@ public class StrimziManager {
      * @return if the Strimzi version specified in the ManagedKafka resource is installed or not
      */
     public boolean isStrimziVersionValid(ManagedKafka managedKafka) {
-        List<String> strimziVersions = this.getStrimziVersions();
-        return strimziVersions.contains(managedKafka.getSpec().getVersions().getStrimzi());
+        List<StrimziVersionStatus> strimziVersions = this.getStrimziVersions();
+        return strimziVersions.stream().anyMatch(svs -> managedKafka.getSpec().getVersions().getStrimzi().equals(svs.getVersion()));
     }
 
     /**
