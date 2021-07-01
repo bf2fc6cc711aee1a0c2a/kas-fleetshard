@@ -27,6 +27,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.secrets.ObservabilityManager;
 import org.jboss.logging.Logger;
 
@@ -116,7 +117,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null);
         }
 
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
 
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
@@ -158,7 +159,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .withNodeInfo(nodeInfo)
                 .withResizeInfo(resize)
                 .withUpdatedTimestamp(ConditionUtils.iso8601Now())
-                .withStrimziVersions(strimziVersions)
+                .withStrimzi(strimziVersions)
                 .build();
     }
 }

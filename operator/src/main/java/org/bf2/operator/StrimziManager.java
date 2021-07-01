@@ -8,6 +8,8 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatusBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -164,7 +166,7 @@ public class StrimziManager {
      *
      * @return list with Deployment names of Strimzi operator
      */
-    public List<String> getStrimziVersions() {
+    public List<StrimziVersionStatus> getStrimziVersions() {
 
         // checking the ReplicaSet instead of Deployments is a temporary workaround waiting for OpenShift 4.8 (with OLM operator 1.18.0)
         // OLM operator 1.17.0 (on OpenShift 4.7) doesn't support feature to set labels on Deployments from inside the CSV
@@ -172,10 +174,10 @@ public class StrimziManager {
         ReplicaSetList list = this.kubernetesClient.apps()
                 .replicaSets()
                 .inAnyNamespace()
-                .withLabelIn("app.kubernetes.io/part-of", "managed-kafka")
+                .withLabel("app.kubernetes.io/part-of", "managed-kafka")
                 .list();
 
-        List<String> strimziVersions = new ArrayList<>();
+        List<StrimziVersionStatus> strimziVersions = new ArrayList<>();
         log.debug("Strimzi installations");
         if (!list.getItems().isEmpty()) {
             for (ReplicaSet replicaSet : list.getItems()) {
@@ -191,9 +193,11 @@ public class StrimziManager {
                     Deployment deployment = optDeployment.get();
                     // check it's ready
                     boolean isReady = deployment.getStatus() != null && deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas());
-                    if (isReady) {
-                        strimziVersions.add(deployment.getMetadata().getName());
-                    }
+                    strimziVersions.add(new StrimziVersionStatusBuilder()
+                            .withVersion(deployment.getMetadata().getName())
+                            .withReady(isReady)
+                            .build()
+                    );
                     log.debugf("\t - %s [%s]", deployment.getMetadata().getName(), isReady);
                 }
             }
