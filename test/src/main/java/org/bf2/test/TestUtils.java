@@ -70,6 +70,7 @@ public class TestUtils {
                 try {
                     result = ready.getAsBoolean();
                 } catch (Exception e) {
+                    LOGGER.info("Exception while waiting {} {}", e.getClass().getName(), e.getMessage());
                     result = false;
                 }
                 long timeLeft = deadline - System.currentTimeMillis();

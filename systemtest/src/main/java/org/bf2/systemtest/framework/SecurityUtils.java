@@ -21,57 +21,79 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 public class SecurityUtils {
 
-    public static final String CERT = "cert";
-    public static final String KEY = "key";
+    public static class TlsConfig {
+        private String cert;
+        private String key;
+        private ByteArrayOutputStream truststore;
+
+        public TlsConfig(String cert, String key, ByteArrayOutputStream truststore) {
+            super();
+            this.cert = cert;
+            this.key = key;
+            this.truststore = truststore;
+        }
+
+        public String getCert() {
+            return cert;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public byte[] getTruststore() {
+            return truststore.toByteArray();
+        }
+    }
+
+    public static final String TRUSTSTORE_PASSWORD = "changeit";
 
     public static void main(String[] args) throws Exception {
         var config = getTLSConfig("example.com");
         System.out.println(config);
     }
 
-    public static Map<String, String> getTLSConfig(String domain) throws Exception {
-        Map<String, String> config = new HashMap<>(2);
+    public static TlsConfig getTLSConfig(String domain) throws Exception {
+        java.security.KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        PrivateKey privateKey = keyPair.getPrivate();
+        X509Certificate selfCert = generate(keyPair, "SHA256WITHRSA", domain, 1);
 
-        try {
-            java.security.KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-            keyPairGenerator.initialize(2048);
-            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-            PrivateKey privateKey = keyPair.getPrivate();
-            X509Certificate selfCert = generate(keyPair, "SHA256WITHRSA", domain, 1);
-
-            StringWriter keyWriter = new StringWriter();
-            try (JcaPEMWriter writer = new JcaPEMWriter(keyWriter)) {
-                writer.writeObject(privateKey);
-            }
-            config.put(KEY, keyWriter.toString());
-
-            StringWriter certWriter = new StringWriter();
-            try (JcaPEMWriter writer = new JcaPEMWriter(certWriter)) {
-                writer.writeObject(selfCert);
-            }
-            config.put(CERT, certWriter.toString());
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new AssertionError(e.getMessage());
+        StringWriter keyWriter = new StringWriter();
+        try (JcaPEMWriter writer = new JcaPEMWriter(keyWriter)) {
+            writer.writeObject(privateKey);
         }
 
-        return config;
+        StringWriter certWriter = new StringWriter();
+        try (JcaPEMWriter writer = new JcaPEMWriter(certWriter)) {
+            writer.writeObject(selfCert);
+        }
+        KeyStore ks = KeyStore.getInstance("jks");
+        char[] password = TRUSTSTORE_PASSWORD.toCharArray();
+        ks.load(null, password);
+        ks.setCertificateEntry("server", selfCert);
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ks.store(baos, password);
+        baos.close();
+
+        return new TlsConfig(certWriter.toString(), keyWriter.toString(), baos);
     }
 
     private static X509Certificate generate(final KeyPair keyPair,

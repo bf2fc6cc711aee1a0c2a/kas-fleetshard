@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.operands.KafkaInstanceConfiguration;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestTags;
@@ -26,16 +25,16 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaValueProdMinimumTest.class);
     private static final Quantity WORKER_SIZE = Quantity.parse("6Gi");
 
-    private KafkaProvisioner kafkaProvisioner;
+    private ManagedKafkaProvisioner kafkaProvisioner;
     private List<String> workers;
     private OMB omb;
 
     @BeforeAll
     void beforeAll() throws Exception {
-        kafkaProvisioner = KafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
+        kafkaProvisioner = ManagedKafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
         kafkaProvisioner.setup();
         omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
-        omb.install();
+        omb.install(kafkaProvisioner.getTlsConfig());
         omb.setWorkerContainerMemory(WORKER_SIZE);
         omb.addToEnv(new EnvVar("HISTOGRAM_NUMBER_OF_SIGNIFICANT_VALUE_DIGITS", "0", null));
     }
@@ -80,8 +79,8 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
     @Tag(TestTags.CI)
     void testValueProdMinimumKafkaMem(long throughput, int workerProducerRate,
                                       int clients, String kafkaContainerMemory, String kafkaJavaMemory, TestInfo info) throws Exception {
-        ManagedKafkaCapacity config = KafkaConfigurations.defaultCapacity(throughput);
-        doTestValueProdMinimum(config, workerProducerRate, clients,
+        ManagedKafkaCapacity capacity = kafkaProvisioner.defaultCapacity(throughput);
+        doTestValueProdMinimum(capacity, workerProducerRate, clients,
                 "4Gi", "2Gi", kafkaContainerMemory, kafkaJavaMemory, "2000m", 10, 205,
                 String.format("kf%s-%s", kafkaContainerMemory, kafkaJavaMemory), info.getDisplayName());
     }
@@ -100,13 +99,12 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
                 zkContainerMemory, zkJavaMemory, "1000", kafkaContainerMemory, kafkaJavaMemory, kfCpu
         );
 
-        ManagedKafka kafka = KafkaConfigurations.apply(capacity, "cluster1").build();
-        String bootstrapHosts = kafkaProvisioner.deployCluster(kafka, profile).waitUntilReady();
+        String bootstrapHosts = kafkaProvisioner.deployCluster("cluster1", capacity, profile).waitUntilReady();
 
         OMBDriver driver = new OMBDriver()
                 .setReplicationFactor(3)
                 .setTopicConfig("min.insync.replicas=2\n")
-                .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=testing\nssl.truststore.type=JKS\nssl.truststore.location=/cert/ca.jks\n", bootstrapHosts))
+                .setCommonConfigWithBootstrapUrl(bootstrapHosts)
                 .setProducerConfig("acks=all\n")
                 .setConsumerConfig("auto.offset.reset=earliest\nenable.auto.commit=false\n");
 

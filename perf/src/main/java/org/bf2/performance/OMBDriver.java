@@ -1,6 +1,7 @@
 package org.bf2.performance;
 
 import io.openmessaging.benchmark.DriverConfiguration;
+import org.bf2.systemtest.framework.SecurityUtils;
 
 public class OMBDriver extends DriverConfiguration {
 
@@ -56,6 +57,11 @@ public class OMBDriver extends DriverConfiguration {
 
     public OMBDriver setCommonConfig(String commonConfig) {
         this.commonConfig = commonConfig;
+        return this;
+    }
+
+    public OMBDriver setCommonConfigWithBootstrapUrl(String url) {
+        this.commonConfig = String.format("bootstrap.servers=%s%nsecurity.protocol=SSL%nssl.truststore.password=%s%nssl.truststore.type=JKS%nssl.truststore.location=/cert/listener.jks%n", url, SecurityUtils.TRUSTSTORE_PASSWORD);
         return this;
     }
 

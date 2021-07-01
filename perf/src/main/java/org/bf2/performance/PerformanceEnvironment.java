@@ -33,6 +33,8 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     private static final String TOPICS_PER_KAFKA_ENV = "TOPICS_PER_KAFKA";
     private static final String PRODUCERS_PER_TOPIC_ENV = "PRODUCERS_PER_TOPIC";
     private static final String PAYLOAD_FILE_SIZE_ENV = "PAYLOAD_FILE_SIZE";
+    private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
+    private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
 
     /**
      * Parsed variables into java constants
@@ -57,6 +59,8 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     public static final int TOPICS_PER_KAFKA = getOrDefault(TOPICS_PER_KAFKA_ENV, Integer::parseInt, 1);
     public static final int PRODUCERS_PER_TOPIC = getOrDefault(PRODUCERS_PER_TOPIC_ENV, Integer::parseInt, 1);
     public static final Quantity PAYLOAD_FILE_SIZE = Quantity.parse(getOrDefault(PAYLOAD_FILE_SIZE_ENV, "1Ki"));
+    public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, "2.7.0");
+    public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, null);
 
     public static void logEnvironment() {
         SystemTestEnvironment.logEnvironment();

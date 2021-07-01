@@ -5,6 +5,7 @@ import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroup;
 import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroupBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.CatalogSource;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.CatalogSourceBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.ClusterServiceVersion;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCatalogHealth;
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.test.k8s.KubeClient;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -27,8 +29,17 @@ public class OlmBasedStrimziOperatorManager {
     private static final Logger LOGGER = LogManager.getLogger(OlmBasedStrimziOperatorManager.class);
     public static final String OPERATOR_NAME = "strimzi-operator";
 
-    public static CompletableFuture<Void> deployStrimziOperator(KubeClient kubeClient, String namespace) throws Exception {
-        if (isOperatorInstalled(kubeClient, namespace)) {
+    private final String namespace;
+    private final KubeClient kubeClient;
+    private volatile List<String> versions = Collections.emptyList();
+
+    public OlmBasedStrimziOperatorManager(KubeClient kubeClient, String namespace) {
+        this.namespace = namespace;
+        this.kubeClient = kubeClient;
+    }
+
+    public CompletableFuture<Void> deployStrimziOperator() throws Exception {
+        if (isOperatorInstalled()) {
             LOGGER.info("operator is already installed, skipping deployment of operator");
             return CompletableFuture.completedFuture(null);
         }
@@ -39,17 +50,17 @@ public class OlmBasedStrimziOperatorManager {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
         }
 
-        installCatalogSource(kubeClient, namespace);
-        org.bf2.test.TestUtils.waitFor("catalog source ready", 1_000, 120_000, () -> isCatalogSourceInstalled(kubeClient, namespace));
-        installOperatorGroup(kubeClient, namespace);
-        installSubscription(kubeClient, namespace);
-        org.bf2.test.TestUtils.waitFor("subscription source ready", 1_000, 120_000, () -> isSubscriptionInstalled(kubeClient, namespace));
+        installCatalogSource();
+        org.bf2.test.TestUtils.waitFor("catalog source ready", 1_000, 120_000, this::isCatalogSourceInstalled);
+        installOperatorGroup();
+        installSubscription();
+        org.bf2.test.TestUtils.waitFor("subscription source ready", 1_000, 120_000, this::isSubscriptionInstalled);
 
         LOGGER.info("Operator is deployed");
-        return org.bf2.test.TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient, namespace));
+        return org.bf2.test.TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, this::isOperatorInstalled);
     }
 
-    public static CompletableFuture<Void> deleteStrimziOperator(KubeClient kubeClient, String namespace) {
+    public CompletableFuture<Void> deleteStrimziOperator() {
         LOGGER.info("Deleting Strimzi Operator");
 
         var kafkaCli = kubeClient.client().customResources(Kafka.class);
@@ -69,7 +80,7 @@ public class OlmBasedStrimziOperatorManager {
         return org.bf2.test.TestUtils.asyncWaitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(namespace));
     }
 
-    private static void installCatalogSource(KubeClient kubeClient, String namespace) {
+    private void installCatalogSource() {
         CatalogSource catalogSource = new CatalogSourceBuilder()
                 .withApiVersion(namespace)
                 .withNewMetadata()
@@ -88,7 +99,7 @@ public class OlmBasedStrimziOperatorManager {
         client.operatorHub().catalogSources().inNamespace(namespace).createOrReplace(catalogSource);
     }
 
-    private static boolean isCatalogSourceInstalled(KubeClient kubeClient, String namespace) {
+    private boolean isCatalogSourceInstalled() {
         OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
         CatalogSource cs = client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).get();
         if (cs != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
@@ -97,7 +108,7 @@ public class OlmBasedStrimziOperatorManager {
         return false;
     }
 
-    private static void installSubscription(KubeClient kubeClient, String namespace) {
+    private void installSubscription() {
         Subscription subscription = new SubscriptionBuilder()
                 .withNewMetadata()
                     .withName(OLM_SUBSCRIPTION_NAME)
@@ -116,22 +127,38 @@ public class OlmBasedStrimziOperatorManager {
         client.operatorHub().subscriptions().inNamespace(namespace).createOrReplace(subscription);
     }
 
-    private static boolean isSubscriptionInstalled(KubeClient kubeClient, String namespace) {
+    private boolean isSubscriptionInstalled() {
         OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
         Subscription s = client.operatorHub().subscriptions().inNamespace(namespace).withName(OLM_SUBSCRIPTION_NAME).get();
         if (s != null && s.getStatus() != null && !s.getStatus().getCatalogHealth().isEmpty()) {
             List<SubscriptionCatalogHealth> healths = s.getStatus().getCatalogHealth();
-            return !healths.stream()
+            boolean result = !healths.stream()
                 .filter(h -> h.getHealthy())
                 .map(ref -> ref.getCatalogSourceRef())
                 .filter(h -> h.getName().equals(CATALOG_SOURCE_NAME))
                 .collect(Collectors.toList())
                 .isEmpty();
+            if (result) {
+                String currentCsv = s.getStatus().getCurrentCSV();
+                if (currentCsv == null) {
+                    return false;
+                }
+                ClusterServiceVersion csv = client.operatorHub().clusterServiceVersions().inNamespace(namespace).withName(currentCsv).get();
+                versions = csv.getSpec()
+                        .getInstall()
+                        .getSpec()
+                        .getDeployments()
+                        .stream()
+                        .map(sds -> sds.getName())
+                        .filter(version -> version.startsWith("strimzi-cluster-operator."))
+                        .collect(Collectors.toList());
+            }
+            return result;
         }
         return false;
     }
 
-    private static void installOperatorGroup(KubeClient kubeClient, String namespace) {
+    private void installOperatorGroup() {
         OperatorGroup operatorGroup = new OperatorGroupBuilder()
                 .withNewMetadata()
                     .withName(OLM_OPERATOR_GROUP_NAME)
@@ -143,11 +170,24 @@ public class OlmBasedStrimziOperatorManager {
         client.operatorHub().operatorGroups().inNamespace(namespace).createOrReplace(operatorGroup);
     }
 
-    public static boolean isOperatorInstalled(KubeClient kubeClient, String namespace) {
+    public boolean isOperatorInstalled() {
         return kubeClient.client().pods().inNamespace(namespace)
                 .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(OPERATOR_NAME)) &&
                 org.bf2.test.TestUtils.isPodReady(kubeClient.client().pods().inNamespace(namespace)
                         .list().getItems().stream().filter(pod ->
                                 pod.getMetadata().getName().contains(OPERATOR_NAME)).findFirst().get());
     }
+
+    public List<String> getVersions() {
+        return versions;
+    }
+
+    public String getCurrentVersion() {
+        if (versions.isEmpty()) {
+            return null;
+        }
+        // assume the last?
+        return versions.get(versions.size() - 1);
+    }
+
 }

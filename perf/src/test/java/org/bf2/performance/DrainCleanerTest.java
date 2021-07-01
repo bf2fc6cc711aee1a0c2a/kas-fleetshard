@@ -3,7 +3,6 @@ package org.bf2.performance;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestTags;
@@ -27,16 +26,16 @@ public class DrainCleanerTest extends TestBase {
     private static final Logger LOGGER = LogManager.getLogger(DrainCleanerTest.class);
     private static final Quantity WORKER_SIZE = Quantity.parse("2Gi");
 
-    private KafkaProvisioner kafkaProvisioner;
+    private ManagedKafkaProvisioner kafkaProvisioner;
     private List<String> workers;
     private OMB omb;
 
     @BeforeAll
     void beforeAll() throws Exception {
-        kafkaProvisioner = KafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
+        kafkaProvisioner = ManagedKafkaProvisioner.create(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
         kafkaProvisioner.setup();
         omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
-        omb.install();
+        omb.install(kafkaProvisioner.getTlsConfig());
         omb.setWorkerContainerMemory(WORKER_SIZE);
     }
 
@@ -71,9 +70,9 @@ public class DrainCleanerTest extends TestBase {
 
         workers = omb.deployWorkers(numWorkers);
 
-        ManagedKafkaCapacity capacity = KafkaConfigurations.defaultCapacity(throughput);
-        ManagedKafka kafka = KafkaConfigurations.apply(capacity, "cluster1").build();
-        String bootstrapHosts = kafkaProvisioner.deployCluster(kafka, AdopterProfile.VALUE_PROD).waitUntilReady();
+        ManagedKafkaCapacity capacity = kafkaProvisioner.defaultCapacity(throughput);
+        ManagedKafkaDeployment deployCluster = kafkaProvisioner.deployCluster("cluster1", capacity, AdopterProfile.VALUE_PROD);
+        String bootstrapHosts = deployCluster.waitUntilReady();
 
         final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
         Future<Integer> nodeDrain;
@@ -85,7 +84,7 @@ public class DrainCleanerTest extends TestBase {
                 LOGGER.info("PERFORMING SCHEDULED NODES DRAIN");
                 kafkaProvisioner.getKubernetesCluster().kubeClient().getClusterWorkers().forEach(node -> {
                     TestUtils.drainNode(kafkaProvisioner.getKubernetesCluster(), node.getMetadata().getName());
-                    TestUtils.waitUntilAllPodsReady(kafkaProvisioner.getKubernetesCluster(), kafka.getMetadata().getNamespace());
+                    TestUtils.waitUntilAllPodsReady(kafkaProvisioner.getKubernetesCluster(), deployCluster.getManagedKafka().getMetadata().getNamespace());
                     TestUtils.setNodeSchedule(kafkaProvisioner.getKubernetesCluster(), node.getMetadata().getName(), true);
                 });
 
@@ -96,7 +95,7 @@ public class DrainCleanerTest extends TestBase {
                 OMBDriver driver = new OMBDriver()
                         .setReplicationFactor(3)
                         .setTopicConfig("min.insync.replicas=2\n")
-                        .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=testing\nssl.truststore.type=JKS\nssl.truststore.location=/cert/ca.jks\n", bootstrapHosts))
+                        .setCommonConfigWithBootstrapUrl(bootstrapHosts)
                         .setProducerConfig("acks=all\n")
                         .setConsumerConfig("auto.offset.reset=earliest\nenable.auto.commit=false\n");
 

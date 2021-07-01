@@ -64,7 +64,7 @@ public class SuiteUnitTest extends AbstractST {
         mockServer.getClient().pods().inNamespace("keycloak").createOrReplace(
                 new PodBuilder().withNewMetadata().withName("keycloak-0").withNamespace("keycloak").endMetadata().build());
 
-        Map<String, String> tls = SecurityUtils.getTLSConfig("keycloak.svc");
+        SecurityUtils.TlsConfig tls = SecurityUtils.getTLSConfig("keycloak.svc");
         Secret keycloakCert = new SecretBuilder()
                 .withNewMetadata()
                 .withName("sso-x509-https-secret")
@@ -72,8 +72,8 @@ public class SuiteUnitTest extends AbstractST {
                 .endMetadata()
                 .withType("kubernetes.io/tls")
                 .withData(Map.of(
-                        "tls.crt", new String(Base64.getEncoder().encode(tls.get("cert").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
-                        "tls.key", new String(Base64.getEncoder().encode(tls.get("key").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
+                        "tls.crt", new String(Base64.getEncoder().encode(tls.getCert().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
+                        "tls.key", new String(Base64.getEncoder().encode(tls.getKey().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
                 )
                 .build();
         mockServer.getClient().secrets().inNamespace("keycloak").createOrReplace(keycloakCert);

@@ -13,7 +13,7 @@
     <properties>
         <skipTests>true</skipTests>
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
-        <fabric8.version>5.2.1</fabric8.version>
+        <fabric8.version>5.5.0</fabric8.version>
     </properties>
 
     <repositories>

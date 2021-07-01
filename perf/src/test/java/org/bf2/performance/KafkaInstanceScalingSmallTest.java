@@ -4,8 +4,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.openmessaging.benchmark.TestResult;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestTags;
@@ -43,7 +41,7 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
     private static final Logger LOGGER = LogManager.getLogger(KafkaInstanceScalingSmallTest.class);
     private static final Quantity WORKER_SIZE = Quantity.parse("2Gi");
 
-    static KafkaProvisioner kafkaProvisioner;
+    static ManagedKafkaProvisioner kafkaProvisioner;
     static KubeClusterResource kafkaCluster;
     static OMB omb;
 
@@ -52,10 +50,10 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
     @BeforeAll
     void beforeAll() throws Exception {
         kafkaCluster = KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG);
-        kafkaProvisioner = KafkaProvisioner.create(kafkaCluster);
+        kafkaProvisioner = ManagedKafkaProvisioner.create(kafkaCluster);
         kafkaProvisioner.setup();
         omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
-        omb.install();
+        omb.install(kafkaProvisioner.getTlsConfig());
     }
 
     @AfterAll
@@ -86,41 +84,40 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
         int targetRate = 2_000;
         int workersPerInstance = 2;
 
-        ManagedKafkaCapacity kafkaCapacity = KafkaConfigurations.defaultCapacity((long) targetRate * messageSize * 2);
-        kafkaCapacity.setMaxConnectionAttemptsPerSec(connectionCreationRate);
-        kafkaCapacity.setTotalMaxConnections(maxConnections);
-        ManagedKafkaBuilder template = KafkaConfigurations.apply(kafkaCapacity, "cluster1");
+        ManagedKafkaCapacity capacity = kafkaProvisioner.defaultCapacity((long) targetRate * messageSize * 2);
+        capacity.setMaxConnectionAttemptsPerSec(connectionCreationRate);
+        capacity.setTotalMaxConnections(maxConnections);
 
-        KafkaDeployment kafkaDeployment = kafkaProvisioner.deployCluster(template.build(), AdopterProfile.SMALL_VALUE_PROD);
+        ManagedKafkaDeployment kafkaDeployment = kafkaProvisioner.deployCluster("cluster1", capacity, AdopterProfile.SMALL_VALUE_PROD);
 
         omb.setWorkerContainerMemory(Quantity.parse(ombWorkerMem));
         omb.setWorkerCpu(Quantity.parse(ombWorkerCpu));
         workers = omb.deployWorkers(workersPerInstance);
 
-        Map<KafkaDeployment, List<String>> workerMapping = new HashMap<>();
+        Map<ManagedKafkaDeployment, List<String>> workerMapping = new HashMap<>();
 
         Iterator<String> workerIt = workers.iterator();
-        Map<KafkaDeployment, String> instanceBootstrap = new HashMap<>();
+        Map<ManagedKafkaDeployment, String> instanceBootstrap = new HashMap<>();
         List<String> ws = new ArrayList<>();
         for (int w = 0; w < workersPerInstance; w++) {
             ws.add(workerIt.next());
         }
         workerMapping.put(kafkaDeployment, ws);
-        instanceBootstrap.put(kafkaDeployment, kafkaDeployment.readyFuture().get());
+        instanceBootstrap.put(kafkaDeployment, kafkaDeployment.waitUntilReady());
 
         ExecutorService executorService = Executors.newFixedThreadPool(1);
         AtomicInteger timeout = new AtomicInteger();
         List<TestResult> testResults = new ArrayList<>();
         try {
             List<Future<OMBWorkloadResult>> results = new ArrayList<>();
-            for (Map.Entry<KafkaDeployment, String> entry : instanceBootstrap.entrySet()) {
+            for (Map.Entry<ManagedKafkaDeployment, String> entry : instanceBootstrap.entrySet()) {
                 File ombDir = new File(instanceDir, entry.getKey().getManagedKafka().getMetadata().getName());
                 Files.createDirectories(ombDir.toPath());
 
                 OMBDriver driver = new OMBDriver()
                         .setReplicationFactor(3)
                         .setTopicConfig("min.insync.replicas=2\n")
-                        .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=testing\nssl.truststore.type=JKS\nssl.truststore.location=/cert/ca.jks\n", entry.getValue()))
+                        .setCommonConfigWithBootstrapUrl(entry.getValue())
                         .setProducerConfig("acks=all\n")
                         .setConsumerConfig("auto.offset.reset=earliest\nenable.auto.commit=false\n");
 
@@ -161,12 +158,9 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
         // Gather required info to spin up a kafka cluster and deploy kafka cluster.
 
         // create template to deploy the cluster
-        ManagedKafkaCapacity kafkaCapacity = KafkaConfigurations.defaultCapacity((long) targetRate * messageSize);
-        String clusterName = "cicdcluster";
-        ManagedKafkaBuilder template = KafkaConfigurations.apply(kafkaCapacity, clusterName);
+        ManagedKafkaCapacity capacity = kafkaProvisioner.defaultCapacity((long) targetRate * messageSize);
 
-        ManagedKafka instance = template.build();
-        KafkaDeployment kd = kafkaProvisioner.deployCluster(instance, AdopterProfile.VALUE_PROD);
+        ManagedKafkaDeployment kd = kafkaProvisioner.deployCluster("cicdcluster", capacity, AdopterProfile.VALUE_PROD);
 
         String instanceBootstrap = kd.waitUntilReady();
 
@@ -185,7 +179,7 @@ public class KafkaInstanceScalingSmallTest extends TestBase {
         OMBDriver driver = new OMBDriver()
                 .setReplicationFactor(1)
                 .setTopicConfig("min.insync.replicas=1\n")
-                .setCommonConfig(String.format("bootstrap.servers=%s\nsecurity.protocol=SSL\nssl.truststore.password=testing\nssl.truststore.type=JKS\nssl.truststore.location=/cert/ca.jks\n", instanceBootstrap))
+                .setCommonConfigWithBootstrapUrl(instanceBootstrap)
                 .setProducerConfig("acks=all\n")
                 .setConsumerConfig("auto.offset.rest=earliest\nenable.auto.commit=false\n");
 

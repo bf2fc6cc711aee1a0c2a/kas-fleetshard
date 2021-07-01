@@ -14,7 +14,6 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
@@ -122,9 +121,9 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         final String tlsKey;
 
         if (SystemTestEnvironment.DUMMY_CERT.equals(SystemTestEnvironment.ENDPOINT_TLS_CERT)) {
-            Map<String, String> tlsConfig = SecurityUtils.getTLSConfig(SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN);
-            tlsCert = tlsConfig.get(SecurityUtils.CERT);
-            tlsKey = tlsConfig.get(SecurityUtils.KEY);
+            SecurityUtils.TlsConfig tlsConfig = SecurityUtils.getTLSConfig(SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN);
+            tlsCert = tlsConfig.getCert();
+            tlsKey = tlsConfig.getKey();
         } else {
             tlsCert = SystemTestEnvironment.ENDPOINT_TLS_CERT;
             tlsKey = SystemTestEnvironment.ENDPOINT_TLS_KEY;
