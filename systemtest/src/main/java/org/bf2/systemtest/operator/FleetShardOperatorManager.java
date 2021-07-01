@@ -7,32 +7,21 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
-import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class FleetShardOperatorManager {
     private static final String CRD_FILE_SUFFIX = "-v1.yml";
-    private static final String YAML_OPERATOR_BUNDLE_PATH_ENV = "YAML_OPERATOR_BUNDLE_PATH";
-    private static final String YAML_SYNC_BUNDLE_PATH_ENV = "YAML_SYNC_BUNDLE_PATH";
-    private static final String FLEET_SHARD_PULL_SECRET_PATH_ENV = "FLEET_SHARD_PULL_SECRET_PATH";
 
-    public static final Path ROOT_PATH = Objects.requireNonNullElseGet(Paths.get(System.getProperty("user.dir")).getParent(), () -> Paths.get(System.getProperty("maven.multiModuleProjectDirectory")));
-    public static final Path YAML_OPERATOR_BUNDLE_PATH = Environment.getOrDefault(YAML_OPERATOR_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "operator", "target", "kubernetes", "kubernetes.yml"));
-    public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes", "kubernetes.yml"));
-    public static final Path CRD_PATH = ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8");
-
-    public static final String FLEET_SHARD_PULL_SECRET_PATH = Environment.getOrDefault(FLEET_SHARD_PULL_SECRET_PATH_ENV, "");
+    public static final Path CRD_PATH = SystemTestEnvironment.ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8");
 
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
@@ -41,8 +30,8 @@ public class FleetShardOperatorManager {
     private static List<Path> installedCrds = new ArrayList<>();
 
     private static void printVar() {
-        LOGGER.info("Operator bundle install files: {}", YAML_OPERATOR_BUNDLE_PATH);
-        LOGGER.info("Sync bundle install files: {}", YAML_SYNC_BUNDLE_PATH);
+        LOGGER.info("Operator bundle install files: {}", SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
+        LOGGER.info("Sync bundle install files: {}", SystemTestEnvironment.YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Crds path: {}", CRD_PATH);
     }
 
@@ -62,10 +51,10 @@ public class FleetShardOperatorManager {
         if (!kubeClient.namespaceExists(OPERATOR_NS)) {
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
         }
-        if (!FLEET_SHARD_PULL_SECRET_PATH.isBlank()) {
+        if (!SystemTestEnvironment.FLEET_SHARD_PULL_SECRET_PATH.isBlank()) {
             deployPullSecrets(kubeClient);
         }
-        kubeClient.apply(OPERATOR_NS, YAML_OPERATOR_BUNDLE_PATH);
+        kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient));
     }
@@ -76,14 +65,14 @@ public class FleetShardOperatorManager {
             return CompletableFuture.completedFuture(null);
         }
         LOGGER.info("Installing {}", SYNC_NAME);
-        kubeClient.apply(OPERATOR_NS, YAML_SYNC_BUNDLE_PATH);
+        kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
         return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, () -> isSyncInstalled(kubeClient));
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {
-        LOGGER.info("Deploying secrets for image pull from {}", FLEET_SHARD_PULL_SECRET_PATH);
-        kubeClient.apply(OPERATOR_NS, Path.of(FLEET_SHARD_PULL_SECRET_PATH));
+        LOGGER.info("Deploying secrets for image pull from {}", SystemTestEnvironment.FLEET_SHARD_PULL_SECRET_PATH);
+        kubeClient.apply(OPERATOR_NS, Path.of(SystemTestEnvironment.FLEET_SHARD_PULL_SECRET_PATH));
     }
 
     public static boolean isOperatorInstalled(KubeClient kubeClient) {
