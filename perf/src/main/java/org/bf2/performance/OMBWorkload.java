@@ -5,8 +5,8 @@ import io.openmessaging.benchmark.Workload;
 public class OMBWorkload extends Workload {
     public OMBWorkload() {
         super();
-        testDurationMinutes = Math.toIntExact(Math.max(1, Environment.OMB_TEST_DURATION.toMinutes()));
-        warmupDurationMinutes = Math.toIntExact(Math.max(1, Environment.OMB_WARMUP_DURATION.toMinutes()));
+        testDurationMinutes = Math.toIntExact(Math.max(1, PerformanceEnvironment.OMB_TEST_DURATION.toMinutes()));
+        warmupDurationMinutes = Math.toIntExact(Math.max(1, PerformanceEnvironment.OMB_WARMUP_DURATION.toMinutes()));
     }
 
     public String getName() {

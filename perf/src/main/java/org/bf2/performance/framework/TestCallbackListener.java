@@ -1,5 +1,6 @@
 package org.bf2.performance.framework;
 
+import org.bf2.performance.PerformanceEnvironment;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -10,6 +11,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * jUnit5 specific class which listening on test callbacks
  */
 public class TestCallbackListener implements BeforeAllCallback, BeforeEachCallback, AfterAllCallback, AfterEachCallback {
+
+    static {
+        PerformanceEnvironment.logEnvironment();
+    }
 
     @Override
     public void beforeAll(ExtensionContext extensionContext) throws Exception {

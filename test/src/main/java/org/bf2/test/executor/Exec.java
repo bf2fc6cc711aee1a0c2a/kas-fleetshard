@@ -373,7 +373,7 @@ public class Exec {
      */
     class StreamGobbler {
         private final InputStream is;
-        private final StringBuilder data = new StringBuilder();
+        private final StringBuffer data = new StringBuffer();
 
         /**
          * Constructor of StreamGobbler

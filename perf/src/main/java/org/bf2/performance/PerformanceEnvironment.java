@@ -1,35 +1,16 @@
 package org.bf2.performance;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Quantity;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
 
 /**
  * Class which holds environment variables for system tests.
  */
-public class Environment {
-
-    private static final Logger LOGGER = LogManager.getLogger(Environment.class);
-    private static final Map<String, String> VALUES = new HashMap<>();
-    private static final JsonNode JSON_DATA = loadConfigurationFile();
-
-    /**
-     * Specify the system test configuration file path from an environmental variable
-     */
-    private static final String CONFIG_FILE_PATH_ENVAR = "CONFIG_PATH";
-    private static String config;
+public class PerformanceEnvironment extends SystemTestEnvironment {
 
     /**
      * Environment VAR names
@@ -77,48 +58,8 @@ public class Environment {
     public static final int PRODUCERS_PER_TOPIC = getOrDefault(PRODUCERS_PER_TOPIC_ENV, Integer::parseInt, 1);
     public static final Quantity PAYLOAD_FILE_SIZE = Quantity.parse(getOrDefault(PAYLOAD_FILE_SIZE_ENV, "1Ki"));
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Help methods
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private Environment() {
+    public static void logEnvironment() {
+        SystemTestEnvironment.logEnvironment();
     }
 
-    static {
-        String debugFormat = "{}: {}";
-        LOGGER.info("Used environment variables:");
-        LOGGER.info(debugFormat, "CONFIG", config);
-        VALUES.forEach((key, value) -> LOGGER.info(debugFormat, key, value));
-    }
-
-    private static String getOrDefault(String varName, String defaultValue) {
-        return getOrDefault(varName, String::toString, defaultValue);
-    }
-
-    private static <T> T getOrDefault(String var, Function<String, T> converter, T defaultValue) {
-        String value = System.getenv(var) != null ?
-                System.getenv(var) :
-                (Objects.requireNonNull(JSON_DATA).get(var) != null ?
-                        JSON_DATA.get(var).asText() :
-                        null);
-        T returnValue = defaultValue;
-        if (value != null) {
-            returnValue = converter.apply(value);
-        }
-        VALUES.put(var, String.valueOf(returnValue));
-        return returnValue;
-    }
-
-    private static JsonNode loadConfigurationFile() {
-        config = System.getenv().getOrDefault(CONFIG_FILE_PATH_ENVAR,
-                Paths.get(System.getProperty("user.dir"), "config.json").toAbsolutePath().toString());
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            File jsonFile = new File(config).getAbsoluteFile();
-            return mapper.readTree(jsonFile);
-        } catch (IOException ex) {
-            LOGGER.info("Json configuration not provider or not exists");
-            return mapper.createObjectNode();
-        }
-    }
 }

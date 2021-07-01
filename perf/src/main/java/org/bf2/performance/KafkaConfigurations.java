@@ -34,7 +34,7 @@ public class KafkaConfigurations {
                 .withNewVersions().withKafka("2.7.0").withStrimzi("strimzi-cluster-operator.v0.22.1-5").endVersions()
                 .build());
         builder.getSpec().setCapacity(capacityConfig);
-        if (Environment.APPLY_BROKER_QUOTA) {
+        if (PerformanceEnvironment.APPLY_BROKER_QUOTA) {
             /* TODO: there's an open JIRA about hard / soft
             if (quota.getStorageQuotaSoftBytes() != null && quota.getStorageQuotaSoftBytes() > 0) {
                 builder = builder.editSpec().editKafka().addToConfig("client.quota.callback.static.storage.soft", String.valueOf(quota.getStorageQuotaSoftBytes())).endKafka().endSpec();

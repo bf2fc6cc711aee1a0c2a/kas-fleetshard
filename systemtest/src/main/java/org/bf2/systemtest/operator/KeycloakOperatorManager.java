@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.framework.SecurityUtils;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
@@ -91,7 +92,7 @@ public class KeycloakOperatorManager {
     }
 
     public static CompletableFuture<Void> uninstallKeycloak(KubeClient kubeClient) {
-        if (INSTALL_KEYCLOAK && kubeClient.namespaceExists(OPERATOR_NS) && !Environment.SKIP_TEARDOWN) {
+        if (INSTALL_KEYCLOAK && kubeClient.namespaceExists(OPERATOR_NS) && !SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting Keycloak : {}", OPERATOR_NS);
             kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("delete", "-f",
                     Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "keycloak.yml").toAbsolutePath().toString());

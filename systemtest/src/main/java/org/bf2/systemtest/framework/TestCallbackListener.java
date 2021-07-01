@@ -12,6 +12,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 public class TestCallbackListener implements BeforeAllCallback, BeforeEachCallback, AfterAllCallback, AfterEachCallback {
 
+    static {
+        SystemTestEnvironment.logEnvironment();
+    }
+
     @Override
     public void beforeAll(ExtensionContext extensionContext) throws Exception {
         TestUtils.logWithSeparator("-> Running test class: {}", extensionContext.getRequiredTestClass().getName());

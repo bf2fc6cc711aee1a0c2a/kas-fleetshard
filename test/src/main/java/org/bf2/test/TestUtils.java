@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 
@@ -80,7 +81,7 @@ public class TestUtils {
                             }
                             delayed.execute(this);
                         } else {
-                            future.completeExceptionally(new WaitException(String.format("Waiting for %s timeout %s exceeded", description, timeoutMs)));
+                            future.completeExceptionally(new TimeoutException(String.format("Waiting for %s timeout %s exceeded", description, timeoutMs)));
                         }
                     } else {
                         future.complete(null);

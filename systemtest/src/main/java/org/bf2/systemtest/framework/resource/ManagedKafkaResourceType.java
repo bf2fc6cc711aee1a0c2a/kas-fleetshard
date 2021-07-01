@@ -9,7 +9,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.SecurityUtils;
-import org.bf2.test.Environment;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
@@ -121,13 +121,13 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         final String tlsCert;
         final String tlsKey;
 
-        if (Environment.DUMMY_CERT.equals(Environment.ENDPOINT_TLS_CERT)) {
-            Map<String, String> tlsConfig = SecurityUtils.getTLSConfig(Environment.BOOTSTRAP_HOST_DOMAIN);
+        if (SystemTestEnvironment.DUMMY_CERT.equals(SystemTestEnvironment.ENDPOINT_TLS_CERT)) {
+            Map<String, String> tlsConfig = SecurityUtils.getTLSConfig(SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN);
             tlsCert = tlsConfig.get(SecurityUtils.CERT);
             tlsKey = tlsConfig.get(SecurityUtils.KEY);
         } else {
-            tlsCert = Environment.ENDPOINT_TLS_CERT;
-            tlsKey = Environment.ENDPOINT_TLS_KEY;
+            tlsCert = SystemTestEnvironment.ENDPOINT_TLS_CERT;
+            tlsKey = SystemTestEnvironment.ENDPOINT_TLS_KEY;
         }
 
         final String oauthClientId;
@@ -146,7 +146,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             oauthJwksEndpoint = keycloak.getJwksEndpointUri();
             oauthTokenEndpoint = keycloak.getOauthTokenEndpointUri();
             oauthIssuerEndpoint = keycloak.getValidIssuerUri();
-        } else if (Environment.DUMMY_OAUTH_JWKS_URI.equals(Environment.OAUTH_JWKS_ENDPOINT)) {
+        } else if (SystemTestEnvironment.DUMMY_OAUTH_JWKS_URI.equals(SystemTestEnvironment.OAUTH_JWKS_ENDPOINT)) {
             oauthClientId = null;
             oauthTlsCert = null;
             oauthClientSecret = null;
@@ -156,18 +156,18 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             oauthIssuerEndpoint = null;
         } else {
             //use defined values by env vars for oauth
-            oauthClientId = Environment.OAUTH_CLIENT_ID;
-            oauthTlsCert = Environment.OAUTH_TLS_CERT;
-            oauthClientSecret = Environment.OAUTH_CLIENT_SECRET;
-            oauthUserClaim = Environment.OAUTH_USER_CLAIM;
-            oauthJwksEndpoint = Environment.OAUTH_JWKS_ENDPOINT;
-            oauthTokenEndpoint = Environment.OAUTH_TOKEN_ENDPOINT;
-            oauthIssuerEndpoint = Environment.OAUTH_ISSUER_ENDPOINT;
+            oauthClientId = SystemTestEnvironment.OAUTH_CLIENT_ID;
+            oauthTlsCert = SystemTestEnvironment.OAUTH_TLS_CERT;
+            oauthClientSecret = SystemTestEnvironment.OAUTH_CLIENT_SECRET;
+            oauthUserClaim = SystemTestEnvironment.OAUTH_USER_CLAIM;
+            oauthJwksEndpoint = SystemTestEnvironment.OAUTH_JWKS_ENDPOINT;
+            oauthTokenEndpoint = SystemTestEnvironment.OAUTH_TOKEN_ENDPOINT;
+            oauthIssuerEndpoint = SystemTestEnvironment.OAUTH_ISSUER_ENDPOINT;
         }
 
         return ManagedKafka.getDefault(appName,
                 namespace,
-                Environment.BOOTSTRAP_HOST_DOMAIN,
+                SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN,
                 tlsCert,
                 tlsKey,
                 oauthClientId,
