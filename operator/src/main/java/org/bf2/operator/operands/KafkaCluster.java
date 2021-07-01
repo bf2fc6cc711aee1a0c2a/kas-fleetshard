@@ -63,7 +63,6 @@ import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -81,7 +80,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     // storage related constants
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
-    private static final String KAFKA_STORAGE_CLASS = "gp2";
+
     private static final boolean DELETE_CLAIM = true;
     private static final String KAFKA_AUTHORIZER_CLASS = "io.bf2.kafka.authorizer.GlobalAclAuthorizer";
     private static final String KAFKA_AUTHORIZER_CONFIG_PREFIX = "strimzi.authorization.global-authorizer.";
@@ -89,23 +88,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
-    private static final Quantity KAFKA_CONTAINER_MEMORY = new Quantity("8Gi");
-    private static final Quantity KAFKA_CONTAINER_CPU = new Quantity("3000m");
-
-    private static final Quantity ZOOKEEPER_VOLUME_SIZE = new Quantity("10Gi");
-    private static final Quantity ZOOKEEPER_CONTAINER_MEMORY = new Quantity("4Gi");
-    private static final Quantity ZOOKEEPER_CONTAINER_CPU = new Quantity("1000m");
-
-    private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = new Quantity("128Mi");
-    private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = new Quantity("500m");
-    private static final Quantity KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = new Quantity("256Mi");
-    private static final Quantity KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = new Quantity("1000m");
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
-    private static final Quantity DEFAULT_KAFKA_VOLUME_SIZE = new Quantity("1000Gi");
-    private static final Quantity DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = new Quantity("30Mi");
-    private static final Map<String, String> JVM_OPTIONS_XX_MAP = Collections.singletonMap("ExitOnOutOfMemoryError", Boolean.TRUE.toString());
     private static final String DIGEST = "org.bf2.operator/digest";
 
     @Inject
@@ -211,7 +196,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
                         .withConfig(getKafkaConfig(managedKafka, current))
-                        .withReplicas(KAFKA_BROKERS)
+                        .withReplicas(this.config.getKafka().getReplicas())
                         .withResources(getKafkaResources(managedKafka))
                         .withJvmOptions(getKafkaJvmOptions(managedKafka))
                         .withStorage(getKafkaStorage(managedKafka, current))
@@ -224,7 +209,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withExternalLogging(getKafkaExternalLogging(managedKafka))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(ZOOKEEPER_NODES)
+                        .withReplicas(this.config.getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage)getZooKeeperStorage(current))
                         .withResources(getZooKeeperResources(managedKafka))
                         .withJvmOptions(getZooKeeperJvmOptions(managedKafka))
@@ -369,36 +354,36 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private JvmOptions getKafkaJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms("3G")
-                .withXmx("3G")
-                .withXx(JVM_OPTIONS_XX_MAP)
+                .withXms(this.config.getKafka().getJvmXms())
+                .withXmx(this.config.getKafka().getJvmXms())
+                .withXx(this.config.getKafka().getJvmXxMap())
                 .build();
     }
 
     private JvmOptions getZooKeeperJvmOptions(ManagedKafka managedKafka) {
         return new JvmOptionsBuilder()
-                .withXms("2G")
-                .withXmx("2G")
-                .withXx(JVM_OPTIONS_XX_MAP)
+                .withXms(this.config.getZookeeper().getJvmXms())
+                .withXmx(this.config.getZookeeper().getJvmXms())
+                .withXx(this.config.getZookeeper().getJvmXxMap())
                 .build();
     }
 
     private ResourceRequirements getKafkaResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", KAFKA_CONTAINER_MEMORY)
-                .addToRequests("cpu", KAFKA_CONTAINER_CPU)
-                .addToLimits("memory", KAFKA_CONTAINER_MEMORY)
-                .addToLimits("cpu", KAFKA_CONTAINER_CPU)
+                .addToRequests("memory", new Quantity(this.config.getKafka().getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getKafka().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
                 .build();
         return resources;
     }
 
     private ResourceRequirements getZooKeeperResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", ZOOKEEPER_CONTAINER_MEMORY)
-                .addToRequests("cpu", ZOOKEEPER_CONTAINER_CPU)
-                .addToLimits("memory", ZOOKEEPER_CONTAINER_MEMORY)
-                .addToLimits("cpu", ZOOKEEPER_CONTAINER_CPU)
+                .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
+                .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
                 .build();
         return resources;
     }
@@ -425,10 +410,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private ResourceRequirements getKafkaExporterResources(ManagedKafka managedKafka) {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST)
-                .addToRequests("cpu", KAFKA_EXPORTER_CONTAINER_CPU_REQUEST)
-                .addToLimits("memory", KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT)
-                .addToLimits("cpu", KAFKA_EXPORTER_CONTAINER_CPU_LIMIT)
+                .addToRequests("memory", new Quantity(this.config.getExporter().getContainerRequestMemory()))
+                .addToRequests("cpu", new Quantity(this.config.getExporter().getContainerRequestCpu()))
+                .addToLimits("memory", new Quantity(this.config.getExporter().getContainerMemory()))
+                .addToLimits("cpu", new Quantity(this.config.getExporter().getContainerCpu()))
                 .build();
         return resources;
     }
@@ -451,10 +436,31 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
+        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
+            // Limit client connections per broker
+            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
+            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas())));
+            // Limit connection attempts per broker
+            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
+            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas()));
+        }
+
+        // configure quota plugin
+        if (this.config.getKafka().isEnableQuota()) {
+            addQuotaConfig(managedKafka, current, config);
+        }
+
+        // custom authorizer configuration
+        addKafkaAuthorizerConfig(config);
+
+        return config;
+    }
+
+    private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
         config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC)).doubleValue() / KAFKA_BROKERS);
+        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).doubleValue() / this.config.getKafka().getReplicas());
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
 
@@ -472,20 +478,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
-
-        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-         // Limit client connections per broker
-            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, DEFAULT_MAX_CONNECTIONS) / KAFKA_BROKERS)));
-            // Limit connection attempts per broker
-            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, DEFAULT_CONNECTION_ATTEMPTS_PER_SEC) / KAFKA_BROKERS));
-        }
-
-        // custom authorizer configuration
-        addKafkaAuthorizerConfig(config);
-
-        return config;
     }
 
     private Storage getKafkaStorage(ManagedKafka managedKafka, Kafka current) {
@@ -497,8 +489,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, KAFKA_BROKERS)),
-                        () -> builder.withOverrides(getStorageOverrides(KAFKA_BROKERS)));
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.config.getKafka().getReplicas())),
+                        () -> builder.withOverrides(getStorageOverrides(this.config.getKafka().getReplicas())));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
@@ -513,9 +505,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
         if (v instanceof PersistentClaimStorage) {
             PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
-            if (KAFKA_STORAGE_CLASS.equals(persistentClaimStorage.getStorageClass())) {
+            if (this.config.getKafka().getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
                 log.trace("Not setting storage overrides for pre-existing Kafka with storage class set");
-                builder.withStorageClass(KAFKA_STORAGE_CLASS);
+                builder.withStorageClass(this.config.getKafka().getStorageClass());
             } else if (!persistentClaimStorage.getOverrides().isEmpty()) {
                 log.trace("Reusing storage overrides on existing Kafka");
                 builder.withOverrides(persistentClaimStorage.getOverrides());
@@ -549,13 +541,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
         long bytes;
         if (maxDataRetentionSize == null) {
-            bytes = Quantity.getAmountInBytes(DEFAULT_KAFKA_VOLUME_SIZE).longValue();
+            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getKafka().getVolumeSize())).longValue();
         } else {
             bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
         }
 
         // this is per broker
-        bytes /= KAFKA_BROKERS;
+        bytes /= this.config.getKafka().getReplicas();
 
         // pad to give a margin before soft/hard limits kick in
         bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
@@ -582,13 +574,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Storage getZooKeeperStorage(Kafka current) {
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
-                .withSize(ZOOKEEPER_VOLUME_SIZE.toString())
+                .withSize(this.config.getZookeeper().getVolumeSize())
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
             .ifPresentOrElse(
-                    existing -> handleExistingVolume(existing, builder, ZOOKEEPER_NODES),
-                    () -> builder.withOverrides(getStorageOverrides(ZOOKEEPER_NODES)));
+                    existing -> handleExistingVolume(existing, builder, this.config.getZookeeper().getReplicas()),
+                    () -> builder.withOverrides(getStorageOverrides(this.config.getZookeeper().getReplicas())));
 
         return builder.build();
     }
@@ -682,5 +674,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         String currentDigest = currentCM.getMetadata().getAnnotations() == null ? null : currentCM.getMetadata().getAnnotations().get(DIGEST);
         String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
         return !Objects.equals(currentDigest, newDigest);
+    }
+
+    /* test */
+    protected KafkaInstanceConfiguration getKafkaConfiguration() {
+        return this.config;
+    }
+    /* test */
+    protected void setKafkaConfiguration(KafkaInstanceConfiguration config) {
+        this.config = config;
     }
 }

@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.performance.framework.KubeClusterResource;
@@ -95,14 +96,9 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
         workers = omb.deployWorkers(numWorkers);
 
         LOGGER.info("Test config: {}", key);
-        Quantity kfContainerMem = Quantity.parse(kafkaContainerMemory);
-        Quantity kfj = Quantity.parse(kafkaJavaMemory);
-        Quantity kfCpuQuantity = Quantity.parse(kfCpu);
-
-        Quantity zkContainerMem = Quantity.parse(zkContainerMemory);
-        Quantity zkj = Quantity.parse(zkJavaMemory);
-
-        AdopterProfile profile = new AdopterProfile(zkContainerMem, zkj, null, kfContainerMem, kfj, kfCpuQuantity);
+        KafkaInstanceConfiguration profile = AdopterProfile.buildProfile(
+                zkContainerMemory, zkJavaMemory, "1000", kafkaContainerMemory, kafkaJavaMemory, kfCpu
+        );
 
         ManagedKafka kafka = KafkaConfigurations.apply(capacity, "cluster1").build();
         String bootstrapHosts = kafkaProvisioner.deployCluster(kafka, profile).waitUntilReady();

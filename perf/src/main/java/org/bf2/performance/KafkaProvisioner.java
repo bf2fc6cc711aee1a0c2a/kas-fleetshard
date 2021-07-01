@@ -1,5 +1,6 @@
 package org.bf2.performance;
 
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestMetadataCapture;
@@ -29,7 +30,7 @@ public interface KafkaProvisioner {
      * Deploy a Kafka cluster using this provisioner.
      * @param profile
      */
-    KafkaDeployment deployCluster(ManagedKafka kafka, AdopterProfile profile) throws Exception;
+    KafkaDeployment deployCluster(ManagedKafka kafka, KafkaInstanceConfiguration profile) throws Exception;
 
     /**
      * Uninstall this provisioner from the system. This  will also delete all Kafka clusters created by
