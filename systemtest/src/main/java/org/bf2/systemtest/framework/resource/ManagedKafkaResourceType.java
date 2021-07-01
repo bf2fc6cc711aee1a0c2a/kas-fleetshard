@@ -157,7 +157,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         } else {
             //use defined values by env vars for oauth
             oauthClientId = SystemTestEnvironment.OAUTH_CLIENT_ID;
-            oauthTlsCert = SystemTestEnvironment.OAUTH_TLS_CERT;
+            oauthTlsCert = SystemTestEnvironment.DUMMY_CERT.equals(SystemTestEnvironment.OAUTH_TLS_CERT) ? null : SystemTestEnvironment.OAUTH_TLS_CERT;
             oauthClientSecret = SystemTestEnvironment.OAUTH_CLIENT_SECRET;
             oauthUserClaim = SystemTestEnvironment.OAUTH_USER_CLAIM;
             oauthJwksEndpoint = SystemTestEnvironment.OAUTH_JWKS_ENDPOINT;

@@ -95,7 +95,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
         if (oauthClientId != null || oauthJwksEndpoint != null) {
             oauth = new ManagedKafkaAuthenticationOAuthBuilder()
                     .withClientId(oauthClientId)
-                    .withNewTlsTrustedCertificate(oauthTlsCert)
+                    .withTlsTrustedCertificate(oauthTlsCert)
                     .withClientSecret(oauthClientSecret)
                     .withUserNameClaim(oauthUserClaim)
                     .withNewJwksEndpointURI(oauthJwksEndpoint)
