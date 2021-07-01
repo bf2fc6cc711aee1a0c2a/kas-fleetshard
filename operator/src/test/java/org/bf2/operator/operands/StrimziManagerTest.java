@@ -18,6 +18,7 @@ import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +60,7 @@ public class StrimziManagerTest {
 
     @Test
     public void testNotInstalledStrimziOperators() {
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(strimziVersions.isEmpty());
     }
 
@@ -68,9 +69,9 @@ public class StrimziManagerTest {
         installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
         installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, true);
 
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v2"));
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
     }
 
     @Test
@@ -79,8 +80,9 @@ public class StrimziManagerTest {
         // setting the operator v2 as not ready
         installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", false, true);
 
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", false));
     }
 
     @Test
@@ -89,8 +91,10 @@ public class StrimziManagerTest {
         // setting the operator v2 as not discoverable
         installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, false);
 
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        System.out.println("strimziVersions = " + strimziVersions);
+        assertFalse(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
     }
 
     @Test
@@ -98,13 +102,14 @@ public class StrimziManagerTest {
         installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
         installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, true);
 
-        List<String> strimziVersions = this.strimziManager.getStrimziVersions();
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v2"));
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
 
         uninstallStrimziOperator("strimzi-cluster-operator.v2", "ns-2");
         strimziVersions = this.strimziManager.getStrimziVersions();
-        assertTrue(strimziVersions.contains("strimzi-cluster-operator.v1"));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        assertFalse(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
     }
 
     @Test
@@ -227,7 +232,19 @@ public class StrimziManagerTest {
      * @param namespace namespace where the Strimzi operator is installed
      */
     private void uninstallStrimziOperator(String name, String namespace) {
-        this.client.apps().replicaSets().inNamespace(namespace).withName(name).delete();
+        this.client.apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").delete();
         this.client.apps().deployments().inNamespace(namespace).withName(name).delete();
+    }
+
+    /**
+     * Check if a Strimzi version is in the provided ready state
+     *
+     * @param strimziVersions list of Strimzi versions where to check
+     * @param version Strimzi version to check
+     * @param isReady ready status to check for the Strimzi version
+     * @return if a Strimzi version is in the provided ready state
+     */
+    private boolean checkStrimziVersion(List<StrimziVersionStatus> strimziVersions, String version, boolean isReady) {
+        return strimziVersions.stream().anyMatch(svs -> version.equals(svs.getVersion()) && svs.isReady() == isReady);
     }
 }

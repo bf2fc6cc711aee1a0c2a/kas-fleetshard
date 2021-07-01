@@ -21,7 +21,7 @@ public class ManagedKafkaAgentStatus {
 
     private String updatedTimestamp;
 
-    private List<String> strimziVersions;
+    private List<StrimziVersionStatus> strimzi;
 
     public List<ManagedKafkaCondition> getConditions() {
         return conditions;
@@ -71,11 +71,11 @@ public class ManagedKafkaAgentStatus {
         this.updatedTimestamp = updatedTimestamp;
     }
 
-    public List<String> getStrimziVersions() {
-        return strimziVersions;
+    public List<StrimziVersionStatus> getStrimzi() {
+        return strimzi;
     }
 
-    public void setStrimziVersions(List<String> strimziVersions) {
-        this.strimziVersions = strimziVersions;
+    public void setStrimzi(List<StrimziVersionStatus> strimzi) {
+        this.strimzi = strimzi;
     }
 }
