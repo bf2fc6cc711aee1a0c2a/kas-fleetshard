@@ -11,7 +11,7 @@ import org.bf2.operator.resources.v1alpha1.ObservabilityConfigurationBuilder;
 import javax.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped
-public class AgentResourceClient extends AbstractCustomResourceClient<ManagedKafkaAgent, ManagedKafkaAgentList> {
+public class ManagedKafkaAgentResourceClient extends AbstractCustomResourceClient<ManagedKafkaAgent, ManagedKafkaAgentList> {
 
     public static final String RESOURCE_NAME = "managed-agent";
 
@@ -37,7 +37,7 @@ public class AgentResourceClient extends AbstractCustomResourceClient<ManagedKaf
                 .withSpec(new ManagedKafkaAgentSpecBuilder()
                         .withObservability(observabilityConfig)
                         .build())
-                .withMetadata(new ObjectMetaBuilder().withName(AgentResourceClient.RESOURCE_NAME)
+                .withMetadata(new ObjectMetaBuilder().withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
                         .build())
                 .build();
     }

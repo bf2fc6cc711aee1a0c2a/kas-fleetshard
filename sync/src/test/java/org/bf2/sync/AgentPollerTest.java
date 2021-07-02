@@ -5,7 +5,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
@@ -27,7 +27,7 @@ public class AgentPollerTest {
     static final String CLUSTER_ID = "007";
 
     @Inject
-    AgentResourceClient client;
+    ManagedKafkaAgentResourceClient client;
 
     @Inject
     ManagedKafkaAgentSync managedKafkaAgentSync;
@@ -43,7 +43,7 @@ public class AgentPollerTest {
     public void testAddDelete() {
         assertNull(lookup.getLocalManagedKafkaAgent());
 
-        ManagedKafkaAgent managedKafkaAgent = AgentResourceClient.getDummyInstance();
+        ManagedKafkaAgent managedKafkaAgent = ManagedKafkaAgentResourceClient.getDummyInstance();
 
         Mockito.reset(controlPlaneRestClient);
         Mockito.when(controlPlaneRestClient.get(CLUSTER_ID)).thenReturn(managedKafkaAgent);
@@ -56,7 +56,7 @@ public class AgentPollerTest {
         client.updateStatus(local);
 
         assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
-        assertEquals(AgentResourceClient.RESOURCE_NAME, local.getMetadata().getName());
+        assertEquals(ManagedKafkaAgentResourceClient.RESOURCE_NAME, local.getMetadata().getName());
 
         managedKafkaAgent.getSpec().getObservability().setAccessToken("abc");
 
