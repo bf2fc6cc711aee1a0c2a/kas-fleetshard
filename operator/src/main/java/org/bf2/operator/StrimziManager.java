@@ -238,6 +238,10 @@ public class StrimziManager {
         return new ArrayList<>(this.strimziVersions.values());
     }
 
+    /* test */ public void clearStrimziVersions() {
+        this.strimziVersions.clear();
+    }
+
     public String getVersionLabel() {
         return versionLabel;
     }

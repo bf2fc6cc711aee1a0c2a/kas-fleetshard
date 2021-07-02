@@ -4,13 +4,13 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
@@ -20,7 +20,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
@@ -41,8 +41,8 @@ public class StrimziManagerTest {
     @Inject
     KafkaResourceClient kafkaClient;
 
-    @Inject
-    KubernetesClient client;
+    @KubernetesTestServer
+    KubernetesServer server;
 
     @Inject
     StrimziManager strimziManager;
@@ -50,12 +50,11 @@ public class StrimziManagerTest {
     @Inject
     KafkaCluster kafkaCluster;
 
-    @AfterEach
-    public void clean() {
-        DeploymentList deploymentList = this.client.apps().deployments().inAnyNamespace().list();
-        for (Deployment deployment : deploymentList.getItems()) {
-            uninstallStrimziOperator(deployment.getMetadata().getName(), deployment.getMetadata().getNamespace());
-        }
+    @BeforeEach
+    public void beforeEach() {
+        // before each test clean Kubernetes server (no Deployments, no ReplicaSets from other runs)
+        this.server.before();
+        this.strimziManager.clearStrimziVersions();
     }
 
     @Test
@@ -224,8 +223,8 @@ public class StrimziManagerTest {
                 .endStatus()
                 .build();
 
-        this.client.apps().deployments().inNamespace(namespace).create(deployment);
-        this.client.apps().replicaSets().inNamespace(namespace).create(replicaSet);
+        this.server.getClient().apps().deployments().inNamespace(namespace).create(deployment);
+        this.server.getClient().apps().replicaSets().inNamespace(namespace).create(replicaSet);
 
         if (discoverable) {
             this.strimziManager.updateStrimziVersion(replicaSet);
@@ -239,11 +238,14 @@ public class StrimziManagerTest {
      * @param namespace namespace where the Strimzi operator is installed
      */
     private void uninstallStrimziOperator(String name, String namespace) {
-        ReplicaSet rs = this.client.apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").get();
-        this.client.apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").delete();
-        this.client.apps().deployments().inNamespace(namespace).withName(name).delete();
+        ReplicaSet rs = this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").get();
+        this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").delete();
+        this.server.getClient().apps().deployments().inNamespace(namespace).withName(name).delete();
 
-        this.strimziManager.deleteStrimziVersion(rs);
+        // only if "discoverable" was added to the strimzi manager list
+        if (rs.getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
+            this.strimziManager.deleteStrimziVersion(rs);
+        }
     }
 
     /**
