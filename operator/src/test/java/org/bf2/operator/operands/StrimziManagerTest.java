@@ -219,10 +219,18 @@ public class StrimziManagerTest {
                         .endSpec()
                     .endTemplate()
                 .endSpec()
+                .withNewStatus()
+                    .withReplicas(1)
+                    .withReadyReplicas(ready ? 1 : 0)
+                .endStatus()
                 .build();
 
         this.client.apps().deployments().inNamespace(namespace).create(deployment);
         this.client.apps().replicaSets().inNamespace(namespace).create(replicaSet);
+
+        if (discoverable) {
+            this.strimziManager.updateStrimziVersion(replicaSet);
+        }
     }
 
     /**
@@ -232,8 +240,11 @@ public class StrimziManagerTest {
      * @param namespace namespace where the Strimzi operator is installed
      */
     private void uninstallStrimziOperator(String name, String namespace) {
+        ReplicaSet rs = this.client.apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").get();
         this.client.apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").delete();
         this.client.apps().deployments().inNamespace(namespace).withName(name).delete();
+
+        this.strimziManager.deleteStrimziVersion(rs);
     }
 
     /**

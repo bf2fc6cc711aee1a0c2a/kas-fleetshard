@@ -1,25 +1,29 @@
 package org.bf2.operator;
 
-import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
-import io.fabric8.kubernetes.api.model.apps.ReplicaSetList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatusBuilder;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @ApplicationScoped
 public class StrimziManager {
@@ -34,11 +38,77 @@ public class StrimziManager {
     KubernetesClient kubernetesClient;
 
     @Inject
+    AgentResourceClient agentClient;
+
+    @Inject
     protected InformerManager informerManager;
+
+    @Inject
+    ResourceInformerFactory resourceInformerFactory;
+
+    private Map<String, StrimziVersionStatus> strimziVersions = new HashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
     protected String versionLabel;
+
+    @PostConstruct
+    protected void onStart() {
+
+        // checking the ReplicaSet instead of Deployments is a temporary workaround waiting for OpenShift 4.8 (with OLM operator 1.18.0)
+        // OLM operator 1.17.0 (on OpenShift 4.7) doesn't support feature to set labels on Deployments from inside the CSV
+        // OLM operator 1.18.0 (on OpenShift 4.8) support the above feature
+        this.resourceInformerFactory.create(ReplicaSet.class,
+                this.kubernetesClient.apps().replicaSets().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                new ResourceEventHandler<ReplicaSet>() {
+                    @Override
+                    public void onAdd(ReplicaSet replicaSet) {
+                        log.debugf("Add event received for ReplicaSet %s/%s",
+                                replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
+                        updateStrimziVersion(replicaSet);
+                        updateStatus();
+                    }
+
+                    @Override
+                    public void onUpdate(ReplicaSet oldReplicaSet, ReplicaSet newReplicaSet) {
+                        log.debugf("Update event received for ReplicaSet %s/%s",
+                                newReplicaSet.getMetadata().getNamespace(), newReplicaSet.getMetadata().getName());
+                        if (Readiness.isReplicaSetReady(newReplicaSet) ^ Readiness.isReplicaSetReady(oldReplicaSet)) {
+                            updateStrimziVersion(newReplicaSet);
+                            updateStatus();
+                        }
+                    }
+
+                    @Override
+                    public void onDelete(ReplicaSet replicaSet, boolean deletedFinalStateUnknown) {
+                        log.debugf("Delete event received for ReplicaSet %s/%s",
+                                replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
+                        deleteStrimziVersion(replicaSet);
+                        updateStatus();
+                    }
+
+                    private void updateStatus() {
+                        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+                        if (resource != null) {
+                            log.debugf("Updating Strimzi versions %s", getStrimziVersions());
+                            resource.getStatus().setStrimzi(getStrimziVersions());
+                            agentClient.updateStatus(resource);
+                        }
+                    }
+                });
+    }
+
+    /* test */ public void updateStrimziVersion(ReplicaSet replicaSet) {
+        this.strimziVersions.put(replicaSet.getMetadata().getOwnerReferences().get(0).getName(),
+                new StrimziVersionStatusBuilder()
+                        .withVersion(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
+                        .withReady(Readiness.isReplicaSetReady(replicaSet))
+                        .build());
+    }
+
+    /* test */ public void deleteStrimziVersion(ReplicaSet replicaSet) {
+        this.strimziVersions.remove(replicaSet.getMetadata().getOwnerReferences().get(0).getName());
+    }
 
     /**
      * Handle the Kafka pause/unpause reconciliation mechanism by adding the corresponding annotation on the Kafka custom resource
@@ -157,52 +227,15 @@ public class StrimziManager {
     }
 
     private Kafka cachedKafka(ManagedKafka managedKafka) {
-        return informerManager.getLocalKafka(AbstractKafkaCluster.kafkaClusterNamespace(managedKafka), AbstractKafkaCluster.kafkaClusterName(managedKafka));
+        return this.informerManager.getLocalKafka(AbstractKafkaCluster.kafkaClusterNamespace(managedKafka), AbstractKafkaCluster.kafkaClusterName(managedKafka));
     }
 
     /**
-     * Execute the discovery of the Strimzi operators installed on the Kubernetes cluster
-     * via a specific label applied on them
-     *
-     * @return list with Deployment names of Strimzi operator
+     * @return list of installed Strimzi versions with related readiness status
      */
     public List<StrimziVersionStatus> getStrimziVersions() {
-
-        // checking the ReplicaSet instead of Deployments is a temporary workaround waiting for OpenShift 4.8 (with OLM operator 1.18.0)
-        // OLM operator 1.17.0 (on OpenShift 4.7) doesn't support feature to set labels on Deployments from inside the CSV
-        // OLM operator 1.18.0 (on OpenShift 4.8) support the above feature
-        ReplicaSetList list = this.kubernetesClient.apps()
-                .replicaSets()
-                .inAnyNamespace()
-                .withLabel("app.kubernetes.io/part-of", "managed-kafka")
-                .list();
-
-        List<StrimziVersionStatus> strimziVersions = new ArrayList<>();
-        log.debug("Strimzi installations");
-        if (!list.getItems().isEmpty()) {
-            for (ReplicaSet replicaSet : list.getItems()) {
-
-                String deploymentName = replicaSet.getMetadata().getOwnerReferences().get(0).getName();
-                Optional<Deployment> optDeployment = this.kubernetesClient.apps()
-                        .deployments()
-                        .inNamespace(replicaSet.getMetadata().getNamespace())
-                        .list().getItems()
-                        .stream().filter(d -> d.getMetadata().getName().equals(deploymentName)).findFirst();
-
-                if (optDeployment.isPresent()) {
-                    Deployment deployment = optDeployment.get();
-                    // check it's ready
-                    boolean isReady = deployment.getStatus() != null && deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas());
-                    strimziVersions.add(new StrimziVersionStatusBuilder()
-                            .withVersion(deployment.getMetadata().getName())
-                            .withReady(isReady)
-                            .build()
-                    );
-                    log.debugf("\t - %s [%s]", deployment.getMetadata().getName(), isReady);
-                }
-            }
-        }
-        return strimziVersions;
+        log.debugf("Strimzi versions %s", this.strimziVersions.values());
+        return new ArrayList<>(this.strimziVersions.values());
     }
 
     public String getVersionLabel() {
