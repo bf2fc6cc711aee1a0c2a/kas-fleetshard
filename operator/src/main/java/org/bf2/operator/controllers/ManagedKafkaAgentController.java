@@ -1,7 +1,6 @@
 package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -93,20 +92,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
             log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
             resource.setStatus(buildStatus(resource));
-            try {
-                this.agentClient.updateStatus(resource);
-            // Strimzi manager updates the status due to events from Strimzi operator ReplicaSets
-            // so a concurrent update could happen here.
-            // fabric8 5.4.0 provides a fix for it but we have to wait until quarkus operator sdk will use it
-            // more info https://github.com/fabric8io/kubernetes-client/issues/3066
-            // TODO: removing catch when using fabric8 5.4.0
-            } catch (KubernetesClientException e) {
-                if (e.getCode() == 409) {
-                    log.info("Caught PUT failure on a not updated ManagedKafkaAgent resource");
-                } else {
-                    log.warnf("Kubernetes client error code %s with status %s", e.getCode(), e.getStatus());
-                }
-            }
+            this.agentClient.updateStatus(resource);
         }
     }
 
