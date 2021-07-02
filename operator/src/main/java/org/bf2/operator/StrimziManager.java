@@ -21,9 +21,9 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @ApplicationScoped
 public class StrimziManager {
@@ -46,7 +46,7 @@ public class StrimziManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    private Map<String, StrimziVersionStatus> strimziVersions = new HashMap<>();
+    private Map<String, StrimziVersionStatus> strimziVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
