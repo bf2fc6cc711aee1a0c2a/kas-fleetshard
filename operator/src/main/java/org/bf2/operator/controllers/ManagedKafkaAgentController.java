@@ -13,7 +13,6 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.AgentResourceClient;
 import org.bf2.common.ConditionUtils;
-import org.bf2.operator.InformerManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -55,9 +54,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Inject
     ObservabilityManager observabilityManager;
-
-    @Inject
-    InformerManager manager;
 
     @Inject
     StrimziManager strimziManager;
