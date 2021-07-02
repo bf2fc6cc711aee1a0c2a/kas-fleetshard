@@ -19,8 +19,8 @@ public class DevelopmentAdminServer extends org.bf2.operator.operands.AdminServe
 
     /* test */
     @Override
-    protected List<Container> getContainers(ManagedKafka managedKafka) {
-        var containers = super.getContainers(managedKafka);
+    protected List<Container> buildContainers(ManagedKafka managedKafka) {
+        var containers = super.buildContainers(managedKafka);
 
         containers.forEach(container -> {
             container.setImagePullPolicy("Always");

@@ -63,19 +63,19 @@ public class Canary extends AbstractCanary {
                 .editOrNewMetadata()
                     .withName(canaryName)
                     .withNamespace(canaryNamespace(managedKafka))
-                    .withLabels(getLabels(canaryName))
+                    .withLabels(buildLabels(canaryName))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(getSelectorLabels(canaryName))
+                        .withMatchLabels(buildSelectorLabels(canaryName))
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
-                            .withLabels(getLabels(canaryName))
+                            .withLabels(buildLabels(canaryName))
                         .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(getContainers(managedKafka))
+                            .withContainers(buildContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .endSpec()
                     .endTemplate()
@@ -89,21 +89,21 @@ public class Canary extends AbstractCanary {
         return deployment;
     }
 
-    protected List<Container> getContainers(ManagedKafka managedKafka) {
+    protected List<Container> buildContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("canary")
                 .withImage(canaryImage)
-                .withEnv(getEnvVar(managedKafka))
-                .withPorts(getContainerPorts())
-                .withResources(getResources())
-                .withReadinessProbe(getReadinessProbe())
-                .withLivenessProbe(getLivenessProbe())
+                .withEnv(buildEnvVar(managedKafka))
+                .withPorts(buildContainerPorts())
+                .withResources(buildResources())
+                .withReadinessProbe(buildReadinessProbe())
+                .withLivenessProbe(buildLivenessProbe())
                 .build();
 
         return Collections.singletonList(container);
     }
 
-    private Probe getLivenessProbe() {
+    private Probe buildLivenessProbe() {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
@@ -116,7 +116,7 @@ public class Canary extends AbstractCanary {
                 .build();
     }
 
-    private Probe getReadinessProbe() {
+    private Probe buildReadinessProbe() {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
@@ -129,19 +129,19 @@ public class Canary extends AbstractCanary {
                 .build();
     }
 
-    private Map<String, String> getSelectorLabels(String canaryName) {
+    private Map<String, String> buildSelectorLabels(String canaryName) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", canaryName);
         return labels;
     }
 
-    private Map<String, String> getLabels(String canaryName) {
-        Map<String, String> labels = getSelectorLabels(canaryName);
+    private Map<String, String> buildLabels(String canaryName) {
+        Map<String, String> labels = buildSelectorLabels(canaryName);
         labels.put("app.kubernetes.io/component", "canary");
         return labels;
     }
 
-    private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
+    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(3);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9092").build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
@@ -172,11 +172,11 @@ public class Canary extends AbstractCanary {
         return envVars;
     }
 
-    private List<ContainerPort> getContainerPorts() {
+    private List<ContainerPort> buildContainerPorts() {
         return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
     }
 
-    private ResourceRequirements getResources() {
+    private ResourceRequirements buildResources() {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
                 .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
                 .addToRequests("cpu", CONTAINER_CPU_REQUEST)

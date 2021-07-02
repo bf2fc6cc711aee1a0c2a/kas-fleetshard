@@ -64,21 +64,21 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withLabels(getLabels(managedKafka))
+                    .withLabels(buildLabels(managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
                         .withReplicas(this.config.getKafka().getReplicas())
-                        .withListeners(getListeners(managedKafka))
-                        .withStorage(getStorage())
-                        .withConfig(getKafkaConfig(managedKafka))
+                        .withListeners(buildListeners(managedKafka))
+                        .withStorage(buildStorage())
+                        .withConfig(buildKafkaConfig(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(this.config.getZookeeper().getReplicas())
-                        .withStorage((SingleVolumeStorage)getStorage())
+                        .withStorage((SingleVolumeStorage) buildStorage())
                         .withTemplate(getZookeeperTemplate(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
                     .endZookeeper()
@@ -92,7 +92,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         return kafka;
     }
 
-    private Map<String, Object> getKafkaConfig(ManagedKafka managedKafka) {
+    private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka) {
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);
         config.put("transaction.state.log.replication.factor", 3);
@@ -102,11 +102,11 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         return config;
     }
 
-    private Storage getStorage() {
+    private Storage buildStorage() {
         return new EphemeralStorageBuilder().build();
     }
 
-    private Map<String, String> getLabels(ManagedKafka managedKafka) {
+    private Map<String, String> buildLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
         labels.put("dev-kafka", "");
