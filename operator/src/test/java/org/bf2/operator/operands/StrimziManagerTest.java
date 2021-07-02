@@ -93,7 +93,6 @@ public class StrimziManagerTest {
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
-        System.out.println("strimziVersions = " + strimziVersions);
         assertFalse(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
     }
 
