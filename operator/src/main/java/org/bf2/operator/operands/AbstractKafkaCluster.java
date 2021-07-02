@@ -142,7 +142,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.createOrUpdate(kafka);
     }
 
-    protected ArrayOrObjectKafkaListeners getListeners(ManagedKafka managedKafka) {
+    protected ArrayOrObjectKafkaListeners buildListeners(ManagedKafka managedKafka) {
 
         KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
         KafkaListenerAuthentication oauthAuthenticationListener = null;
@@ -150,7 +150,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
             ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
 
-            CertSecretSource ssoTlsCertSecretSource = getSsoTlsCertSecretSource(managedKafka);
+            CertSecretSource ssoTlsCertSecretSource = buildSsoTlsCertSecretSource(managedKafka);
 
             KafkaListenerAuthenticationOAuthBuilder plainOverOauthAuthenticationListenerBuilder = new KafkaListenerAuthenticationOAuthBuilder()
                     .withClientId(managedKafkaAuthenticationOAuth.getClientId())
@@ -158,7 +158,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
                     .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka))
+                    .withClientSecret(buildSsoClientGenericSecretSource(managedKafka))
                     .withEnablePlain(true)
                     .withTokenEndpointUri(managedKafkaAuthenticationOAuth.getTokenEndpointURI());
 
@@ -173,7 +173,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
                     .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
-                    .withClientSecret(getSsoClientGenericSecretSource(managedKafka));
+                    .withClientSecret(buildSsoClientGenericSecretSource(managedKafka));
 
             if (ssoTlsCertSecretSource != null) {
                 oauthAuthenticationListenerBuilder.withTlsTrustedCertificates(ssoTlsCertSecretSource);
@@ -193,8 +193,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                         .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
                         .build()
                 )
-                .withBrokers(getBrokerOverrides(managedKafka))
-                .withBrokerCertChainAndKey(getTlsCertAndKeySecretSource(managedKafka));
+                .withBrokers(buildBrokerOverrides(managedKafka))
+                .withBrokerCertChainAndKey(buildTlsCertAndKeySecretSource(managedKafka));
 
         if(!managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
             listenerConfigBuilder
@@ -234,7 +234,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 ).build();
     }
 
-    protected List<GenericKafkaListenerConfigurationBroker> getBrokerOverrides(ManagedKafka managedKafka) {
+    protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka) {
         List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(this.config.getKafka().getReplicas());
         for (int i = 0; i < this.config.getKafka().getReplicas(); i++) {
             brokerOverrides.add(
@@ -247,7 +247,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return brokerOverrides;
     }
 
-    protected CertAndKeySecretSource getTlsCertAndKeySecretSource(ManagedKafka managedKafka) {
+    protected CertAndKeySecretSource buildTlsCertAndKeySecretSource(ManagedKafka managedKafka) {
         if (!SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             return null;
         }
@@ -258,14 +258,14 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .build();
     }
 
-    protected GenericSecretSource getSsoClientGenericSecretSource(ManagedKafka managedKafka) {
+    protected GenericSecretSource buildSsoClientGenericSecretSource(ManagedKafka managedKafka) {
         return new GenericSecretSourceBuilder()
                 .withSecretName(SecuritySecretManager.ssoClientSecretName(managedKafka))
                 .withKey("ssoClientSecret")
                 .build();
     }
 
-    protected CertSecretSource getSsoTlsCertSecretSource(ManagedKafka managedKafka) {
+    protected CertSecretSource buildSsoTlsCertSecretSource(ManagedKafka managedKafka) {
         if (!SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka) || managedKafka.getSpec().getOauth().getTlsTrustedCertificate() == null) {
             return null;
         }

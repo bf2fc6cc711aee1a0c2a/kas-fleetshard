@@ -127,21 +127,21 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewMetadata()
                     .withName(adminServerName)
                     .withNamespace(adminServerNamespace(managedKafka))
-                    .withLabels(getLabels(adminServerName))
+                    .withLabels(buildLabels(adminServerName))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(getSelectorLabels(adminServerName))
+                        .withMatchLabels(buildSelectorLabels(adminServerName))
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
-                            .withLabels(getLabels(adminServerName))
+                            .withLabels(buildLabels(adminServerName))
                         .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(getContainers(managedKafka))
+                            .withContainers(buildContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                            .withVolumes(getVolumes(managedKafka))
+                            .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec()
@@ -165,12 +165,12 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
-                    .withLabels(getLabels(adminServerName))
+                    .withLabels(buildLabels(adminServerName))
                 .endMetadata()
                 .editOrNewSpec()
                     .withClusterIP(null) // to prevent 422 errors
-                    .withSelector(getSelectorLabels(adminServerName))
-                    .withPorts(getServicePorts(managedKafka))
+                    .withSelector(buildSelectorLabels(adminServerName))
+                    .withPorts(buildServicePorts(managedKafka))
                 .endSpec()
                 .build();
 
@@ -202,7 +202,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
-                    .withLabels(getRouteLabels())
+                    .withLabels(buildRouteLabels())
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewTo()
@@ -224,22 +224,22 @@ public class AdminServer extends AbstractAdminServer {
         return route;
     }
 
-    protected List<Container> getContainers(ManagedKafka managedKafka) {
+    protected List<Container> buildContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
                 .withImage(adminApiImage)
-                .withEnv(getEnvVar(managedKafka))
-                .withPorts(getContainerPorts(managedKafka))
-                .withResources(getResources())
-                .withReadinessProbe(getProbe())
-                .withLivenessProbe(getProbe())
-                .withVolumeMounts(getVolumeMounts(managedKafka))
+                .withEnv(buildEnvVar(managedKafka))
+                .withPorts(buildContainerPorts(managedKafka))
+                .withResources(buildResources())
+                .withReadinessProbe(buildProbe())
+                .withLivenessProbe(buildProbe())
+                .withVolumeMounts(buildVolumeMounts(managedKafka))
                 .build();
 
         return Collections.singletonList(container);
     }
 
-    private Probe getProbe() {
+    private Probe buildProbe() {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
@@ -252,7 +252,7 @@ public class AdminServer extends AbstractAdminServer {
                 .build();
     }
 
-    private List<VolumeMount> getVolumeMounts(ManagedKafka managedKafka) {
+    private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
         return Collections.singletonList(new VolumeMountBuilder()
                     .withName(adminServerConfigVolumeName(managedKafka))
                     /* Matches location expected by kafka-admin-api container. */
@@ -260,7 +260,7 @@ public class AdminServer extends AbstractAdminServer {
                 .build());
     }
 
-    private List<Volume> getVolumes(ManagedKafka managedKafka) {
+    private List<Volume> buildVolumes(ManagedKafka managedKafka) {
         return Collections.singletonList(new VolumeBuilder()
                 .withName(adminServerConfigVolumeName(managedKafka))
                 .editOrNewConfigMap()
@@ -270,25 +270,25 @@ public class AdminServer extends AbstractAdminServer {
                 .build());
     }
 
-    private Map<String, String> getSelectorLabels(String adminServerName) {
+    private Map<String, String> buildSelectorLabels(String adminServerName) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("app", adminServerName);
         return labels;
     }
 
-    private Map<String, String> getLabels(String adminServerName) {
-        Map<String, String> labels = getSelectorLabels(adminServerName);
+    private Map<String, String> buildLabels(String adminServerName) {
+        Map<String, String> labels = buildSelectorLabels(adminServerName);
         labels.put("app.kubernetes.io/component", "adminserver");
         return labels;
     }
 
-    private Map<String, String> getRouteLabels() {
+    private Map<String, String> buildRouteLabels() {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
         return labels;
     }
 
-    private List<EnvVar> getEnvVar(ManagedKafka managedKafka) {
+    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>();
 
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
@@ -333,7 +333,7 @@ public class AdminServer extends AbstractAdminServer {
                         .build());
     }
 
-    private List<ContainerPort> getContainerPorts(ManagedKafka managedKafka) {
+    private List<ContainerPort> buildContainerPorts(ManagedKafka managedKafka) {
         final String apiPortName;
         final int apiContainerPort;
 
@@ -355,7 +355,7 @@ public class AdminServer extends AbstractAdminServer {
                            .build());
     }
 
-    private List<ServicePort> getServicePorts(ManagedKafka managedKafka) {
+    private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {
         final String apiPortName;
         final int apiPort;
         final IntOrString apiTargetPort;
@@ -378,7 +378,7 @@ public class AdminServer extends AbstractAdminServer {
                            .build());
     }
 
-    private ResourceRequirements getResources() {
+    private ResourceRequirements buildResources() {
         ResourceRequirements resources = new ResourceRequirementsBuilder()
                 .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
                 .addToRequests("cpu", CONTAINER_CPU_REQUEST)
