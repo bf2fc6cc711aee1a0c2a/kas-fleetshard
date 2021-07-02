@@ -103,6 +103,8 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             } catch (KubernetesClientException e) {
                 if (e.getCode() == 409) {
                     log.info("Caught PUT failure on a not updated ManagedKafkaAgent resource");
+                } else {
+                    log.warnf("Kubernetes client error code %s with status %s", e.getCode(), e.getStatus());
                 }
             }
         }
