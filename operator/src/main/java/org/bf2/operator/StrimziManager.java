@@ -4,8 +4,9 @@ import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Startup
 @ApplicationScoped
 public class StrimziManager {
 
@@ -38,7 +40,7 @@ public class StrimziManager {
     KubernetesClient kubernetesClient;
 
     @Inject
-    AgentResourceClient agentClient;
+    ManagedKafkaAgentResourceClient agentClient;
 
     @Inject
     protected InformerManager informerManager;
@@ -88,7 +90,7 @@ public class StrimziManager {
                     }
 
                     private void updateStatus() {
-                        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+                        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
                         if (resource != null) {
                             log.debugf("Updating Strimzi versions %s", getStrimziVersions());
                             resource.getStatus().setStrimzi(getStrimziVersions());
