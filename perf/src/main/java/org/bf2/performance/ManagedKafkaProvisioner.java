@@ -42,15 +42,15 @@ public class ManagedKafkaProvisioner {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaProvisioner.class);
     private final List<ManagedKafka> clusters = new ArrayList<>();
     protected KubeClusterResource cluster;
-    protected RouterConfig routerConfig;
+    protected String domain;
     private TlsConfig tlsConfig;
     private OlmBasedStrimziOperatorManager strimziManager;
 
-    static RouterConfig createIngressController(KubeClusterResource cluster) throws IOException {
+    static String createIngressController(KubeClusterResource cluster) throws IOException {
         var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
         String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR).withName("default").get().getStatus().getDomain();
 
-        return new RouterConfig(defaultDomain, null);
+        return defaultDomain;
         /*
         String domain = defaultDomain.replace("apps", "bf2");
         Map<String, String> routeSelectorLabel = Collections.singletonMap("ingressType", "sharded");
@@ -132,8 +132,8 @@ public class ManagedKafkaProvisioner {
      * One-time setup of provisioner. This should be called only once per test class.
      */
     public void setup() throws Exception {
-        this.routerConfig = createIngressController(cluster);
-        this.tlsConfig = SecurityUtils.getTLSConfig(routerConfig.getDomain());
+        this.domain = createIngressController(cluster);
+        this.tlsConfig = SecurityUtils.getTLSConfig(domain);
     }
 
     public TlsConfig getTlsConfig() {
@@ -176,6 +176,8 @@ public class ManagedKafkaProvisioner {
     }
 
     /**
+     * TODO: if/when this will need to test bin packing, then we'll separate the profile setting from deployCluster
+     *
      * Deploy a Kafka cluster using this provisioner.
      * @param profile
      */
@@ -191,7 +193,6 @@ public class ManagedKafkaProvisioner {
         }
 
         String namespace = Constants.KAFKA_NAMESPACE;
-        String domain = routerConfig.getDomain();
 
         ManagedKafka managedKafka = new ManagedKafkaBuilder()
                 .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(namespace).build())

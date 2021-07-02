@@ -76,6 +76,7 @@ public class ManagedKafkaDeployment {
                 .withName(managedKafka.getMetadata().getName())
                 .get();
         if (currentManagedKafka != null) {
+            // TODO: put this logic in the system test
             ManagedKafkaStatus status = currentManagedKafka.getStatus();
             if (status != null && status.getConditions() != null) {
                 Optional<ManagedKafkaCondition> ready = status.getConditions().stream().filter(c -> ManagedKafkaCondition.Type.Ready.name().equals(c.getType())).findFirst();
@@ -89,6 +90,7 @@ public class ManagedKafkaDeployment {
             }
         }
 
+        // TODO: put this logic in the system test or operator
         if (count.getAndIncrement() % 15 == 0) {
             ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
             cluster.kubeClient().client().pods().inNamespace(kafka.getMetadata().getNamespace())
