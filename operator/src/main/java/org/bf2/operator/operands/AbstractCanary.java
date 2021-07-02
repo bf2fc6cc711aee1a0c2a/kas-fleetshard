@@ -3,6 +3,7 @@ package org.bf2.operator.operands;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
@@ -51,8 +52,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Override
     public boolean isReady(ManagedKafka managedKafka) {
         Deployment deployment = cachedDeployment(managedKafka);
-        boolean isReady = deployment != null && deployment.getStatus() != null &&
-                deployment.getStatus().getReadyReplicas() != null && deployment.getStatus().getReadyReplicas().equals(deployment.getSpec().getReplicas());
+        boolean isReady = Readiness.isDeploymentReady(deployment);
         log.tracef("Canary isReady = %s", isReady);
         return isReady;
     }
