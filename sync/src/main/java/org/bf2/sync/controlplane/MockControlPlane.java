@@ -2,8 +2,8 @@ package org.bf2.sync.controlplane;
 
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
-import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ConditionUtils;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
