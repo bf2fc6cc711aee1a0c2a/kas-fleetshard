@@ -3,7 +3,7 @@ package org.bf2.operator.controllers;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.junit.jupiter.api.Test;
 
@@ -20,24 +20,24 @@ public class ManagedKafkaAgentControllerTest {
     ManagedKafkaAgentController mkaController;
 
     @Inject
-    AgentResourceClient agentClient;
+    ManagedKafkaAgentResourceClient agentClient;
 
     @Test
     void shouldCreateStatus() {
         //try without an agent - nothing should happen
         mkaController.statusUpdateLoop();
 
-        ManagedKafkaAgent dummyInstance = AgentResourceClient.getDummyInstance();
+        ManagedKafkaAgent dummyInstance = ManagedKafkaAgentResourceClient.getDummyInstance();
         dummyInstance.getMetadata().setNamespace(agentClient.getNamespace());
         assertNull(dummyInstance.getStatus());
         agentClient.create(dummyInstance);
 
         //should create the status even if
         mkaController.statusUpdateLoop();
-        ManagedKafkaAgent agent = agentClient.getByName(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+        ManagedKafkaAgent agent = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
         assertNotNull(agent.getStatus());
 
-        agentClient.delete(agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+        agentClient.delete(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
     }
 
 }

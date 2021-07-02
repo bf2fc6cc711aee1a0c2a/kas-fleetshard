@@ -2,7 +2,7 @@ package org.bf2.sync.controlplane;
 
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.scheduler.Scheduled;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -53,7 +53,7 @@ public class MockControlPlane implements ControlPlaneApi {
     @Inject
     ManagedKafkaAgentSync agentSync;
 
-    volatile ManagedKafkaAgent agent = AgentResourceClient.getDummyInstance();
+    volatile ManagedKafkaAgent agent = ManagedKafkaAgentResourceClient.getDummyInstance();
     volatile ManagedKafkaAgentStatus agentStatus;
 
     // Unique Id for the clusters

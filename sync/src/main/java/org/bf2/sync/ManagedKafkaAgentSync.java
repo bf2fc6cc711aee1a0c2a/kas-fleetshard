@@ -4,7 +4,7 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.sync.controlplane.ControlPlane;
 import org.bf2.sync.informer.LocalLookup;
@@ -22,7 +22,7 @@ public class ManagedKafkaAgentSync {
     Logger log;
 
     @Inject
-    AgentResourceClient agentClient;
+    ManagedKafkaAgentResourceClient agentClient;
 
     @Inject
     LocalLookup lookup;
@@ -43,16 +43,16 @@ public class ManagedKafkaAgentSync {
         ManagedKafkaAgent resource = lookup.getLocalManagedKafkaAgent();
         if (resource == null) {
             // the informer may not have run yet, so check more definitively
-            resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+            resource = this.agentClient.getByName(this.agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
         }
 
         if (resource == null) {
             remoteAgent.getMetadata().setNamespace(agentClient.getNamespace());
-            remoteAgent.getMetadata().setName(AgentResourceClient.RESOURCE_NAME);
+            remoteAgent.getMetadata().setName(ManagedKafkaAgentResourceClient.RESOURCE_NAME);
             this.agentClient.create(remoteAgent);
             log.infof("ManagedKafkaAgent CR created");
         } else if (!remoteAgent.getSpec().equals(resource.getSpec())) {
-            this.agentClient.edit(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME, mka -> {
+            this.agentClient.edit(this.agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME, mka -> {
                 mka.setSpec(remoteAgent.getSpec());
                 return mka;
             });

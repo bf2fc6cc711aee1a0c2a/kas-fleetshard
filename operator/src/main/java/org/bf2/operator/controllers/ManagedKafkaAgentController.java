@@ -11,7 +11,7 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
-import org.bf2.common.AgentResourceClient;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ConditionUtils;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
@@ -50,7 +50,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     Logger log;
 
     @Inject
-    AgentResourceClient agentClient;
+    ManagedKafkaAgentResourceClient agentClient;
 
     @Inject
     ObservabilityManager observabilityManager;
@@ -86,7 +86,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Counted(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of status updates")
     @Scheduled(every = "{agent.status.interval}", concurrentExecution = ConcurrentExecution.SKIP)
     void statusUpdateLoop() {
-        ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), AgentResourceClient.RESOURCE_NAME);
+        ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
         if (resource != null) {
             // check and reinstate if the observability config changed
             this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
