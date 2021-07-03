@@ -69,11 +69,12 @@ rules:
   - apiGroups:
       - apps
     resources:
-      # operator needs to get ReplicaSets for discovering Strimzi installations
+      # operator needs to watch ReplicaSets for discovering Strimzi installations
       - replicasets
     verbs:
       - get
       - list
+      - watch
   - apiGroups:
       - ""
     resources:

@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -103,11 +104,18 @@ public class StrimziOperatorManager {
     }
 
     protected void modifyDeployment(Deployment deployment) {
+        // the Strimzi operator deployment name is now used as version discovered by fleetshard operator to be used for ManagedKafka resources
+        deployment.getMetadata().setName("strimzi-cluster-operator.v0.22.1");
+        Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
+        labels.put("app.kubernetes.io/part-of", "managed-kafka");
+        deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
         EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
         env.remove(strimziNS);
         env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
+        // allowing a specific Strimzi operator (just one in systemtest) to select the Kafka resources to work on
+        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=strimzi-cluster-operator.v0.22.1").build());
         container.setEnv(env);
     }
 
