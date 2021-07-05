@@ -205,10 +205,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
                         new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withPort(9092)
+                                .withName("tls")
+                                .withPort(9093)
                                 .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
+                                .withTls(true)
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("external")

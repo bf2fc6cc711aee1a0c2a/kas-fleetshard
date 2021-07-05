@@ -17,10 +17,10 @@ spec:
     version: "2.6.0"
     replicas: 3
     listeners:
-    - name: "plain"
-      port: 9092
+    - name: "tls"
+      port: 9093
       type: "internal"
-      tls: false
+      tls: true
     - name: "external"
       port: 9094
       type: "ingress"
@@ -103,7 +103,7 @@ spec:
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "699050"
       leader.imbalance.per.broker.percentage: 0
-      strimzi.authorization.global-authorizer.allowed-listeners: PLAIN-9092,SRE-9096
+      strimzi.authorization.global-authorizer.allowed-listeners: TLS-9093,SRE-9096
       strimzi.authorization.global-authorizer.acl.1: permission=allow;topic=*;operations=all
       strimzi.authorization.global-authorizer.acl.2: permission=allow;group=*;operations=all
       strimzi.authorization.global-authorizer.acl.3: permission=allow;transactional_id=*;operations=all
