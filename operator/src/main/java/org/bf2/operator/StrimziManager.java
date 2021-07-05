@@ -91,7 +91,7 @@ public class StrimziManager {
 
                     private void updateStatus() {
                         ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
-                        if (resource != null) {
+                        if (resource != null && resource.getStatus() != null) {
                             log.debugf("Updating Strimzi versions %s", getStrimziVersions());
                             resource.getStatus().setStrimzi(getStrimziVersions());
                             agentClient.updateStatus(resource);
