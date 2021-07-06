@@ -65,11 +65,6 @@ If changes are needed to the openmessaging-benchmark, that will require updating
 
 The temp repo is simply a copy of the contents of ~/.m2/repository/io/openmessaging after running `mvn clean install -DcreateChecksum=true` in [the project](https://github.com/lulf/openmessaging-benchmark).
 
-## Preparing thanos writer [optional]
-```
-make rw-install
-```
-
 ## Providing Fleetshard Images / Deployment Artifacts
 
 Re-use of systemtest means that the fleetshard component install will be based upon your local build.  Typically you will want to build/push prod images.  From the parent directory / fleetshard root run:
@@ -93,7 +88,6 @@ mvn test -Dtest=ManagedKafkaValueProdMinimumTest -DskipTests=false
 Or select test by tag:
 * ci
 * perf
-* fault
 ```
 mvn test -Dtest=ManagedKafkaValueProdMinimumTest -Pperf
 ```
@@ -112,10 +106,6 @@ KUBECONFIG=kafka-config oc get route grafana-route -n managed-services-monitorin
 | OMB_TEST_DURATION | Specifies the length of the test. | PT1M |
 | OMB_KUBECONFIG | Kubeconfig with connection for OMB cluster. | $(pwd)/client-config |
 | KAFKA_KUBECONFIG | Kubeconfig with connection for KAFKA cluster. | $(pwd)/kafka-config |
-| REMOTE_WRITE_DIR | Path where Thanos remote write is stored. | $(pwd)/remote-write |
-| THANOS_URL | URL for remote write Thanos. | null |
-| THANOS_TOKEN | Token for remote write. | null |
-| OBSERVATORIUM_ROUTE | Route for sending logs and metrics. | null |
 | HISTOGRAM_NUMBER_OF_SIGNIFICANT_VALUE_DIGITS | Controls the number of significant digits used when building the latency histograms. <br> Use to prevent excessive memory use especially when running longer tests. | PT1M |
 | MAX_KAFKA_INSTANCES | Maximum number of Kafka instances that will be deployed by tests that use the deploy until full approach. | max int |
 | NUM_INGRESS_CONTROLLERS | Number of IngressControllers to split Kafka instances across. | 1 |

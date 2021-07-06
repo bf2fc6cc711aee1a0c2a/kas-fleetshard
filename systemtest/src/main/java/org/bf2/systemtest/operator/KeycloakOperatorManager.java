@@ -37,7 +37,7 @@ public class KeycloakOperatorManager {
 
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
 
-            Map<String, String> tls = SecurityUtils.getTLSConfig(OPERATOR_NS + ".svc");
+            SecurityUtils.TlsConfig tls = SecurityUtils.getTLSConfig(OPERATOR_NS + ".svc");
 
             Secret keycloakCert = new SecretBuilder()
                     .withNewMetadata()
@@ -46,8 +46,8 @@ public class KeycloakOperatorManager {
                     .endMetadata()
                     .withType("kubernetes.io/tls")
                     .withData(Map.of(
-                            "tls.crt", new String(Base64.getEncoder().encode(tls.get("cert").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
-                            "tls.key", new String(Base64.getEncoder().encode(tls.get("key").getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
+                            "tls.crt", new String(Base64.getEncoder().encode(tls.getCert().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8),
+                            "tls.key", new String(Base64.getEncoder().encode(tls.getKey().getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8))
                     )
                     .build();
             kubeClient.client().secrets().inNamespace(OPERATOR_NS).createOrReplace(keycloakCert);

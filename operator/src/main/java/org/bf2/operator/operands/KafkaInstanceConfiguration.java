@@ -40,11 +40,11 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
 
     @JsonUnwrapped(prefix = "managedkafka.kafka.")
-    protected Kafka kafka;
+    protected Kafka kafka = new Kafka();
     @JsonUnwrapped(prefix = "managedkafka.zookeeper.")
-    protected ZooKeeper zookeeper;
+    protected ZooKeeper zookeeper = new ZooKeeper();
     @JsonUnwrapped(prefix = "managedkafka.exporter.")
-    protected Exporter exporter;
+    protected Exporter exporter = new Exporter();
 
     public static class Kafka {
         @JsonProperty("connection-attempts-per-sec")

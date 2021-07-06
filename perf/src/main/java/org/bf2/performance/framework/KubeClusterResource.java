@@ -123,9 +123,8 @@ public class KubeClusterResource {
         String content = Files.readString(Paths.get(kubeconfigPath));
         Config result = Config.fromKubeconfig(content);
         result.setConnectionTimeout(30_000);
-        // TODO: enable with fabric8 5.5+
-        //config.setRequestRetryBackoffInterval(1000);
-        //config.setRequestRetryBackoffLimit(5);
+        result.setRequestRetryBackoffInterval(1000);
+        result.setRequestRetryBackoffLimit(5);
         return result;
     }
 
