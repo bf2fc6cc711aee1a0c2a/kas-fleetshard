@@ -105,7 +105,8 @@ class KafkaClusterTest {
         assertEquals("[{\"op\":\"add\",\"path\":\"/metadata/annotations/strimzi.io~1pause-reconciliation\",\"value\":\"true\"},{\"op\":\"add\",\"path\":\"/metadata/annotations/managedkafka.bf2.org~1pause-reason\",\"value\":\"strimziupdating\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
     }
 
-    void testManagedKafkaToKafkaWithCustomConfiguation() throws IOException {
+    @Test
+    void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
             ObjectMapper objectMapper = new ObjectMapper();
