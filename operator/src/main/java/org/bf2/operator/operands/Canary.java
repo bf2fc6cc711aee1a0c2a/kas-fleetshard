@@ -25,6 +25,7 @@ import io.quarkus.arc.DefaultBean;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;
+import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -99,7 +100,7 @@ public class Canary extends AbstractCanary {
                 new VolumeBuilder()
                         .withName(canaryTlsVolumeName(managedKafka))
                         .editOrNewSecret()
-                            .withSecretName(strimziClusterCaCertSecret(managedKafka))
+                            .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
                         .endSecret()
                         .build()
         );
@@ -216,9 +217,5 @@ public class Canary extends AbstractCanary {
 
     public static String canaryTlsVolumeName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-tls-ca-cert";
-    }
-
-    public static String strimziClusterCaCertSecret(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-cluster-ca-cert";
     }
 }
