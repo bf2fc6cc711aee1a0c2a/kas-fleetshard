@@ -15,12 +15,17 @@ import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.secrets.ImagePullSecretManager;
+import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -77,6 +82,7 @@ public class Canary extends AbstractCanary {
                         .editOrNewSpec()
                             .withContainers(buildContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                            .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec()
@@ -89,6 +95,17 @@ public class Canary extends AbstractCanary {
         return deployment;
     }
 
+    private List<Volume> buildVolumes(ManagedKafka managedKafka) {
+        return Collections.singletonList(
+                new VolumeBuilder()
+                        .withName(canaryTlsVolumeName(managedKafka))
+                        .editOrNewSecret()
+                            .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
+                        .endSecret()
+                        .build()
+        );
+    }
+
     protected List<Container> buildContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("canary")
@@ -98,6 +115,7 @@ public class Canary extends AbstractCanary {
                 .withResources(buildResources())
                 .withReadinessProbe(buildReadinessProbe())
                 .withLivenessProbe(buildLivenessProbe())
+                .withVolumeMounts(buildVolumeMounts(managedKafka))
                 .build();
 
         return Collections.singletonList(container);
@@ -143,11 +161,13 @@ public class Canary extends AbstractCanary {
 
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>(3);
-        envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9092").build());
+        envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093").build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
         envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(managedKafka.getSpec().getVersions().getKafka()).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());
+        envVars.add(new EnvVarBuilder().withName("TLS_ENABLED").withValue("true").build());
+        envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
 
         EnvVarSource saramaLogEnabled =
                 new EnvVarSourceBuilder()
@@ -184,5 +204,18 @@ public class Canary extends AbstractCanary {
                 .addToLimits("cpu", CONTAINER_CPU_LIMIT)
                 .build();
         return resources;
+    }
+
+    private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
+        return Collections.singletonList(
+                new VolumeMountBuilder()
+                .withName(canaryTlsVolumeName(managedKafka))
+                .withMountPath("/tmp/tls-ca-cert")
+                .build()
+        );
+    }
+
+    public static String canaryTlsVolumeName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-tls-ca-cert";
     }
 }

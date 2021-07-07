@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.strimzi.api.kafka.model.KafkaResources;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -47,6 +48,10 @@ public class SecuritySecretManager {
 
     public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getNamespace();
+    }
+
+    public static String strimziClusterCaCertSecret(ManagedKafka managedKafka) {
+        return KafkaResources.clusterCaCertificateSecretName(managedKafka.getMetadata().getName());
     }
 
     public boolean isDeleted(ManagedKafka managedKafka) {

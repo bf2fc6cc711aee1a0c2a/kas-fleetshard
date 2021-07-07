@@ -592,7 +592,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private void addKafkaAuthorizerConfig(Map<String, Object> config) {
-        config.put(KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS, "PLAIN-9092,SRE-9096");
+        config.put(KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS, "TLS-9093,SRE-9096");
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 1, "permission=allow;topic=*;operations=all");
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 2, "permission=allow;group=*;operations=all");
         config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
