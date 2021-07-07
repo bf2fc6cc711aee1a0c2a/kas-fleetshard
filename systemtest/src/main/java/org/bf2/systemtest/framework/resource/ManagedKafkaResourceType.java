@@ -175,7 +175,8 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 oauthUserClaim,
                 oauthJwksEndpoint,
                 oauthTokenEndpoint,
-                oauthIssuerEndpoint);
+                oauthIssuerEndpoint,
+                SystemTestEnvironment.STRIMZI_VERSION);
     }
 
     public static void isDeleted(ManagedKafka mk) {

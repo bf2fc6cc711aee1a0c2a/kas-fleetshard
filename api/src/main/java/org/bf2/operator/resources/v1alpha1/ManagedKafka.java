@@ -80,7 +80,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public static ManagedKafka getDefault(String name, String namespace, String bootstrapHostDomain,
             String endpointTlsCert, String endpointTlsKey, String oauthClientId, String oauthTlsCert,
             String oauthClientSecret, String oauthUserClaim, String oauthJwksEndpoint, String oauthTokenEndpoint,
-            String oauthIssuerEndpoint) {
+            String oauthIssuerEndpoint, String strimziVersion) {
 
         ManagedKafkaAuthenticationOAuth oauth = null;
         TlsKeyPair tls = null;
@@ -114,7 +114,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                 .withSpec(new ManagedKafkaSpecBuilder()
                         .withNewVersions()
                             .withKafka("2.7.0")
-                            .withStrimzi("0.22.1")
+                            .withStrimzi(strimziVersion)
                             .endVersions()
                         .withNewCapacity()
                             .withNewIngressEgressThroughputPerSec("4Mi")
@@ -137,7 +137,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      */
     public static ManagedKafka getDummyInstance(int name) {
         return getDefault("mk-" + name, "mk-" + name, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
-                "claim", "http://jwks", "https://token", "http://issuer");
+                "claim", "http://jwks", "https://token", "http://issuer", "0.22.1");
     }
 
 }

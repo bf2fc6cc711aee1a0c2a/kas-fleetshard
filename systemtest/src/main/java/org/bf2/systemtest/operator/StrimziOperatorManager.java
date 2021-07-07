@@ -17,7 +17,6 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,14 +43,14 @@ public class StrimziOperatorManager {
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
         return CompletableFuture.completedFuture(null);
     }
 
-    protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws MalformedURLException, IOException {
+    protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws IOException {
         LOGGER.info("Installing Strimzi : {}", operatorNs);
 
         Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
@@ -65,7 +64,7 @@ public class StrimziOperatorManager {
                 i.getMetadata().setNamespace(operatorNs);
             }
             if (i instanceof ClusterRoleBinding) {
-                ClusterRoleBinding crb = (ClusterRoleBinding)i;
+                ClusterRoleBinding crb = (ClusterRoleBinding) i;
                 crb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
                 crb.getMetadata().setName(crb.getMetadata().getName() + "." + operatorNs);
                 clusterWideResourceDeleters.add(unused -> {
@@ -91,7 +90,7 @@ public class StrimziOperatorManager {
                     kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
                 });
             } else if (i instanceof Deployment && "strimzi-cluster-operator".equals(i.getMetadata().getName())) {
-                modifyDeployment((Deployment)i);
+                modifyDeployment((Deployment) i);
             }
             return i;
         });
