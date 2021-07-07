@@ -191,7 +191,6 @@ public class ManagedKafkaProvisioner {
         if (!versions.contains(strimziVersion)) {
             throw new IllegalStateException(String.format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
-        profile.getKafka().setEnableQuota(PerformanceEnvironment.APPLY_BROKER_QUOTA);
         applyProfile(profile);
 
         String namespace = Constants.KAFKA_NAMESPACE;
