@@ -297,7 +297,9 @@ public class ManagedKafkaProvisioner {
         org.bf2.test.TestUtils.waitFor("kafka resource", 1_000, 300_000, () -> kafkaClient.get() != null);
 
         // track the result
-        return new ManagedKafkaDeployment(managedKafka, kafkaClient.require(), cluster);
+        Kafka kafka = kafkaClient.require();
+        LOGGER.info("Created Kafka {}", Serialization.asYaml(kafka));
+        return new ManagedKafkaDeployment(managedKafka, kafka, cluster);
     }
 
 }
