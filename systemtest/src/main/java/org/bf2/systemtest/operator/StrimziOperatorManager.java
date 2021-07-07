@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
@@ -36,7 +37,8 @@ public class StrimziOperatorManager {
     private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
 
     private static final Logger LOGGER = LogManager.getLogger(StrimziOperatorManager.class);
-    public static final String OPERATOR_NS = "strimzi-cluster-operator";
+    public static final String DEPLOYMENT_PREFIX = "strimzi-cluster-operator";
+    public static final String OPERATOR_NS = DEPLOYMENT_PREFIX;
 
     private final List<Consumer<Void>> clusterWideResourceDeleters = new LinkedList<>();
     protected String operatorNs = OPERATOR_NS;
@@ -44,7 +46,7 @@ public class StrimziOperatorManager {
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
+                .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
@@ -98,9 +100,13 @@ public class StrimziOperatorManager {
 
         LOGGER.info("Done installing Strimzi : {}", operatorNs);
         return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, 120_000, () ->
-                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(operatorNs)
-                        .list().getItems().stream().filter(pod ->
-                                pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
+                isReady(kubeClient, operatorNs));
+    }
+
+    public static boolean isReady(KubeClient kubeClient, String namespace) {
+        // TODO should be version specific
+        return kubeClient.client().apps().deployments().inNamespace(namespace).list().getItems().stream()
+                .anyMatch(dep -> dep.getMetadata().getName().contains(DEPLOYMENT_PREFIX) && Readiness.isDeploymentReady(dep));
     }
 
     protected void modifyDeployment(Deployment deployment) {

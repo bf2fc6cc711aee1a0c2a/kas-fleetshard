@@ -1,8 +1,9 @@
 package org.bf2.test;
 
-import io.fabric8.kubernetes.api.model.ContainerStatus;
-import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.IOHelpers;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -70,8 +71,8 @@ public class TestUtils {
                 try {
                     result = ready.getAsBoolean();
                 } catch (Exception e) {
-                    LOGGER.info("Exception while waiting {} {}", e.getClass().getName(), e.getMessage());
-                    result = false;
+                    future.completeExceptionally(e);
+                    return;
                 }
                 long timeLeft = deadline - System.currentTimeMillis();
                 if (!future.isDone()) {
@@ -121,12 +122,15 @@ public class TestUtils {
     }
 
     /**
-     * Check all containers state in pod and return boolean status if po is running
-     *
-     * @param p pod
+     * Return true if the resource isReady. Will be false if null.
+     * @param resource to check
      */
-    public static boolean isPodReady(Pod p) {
-        return p.getStatus().getContainerStatuses().stream().allMatch(ContainerStatus::getReady);
+    public static boolean isReady(Resource<? extends HasMetadata> resource) {
+        HasMetadata meta = resource.get();
+        if (meta == null) {
+            return false;
+        }
+        return Readiness.getInstance().isReady(meta);
     }
 
     /**

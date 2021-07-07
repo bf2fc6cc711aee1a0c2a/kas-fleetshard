@@ -13,6 +13,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.Collections;
@@ -174,11 +175,7 @@ public class OlmBasedStrimziOperatorManager {
     }
 
     public boolean isOperatorInstalled() {
-        return kubeClient.client().pods().inNamespace(namespace)
-                .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(OPERATOR_NAME)) &&
-                org.bf2.test.TestUtils.isPodReady(kubeClient.client().pods().inNamespace(namespace)
-                        .list().getItems().stream().filter(pod ->
-                                pod.getMetadata().getName().contains(OPERATOR_NAME)).findFirst().get());
+        return StrimziOperatorManager.isReady(kubeClient, namespace);
     }
 
     public List<String> getVersions() {

@@ -76,19 +76,11 @@ public class FleetShardOperatorManager {
     }
 
     public static boolean isOperatorInstalled(KubeClient kubeClient) {
-        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
-                .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(OPERATOR_NAME)) &&
-                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
-                        .list().getItems().stream().filter(pod ->
-                                pod.getMetadata().getName().contains(OPERATOR_NAME)).findFirst().get());
+        return TestUtils.isReady(kubeClient.client().apps().deployments().inNamespace(OPERATOR_NS).withName(OPERATOR_NAME));
     }
 
     public static boolean isSyncInstalled(KubeClient kubeClient) {
-        return kubeClient.client().pods().inNamespace(OPERATOR_NS)
-                .list().getItems().stream().anyMatch(pod -> pod.getMetadata().getName().contains(SYNC_NAME)) &&
-                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(OPERATOR_NS)
-                        .list().getItems().stream().filter(pod ->
-                                pod.getMetadata().getName().contains(SYNC_NAME)).findFirst().get());
+        return TestUtils.isReady(kubeClient.client().apps().deployments().inNamespace(OPERATOR_NS).withName(SYNC_NAME));
     }
 
     public static String createEndpoint(KubeClient kubeClient) {
