@@ -114,7 +114,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                 .withSpec(new ManagedKafkaSpecBuilder()
                         .withNewVersions()
                             .withKafka("2.7.0")
-                            .withStrimzi(strimziVersion)
+                            .withStrimzi("strimzi-cluster-operator.v" + strimziVersion)
                             .endVersions()
                         .withNewCapacity()
                             .withNewIngressEgressThroughputPerSec("4Mi")
@@ -137,7 +137,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      */
     public static ManagedKafka getDummyInstance(int name) {
         return getDefault("mk-" + name, "mk-" + name, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
-                "claim", "http://jwks", "https://token", "http://issuer", "0.22.1");
+                "claim", "http://jwks", "https://token", "http://issuer", "0.23.0");
     }
 
 }
