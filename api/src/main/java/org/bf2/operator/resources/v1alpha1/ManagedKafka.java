@@ -114,7 +114,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                 .withSpec(new ManagedKafkaSpecBuilder()
                         .withNewVersions()
                             .withKafka("2.7.0")
-                            .withStrimzi("strimzi-cluster-operator.v0.22.1")
+                            .withStrimzi("0.22.1")
                             .endVersions()
                         .withNewCapacity()
                             .withNewIngressEgressThroughputPerSec("4Mi")
