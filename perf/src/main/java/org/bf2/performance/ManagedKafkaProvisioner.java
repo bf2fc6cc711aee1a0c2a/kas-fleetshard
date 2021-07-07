@@ -191,6 +191,7 @@ public class ManagedKafkaProvisioner {
         if (!versions.contains(strimziVersion)) {
             throw new IllegalStateException(String.format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
+        applyProfile(profile);
 
         String namespace = Constants.KAFKA_NAMESPACE;
 
@@ -215,9 +216,7 @@ public class ManagedKafkaProvisioner {
 
         LOGGER.info("Deploying {}", Serialization.asYaml(managedKafka));
 
-        profile.getKafka().setEnableQuota(PerformanceEnvironment.APPLY_BROKER_QUOTA);
-
-        ManagedKafkaDeployment kafkaDeployment = deployCluster(namespace, managedKafka, profile);
+        ManagedKafkaDeployment kafkaDeployment = deployCluster(namespace, managedKafka);
         kafkaDeployment.start();
         return kafkaDeployment;
     }
@@ -255,11 +254,11 @@ public class ManagedKafkaProvisioner {
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
     }
 
-    ManagedKafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka, KafkaInstanceConfiguration profile) throws Exception {
+    void applyProfile(KafkaInstanceConfiguration profile) throws IOException {
         // convert the profile into simple configmap values
         ConfigMap override = toConfigMap(profile);
 
-        var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
+        var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(FleetShardOperatorManager.OPERATOR_NS);
         configMapClient.createOrReplace(override);
 
         // restart the operator deployment
@@ -272,6 +271,10 @@ public class ManagedKafkaProvisioner {
         LOGGER.info("Restarting fleetshard operatior with configuration {}", Serialization.asYaml(override));
         fleetshardOperatorDeployment.scale(0, true);
         fleetshardOperatorDeployment.scale(1, true);
+    }
+
+    ManagedKafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka) throws Exception {
+        var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(namespace);
 
         // set kafka and zookeeper metrics
         if (PerformanceEnvironment.ENABLE_METRICS) {
@@ -294,7 +297,9 @@ public class ManagedKafkaProvisioner {
         org.bf2.test.TestUtils.waitFor("kafka resource", 1_000, 300_000, () -> kafkaClient.get() != null);
 
         // track the result
-        return new ManagedKafkaDeployment(managedKafka, kafkaClient.require(), cluster);
+        Kafka kafka = kafkaClient.require();
+        LOGGER.info("Created Kafka {}", Serialization.asYaml(kafka));
+        return new ManagedKafkaDeployment(managedKafka, kafka, cluster);
     }
 
 }

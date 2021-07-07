@@ -18,7 +18,6 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     private static final String OMB_KUBECONFIG_ENV = "OMB_KUBECONFIG";
     private static final String OMB_TEST_DURATION_ENV = "OMB_TEST_DURATION";
     private static final String OMB_WARMUP_DURATION_ENV = "OMB_WARMUP_DURATION";
-    private static final String APPLY_BROKER_QUOTA_ENV = "APPLY_BROKER_QUOTA";
     private static final String KAFKA_KUBECONFIG_ENV = "KAFKA_KUBECONFIG";
     private static final String ENABLE_METRICS_ENV = "ENABLE_METRICS";
     private static final String STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV = "STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS";
@@ -45,7 +44,6 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     public static final Boolean ENABLE_METRICS = getOrDefault(ENABLE_METRICS_ENV, Boolean::parseBoolean, true);
     public static final Duration OMB_TEST_DURATION = getOrDefault(OMB_TEST_DURATION_ENV, Duration::parse, Duration.parse("PT1M"));
     public static final Duration OMB_WARMUP_DURATION = getOrDefault(OMB_WARMUP_DURATION_ENV, Duration::parse, Duration.parse("PT1M"));
-    public static final Boolean APPLY_BROKER_QUOTA = getOrDefault(APPLY_BROKER_QUOTA_ENV, Boolean::parseBoolean, Boolean.TRUE);
 
     public static final int MAXIMUM_EXEC_LOG_CHARACTER_SIZE = getOrDefault(STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV, Integer::parseInt, 20000);
     public static final boolean OMB_COLLECT_LOG = getOrDefault(OMB_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
