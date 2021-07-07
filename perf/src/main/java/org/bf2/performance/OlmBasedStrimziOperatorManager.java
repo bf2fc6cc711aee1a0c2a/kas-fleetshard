@@ -102,7 +102,7 @@ public class OlmBasedStrimziOperatorManager {
     private boolean isCatalogSourceInstalled() {
         OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
         CatalogSource cs = client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).get();
-        if (cs != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
+        if (cs != null && cs.getStatus() != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
             return true;
         }
         return false;
@@ -144,6 +144,9 @@ public class OlmBasedStrimziOperatorManager {
                     return false;
                 }
                 ClusterServiceVersion csv = client.operatorHub().clusterServiceVersions().inNamespace(namespace).withName(currentCsv).get();
+                if (csv == null) {
+                    return false;
+                }
                 versions = csv.getSpec()
                         .getInstall()
                         .getSpec()
