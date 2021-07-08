@@ -81,7 +81,7 @@ public class KeycloakOperatorManager {
                             Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "keycloak.yml").toAbsolutePath().toString());
 
             LOGGER.info("Done installing Keycloak : {}", OPERATOR_NS);
-            return TestUtils.asyncWaitFor("Keycloak instance ready", 1_000, 600_000,
+            return TestUtils.asyncWaitFor("Keycloak instance ready", 1_000, FleetShardOperatorManager.INSTALL_TIMEOUT_MS,
                     () -> TestUtils.isReady(KubeClient.getInstance()
                             .client().apps().deployments().inNamespace(OPERATOR_NS).withName("keycloak-operator")));
         } else {
@@ -99,7 +99,7 @@ public class KeycloakOperatorManager {
                     .execInCurrentNamespace("delete", "keycloak", "--all");
             INSTALLED_RESOURCES.forEach(resource -> kubeClient.client().resource(resource).inNamespace(OPERATOR_NS).delete());
             kubeClient.client().namespaces().withName(OPERATOR_NS).delete();
-            return TestUtils.asyncWaitFor("Delete Keycloak", 2_000, 120_000, () ->
+            return TestUtils.asyncWaitFor("Delete Keycloak", 2_000, FleetShardOperatorManager.DELETE_TIMEOUT_MS, () ->
                     kubeClient.client().pods().inNamespace(OPERATOR_NS).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("keycloak-0")) &&
                             !kubeClient.namespaceExists(OPERATOR_NS));

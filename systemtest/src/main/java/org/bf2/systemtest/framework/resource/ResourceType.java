@@ -1,25 +1,20 @@
 package org.bf2.systemtest.framework.resource;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import org.bf2.test.k8s.KubeClient;
+
+import java.util.Objects;
+import java.util.function.Predicate;
 
 public interface ResourceType<T extends HasMetadata> {
-    String getKind();
-
-    T get(String namespace, String name);
-
-    void create(T resource);
-
-    void delete(T resource) throws Exception;
-
     /**
      * Check if this resource is marked as ready or not.
-     *
-     * @return true if ready.
      */
-    boolean isReady(T resource);
+    default Predicate<T> readiness(KubeClient client) {
+        return Objects::nonNull;
+    }
 
-    /**
-     * Update the resource with the latest state on the Kubernetes API.
-     */
-    void refreshResource(T existing, T newResource);
+    Resource<T> resource(KubeClient client, T resource);
+
 }

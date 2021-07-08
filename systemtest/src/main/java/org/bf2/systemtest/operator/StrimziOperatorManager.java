@@ -99,7 +99,7 @@ public class StrimziOperatorManager {
         });
 
         LOGGER.info("Done installing Strimzi : {}", operatorNs);
-        return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, 120_000, () ->
+        return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, FleetShardOperatorManager.INSTALL_TIMEOUT_MS, () ->
                 isReady(kubeClient, operatorNs));
     }
 
@@ -130,7 +130,7 @@ public class StrimziOperatorManager {
             LOGGER.info("Deleting Strimzi : {}", operatorNs);
             kubeClient.client().namespaces().withName(operatorNs).delete();
             clusterWideResourceDeleters.forEach(delete -> delete.accept(null));
-            return TestUtils.asyncWaitFor("Delete strimzi", 2_000, 120_000, () ->
+            return TestUtils.asyncWaitFor("Delete strimzi", 2_000, FleetShardOperatorManager.DELETE_TIMEOUT_MS, () ->
                     kubeClient.client().pods().inNamespace(operatorNs).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
                             !kubeClient.namespaceExists(operatorNs));

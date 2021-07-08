@@ -1,4 +1,4 @@
-package org.bf2.performance;
+package org.bf2.systemtest.framework.resource;
 
 public class UnschedulablePodException extends RuntimeException {
     public UnschedulablePodException(String format) {

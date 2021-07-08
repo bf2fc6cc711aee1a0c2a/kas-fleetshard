@@ -15,7 +15,6 @@ import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.SequentialTest;
-import org.bf2.systemtest.framework.TimeoutBudget;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.KeycloakOperatorManager;
@@ -27,13 +26,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ManagedKafkaST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaST.class);
@@ -71,7 +69,7 @@ public class ManagedKafkaST extends AbstractST {
 
         LOGGER.info("Create managedkafka");
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
-        resourceManager.createResource(extensionContext, mk);
+        mk = resourceManager.createResource(extensionContext, mk);
 
         AssertUtils.assertManagedKafka(mk);
 
@@ -80,7 +78,7 @@ public class ManagedKafkaST extends AbstractST {
 
         LOGGER.info("Create managedkafka again");
         //added more timeout because of strimzi reconcile interval
-        resourceManager.createResource(extensionContext, TimeoutBudget.ofDuration(Duration.ofMinutes(15)), mk);
+        mk = resourceManager.createResource(extensionContext, TimeUnit.MINUTES.toMillis(15), mk);
 
         AssertUtils.assertManagedKafka(mk);
     }
@@ -97,7 +95,7 @@ public class ManagedKafkaST extends AbstractST {
         LOGGER.info("Create managedkafka");
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
 
-        resourceManager.createResource(extensionContext, mk);
+        mk = resourceManager.createResource(extensionContext, mk);
 
         AssertUtils.assertManagedKafka(mk);
 
@@ -105,12 +103,12 @@ public class ManagedKafkaST extends AbstractST {
         kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
         kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False)));
+        resourceManager.waitResourceCondition(mk, m ->
+                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False));
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
+        resourceManager.waitResourceCondition(mk, m ->
                         ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
-                TimeoutBudget.ofDuration(Duration.ofMinutes(15))));
+                        TimeUnit.MINUTES.toMillis(15));
 
         AssertUtils.assertManagedKafka(mk);
     }
@@ -136,9 +134,9 @@ public class ManagedKafkaST extends AbstractST {
             //stop restarting kubeapi
             executor.shutdownNow();
 
-            assertTrue(resourceManager.waitResourceCondition(mk, m ->
+            resourceManager.waitResourceCondition(mk, m ->
                             ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
-                    TimeoutBudget.ofDuration(Duration.ofMinutes(15))));
+                            TimeUnit.MINUTES.toMillis(15));
             LOGGER.info("ManagedKafka {} created", mkAppName);
 
             // wait for the sync to be up-to-date

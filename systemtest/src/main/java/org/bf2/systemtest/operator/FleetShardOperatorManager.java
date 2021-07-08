@@ -19,6 +19,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class FleetShardOperatorManager {
+
+    public static final int INSTALL_TIMEOUT_MS = 300_000;
+    public static final int DELETE_TIMEOUT_MS = 120_000;
+
     private static final String CRD_FILE_SUFFIX = "-v1.yml";
 
     public static final Path CRD_PATH = SystemTestEnvironment.ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8");
@@ -56,7 +60,7 @@ public class FleetShardOperatorManager {
         }
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
         LOGGER.info("Operator is deployed");
-        return TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, () -> isOperatorInstalled(kubeClient));
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS, () -> isOperatorInstalled(kubeClient));
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
@@ -67,7 +71,7 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", SYNC_NAME);
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
-        return TestUtils.asyncWaitFor("Sync ready", 1_000, 120_000, () -> isSyncInstalled(kubeClient));
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, INSTALL_TIMEOUT_MS, () -> isSyncInstalled(kubeClient));
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {
@@ -120,7 +124,7 @@ public class FleetShardOperatorManager {
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
-            return TestUtils.asyncWaitFor("Operator ns deleted", 2_000, 120_000, () -> !kubeClient.namespaceExists(OPERATOR_NS));
+            return TestUtils.asyncWaitFor("Operator ns deleted", 2_000, DELETE_TIMEOUT_MS, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         } else {
             LOGGER.info("SKIP_TEARDOWN is set to true.");
             return CompletableFuture.completedFuture(null);
