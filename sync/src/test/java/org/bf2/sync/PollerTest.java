@@ -21,13 +21,14 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -72,7 +73,7 @@ public class PollerTest {
 
         assertNull(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)));
 
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Collections.singletonList(managedKafka)));
         managedKafkaSync.syncKafkaClusters();
 
         items = lookup.getLocalManagedKafkas();
@@ -122,7 +123,7 @@ public class PollerTest {
         assertNull(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)));
 
         // if it shows up again need to inform the control plane delete is still needed
-        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Collections.singletonList(managedKafka)));
         managedKafkaSync.syncKafkaClusters();
 
         // expect there to be a status about the deletion

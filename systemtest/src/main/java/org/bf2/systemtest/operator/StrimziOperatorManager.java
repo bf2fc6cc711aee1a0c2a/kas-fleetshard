@@ -18,7 +18,6 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,23 +41,24 @@ public class StrimziOperatorManager {
 
     private final List<Consumer<Void>> clusterWideResourceDeleters = new LinkedList<>();
     protected String operatorNs = OPERATOR_NS;
+    protected String version = SystemTestEnvironment.STRIMZI_VERSION;
 
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX))) {
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
         return CompletableFuture.completedFuture(null);
     }
 
-    protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws MalformedURLException, IOException {
+    protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws IOException {
         LOGGER.info("Installing Strimzi : {}", operatorNs);
 
         Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
         kubeClient.client().namespaces().createOrReplace(namespace);
-        URL url = new URL(String.format(STRIMZI_URL_FORMAT, SystemTestEnvironment.STRIMZI_VERSION));
+        URL url = new URL(String.format(STRIMZI_URL_FORMAT, version));
 
         // modify namespaces, convert rolebinding to clusterrolebindings, update deployment if needed
         String crbID = UUID.randomUUID().toString().substring(0, 5);
@@ -67,7 +67,7 @@ public class StrimziOperatorManager {
                 i.getMetadata().setNamespace(operatorNs);
             }
             if (i instanceof ClusterRoleBinding) {
-                ClusterRoleBinding crb = (ClusterRoleBinding)i;
+                ClusterRoleBinding crb = (ClusterRoleBinding) i;
                 crb.getSubjects().forEach(sbj -> sbj.setNamespace(operatorNs));
                 crb.getMetadata().setName(crb.getMetadata().getName() + "." + operatorNs);
                 clusterWideResourceDeleters.add(unused -> {
@@ -93,7 +93,7 @@ public class StrimziOperatorManager {
                     kubeClient.client().rbac().clusterRoleBindings().withName(crb.getMetadata().getName()).delete();
                 });
             } else if (i instanceof Deployment && "strimzi-cluster-operator".equals(i.getMetadata().getName())) {
-                modifyDeployment((Deployment)i);
+                modifyDeployment((Deployment) i);
             }
             return i;
         });
@@ -111,7 +111,8 @@ public class StrimziOperatorManager {
 
     protected void modifyDeployment(Deployment deployment) {
         // the Strimzi operator deployment name is now used as version discovered by fleetshard operator to be used for ManagedKafka resources
-        deployment.getMetadata().setName("strimzi-cluster-operator.v0.22.1");
+        String deploymentName = String.format("%s.v%s", DEPLOYMENT_PREFIX, version);
+        deployment.getMetadata().setName(deploymentName);
         Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
         labels.put("app.kubernetes.io/part-of", "managed-kafka");
         deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
@@ -121,7 +122,7 @@ public class StrimziOperatorManager {
         env.remove(strimziNS);
         env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
         // allowing a specific Strimzi operator (just one in systemtest) to select the Kafka resources to work on
-        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=strimzi-cluster-operator.v0.22.1").build());
+        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=" + deploymentName).build());
         container.setEnv(env);
     }
 
