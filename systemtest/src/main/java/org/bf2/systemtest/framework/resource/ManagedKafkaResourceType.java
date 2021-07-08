@@ -51,8 +51,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             }
             if (count.getAndIncrement() % 15 == 0) {
                 ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
-                client.client().pods().inNamespace(mk.getMetadata().getNamespace())
-                        .withLabel("app.kubernetes.io/instance", mk.getMetadata().getName()).list(opts).getItems().forEach(ManagedKafkaResourceType::checkUnschedulablePod);
+                client.client().pods().inNamespace(mk.getMetadata().getNamespace()).list(opts).getItems().forEach(ManagedKafkaResourceType::checkUnschedulablePod);
             }
             return false;
         };
@@ -182,7 +181,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     }
 
     private static void checkUnschedulablePod(Pod p) {
-        p.getStatus().getConditions().stream().filter(c -> "Unschedulable".equals(c.getReason())).forEach(c -> {
+        p.getStatus().getConditions().stream().filter(c -> "PodScheduled".equals(c.getType()) && "False".equals(c.getStatus()) && "Unschedulable".equals(c.getReason())).forEach(c -> {
             LOGGER.info("Pod {} unschedulable {}", p.getMetadata().getName(), c.getMessage());
             throw new UnschedulablePodException(String.format("Unschedulable pod %s : %s", p.getMetadata().getName(), c.getMessage()));
         });
