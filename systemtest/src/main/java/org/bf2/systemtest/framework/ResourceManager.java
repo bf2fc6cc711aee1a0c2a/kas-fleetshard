@@ -34,7 +34,7 @@ public class ResourceManager {
     private static final Map<Class<? extends HasMetadata>, ResourceType<? extends HasMetadata>> KNOWN_TYPES =
             Map.of(Namespace.class, new NamespaceResourceType(), ManagedKafka.class, new ManagedKafkaResourceType());
 
-    private final Map<String, Stack<ThrowableRunner>> storedResources = new LinkedHashMap<>();
+    private final Map<String, Stack<Runnable>> storedResources = new LinkedHashMap<>();
 
     private KubeClient client = KubeClient.getInstance();
 
@@ -108,7 +108,7 @@ public class ResourceManager {
     }
 
     @SafeVarargs
-    public final <T extends HasMetadata> void deleteResource(T... resources) throws Exception {
+    public final <T extends HasMetadata> void deleteResource(T... resources) {
         for (T resource : resources) {
             LOGGER.info("Delete of {} {} in namespace {}",
                     resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
