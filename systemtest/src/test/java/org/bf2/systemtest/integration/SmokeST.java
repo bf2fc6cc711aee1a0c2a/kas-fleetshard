@@ -47,7 +47,7 @@ public class SmokeST extends AbstractST {
 
         keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
-        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
+        latestStrimziVersion = strimziOperatorManager.getDeploymentName();
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
@@ -79,7 +79,7 @@ public class SmokeST extends AbstractST {
     @ParallelTest
     void testCreateManagedKafkaBySync(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-deploy-api";
-        
+
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
         String id = mk.getId();
 

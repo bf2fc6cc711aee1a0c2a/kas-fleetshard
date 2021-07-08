@@ -50,7 +50,7 @@ public class ManagedKafkaST extends AbstractST {
 
         keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
-        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
+        latestStrimziVersion = strimziOperatorManager.getDeploymentName();
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
