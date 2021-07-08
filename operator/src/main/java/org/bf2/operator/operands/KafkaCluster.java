@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -81,9 +82,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final double SOFT_PERCENT = 0.9;
 
     private static final boolean DELETE_CLAIM = true;
-    private static final String KAFKA_AUTHORIZER_CLASS = "io.bf2.kafka.authorizer.GlobalAclAuthorizer";
-    private static final String KAFKA_AUTHORIZER_CONFIG_PREFIX = "strimzi.authorization.global-authorizer.";
-    private static final String KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS = KAFKA_AUTHORIZER_CONFIG_PREFIX + "allowed-listeners";
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
@@ -444,7 +442,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         // custom authorizer configuration
-        addKafkaAuthorizerConfig(config);
+        addKafkaAuthorizerConfig(managedKafka, config);
 
         return config;
     }
@@ -563,15 +561,48 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private KafkaAuthorization buildKafkaAuthorization() {
         return new KafkaAuthorizationCustomBuilder()
-                .withAuthorizerClass(KAFKA_AUTHORIZER_CLASS)
+                .withAuthorizerClass(this.config.getKafka().getAcl().getAuthorizerClass())
                 .build();
     }
 
-    private void addKafkaAuthorizerConfig(Map<String, Object> config) {
-        config.put(KAFKA_AUTHORIZER_CONFIG_ALLOWED_LISTENERS, "TLS-9093,SRE-9096");
-        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 1, "permission=allow;topic=*;operations=all");
-        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 2, "permission=allow;group=*;operations=all");
-        config.put(KAFKA_AUTHORIZER_CONFIG_PREFIX + "acl." + 3, "permission=allow;transactional_id=*;operations=all");
+    private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config) {
+        List<String> owners = managedKafka.getSpec().getOwners();
+        AtomicInteger aclCount = new AtomicInteger(0);
+        KafkaInstanceConfiguration.AccessControl aclConfig = this.config.getKafka().getAcl();
+
+        final String configPrefix = aclConfig.getConfigPrefix();
+        final String allowedListenersKey = configPrefix + "allowed-listeners";
+        final String resourceOperationsKey = configPrefix + "resource-operations";
+        final String aclKeyTemplate = configPrefix + "acl.%d";
+
+        // Deprecated option: Remove when canary, must-gather, and SRE are configured via ManagedKafka CR
+        if (aclConfig.allowedListeners != null) {
+            config.put(allowedListenersKey, aclConfig.allowedListeners);
+        }
+
+        addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);
+
+        if (aclConfig.isCustomEnabled() && !owners.isEmpty()) {
+            config.put(resourceOperationsKey, aclConfig.getResourceOperations());
+
+            for (String owner : owners) {
+                addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
+            }
+
+            /*
+             * Future: iterate over ManagedKafka `.spec.serviceaccounts` and read configured ACLs from
+             * `managedkafka.kafka.acl.service-accounts.${serviceaccounts[].name} via `Config`.
+             **/
+        }
+    }
+
+    private void addAcl(String configuredAcl, String principal, String keyTemplate, AtomicInteger aclCount, Map<String, Object> config) {
+        if (configuredAcl != null) {
+            (principal.isEmpty() ? configuredAcl : String.format(configuredAcl, principal))
+                .lines()
+                .map(String::trim)
+                .forEach(entry -> config.put(String.format(keyTemplate, aclCount.incrementAndGet()), entry));
+        }
     }
 
     private ExternalLogging buildKafkaExternalLogging(ManagedKafka managedKafka) {

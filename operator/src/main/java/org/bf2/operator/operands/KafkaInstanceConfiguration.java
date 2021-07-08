@@ -1,6 +1,8 @@
 package org.bf2.operator.operands;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.quarkus.arc.config.ConfigProperties;
@@ -71,6 +73,8 @@ public class KafkaInstanceConfiguration {
         protected String jvmXx = JVM_OPTIONS_XX;
         @JsonProperty("enable-quota")
         protected boolean enableQuota = true;
+        @JsonUnwrapped(prefix = "acl.")
+        AccessControl acl = new AccessControl();
 
         public int getReplicas() {
             return replicas;
@@ -171,6 +175,83 @@ public class KafkaInstanceConfiguration {
         @JsonIgnore
         public Map<String, String> getJvmXxMap() {
             return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
+        }
+
+        public AccessControl getAcl() {
+            return acl;
+        }
+
+        public void setAcl(AccessControl acl) {
+            this.acl = acl;
+        }
+    }
+
+    @JsonInclude(value = Include.NON_NULL)
+    public static class AccessControl {
+        @JsonProperty("authorizer-class")
+        protected String authorizerClass = null;
+        @JsonProperty("config-prefix")
+        protected String configPrefix = null;
+        @JsonProperty("global")
+        protected String global = null;
+        @JsonProperty("owner")
+        protected String owner = null;
+        @JsonProperty("resource-operations")
+        protected String resourceOperations = null;
+        @JsonProperty("allowed-listeners")
+        protected String allowedListeners = null;
+
+        public boolean isCustomEnabled() {
+            final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.'));
+            return "CustomAclAuthorizer".equals(simpleName);
+        }
+
+        public String getAuthorizerClass() {
+            return authorizerClass;
+        }
+
+        public void setAuthorizerClass(String authorizerClass) {
+            this.authorizerClass = authorizerClass;
+        }
+
+        public String getConfigPrefix() {
+            return configPrefix;
+        }
+
+        public void setConfigPrefix(String configPrefix) {
+            this.configPrefix = configPrefix;
+        }
+
+        public String getGlobal() {
+            return global;
+        }
+
+        public void setGlobal(String global) {
+            this.global = global;
+        }
+
+        public String getOwner() {
+            return owner;
+        }
+
+        public void setOwner(String owner) {
+            this.owner = owner;
+        }
+
+        public String getResourceOperations() {
+            return resourceOperations;
+        }
+
+        public void setResourceOperations(String resourceOperations) {
+            this.resourceOperations = resourceOperations;
+        }
+
+        public String getAllowedListeners() {
+            return allowedListeners;
+        }
+
+        public void setAllowedListeners(String allowedListeners) {
+            this.allowedListeners = allowedListeners;
         }
     }
 
