@@ -107,16 +107,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      *
      * @throws Exception
      */
-    public static ManagedKafka getDefault(String namespace, String appName) throws Exception {
-        return getDefault(namespace, appName, null);
-    }
-
-    /**
-     * get common default managedkafka instance
-     *
-     * @throws Exception
-     */
-    public static ManagedKafka getDefault(String namespace, String appName, KeycloakInstance keycloak) throws Exception {
+    public static ManagedKafka getDefault(String namespace, String appName, KeycloakInstance keycloak, String strimziVersion) throws Exception {
         final String tlsCert;
         final String tlsKey;
 
@@ -175,7 +166,8 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 oauthUserClaim,
                 oauthJwksEndpoint,
                 oauthTokenEndpoint,
-                oauthIssuerEndpoint);
+                oauthIssuerEndpoint,
+                strimziVersion);
     }
 
     public static void isDeleted(ManagedKafka mk) {

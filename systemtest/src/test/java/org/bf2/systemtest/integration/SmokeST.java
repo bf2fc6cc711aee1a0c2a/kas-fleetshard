@@ -33,8 +33,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
     private String syncEndpoint;
-    private StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
+    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
     private KeycloakInstance keycloak;
+    private String latestStrimziVersion;
 
     @BeforeAll
     void deploy() throws Exception {
@@ -46,6 +47,7 @@ public class SmokeST extends AbstractST {
 
         keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
+        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
@@ -66,7 +68,7 @@ public class SmokeST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
 
         resourceManager.createResource(extensionContext, mk);
 
@@ -77,7 +79,7 @@ public class SmokeST extends AbstractST {
     @ParallelTest
     void testCreateManagedKafkaBySync(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-deploy-api";
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
 
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
@@ -113,10 +115,10 @@ public class SmokeST extends AbstractST {
         AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
 
         //Get agent status
-        ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
+        ManagedKafkaAgentStatus managedKafkaAgentStatus = Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
 
-        AssertUtils.assertManagedKafkaAgentStatus(agentStatus);
+        AssertUtils.assertManagedKafkaAgentStatus(managedKafkaAgentStatus);
 
         //Check if managed kafka deployed all components
         AssertUtils.assertManagedKafka(mk);
