@@ -25,7 +25,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,9 +47,7 @@ public class SmokeST extends AbstractST {
 
         keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
-        ManagedKafkaAgentStatus agentStatus = Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaAgentStatus(syncEndpoint).body(), ManagedKafkaAgentStatus.class);
-        latestStrimziVersion = Objects.requireNonNull(agentStatus.getStrimzi().stream().reduce((first, second) -> second).orElse(null)).getVersion();
+        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 

@@ -107,7 +107,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
      *
      * @throws Exception
      */
-    public static ManagedKafka getDefault(String namespace, String appName, KeycloakInstance keycloak, String version) throws Exception {
+    public static ManagedKafka getDefault(String namespace, String appName, KeycloakInstance keycloak, String strimziVersion) throws Exception {
         final String tlsCert;
         final String tlsKey;
 
@@ -167,7 +167,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 oauthJwksEndpoint,
                 oauthTokenEndpoint,
                 oauthIssuerEndpoint,
-                version);
+                strimziVersion);
     }
 
     public static void isDeleted(ManagedKafka mk) {
