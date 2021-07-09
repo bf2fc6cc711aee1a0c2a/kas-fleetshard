@@ -103,10 +103,8 @@ public class OlmBasedStrimziOperatorManager {
     private boolean isCatalogSourceInstalled() {
         OpenShiftClient client = kubeClient.client().adapt(OpenShiftClient.class);
         CatalogSource cs = client.operatorHub().catalogSources().inNamespace(namespace).withName(CATALOG_SOURCE_NAME).get();
-        if (cs != null && cs.getStatus() != null && cs.getStatus().getConnectionState().getLastObservedState().equals("READY")) {
-            return true;
-        }
-        return false;
+        return cs != null && cs.getStatus() != null && cs.getStatus().getConnectionState() != null
+                && "READY".equals(cs.getStatus().getConnectionState().getLastObservedState());
     }
 
     private void installSubscription() {
