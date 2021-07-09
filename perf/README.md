@@ -22,10 +22,14 @@ AWS_ID=<account id>
 AWS_SEC_CREDENTIALS_FILE=<osdCcsAdmin_accessKeys.csv>
 
 ./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-accout-id ${AWS_ID} \
-    --name ${USER}-kafka --region us-east-1 --flavor r5.4xlarge --count 5 # kafka
+    --name ${USER}-kafka --region us-east-1 --flavor m5.xlarge --count 9 # kafka
 ./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-accout-id ${AWS_ID} \
-    --name ${USER}-client --region us-east-1 --flavor r5.2xlarge --count 4 # clients
+    --name ${USER}-client --region us-east-1 --flavor m5.2xlarge --count 3 # clients
 ```
+
+To run the instance profiling logic we have standardized on a 9 node m5.2xlarge cluster.
+
+For the kafka osd cluster the number of nodes needed will depend on what settings are being tested as well.  To test on m5.xlarge you need a 9 node cluster and settings that will fully dedicate a node to the broker.  On m5.2xlarge you still need 9 nodes to test the fully dedicated broker per node.  If you run instead with everything collated, then you only need a 6 node m5.2xlarge cluster.
 
 ## Rebalancing Infra Pods
 It is recommended to complete this step before proceeding with other commands. 
