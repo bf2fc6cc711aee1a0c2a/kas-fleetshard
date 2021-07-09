@@ -59,8 +59,7 @@ public class SmokeST extends AbstractST {
                 strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
     }
 
-    @Tag(TestTags.SMOKE)
-    @ParallelTest
+    // not running to reduce time/resources
     void testCreateManagedKafkaByOperator(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
 
