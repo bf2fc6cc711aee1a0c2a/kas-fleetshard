@@ -47,7 +47,8 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             }
             if (hasCondition(mk.getStatus(), ManagedKafkaCondition.Type.Ready,
                     mkc -> ManagedKafkaCondition.Reason.Error.name().equals(mkc.getReason()))) {
-                throw new IllegalStateException(String.format("ManagedKafka %s in error state", mk.getMetadata().getName()));
+                LOGGER.info("ManagedKafka {} in error state", mk.getMetadata().getName());
+                //throw new IllegalStateException(String.format("ManagedKafka %s in error state", mk.getMetadata().getName()));
             }
             if (count.getAndIncrement() % 15 == 0) {
                 ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
