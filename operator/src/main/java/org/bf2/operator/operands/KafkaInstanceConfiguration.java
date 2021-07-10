@@ -74,6 +74,8 @@ public class KafkaInstanceConfiguration {
         protected String jvmXx = JVM_OPTIONS_XX;
         @JsonProperty("enable-quota")
         protected boolean enableQuota = true;
+        @JsonProperty("constrain-spread")
+        protected boolean constrainSpread = true;
         @JsonUnwrapped(prefix = "acl.")
         AccessControl acl = new AccessControl();
 
@@ -131,6 +133,14 @@ public class KafkaInstanceConfiguration {
 
         public void setJvmXx(String jvmXx) {
             this.jvmXx = jvmXx;
+        }
+
+        public boolean isConstrainSpread() {
+            return constrainSpread;
+        }
+
+        public void setConstrainSpread(boolean constrainSpread) {
+            this.constrainSpread = constrainSpread;
         }
 
         public int getConnectionAttemptsPerSec() {

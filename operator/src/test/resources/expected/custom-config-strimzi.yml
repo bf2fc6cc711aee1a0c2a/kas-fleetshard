@@ -6,6 +6,10 @@ metadata:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
     managedkafka.bf2.org/strimziVersion: "0.22.1"
+    managedkafka.bf2.org/kas-multi-zone: "true"
+    managedkafka.bf2.org/kas-zone0: "true"
+    managedkafka.bf2.org/kas-zone1: "true"
+    managedkafka.bf2.org/kas-zone2: "true"
   name: "test-mk"
   namespace: "test"
   ownerReferences:
@@ -171,6 +175,13 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: "kubernetes.io/hostname"
+        topologySpreadConstraints:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/name: test-mk-kafka
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
   zookeeper:
     replicas: 5
     storage: !<persistent-claim>

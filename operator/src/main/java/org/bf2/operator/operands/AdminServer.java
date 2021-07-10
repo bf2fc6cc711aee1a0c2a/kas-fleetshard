@@ -92,6 +92,9 @@ public class AdminServer extends AbstractAdminServer {
     @Inject
     protected KafkaInstanceConfiguration config;
 
+    @Inject
+    protected Labels extraLabels;
+
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
@@ -288,6 +291,7 @@ public class AdminServer extends AbstractAdminServer {
     private Map<String, String> buildRouteLabels() {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
+        labels.putAll(extraLabels.get());
         return labels;
     }
 
@@ -386,13 +390,12 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private ResourceRequirements buildResources() {
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
                 .addToRequests("cpu", CONTAINER_CPU_REQUEST)
                 .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
                 .addToLimits("cpu", CONTAINER_CPU_LIMIT)
                 .build();
-        return resources;
     }
 
     @Override

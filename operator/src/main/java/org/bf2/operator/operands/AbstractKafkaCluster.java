@@ -118,8 +118,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public boolean isReconciliationPaused(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
-                && hasKafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("ReconciliationPaused")
-                && c.getStatus().equals("True"));
+                && hasKafkaCondition(kafka, c -> c.getType() != null && "ReconciliationPaused".equals(c.getType())
+                && "True".equals(c.getStatus()));
         log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
         return isReconciliationPaused;
     }
@@ -294,5 +294,4 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withCertificate("keycloak.crt")
                 .build();
     }
-
 }

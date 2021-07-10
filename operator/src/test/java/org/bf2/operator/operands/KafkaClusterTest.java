@@ -32,6 +32,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -52,9 +53,13 @@ class KafkaClusterTest {
     @Inject
     InformerManager informerManager;
 
+    @Inject
+    Labels labels;
+
     @BeforeEach
     void beforeEach() {
         informerManager.createKafkaInformer();
+        labels.putAll(Map.of("managedkafka.bf2.org/kas-zone0", "true", "managedkafka.bf2.org/kas-zone1", "true", "managedkafka.bf2.org/kas-zone2", "true"));
     }
 
     @Test
