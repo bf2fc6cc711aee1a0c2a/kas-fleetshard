@@ -1,5 +1,6 @@
 package org.bf2.performance;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
@@ -26,13 +27,10 @@ import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * Provisioner for {@link ManagedKafka} instances
@@ -103,13 +101,11 @@ public class ManagedKafkaProvisioner {
     }
 
     static ConfigMap toConfigMap(Object profile) throws IOException {
-        Properties propertyMap = Serialization.jsonMapper().convertValue(profile, Properties.class);
-        StringWriter writer = new StringWriter();
-        propertyMap.store(writer, null);
+        Map<String,String> propertyMap = Serialization.jsonMapper().convertValue(profile, new TypeReference<Map<String, String>>() {});
 
         ConfigMap override =
-                new ConfigMapBuilder().withNewMetadata().withName("operator-logging-config-override").endMetadata()
-                        .withData(Collections.singletonMap("application.properties", writer.toString())).build();
+                new ConfigMapBuilder().withNewMetadata().withName("kas-fleetshard-config").endMetadata()
+                        .withData(propertyMap).build();
         return override;
     }
 

@@ -58,30 +58,30 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
 
     @ParameterizedTest(name = "testValueProdMinimumKafkaMem_{3}_{4}")
     @CsvSource({
-            "41943040, 60000, 500, 12Gi, 2Gi",
-            "41943040, 60000, 500, 12Gi, 3Gi",
-            "41943040, 60000, 500, 12Gi, 4Gi",
-            "41943040, 60000, 500, 12Gi, 5Gi",
+            "41943040, 60000, 500, 12Gi, 2G",
+            "41943040, 60000, 500, 12Gi, 3G",
+            "41943040, 60000, 500, 12Gi, 4G",
+            "41943040, 60000, 500, 12Gi, 5G",
 
-            "41943040, 60000, 500, 10Gi, 2Gi",
-            "41943040, 60000, 500, 10Gi, 3Gi",
-            "41943040, 60000, 500, 10Gi, 4Gi",
-            "41943040, 60000, 500, 10Gi, 5Gi",
+            "41943040, 60000, 500, 10Gi, 2G",
+            "41943040, 60000, 500, 10Gi, 3G",
+            "41943040, 60000, 500, 10Gi, 4G",
+            "41943040, 60000, 500, 10Gi, 5G",
 
-            "41943040, 60000, 500, 8Gi, 2Gi",
-            "41943040, 60000, 500, 8Gi, 3Gi",
-            "41943040, 60000, 500, 8Gi, 4Gi",
-            "41943040, 60000, 500, 8Gi, 5Gi",
+            "41943040, 60000, 500, 8Gi, 2G",
+            "41943040, 60000, 500, 8Gi, 3G",
+            "41943040, 60000, 500, 8Gi, 4G",
+            "41943040, 60000, 500, 8Gi, 5G",
 
-            "41943040, 60000, 500, 6Gi, 2Gi",
-            "41943040, 60000, 500, 6Gi, 3Gi",
+            "41943040, 60000, 500, 6Gi, 2G",
+            "41943040, 60000, 20, 6Gi, 3G",
     })
     @Tag(TestTags.CI)
     void testValueProdMinimumKafkaMem(long throughput, int workerProducerRate,
                                       int clients, String kafkaContainerMemory, String kafkaJavaMemory, TestInfo info) throws Exception {
         ManagedKafkaCapacity capacity = kafkaProvisioner.defaultCapacity(throughput);
         doTestValueProdMinimum(capacity, workerProducerRate, clients,
-                "4Gi", "2Gi", kafkaContainerMemory, kafkaJavaMemory, "2000m", 10, 205,
+                "4Gi", "2G", kafkaContainerMemory, kafkaJavaMemory, "2000m", 10, 205,
                 String.format("kf%s-%s", kafkaContainerMemory, kafkaJavaMemory), info.getDisplayName());
     }
 
@@ -96,7 +96,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
 
         LOGGER.info("Test config: {}", key);
         KafkaInstanceConfiguration profile = AdopterProfile.buildProfile(
-                zkContainerMemory, zkJavaMemory, "1000", kafkaContainerMemory, kafkaJavaMemory, kfCpu
+                zkContainerMemory, zkJavaMemory, "1000m", kafkaContainerMemory, kafkaJavaMemory, kfCpu
         );
 
         String bootstrapHosts = kafkaProvisioner.deployCluster("cluster1", capacity, profile).waitUntilReady();
