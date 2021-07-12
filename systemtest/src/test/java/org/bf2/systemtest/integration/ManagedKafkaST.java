@@ -15,6 +15,7 @@ import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.SequentialTest;
+import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.systemtest.framework.TimeoutBudget;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -50,7 +51,7 @@ public class ManagedKafkaST extends AbstractST {
                 FleetShardOperatorManager.deployFleetShardOperator(kube),
                 FleetShardOperatorManager.deployFleetShardSync(kube)).join();
 
-        keycloak = KeycloakOperatorManager.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
+        keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
         LOGGER.info("Endpoint address {}", syncEndpoint);
