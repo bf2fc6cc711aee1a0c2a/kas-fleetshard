@@ -53,6 +53,9 @@ public class SystemTestEnvironment extends Environment {
     public static final Path YAML_SYNC_BUNDLE_PATH = Environment.getOrDefault(YAML_SYNC_BUNDLE_PATH_ENV, Paths::get, Paths.get(ROOT_PATH.toString(), "sync", "target", "kubernetes", "kubernetes.yml"));
     public static final String FLEET_SHARD_PULL_SECRET_PATH = Environment.getOrDefault(FLEET_SHARD_PULL_SECRET_PATH_ENV, "");
 
+    public static final String KEYCLOAK_VERSION = Environment.getOrDefault("KEYCLOAK_VERSION", "14.0.0");
+    public static final boolean INSTALL_KEYCLOAK = Environment.getOrDefault("INSTALL_KEYCLOAK", Boolean::parseBoolean, true);
+
     public static void logEnvironment() {
         Environment.logEnvironment();
     }

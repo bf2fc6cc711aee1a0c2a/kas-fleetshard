@@ -27,12 +27,8 @@ public class KeycloakOperatorManager {
     public static final String OPERATOR_NS = "kas-fleetshard-keycloak";
     private static final List<HasMetadata> INSTALLED_RESOURCES = new LinkedList<>();
 
-    //env vars
-    private static final String KEYCLOAK_VERSION = Environment.getOrDefault("KEYCLOAK_VERSION", "14.0.0");
-    public static final boolean INSTALL_KEYCLOAK = Environment.getOrDefault("INSTALL_KEYCLOAK", Boolean::parseBoolean, true);
-
     public static CompletableFuture<Void> installKeycloak(KubeClient kubeClient) throws Exception {
-        if (INSTALL_KEYCLOAK) {
+        if (SystemTestEnvironment.INSTALL_KEYCLOAK) {
             LOGGER.info("Installing Keycloak : {}", OPERATOR_NS);
 
             kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(OPERATOR_NS).endMetadata().build());
@@ -53,17 +49,17 @@ public class KeycloakOperatorManager {
             kubeClient.client().secrets().inNamespace(OPERATOR_NS).createOrReplace(keycloakCert);
 
             List<String> keycloakInstallFiles = Arrays.asList(
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/service_account.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/role_binding.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/role.yaml",
-                    "https://raw.githubusercontent.com/keycloak/keycloak-operator/" + KEYCLOAK_VERSION + "/deploy/cluster_roles/cluster_role_binding.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/cluster_roles/cluster_role.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakbackups_crd.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakclients_crd.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakrealms_crd.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloaks_crd.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakusers_crd.yaml",
-                    "https://github.com/keycloak/keycloak-operator/raw/" + KEYCLOAK_VERSION + "/deploy/operator.yaml"
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/service_account.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/role_binding.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/role.yaml",
+                    "https://raw.githubusercontent.com/keycloak/keycloak-operator/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/cluster_roles/cluster_role_binding.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/cluster_roles/cluster_role.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakbackups_crd.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakclients_crd.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakrealms_crd.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloaks_crd.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/crds/keycloak.org_keycloakusers_crd.yaml",
+                    "https://github.com/keycloak/keycloak-operator/raw/" + SystemTestEnvironment.KEYCLOAK_VERSION + "/deploy/operator.yaml"
             );
 
             for (String urlString : keycloakInstallFiles) {
@@ -92,7 +88,7 @@ public class KeycloakOperatorManager {
     }
 
     public static CompletableFuture<Void> uninstallKeycloak(KubeClient kubeClient) {
-        if (INSTALL_KEYCLOAK && kubeClient.namespaceExists(OPERATOR_NS) && !SystemTestEnvironment.SKIP_TEARDOWN) {
+        if (SystemTestEnvironment.INSTALL_KEYCLOAK && kubeClient.namespaceExists(OPERATOR_NS) && !SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting Keycloak : {}", OPERATOR_NS);
             kubeClient.cmdClient().namespace(OPERATOR_NS).execInCurrentNamespace("delete", "-f",
                     Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "keycloak.yml").toAbsolutePath().toString());
