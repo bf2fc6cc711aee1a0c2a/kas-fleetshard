@@ -62,24 +62,8 @@ public class SmokeST extends AbstractST {
 
     @Tag(TestTags.SMOKE)
     @ParallelTest
-    void testCreateManagedKafkaByOperator(ExtensionContext extensionContext) throws Exception {
+    void testCreateManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
-
-        LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
-
-        LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
-
-        resourceManager.createResource(extensionContext, mk);
-
-        AssertUtils.assertManagedKafka(mk);
-    }
-
-    @Tag(TestTags.SMOKE)
-    @ParallelTest
-    void testCreateManagedKafkaBySync(ExtensionContext extensionContext) throws Exception {
-        String mkAppName = "mk-test-deploy-api";
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
 
         //Create mk using api
