@@ -59,10 +59,10 @@ mvn verify -P systemtest -pl systemtest -Dgroups=smoke -am
 
 #### Running single test or subset of tests
 ```bash
-mvn verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST#testDeployManagedKafka
+mvn verify -P systemtest -pl systemtest -am -Dit.test=SmokeST#testCreateManagedKafka
 ```
 ```bash
-mvn verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST,RecoveryST
+mvn verify -P systemtest -pl systemtest -am -Dit.test=ManagedKafkaST,SmokeST
 ```
 
 ### Running testsuite in parallel
