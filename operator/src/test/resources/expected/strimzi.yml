@@ -93,7 +93,7 @@ spec:
       transaction.state.log.min.isr: 2
       client.quota.callback.static.storage.soft: "28991029248"
       quota.window.num: "30"
-      client.quota.callback.static.consume: "699050"
+      client.quota.callback.static.fetch: "699050"
       client.quota.callback.static.storage.hard: "30601641984"
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.static.disable-quota-anonymous: "true"

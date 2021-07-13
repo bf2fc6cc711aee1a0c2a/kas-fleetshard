@@ -462,7 +462,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
         long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).doubleValue() / this.config.getKafka().getReplicas());
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
-        config.put("client.quota.callback.static.consume", String.valueOf(throughputBytes));
+        config.put("client.quota.callback.static.fetch", String.valueOf(throughputBytes));
 
         // Start throttling when disk is above 90%. Full stop at 95%.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);

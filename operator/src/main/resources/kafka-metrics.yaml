@@ -211,3 +211,15 @@ data:
       - pattern: kafka.server<type=socket-server-metrics><>broker-connection-accept-rate
         name: kafka_server_socket_broker_connection_accept_rate
         type: GAUGE
+      - pattern: kafka.server<type=Produce, quota.type=PRODUCE><>byte-rate
+        name: kafka_server_produce_byte_rate
+        type: GAUGE
+      - pattern: kafka.server<type=Produce, quota.type=PRODUCE><>throttle-time
+        name: kafka_server_produce_throttle_time
+        type: GAUGE
+      - pattern: kafka.server<type=Fetch, quota.type=FETCH><>byte-rate
+        name: kafka_server_fetch_byte_rate
+        type: GAUGE
+      - pattern: kafka.server<type=Fetch, quota.type=FETCH><>throttle-time
+        name: kafka_server_fetch_throttle_time
+        type: GAUGE
