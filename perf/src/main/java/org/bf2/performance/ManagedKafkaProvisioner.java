@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Provisioner for {@link ManagedKafka} instances
@@ -166,7 +168,8 @@ public class ManagedKafkaProvisioner {
 
         // installs a cluster wide fleetshard operator
         // not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
-        FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
+        CompletableFuture<Void> future = FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
+        future.get(120_000, TimeUnit.SECONDS);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
         cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
     }
@@ -265,6 +268,8 @@ public class ManagedKafkaProvisioner {
                 .inNamespace(FleetShardOperatorManager.OPERATOR_NS)
                 .withName(FleetShardOperatorManager.OPERATOR_NAME);
         LOGGER.info("Restarting fleetshard operatior with configuration {}", Serialization.asYaml(override));
+
+        org.bf2.test.TestUtils.waitFor("Fleetshard operator ready", 1_000, 120_000, () -> fleetshardOperatorDeployment.isReady());
         fleetshardOperatorDeployment.scale(0, true);
         fleetshardOperatorDeployment.scale(1, true);
     }

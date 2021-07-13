@@ -78,6 +78,14 @@ mvn clean -Pquickly package -pl operator,sync \
 -Dquarkus.container-image.push=true
 ```
 
+If you are working with OSD instance, instead of using the external container registries like `quay.io` one can use the OSD's internal container registry. To use it simply run
+
+```
+./scripts/use_os-internal_registry.sh ${USER}-kafka
+```
+
+NOTE: this script needs `sudo` permissions 
+
 ## Running tests
 Assuming that the kubeconfigs are stored in the root folder of this repository, running the maven tests from the command
 line or from the IDE should work:
