@@ -24,17 +24,18 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaAuthorization;
 import io.strimzi.api.kafka.model.KafkaAuthorizationCustomBuilder;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.KafkaClusterSpec;
 import io.strimzi.api.kafka.model.KafkaExporterSpec;
 import io.strimzi.api.kafka.model.KafkaExporterSpecBuilder;
+import io.strimzi.api.kafka.model.KafkaSpec;
 import io.strimzi.api.kafka.model.MetricsConfig;
 import io.strimzi.api.kafka.model.Rack;
 import io.strimzi.api.kafka.model.RackBuilder;
+import io.strimzi.api.kafka.model.ZookeeperClusterSpec;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
-import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
-import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
@@ -45,7 +46,6 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.DrainCleanerManager;
-import org.bf2.operator.StorageClassManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.Versions;
@@ -62,7 +62,6 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,9 +106,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StrimziManager strimziManager;
-
-    @Inject
-    protected StorageClassManager storageClassManager;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -369,23 +365,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ResourceRequirements buildKafkaResources(ManagedKafka managedKafka) {
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", new Quantity(this.config.getKafka().getContainerMemory()))
                 .addToRequests("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
                 .addToLimits("memory", new Quantity(this.config.getKafka().getContainerMemory()))
                 .addToLimits("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
                 .build();
-        return resources;
     }
 
     private ResourceRequirements buildZooKeeperResources(ManagedKafka managedKafka) {
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
                 .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
                 .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
                 .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
                 .build();
-        return resources;
     }
 
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
@@ -398,7 +392,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (configMap != null) {
             String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
             String saramaLogging = configMap.getData().get(KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING);
-            if (logLevel != null && !logLevel.equals("info")) {
+            if (!"info".equals(logLevel)) {
                 specBuilder.withLogging(logLevel);
             }
             if (Boolean.valueOf(saramaLogging)) {
@@ -409,13 +403,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ResourceRequirements buildKafkaExporterResources(ManagedKafka managedKafka) {
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", new Quantity(this.config.getExporter().getContainerRequestMemory()))
                 .addToRequests("cpu", new Quantity(this.config.getExporter().getContainerRequestCpu()))
                 .addToLimits("memory", new Quantity(this.config.getExporter().getContainerMemory()))
                 .addToLimits("cpu", new Quantity(this.config.getExporter().getContainerCpu()))
                 .build();
-        return resources;
     }
 
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current) {
@@ -486,11 +479,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withSize(getAdjustedMaxDataRetentionSize(managedKafka, current).getAmount())
                 .withDeleteClaim(DELETE_CLAIM);
 
-        Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getKafka()).map(k -> k.getStorage())
+        Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getKafka).map(KafkaClusterSpec::getStorage)
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.config.getKafka().getReplicas())),
-                        () -> builder.withOverrides(buildStorageOverrides(this.config.getKafka().getReplicas())));
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, config.getKafka().getReplicas())),
+                        () -> builder.withStorageClass(config.getKafka().getStorageClass()));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
@@ -505,33 +498,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
         if (v instanceof PersistentClaimStorage) {
             PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
-            if (this.config.getKafka().getStorageClass().equals(persistentClaimStorage.getStorageClass())) {
-                log.trace("Not setting storage overrides for pre-existing Kafka with storage class set");
-                builder.withStorageClass(this.config.getKafka().getStorageClass());
-            } else if (!persistentClaimStorage.getOverrides().isEmpty()) {
+            if (persistentClaimStorage.getOverrides() != null && !persistentClaimStorage.getOverrides().isEmpty()) {
                 log.trace("Reusing storage overrides on existing Kafka");
                 builder.withOverrides(persistentClaimStorage.getOverrides());
             } else {
-                log.trace("Setting per-AZ storage overrides on Kafka");
-                builder.withOverrides(buildStorageOverrides(numInstances));
+                log.trace("Setting default StorageClass on Kafka");
+                builder.withStorageClass(config.getKafka().getStorageClass());
             }
         } else {
             log.error("Existing Volume is not an instance of PersistentClaimStorage. This shouldn't happen.");
         }
-    }
-
-    private List<PersistentClaimStorageOverride> buildStorageOverrides(int num) {
-        List<String> storageClasses = storageClassManager.getStorageClassNames();
-
-        List<PersistentClaimStorageOverride> overrides = new ArrayList<>(num);
-        for (int i = 0; i < num; i++) {
-            overrides.add(
-                    new PersistentClaimStorageOverrideBuilder()
-                    .withBroker(i)
-                    .withStorageClass(storageClasses.get(i % storageClasses.size()))
-                    .build());
-        }
-        return overrides;
     }
 
     /**
@@ -574,13 +550,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Storage buildZooKeeperStorage(Kafka current) {
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
-                .withSize(this.config.getZookeeper().getVolumeSize())
+                .withSize(config.getZookeeper().getVolumeSize())
                 .withDeleteClaim(DELETE_CLAIM);
 
-        Optional.ofNullable(current).map(k -> k.getSpec()).map(s -> s.getZookeeper()).map(z -> z.getStorage())
+        Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getZookeeper).map(ZookeeperClusterSpec::getStorage)
             .ifPresentOrElse(
-                    existing -> handleExistingVolume(existing, builder, this.config.getZookeeper().getReplicas()),
-                    () -> builder.withOverrides(buildStorageOverrides(this.config.getZookeeper().getReplicas())));
+                    existing -> handleExistingVolume(existing, builder, config.getZookeeper().getReplicas()),
+                    () -> builder.withStorageClass(config.getKafka().getStorageClass()));
 
         return builder.build();
     }
