@@ -14,6 +14,7 @@ import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -50,11 +51,16 @@ public class StrimziManagerTest {
     @Inject
     KafkaCluster kafkaCluster;
 
+    @Inject
+    InformerManager informerManager;
+
     @BeforeEach
     public void beforeEach() {
         // before each test clean Kubernetes server (no Deployments, no ReplicaSets from other runs)
         this.server.before();
         this.strimziManager.clearStrimziVersions();
+
+        this.informerManager.createKafkaInformer();
     }
 
     @Test

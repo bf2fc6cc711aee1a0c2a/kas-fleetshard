@@ -86,6 +86,11 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>openshift-model-operatorhub</artifactId>
+                <version>5.5.0</version>
+            </dependency>
+            <dependency>
                 <groupId>org.bf2</groupId>
                 <artifactId>kas-fleetshard-api</artifactId>
                 <version>${project.version}</version>

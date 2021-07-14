@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
@@ -26,6 +27,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.List;
+import java.util.Map;
 
 @Startup
 @ApplicationScoped
@@ -57,8 +59,6 @@ public class InformerManager {
 
     @PostConstruct
     protected void onStart() {
-        kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
-
         deploymentInformer = resourceInformerFactory.create(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
 
         serviceInformer = resourceInformerFactory.create(Service.class, filter(kubernetesClient.services()), eventSource);
@@ -78,7 +78,7 @@ public class InformerManager {
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
-        return kafkaInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return kafkaInformer != null ? kafkaInformer.getByKey(Cache.namespaceKeyFunc(namespace, name)) : null;
     }
 
     public Deployment getLocalDeployment(String namespace, String name) {
@@ -107,13 +107,37 @@ public class InformerManager {
     }
 
     /**
+     * Create the Kafka informer
+     * NOTE: it's called when a Strimzi bundle is installed and Kafka related CRDs are available to be listed/watched
+     */
+    public void createKafkaInformer() {
+        if (kafkaInformer == null) {
+            kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
+        }
+    }
+
+    /**
+     * @return if the Strimzi/Kafka related CRDs are installed
+     */
+    public boolean isKafkaCrdsInstalled() {
+        List<CustomResourceDefinition> crds =
+                kubernetesClient.apiextensions().v1().customResourceDefinitions()
+                        .withLabels(Map.of("app", "strimzi"))
+                        .list()
+                        .getItems();
+        return !crds.isEmpty();
+    }
+
+    /**
      * Trigger Kafka CR changes following external context changes.
      */
     public void resyncKafkas() {
-        List<Kafka> kafkaList = kafkaInformer.getList();
-        log.debugf("Kafka instances to be resynced: %d", kafkaList.size());
-        kafkaList.forEach(k -> {
-            this.eventSource.onUpdate(k, k);
-        });
+        if (kafkaInformer != null) {
+            List<Kafka> kafkaList = kafkaInformer.getList();
+            log.debugf("Kafka instances to be resynced: %d", kafkaList.size());
+            kafkaList.forEach(k -> {
+                this.eventSource.onUpdate(k, k);
+            });
+        }
     }
 }
