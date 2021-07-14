@@ -81,7 +81,7 @@ mvn clean -Pquickly package -pl operator,sync \
 If you are working with OSD instance, instead of using the external container registries like `quay.io` one can use the OSD's internal container registry. To use it simply run
 
 ```
-./scripts/use_os-internal_registry.sh ${USER}-kafka
+./scripts/build_images_to_osd_internal_registry.sh ${USER}-kafka
 ```
 
 NOTE: this script needs `sudo` permissions 

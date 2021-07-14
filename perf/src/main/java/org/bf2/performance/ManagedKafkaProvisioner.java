@@ -269,7 +269,6 @@ public class ManagedKafkaProvisioner {
                 .withName(FleetShardOperatorManager.OPERATOR_NAME);
         LOGGER.info("Restarting fleetshard operatior with configuration {}", Serialization.asYaml(override));
 
-        org.bf2.test.TestUtils.waitFor("Fleetshard operator ready", 1_000, 120_000, () -> fleetshardOperatorDeployment.isReady());
         fleetshardOperatorDeployment.scale(0, true);
         fleetshardOperatorDeployment.scale(1, true);
     }
