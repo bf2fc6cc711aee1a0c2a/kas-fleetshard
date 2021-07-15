@@ -125,7 +125,7 @@ public class StrimziManager {
             log.infof("Strimzi change from %s to %s",
                     this.currentStrimziVersion(managedKafka), managedKafka.getSpec().getVersions().getStrimzi());
             // Kafka cluster is running and ready --> pause reconcile
-            if (kafkaCluster.isReady(managedKafka)) {
+            if (kafkaCluster.isReadyNotUpdating(managedKafka)) {
                 pauseReconcile(managedKafka, annotations);
                 annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
             // Kafka cluster reconcile is paused because of Strimzi updating --> unpause to restart reconcile
@@ -133,8 +133,8 @@ public class StrimziManager {
                 unpauseReconcile(managedKafka, annotations);
             }
         } else {
-            // Strimzi version is consistent, Kafka is running and ready --> remove pausing reason for Strimzi updatingf
-            if (kafkaCluster.isReady(managedKafka)) {
+            // Strimzi version is consistent, Kafka is running and ready --> remove pausing reason for Strimzi updating
+            if (kafkaCluster.isReadyNotUpdating(managedKafka)) {
                 if (isPauseReasonStrimziUpdate(annotations)) {
                     annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
                 }

@@ -12,10 +12,10 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.operands.KafkaInstance;
+import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
@@ -126,25 +126,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions.add(ready);
         }
 
-        if (managedKafka.getSpec().isDeleted()) {
-            ConditionUtils.updateConditionStatus(ready,
-                    kafkaInstance.isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted);
-        } else if (kafkaInstance.isInstalling(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Installing);
-        } else if (kafkaInstance.isReady(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.True, null);
+        OperandReadiness readiness = kafkaInstance.getReadiness(managedKafka);
 
-            // TODO: just reflecting for now what was defined in the spec
-            managedKafka.getStatus().setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            managedKafka.getStatus().setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
-            managedKafka.getStatus().setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
+        ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason());
+        ready.setMessage(readiness.getMessage());
 
-        } else if (kafkaInstance.isError(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.False, Reason.Error);
-        } else if (kafkaInstance.isStrimziUpdating(managedKafka)) {
-            ConditionUtils.updateConditionStatus(ready, Status.True, Reason.StrimziUpdating);
-        } else {
-            ConditionUtils.updateConditionStatus(ready, Status.Unknown, null);
+        if (Status.True.equals(readiness.getStatus())) {
+            status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
+            status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
         }
     }
 }

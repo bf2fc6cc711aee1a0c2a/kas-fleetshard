@@ -27,26 +27,14 @@ public interface Operand<T extends CustomResource<?, ?>> {
     /**
      *
      * @param customResource custom resource
-     * @return if the operand instance is still installing
-     */
-    boolean isInstalling(T customResource);
-
-    /**
-     * @param customResource custom resource
-     * @return if the operand instance is ready to be used
-     */
-    boolean isReady(T customResource);
-
-    /**
-     * @param customResource custom resource
-     * @return if the operand instance is in an error state
-     */
-    boolean isError(T customResource);
-
-    /**
-     *
-     * @param customResource custom resource
      * @return if the operand instance is deleted
      */
     boolean isDeleted(T customResource);
+
+    /**
+     * Get the readiness for this component
+     * @param customResource
+     * @return the readiness information, never null
+     */
+    OperandReadiness getReadiness(T customResource);
 }
