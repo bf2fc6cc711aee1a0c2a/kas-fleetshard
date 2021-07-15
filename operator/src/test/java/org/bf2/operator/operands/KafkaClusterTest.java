@@ -14,6 +14,13 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.storage.JbodStorage;
+import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
+import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.DrainCleanerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.Test;
@@ -22,7 +29,10 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -168,5 +178,66 @@ class KafkaClusterTest {
 
         assertNull(kafka.getSpec().getKafka().getTemplate().getPodDisruptionBudget());
         assertNull(kafka.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget());
+    }
+
+    @Test
+    void testExistingStorageClassOverridesDontGetUpdated() {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        Kafka defaultKafka = kafkaCluster.kafkaFrom(mk, null);
+        JbodStorage defaultKafkaStorage = (JbodStorage) defaultKafka.getSpec().getKafka().getStorage();
+        PersistentClaimStorage defaultZookeeperStorage = (PersistentClaimStorage) defaultKafka.getSpec().getZookeeper().getStorage();
+
+        JbodStorage kafkaStorageWithOverrides = new JbodStorageBuilder(defaultKafkaStorage)
+                .withVolumes(defaultKafkaStorage.getVolumes().stream()
+                        .map(v -> {
+                            PersistentClaimStorage pcs = (PersistentClaimStorage) v;
+                            pcs.setStorageClass(null);
+                            pcs.setOverrides(buildStorageOverrides());
+                            return pcs;
+                        })
+                        .collect(Collectors.toList()))
+                .build();
+
+        PersistentClaimStorage zookeeperStorageWithOverrides = new PersistentClaimStorageBuilder(defaultZookeeperStorage)
+                .withStorageClass(null)
+                .withOverrides(buildStorageOverrides())
+                .build();
+
+        Kafka kafkaWithOverrides = new KafkaBuilder(defaultKafka)
+                .editSpec()
+                .editKafka()
+                .withStorage(kafkaStorageWithOverrides)
+                .endKafka()
+                .editZookeeper()
+                .withStorage(zookeeperStorageWithOverrides)
+                .endZookeeper()
+                .endSpec()
+                .build();
+
+        Kafka reconciledKafka = kafkaCluster.kafkaFrom(mk, kafkaWithOverrides);
+
+        assertNull(((PersistentClaimStorage) reconciledKafka.getSpec().getZookeeper().getStorage()).getStorageClass());
+        assertEquals(buildStorageOverrides(), ((PersistentClaimStorage) reconciledKafka.getSpec().getZookeeper().getStorage()).getOverrides());
+
+        ((JbodStorage)reconciledKafka.getSpec().getKafka().getStorage()).getVolumes().stream().forEach(v -> {
+            assertNull(((PersistentClaimStorage)v).getStorageClass());
+            assertEquals(buildStorageOverrides(), ((PersistentClaimStorage)v).getOverrides());
+        });
+    }
+
+    private List<PersistentClaimStorageOverride> buildStorageOverrides() {
+        int num = 3;
+        List<String> storageClasses = List.of("kas-us-east-1a", "kas-us-east-1b", "kas-us-east-1c");
+
+        List<PersistentClaimStorageOverride> overrides = new ArrayList<>(num);
+        for (int i = 0; i < num; i++) {
+            overrides.add(
+                    new PersistentClaimStorageOverrideBuilder()
+                    .withBroker(i)
+                    .withStorageClass(storageClasses.get(i % storageClasses.size()))
+                    .build());
+        }
+        return overrides;
     }
 }
