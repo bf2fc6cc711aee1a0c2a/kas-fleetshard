@@ -482,7 +482,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getKafka).map(KafkaClusterSpec::getStorage)
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, config.getKafka().getReplicas())),
+                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder)),
                         () -> builder.withStorageClass(config.getKafka().getStorageClass()));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
@@ -495,7 +495,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return null;
     }
 
-    private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder, int numInstances) {
+    private <V extends SingleVolumeStorage> void handleExistingVolume(V v, PersistentClaimStorageBuilder builder) {
         if (v instanceof PersistentClaimStorage) {
             PersistentClaimStorage persistentClaimStorage = (PersistentClaimStorage) v;
             if (persistentClaimStorage.getOverrides() != null && !persistentClaimStorage.getOverrides().isEmpty()) {
@@ -555,7 +555,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getZookeeper).map(ZookeeperClusterSpec::getStorage)
             .ifPresentOrElse(
-                    existing -> handleExistingVolume(existing, builder, config.getZookeeper().getReplicas()),
+                    existing -> handleExistingVolume(existing, builder),
                     () -> builder.withStorageClass(config.getKafka().getStorageClass()));
 
         return builder.build();
