@@ -54,10 +54,12 @@ These credentials will be used to push the release image to the repository confi
 ### Performing the Release
 
 #### Release Branch
-*Optional - only required when using a release branch*. If you are starting on main branch, create a new branch from the main. For example `0.3.x`.
+*Optional - only required when a new release branch is needed -- for patch releases, skip this branch creation, and instead re-use the existing minor release branch*.
+
+If you are starting on main branch, create a new branch from the main. For example `0.3.x`.
 
 ```shell
-git branch -b 0.3.x main
+git checkout -b 0.3.x main
 git push upstream 0.3.x
 ```
 Now release from the `0.3.x` branch a release of `0.3.0`, if you are already releasing from a branch skip the above
