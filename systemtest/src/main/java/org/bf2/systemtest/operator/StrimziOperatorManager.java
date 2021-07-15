@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
+import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
@@ -35,15 +36,19 @@ public class StrimziOperatorManager {
     private static final String STRIMZI_URL_FORMAT = "https://github.com/strimzi/strimzi-kafka-operator/releases/download/%1$s/strimzi-cluster-operator-%1$s.yaml";
 
     private static final Logger LOGGER = LogManager.getLogger(StrimziOperatorManager.class);
-    public static final String OPERATOR_NS = "strimzi-cluster-operator";
+    public static final String DEPLOYMENT_PREFIX = "strimzi-cluster-operator";
+    public static final String OPERATOR_NS = DEPLOYMENT_PREFIX;
 
     private final List<Consumer<Void>> clusterWideResourceDeleters = new LinkedList<>();
     protected String operatorNs = OPERATOR_NS;
+    protected String version = SystemTestEnvironment.STRIMZI_VERSION;
+
+    private volatile String deploymentName;
 
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                        .noneMatch(deployment -> deployment.getMetadata().getName().contains("strimzi-cluster-operator"))) {
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
@@ -55,7 +60,7 @@ public class StrimziOperatorManager {
 
         Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
         kubeClient.client().namespaces().createOrReplace(namespace);
-        URL url = new URL(String.format(STRIMZI_URL_FORMAT, SystemTestEnvironment.STRIMZI_VERSION));
+        URL url = new URL(String.format(STRIMZI_URL_FORMAT, version));
 
         // modify namespaces, convert rolebinding to clusterrolebindings, update deployment if needed
         String crbID = UUID.randomUUID().toString().substring(0, 5);
@@ -96,15 +101,19 @@ public class StrimziOperatorManager {
         });
 
         LOGGER.info("Done installing Strimzi : {}", operatorNs);
-        return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, 120_000, () ->
-                TestUtils.isPodReady(kubeClient.client().pods().inNamespace(operatorNs)
-                        .list().getItems().stream().filter(pod ->
-                                pod.getMetadata().getName().contains("strimzi-cluster-operator")).findFirst().get()));
+        return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, FleetShardOperatorManager.INSTALL_TIMEOUT_MS, () ->
+                isReady(kubeClient, operatorNs));
+    }
+
+    public static boolean isReady(KubeClient kubeClient, String namespace) {
+        // TODO should be version specific
+        return kubeClient.client().apps().deployments().inNamespace(namespace).list().getItems().stream()
+                .anyMatch(dep -> dep.getMetadata().getName().contains(DEPLOYMENT_PREFIX) && Readiness.isDeploymentReady(dep));
     }
 
     protected void modifyDeployment(Deployment deployment) {
-        // the Strimzi operator deployment name is now used as version discovered by fleetshard operator to be used for ManagedKafka resources
-        deployment.getMetadata().setName("strimzi-cluster-operator.v0.22.1");
+        deploymentName = String.format("%s.v%s", DEPLOYMENT_PREFIX, version);
+        deployment.getMetadata().setName(deploymentName);
         Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
         labels.put("app.kubernetes.io/part-of", "managed-kafka");
         deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
@@ -114,7 +123,7 @@ public class StrimziOperatorManager {
         env.remove(strimziNS);
         env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
         // allowing a specific Strimzi operator (just one in systemtest) to select the Kafka resources to work on
-        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=strimzi-cluster-operator.v0.22.1").build());
+        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=" + deploymentName).build());
         container.setEnv(env);
     }
 
@@ -123,7 +132,7 @@ public class StrimziOperatorManager {
             LOGGER.info("Deleting Strimzi : {}", operatorNs);
             kubeClient.client().namespaces().withName(operatorNs).delete();
             clusterWideResourceDeleters.forEach(delete -> delete.accept(null));
-            return TestUtils.asyncWaitFor("Delete strimzi", 2_000, 120_000, () ->
+            return TestUtils.asyncWaitFor("Delete strimzi", 2_000, FleetShardOperatorManager.DELETE_TIMEOUT_MS, () ->
                     kubeClient.client().pods().inNamespace(operatorNs).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
                             !kubeClient.namespaceExists(operatorNs));
@@ -131,5 +140,9 @@ public class StrimziOperatorManager {
             LOGGER.info("No need to uninstall strimzi operator");
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    public String getDeploymentName() {
+        return deploymentName;
     }
 }

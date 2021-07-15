@@ -39,7 +39,7 @@ jobs:
 
       - name: Build and push images
         run: |
-          mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress
+          mvn package -pl operator,sync -am -Pimage-test-push --no-transfer-progress -Dquarkus.kubernetes.resources.requests.cpu=50m -Dquarkus.kubernetes.resources.requests.memory=128Mi
 
       - name: Run smoke test
         run: |

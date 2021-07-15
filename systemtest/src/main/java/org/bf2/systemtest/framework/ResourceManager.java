@@ -1,27 +1,27 @@
 package org.bf2.systemtest.framework;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.systemtest.framework.resource.NamespaceResourceType;
 import org.bf2.systemtest.framework.resource.ResourceType;
+import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Stack;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Managing resources
@@ -29,16 +29,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class ResourceManager {
     private static final Logger LOGGER = LogManager.getLogger(ResourceManager.class);
 
-    private static final Map<String, Stack<ThrowableRunner>> storedResources = new LinkedHashMap<>();
+    private static ResourceManager instance = new ResourceManager();
 
-    private final KubeClient kubeClient = KubeClient.getInstance();
+    private static final Map<Class<? extends HasMetadata>, ResourceType<? extends HasMetadata>> KNOWN_TYPES =
+            Map.of(Namespace.class, new NamespaceResourceType(), ManagedKafka.class, new ManagedKafkaResourceType());
 
-    private static ResourceManager instance;
+    private final Map<String, Stack<Runnable>> storedResources = new LinkedHashMap<>();
 
-    public static synchronized ResourceManager getInstance() {
-        if (instance == null) {
-            instance = new ResourceManager();
-        }
+    private KubeClient client = KubeClient.getInstance();
+
+    public static ResourceManager getInstance() {
         return instance;
     }
 
@@ -57,15 +57,6 @@ public class ResourceManager {
         storedResources.remove(testContext.getDisplayName());
     }
 
-    //------------------------------------------------------------------------------------------------
-    // Common resource methods
-    //------------------------------------------------------------------------------------------------
-
-    private final ResourceType<?>[] resourceTypes = new ResourceType[]{
-            new ManagedKafkaResourceType(),
-            new NamespaceResourceType(),
-    };
-
     @SafeVarargs
     public final <T extends HasMetadata> void addResource(ExtensionContext testContext, T... resources) {
         for (T resource : resources) {
@@ -76,134 +67,86 @@ public class ResourceManager {
         }
     }
 
-    @SafeVarargs
-    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, TimeoutBudget waitDuration, T... resources) {
-        createResource(testContext, true, waitDuration, resources);
+    public final <T extends HasMetadata> T createResource(ExtensionContext testContext, long timeout, T resource) {
+        return createResourceAndWait(testContext, timeout, resource);
     }
 
-    @SafeVarargs
-    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, T... resources) {
-        createResource(testContext, true, TimeoutBudget.ofDuration(Duration.ofMinutes(10)), resources);
+    public final <T extends HasMetadata> T createResource(ExtensionContext testContext, T resource) {
+        return createResource(testContext, TimeUnit.MINUTES.toMillis(10), resource);
     }
 
-    @SafeVarargs
-    public final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, T... resources) {
-        createResource(testContext, waitReady, null, resources);
-    }
-
-    @SafeVarargs
-    private final <T extends HasMetadata> void createResource(ExtensionContext testContext, boolean waitReady, TimeoutBudget timeout, T... resources) {
-        for (T resource : resources) {
-            ResourceType<T> type = findResourceType(resource);
-            if (type == null) {
-                LOGGER.warn("Can't find resource in list, please create it manually");
-                continue;
-            }
-
-            // Convenience for tests that create resources in non-existing namespaces. This will create and clean them up.
-            synchronized (this) {
-                if (resource.getMetadata().getNamespace() != null && !kubeClient.namespaceExists(resource.getMetadata().getNamespace())) {
-                    createResource(testContext, waitReady, new NamespaceBuilder().editOrNewMetadata().withName(resource.getMetadata().getNamespace()).endMetadata().build());
-                }
-            }
-            LOGGER.info("Create/Update of {} {} in namespace {}",
-                    resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
-
-            type.create(resource);
-
-            synchronized (this) {
-                storedResources.computeIfAbsent(testContext.getDisplayName(), k -> new Stack<>());
-                storedResources.get(testContext.getDisplayName()).push(() -> deleteResource(resource));
+    private final <T extends HasMetadata> T createResourceAndWait(ExtensionContext testContext, Long timeout, T resource) {
+        // Convenience for tests that create resources in non-existing namespaces. This will create and clean them up.
+        synchronized (this) {
+            if (resource.getMetadata().getNamespace() != null && !client.namespaceExists(resource.getMetadata().getNamespace())) {
+                createResourceAndWait(testContext, null, new NamespaceBuilder().editOrNewMetadata().withName(resource.getMetadata().getNamespace()).endMetadata().build());
             }
         }
+        LOGGER.info("Create/Update of {} {} in namespace {}",
+                resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
 
-        if (waitReady) {
-            for (T resource : resources) {
-                ResourceType<T> type = findResourceType(resource);
-                if (type == null) {
-                    LOGGER.warn("Can't find resource in list, please create it manually");
-                    continue;
-                }
+        @SuppressWarnings("unchecked")
+        T result = findResource(resource).createOrReplace(resource);
 
-                assertTrue(waitResourceCondition(resource, type::isReady, timeout),
-                        String.format("Timed out waiting for %s %s in namespace %s to be ready", resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
-
-                T updated = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-                type.refreshResource(resource, updated);
-            }
+        synchronized (this) {
+            storedResources.computeIfAbsent(testContext.getDisplayName(), k -> new Stack<>());
+            storedResources.get(testContext.getDisplayName()).push(() -> deleteResource(resource));
         }
+
+        if (timeout != null) {
+            result = waitUntilReady(resource, timeout);
+        }
+        return result;
+    }
+
+    public <T extends HasMetadata> T waitUntilReady(T resource, long timeout) {
+        return waitResourceCondition(resource, findResourceType(resource).readiness(client), timeout);
+    }
+
+    private <T extends HasMetadata> Resource<T> findResource(T resource) {
+        return findResourceType(resource).resource(client, resource);
     }
 
     @SafeVarargs
-    public final <T extends HasMetadata> void deleteResource(T... resources) throws Exception {
+    public final <T extends HasMetadata> void deleteResource(T... resources) {
         for (T resource : resources) {
-            ResourceType<T> type = findResourceType(resource);
-            if (type == null) {
-                LOGGER.warn("Can't find resource type, please delete it manually");
-                continue;
-            }
             LOGGER.info("Delete of {} {} in namespace {}",
                     resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace() == null ? "(not set)" : resource.getMetadata().getNamespace());
-            type.delete(resource);
-            assertTrue(waitResourceCondition(resource, Objects::isNull),
-                    String.format("Timed out deleting %s %s in namespace %s", resource.getKind(), resource.getMetadata().getName(), resource.getMetadata().getNamespace()));
-
+            findResource(resource).delete();
+            waitResourceCondition(resource, Objects::isNull);
         }
     }
 
-    public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition) {
-        return waitResourceCondition(resource, condition, TimeoutBudget.ofDuration(Duration.ofMinutes(5)));
+    public final <T extends HasMetadata> T waitResourceCondition(T resource, Predicate<T> condition) {
+        return waitResourceCondition(resource, condition, TimeUnit.MINUTES.toMillis(5));
     }
-
-    public final <T extends HasMetadata> boolean waitResourceCondition(T resource, Predicate<T> condition, TimeoutBudget timeout) {
-        assertNotNull(resource);
-        assertNotNull(resource.getMetadata());
-        assertNotNull(resource.getMetadata().getName());
-        ResourceType<T> type = findResourceType(resource);
-        assertNotNull(type);
-
-        while (!timeout.timeoutExpired()) {
-            T res = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-            if (condition.test(res)) {
-                return true;
-            }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return false;
-            }
-        }
-        T res = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-        boolean pass = condition.test(res);
-        if (!pass) {
-            LOGGER.info("Resource failed condition check: {}", resourceToString(res));
-        }
-        return pass;
-    }
-
-    private static final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 
     public static <T extends HasMetadata> String resourceToString(T resource) {
-        if (resource == null) {
-            return "null";
-        }
-        try {
-            return mapper.writeValueAsString(resource);
-        } catch (JsonProcessingException e) {
-            LOGGER.info("Failed converting resource to YAML: {}", e.getMessage());
-            return "unknown";
-        }
+        return Serialization.asYaml(resource);
+    }
+
+    public final <T extends HasMetadata> T waitResourceCondition(T resource, Predicate<T> condition, long timeout) {
+        // we use polling logic interval because the readiness tests can look at other resources
+        AtomicReference<T> result = new AtomicReference<>();
+        Resource<T> r = findResource(resource);
+        TestUtils.waitFor(resource.getMetadata().getName(), 1000, timeout, () -> {
+            T value = r.get();
+            if (condition.test(value)) {
+                result.set(value);
+                return true;
+            }
+            return false;
+        });
+        return result.get();
     }
 
     @SuppressWarnings(value = "unchecked")
     private <T extends HasMetadata> ResourceType<T> findResourceType(T resource) {
-        for (ResourceType<?> type : resourceTypes) {
-            if (type.getKind().equals(resource.getKind())) {
-                return (ResourceType<T>) type;
-            }
+        ResourceType<T> type = (ResourceType<T>) KNOWN_TYPES.get(resource.getClass());
+        if (type == null) {
+            throw new IllegalArgumentException(String.format("Unknown resource type %s", resource.getClass().getName()));
         }
-        return null;
+        return type;
     }
 
 }

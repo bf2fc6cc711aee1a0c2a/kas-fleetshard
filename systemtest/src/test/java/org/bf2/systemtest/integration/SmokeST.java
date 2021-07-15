@@ -26,10 +26,10 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
@@ -48,7 +48,7 @@ public class SmokeST extends AbstractST {
 
         keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
-        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
+        latestStrimziVersion = strimziOperatorManager.getDeploymentName();
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
@@ -65,6 +65,7 @@ public class SmokeST extends AbstractST {
     void testCreateManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        String id = mk.getId();
 
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
@@ -73,14 +74,15 @@ public class SmokeST extends AbstractST {
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
-        assertTrue(resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)));
+        resourceManager.waitResourceCondition(mk, Objects::nonNull);
+        mk = resourceManager.waitUntilReady(mk, 300_000);
+
         LOGGER.info("ManagedKafka {} created", mkAppName);
 
         // wait for the sync to be up-to-date
         TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, () -> {
             try {
-                String statusBody = SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body();
+                String statusBody = SyncApiClient.getManagedKafkaStatus(id, syncEndpoint).body();
                 if (statusBody.isEmpty()) {
                     return false;
                 }

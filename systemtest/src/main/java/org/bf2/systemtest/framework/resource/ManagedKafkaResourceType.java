@@ -1,9 +1,13 @@
 package org.bf2.systemtest.framework.resource;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ListOptions;
+import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
@@ -14,44 +18,44 @@ import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
+    private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaResourceType.class);
 
-    @Override
-    public String getKind() {
-        return ResourceKind.MANAGED_KAFKA;
-    }
-
-    @Override
-    public ManagedKafka get(String namespace, String name) {
-        return getOperation().inNamespace(namespace).withName(name).get();
-    }
 
     public static MixedOperation<ManagedKafka, KubernetesResourceList<ManagedKafka>, Resource<ManagedKafka>> getOperation() {
         return KubeClient.getInstance().client().customResources(ManagedKafka.class);
     }
 
     @Override
-    public void create(ManagedKafka resource) {
-        getOperation().inNamespace(resource.getMetadata().getNamespace()).createOrReplace(resource);
+    public Resource<ManagedKafka> resource(KubeClient client, ManagedKafka resource) {
+        return client.client().customResources(ManagedKafka.class).inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName());
     }
 
     @Override
-    public void delete(ManagedKafka resource) throws InterruptedException {
-        getOperation().inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).delete();
-    }
-
-    @Override
-    public boolean isReady(ManagedKafka mk) {
-        return hasConditionStatus(mk, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True);
-    }
-
-    @Override
-    public void refreshResource(ManagedKafka existing, ManagedKafka newResource) {
-        existing.setMetadata(newResource.getMetadata());
-        existing.setSpec(newResource.getSpec());
-        existing.setStatus(newResource.getStatus());
+    public Predicate<ManagedKafka> readiness(KubeClient client) {
+        AtomicInteger count = new AtomicInteger();
+        return mk -> {
+            if (mk == null) {
+                throw new IllegalStateException("ManagedKafka is null");
+            }
+            if (hasConditionStatus(mk, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True)) {
+                return true;
+            }
+            if (hasCondition(mk.getStatus(), ManagedKafkaCondition.Type.Ready,
+                    mkc -> ManagedKafkaCondition.Reason.Error.name().equals(mkc.getReason()))) {
+                LOGGER.info("ManagedKafka {} in error state", mk.getMetadata().getName());
+                //throw new IllegalStateException(String.format("ManagedKafka %s in error state", mk.getMetadata().getName()));
+            }
+            if (count.getAndIncrement() % 15 == 0) {
+                ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
+                client.client().pods().inNamespace(mk.getMetadata().getNamespace()).list(opts).getItems().forEach(ManagedKafkaResourceType::checkUnschedulablePod);
+            }
+            return false;
+        };
     }
 
     /**
@@ -65,15 +69,14 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     }
 
     public static boolean hasConditionStatus(ManagedKafkaStatus mks, ManagedKafkaCondition.Type type, ManagedKafkaCondition.Status status) {
+        return hasCondition(mks, type, mkc -> status.name().equals(mkc.getStatus()));
+    }
+
+    public static boolean hasCondition(ManagedKafkaStatus mks, ManagedKafkaCondition.Type type, Predicate<ManagedKafkaCondition> p) {
         if (mks == null || mks.getConditions() == null) {
             return false;
         }
-        for (ManagedKafkaCondition condition : mks.getConditions()) {
-            if (type.name().equals(condition.getType())) {
-                return status.name().equals(condition.getStatus());
-            }
-        }
-        return false;
+        return mks.getConditions().stream().filter(mkc -> type.name().equals(mkc.getType())).anyMatch(p);
     }
 
     public static Pod getCanaryPod(ManagedKafka mk) {
@@ -175,6 +178,13 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             ManagedKafka m = ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get();
             List<Pod> pods = KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems();
             return m == null && pods.size() == 0;
+        });
+    }
+
+    private static void checkUnschedulablePod(Pod p) {
+        p.getStatus().getConditions().stream().filter(c -> "PodScheduled".equals(c.getType()) && "False".equals(c.getStatus()) && "Unschedulable".equals(c.getReason())).forEach(c -> {
+            LOGGER.info("Pod {} unschedulable {}", p.getMetadata().getName(), c.getMessage());
+            throw new UnschedulablePodException(String.format("Unschedulable pod %s : %s", p.getMetadata().getName(), c.getMessage()));
         });
     }
 }
