@@ -19,7 +19,7 @@ spec:
     jwksEndpointURI: https://jwksEndpointURI
     validIssuerEndpointURI: https://validIssuerEndpointURI
     userNameClaim: userNameClaim
-    customClaimCheck: customClaim
+    customClaimCheck: "@.custom == 'custom-value'"
     tlsTrustedCertificate: |-
       -----BEGIN CERTIFICATE-----
       MIICLDCCAdKgAwIBAgIBADAKBggqhkjOPQQDAjB9MQswCQYDVQQGEwJCRTEPMA0G
@@ -69,5 +69,5 @@ spec:
         l4wOuDwKQa+upc8GftXE2C//4mKANBC6It01gUaTIpo=
         -----END PRIVATE KEY-----
   versions:
-    kafka: 2.6.0
+    kafka: 2.7.0
     strimzi: 0.21.1
