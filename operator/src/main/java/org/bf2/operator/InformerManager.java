@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
@@ -27,7 +26,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.List;
-import java.util.Map;
 
 @Startup
 @ApplicationScoped
@@ -114,18 +112,6 @@ public class InformerManager {
         if (kafkaInformer == null) {
             kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
         }
-    }
-
-    /**
-     * @return if the Strimzi/Kafka related CRDs are installed
-     */
-    public boolean isKafkaCrdsInstalled() {
-        List<CustomResourceDefinition> crds =
-                kubernetesClient.apiextensions().v1().customResourceDefinitions()
-                        .withLabels(Map.of("app", "strimzi"))
-                        .list()
-                        .getItems();
-        return !crds.isEmpty();
     }
 
     /**

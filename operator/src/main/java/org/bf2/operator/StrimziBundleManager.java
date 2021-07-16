@@ -3,6 +3,7 @@ package org.bf2.operator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
@@ -104,6 +105,7 @@ public class StrimziBundleManager {
                     installPlan.getSpec().setApproved(true);
                     this.openShiftClient.operatorHub().installPlans().inNamespace(installPlan.getMetadata().getNamespace()).createOrReplace(installPlan);
                 }
+                log.infof("Subscription %s/%s approved = %s", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), approved);
             } else {
                 // not waiting for approval, nothing to do
             }
@@ -120,7 +122,7 @@ public class StrimziBundleManager {
         List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
 
         // CRDs are not installed, nothing we can do more ... just approving installation
-        if (!this.informerManager.isKafkaCrdsInstalled()) {
+        if (!this.isKafkaCrdsInstalled()) {
             return true;
         } else {
             List<Kafka> kafkas = this.kafkaClient.list();
@@ -128,18 +130,19 @@ public class StrimziBundleManager {
             for (String version : strimziVersions) {
                 coveredKafkas +=
                         kafkas.stream()
-                                .filter(k -> k.getMetadata().getLabels().containsKey(this.strimziManager.getVersionLabel()) &&
+                                .filter(k -> k.getMetadata().getLabels() != null &&
+                                        k.getMetadata().getLabels().containsKey(this.strimziManager.getVersionLabel()) &&
                                         version.equals(k.getMetadata().getLabels().get(this.strimziManager.getVersionLabel())))
                                 .count();
             }
             // the Strimzi versions available in the bundle cover all the Kafka instances running
             if (coveredKafkas == kafkas.size()) {
-                log.infof("Subscription %s/%s approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
+                log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 return true;
             } else {
                 // covered Kafkas should be less, so if this bundle is installed, some Kafkas would be orphaned
                 // TODO: checking the spec.installedCSV to report what's missing? and Kafkas that could be orphaned?
-                log.infof("Subscription %s/%s not approved. Covered Kafka %s/%s.",
+                log.infof("Subscription %s/%s will not be approved. Covered Kafka %d/%d.",
                         subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), coveredKafkas, kafkas.size());
                 return false;
             }
@@ -172,5 +175,17 @@ public class StrimziBundleManager {
                 .build();
 
         return this.openShiftClient.customResources(ctx, PackageManifest.class, null);
+    }
+
+    /**
+     * @return if the Strimzi/Kafka related CRDs are installed
+     */
+    private boolean isKafkaCrdsInstalled() {
+        List<CustomResourceDefinition> crds =
+                this.openShiftClient.apiextensions().v1().customResourceDefinitions()
+                        .withLabels(Map.of("app", "strimzi"))
+                        .list()
+                        .getItems();
+        return !crds.isEmpty();
     }
 }
