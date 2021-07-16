@@ -5,6 +5,7 @@ import sys
 import json
 import pygal
 import argparse
+import glob
 from datetime import datetime
 from itertools import chain
 from format_html_output import *
@@ -13,8 +14,13 @@ from pprint import pprint
 def create_charts(args):
     results = []
     test_metadata = {}
-    test_results = args.test_results
-    for test_result in test_results:
+
+    if len(args.test_results) == 1 and os.path.isdir(args.test_results[0]) :
+        files = glob.glob(args.test_results[0]+'/**/result*.json', recursive = True)
+    else :
+        files = args.test_results
+
+    for test_result in files:
         result = json.load(open(test_result))
         results.append(result)
 
