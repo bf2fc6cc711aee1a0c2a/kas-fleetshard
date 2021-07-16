@@ -9,7 +9,7 @@ metadata:
     managedkafka.bf2.org/kas-multi-zone: "true"
     managedkafka.bf2.org/kas-zone0: "true"
     managedkafka.bf2.org/kas-zone1: "true"
-    managedkafka.bf2.org/kas-zone2: "true"
+    managedkafka.bf2.org/kas-zone2: "true"    
   name: "test-mk"
   namespace: "test"
   ownerReferences:
@@ -98,7 +98,7 @@ spec:
     - name: "sre"
       port: 9096
       type: "internal"
-      tls: false
+      tls: false        
     authorization:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
@@ -121,7 +121,7 @@ spec:
       client.quota.callback.static.disable-quota-anonymous: "true"
       default.replication.factor: 3
       max.connections: "166"
-      max.connections.creation.rate: "33"
+      max.connections.creation.rate: "33"      
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "699050"
       leader.imbalance.per.broker.percentage: 0
@@ -168,9 +168,20 @@ spec:
     template:
       pod:
         affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/name: "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 50
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: "kafka"
+              topologyKey: "kubernetes.io/hostname"
         topologySpreadConstraints:
           - labelSelector:
               matchLabels:
@@ -181,7 +192,7 @@ spec:
         tolerations:
           - effect: "NoExecute"       
             key: "org.bf2.operator/kafka-broker"
-            operator: "Exists"                   
+            operator: "Exists"            
   zookeeper:
     replicas: 3
     storage: !<persistent-claim>
@@ -213,7 +224,7 @@ spec:
         configMapKeyRef:
           key: log4j.properties
           name: test-mk-zookeeper-logging
-          optional: false
+          optional: false          
     template:
       pod:
         affinity:
@@ -229,3 +240,12 @@ spec:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    template:
+      pod:
+        affinity:
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-zookeeper"
+              topologyKey: "kubernetes.io/hostname"

@@ -182,6 +182,10 @@ spec:
             maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
             whenUnsatisfiable: DoNotSchedule
+        tolerations:
+          - effect: "NoExecute"       
+            key: "org.bf2.operator/kafka-broker"
+            operator: "Exists"            
   zookeeper:
     replicas: 5
     storage: !<persistent-claim>

@@ -1,11 +1,16 @@
 package org.bf2.common;
 
+import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -63,5 +68,21 @@ public class OperandUtils {
             return result;
         }
         return withName.createOrReplace(resource);
+    }
+
+    public static Affinity buildZookeeperPodAffinity(ManagedKafka managedKafka) {
+        // place where zookeeper is placed
+        LinkedHashMap<String, String> kafkaPodSelectorLabels = new LinkedHashMap<>(1);
+        kafkaPodSelectorLabels.put("strimzi.io/name",  managedKafka.getMetadata().getName()+"-zookeeper");
+
+        return new AffinityBuilder().withPodAffinity(new PodAffinityBuilder()
+            .withRequiredDuringSchedulingIgnoredDuringExecution(new PodAffinityTermBuilder()
+                    .withTopologyKey("kubernetes.io/hostname")
+                    .withNewLabelSelector()
+                        .withMatchLabels(kafkaPodSelectorLabels)
+                    .endLabelSelector()
+                    .build())
+            .build())
+        .build();
     }
 }

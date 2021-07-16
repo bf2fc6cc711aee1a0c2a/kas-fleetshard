@@ -48,6 +48,11 @@ public class KafkaInstanceConfiguration {
     protected ZooKeeper zookeeper = new ZooKeeper();
     @JsonUnwrapped(prefix = "managedkafka.exporter.")
     protected Exporter exporter = new Exporter();
+    @JsonUnwrapped(prefix = "managedkafka.adminserver.")
+    protected AdminServer adminserver = new AdminServer();
+    @JsonUnwrapped(prefix = "managedkafka.canary.")
+    protected Canary canary = new Canary();
+
 
     public static class Kafka {
         @JsonProperty("connection-attempts-per-sec")
@@ -76,6 +81,10 @@ public class KafkaInstanceConfiguration {
         protected boolean enableQuota = true;
         @JsonUnwrapped(prefix = "acl.")
         AccessControl acl = new AccessControl();
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
+        @JsonProperty("one-instance-per-node")
+        protected boolean oneInstancePerNode = false;
 
         public int getReplicas() {
             return replicas;
@@ -184,6 +193,22 @@ public class KafkaInstanceConfiguration {
 
         public void setAcl(AccessControl acl) {
             this.acl = acl;
+        }
+
+        public boolean isColocateWithZookeeper() {
+            return colocateWithZookeeper;
+        }
+
+        public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
+            this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public boolean isOneInstancePerNode() {
+            return oneInstancePerNode;
+        }
+
+        public void setOneInstancePerNode(boolean oneInstancePerNode) {
+            this.oneInstancePerNode = oneInstancePerNode;
         }
     }
 
@@ -344,6 +369,8 @@ public class KafkaInstanceConfiguration {
         private String containerRequestMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST;
         @JsonProperty("container-request-cpu")
         private String containerRequestCpu = KAFKA_EXPORTER_CONTAINER_CPU_REQUEST;
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
 
         public String getContainerMemory() {
             return containerMemory;
@@ -375,6 +402,40 @@ public class KafkaInstanceConfiguration {
 
         public void setContainerRequestCpu(String containerRequestCpu) {
             this.containerRequestCpu = containerRequestCpu;
+        }
+
+        public boolean isColocateWithZookeeper() {
+            return colocateWithZookeeper;
+        }
+
+        public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
+            this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+    }
+
+    public static class AdminServer {
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
+
+        public boolean isColocateWithZookeeper() {
+            return colocateWithZookeeper;
+        }
+
+        public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
+            this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+    }
+
+    public static class Canary {
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
+
+        public boolean isColocateWithZookeeper() {
+            return colocateWithZookeeper;
+        }
+
+        public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
+            this.colocateWithZookeeper = colocateWithZookeeper;
         }
     }
 
@@ -411,5 +472,21 @@ public class KafkaInstanceConfiguration {
 
     public void setExporter(Exporter exporter) {
         this.exporter = exporter;
+    }
+
+    public AdminServer getAdminserver() {
+        return adminserver;
+    }
+
+    public void setAdminserver(AdminServer adminserver) {
+        this.adminserver = adminserver;
+    }
+
+    public Canary getCanary() {
+        return canary;
+    }
+
+    public void setCanary(Canary canary) {
+        this.canary = canary;
     }
 }

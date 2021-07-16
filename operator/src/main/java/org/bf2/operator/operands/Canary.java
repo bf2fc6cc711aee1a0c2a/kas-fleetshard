@@ -66,7 +66,7 @@ public class Canary extends AbstractCanary {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
-        Deployment deployment = builder
+        builder
                 .editOrNewMetadata()
                     .withName(canaryName)
                     .withNamespace(canaryNamespace(managedKafka))
@@ -87,8 +87,20 @@ public class Canary extends AbstractCanary {
                             .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
-                .endSpec()
-                .build();
+                .endSpec();
+
+        if(this.config.getCanary().isColocateWithZookeeper()) {
+            builder
+                .editOrNewSpec()
+                    .editOrNewTemplate()
+                        .editOrNewSpec()
+                        .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
+                        .endSpec()
+                    .endTemplate()
+                .endSpec();
+        }
+
+        Deployment deployment = builder.build();
 
         // setting the ManagedKafka has owner of the Canary deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly
