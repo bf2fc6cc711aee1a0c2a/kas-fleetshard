@@ -1,5 +1,6 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
@@ -101,10 +102,19 @@ public class StrimziManager {
     }
 
     /* test */ public void updateStrimziVersion(ReplicaSet replicaSet) {
-        this.strimziVersions.put(replicaSet.getMetadata().getOwnerReferences().get(0).getName(),
+
+        // we need corresponding Deployment which takes into account if a new ReplicaSet for a common Strimzi operator
+        // was created and another one is going to be removed, in order to have the overall readiness
+        Deployment deployment = this.kubernetesClient.apps()
+                .deployments()
+                .inNamespace(replicaSet.getMetadata().getNamespace())
+                .withName(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
+                .get();
+
+        this.strimziVersions.put(deployment.getMetadata().getName(),
                 new StrimziVersionStatusBuilder()
-                        .withVersion(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
-                        .withReady(Readiness.isReplicaSetReady(replicaSet))
+                        .withVersion(deployment.getMetadata().getName())
+                        .withReady(Readiness.isDeploymentReady(deployment))
                         .build());
     }
 
