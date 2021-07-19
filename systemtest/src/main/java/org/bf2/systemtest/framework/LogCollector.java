@@ -53,6 +53,12 @@ public class LogCollector {
         Files.writeString(logpath.resolve("operator-namespace-events.yml"), kube.cmdClient().exec(false, false, "get", "events", "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("operator.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("sync.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.SYNC_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
-        Files.writeString(logpath.resolve("strimzi-operators.log"), kube.cmdClient().exec(false, false, "logs", "-l", "name=strimzi-cluster-operator", "--tail", "-1", "-n", StrimziOperatorManager.getStrimziOperatorNamespace()).out());
+        StrimziOperatorManager.getStrimziOperatorPods().forEach(pod -> {
+            try {
+                Files.writeString(logpath.resolve(pod.getMetadata().getName() + ".log"), kube.cmdClient().exec(false, false, "logs", pod.getMetadata().getName(), "--tail", "-1", "-n", pod.getMetadata().getNamespace()).out());
+            } catch (Exception e) {
+                LOGGER.warn("Cannot get logs from pod {} in namespace {}", pod.getMetadata().getName(), pod.getMetadata().getNamespace());
+            }
+        });
     }
 }
