@@ -70,6 +70,6 @@ spec:
         -----END PRIVATE KEY-----
   versions:
     kafka: 2.7.0
-    strimzi-cluster-operator.v0.23.0-0
+    strimzi: strimzi-cluster-operator.v0.23.0-0
 
 
