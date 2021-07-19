@@ -191,6 +191,7 @@ public class StrimziManagerTest {
                 .endSpec()
                 .withNewStatus()
                     .withReplicas(1)
+                    .withAvailableReplicas(ready ? 1 : 0)
                     .withReadyReplicas(ready ? 1 : 0)
                 .endStatus()
                 .build();
@@ -225,6 +226,7 @@ public class StrimziManagerTest {
                 .endSpec()
                 .withNewStatus()
                     .withReplicas(1)
+                    .withAvailableReplicas(ready ? 1 : 0)
                     .withReadyReplicas(ready ? 1 : 0)
                 .endStatus()
                 .build();
@@ -233,7 +235,7 @@ public class StrimziManagerTest {
         this.server.getClient().apps().replicaSets().inNamespace(namespace).create(replicaSet);
 
         if (discoverable) {
-            this.strimziManager.updateStrimziVersion(replicaSet);
+            this.strimziManager.updateStrimziVersion(deployment);
         }
     }
 

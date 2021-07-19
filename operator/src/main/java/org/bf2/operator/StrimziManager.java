@@ -68,7 +68,7 @@ public class StrimziManager {
                     public void onAdd(ReplicaSet replicaSet) {
                         log.debugf("Add event received for ReplicaSet %s/%s",
                                 replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
-                        updateStrimziVersion(replicaSet);
+                        updateStrimziVersion(getDeployment(replicaSet));
                         updateStatus();
                     }
 
@@ -77,7 +77,7 @@ public class StrimziManager {
                         log.debugf("Update event received for ReplicaSet %s/%s",
                                 newReplicaSet.getMetadata().getNamespace(), newReplicaSet.getMetadata().getName());
                         if (Readiness.isReplicaSetReady(newReplicaSet) ^ Readiness.isReplicaSetReady(oldReplicaSet)) {
-                            updateStrimziVersion(newReplicaSet);
+                            updateStrimziVersion(getDeployment(newReplicaSet));
                             updateStatus();
                         }
                     }
@@ -98,19 +98,20 @@ public class StrimziManager {
                             agentClient.updateStatus(resource);
                         }
                     }
+
+                    private Deployment getDeployment(ReplicaSet replicaSet) {
+                        // we need corresponding Deployment which takes into account if a new ReplicaSet for a common Strimzi operator
+                        // was created and another one is going to be removed, in order to have the overall readiness
+                        return kubernetesClient.apps()
+                                .deployments()
+                                .inNamespace(replicaSet.getMetadata().getNamespace())
+                                .withName(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
+                                .get();
+                    }
                 });
     }
 
-    /* test */ public void updateStrimziVersion(ReplicaSet replicaSet) {
-
-        // we need corresponding Deployment which takes into account if a new ReplicaSet for a common Strimzi operator
-        // was created and another one is going to be removed, in order to have the overall readiness
-        Deployment deployment = this.kubernetesClient.apps()
-                .deployments()
-                .inNamespace(replicaSet.getMetadata().getNamespace())
-                .withName(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
-                .get();
-
+    /* test */ public void updateStrimziVersion(Deployment deployment) {
         this.strimziVersions.put(deployment.getMetadata().getName(),
                 new StrimziVersionStatusBuilder()
                         .withVersion(deployment.getMetadata().getName())
