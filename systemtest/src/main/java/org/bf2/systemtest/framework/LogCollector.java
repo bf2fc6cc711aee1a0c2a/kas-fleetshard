@@ -3,6 +3,7 @@ package org.bf2.systemtest.framework;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
+import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
@@ -52,5 +53,12 @@ public class LogCollector {
         Files.writeString(logpath.resolve("operator-namespace-events.yml"), kube.cmdClient().exec(false, false, "get", "events", "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("operator.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.OPERATOR_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
         Files.writeString(logpath.resolve("sync.log"), kube.cmdClient().exec(false, false, "logs", "deployment/" + FleetShardOperatorManager.SYNC_NAME, "-n", FleetShardOperatorManager.OPERATOR_NS).out());
+        StrimziOperatorManager.getStrimziOperatorPods().forEach(pod -> {
+            try {
+                Files.writeString(logpath.resolve(pod.getMetadata().getName() + ".log"), kube.cmdClient().exec(false, false, "logs", pod.getMetadata().getName(), "--tail", "-1", "-n", pod.getMetadata().getNamespace()).out());
+            } catch (Exception e) {
+                LOGGER.warn("Cannot get logs from pod {} in namespace {}", pod.getMetadata().getName(), pod.getMetadata().getNamespace());
+            }
+        });
     }
 }

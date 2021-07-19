@@ -1,6 +1,8 @@
 package org.bf2.test;
 
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
@@ -131,6 +133,13 @@ public class TestUtils {
             return false;
         }
         return Readiness.getInstance().isReady(meta);
+    }
+
+    public static boolean isPodReady(Pod p) {
+        if (p != null) {
+            return p.getStatus().getContainerStatuses().stream().allMatch(ContainerStatus::getReady);
+        }
+        return false;
     }
 
     /**

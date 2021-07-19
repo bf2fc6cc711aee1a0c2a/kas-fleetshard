@@ -77,9 +77,10 @@ public class KeycloakOperatorManager {
                             Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "keycloak.yml").toAbsolutePath().toString());
 
             LOGGER.info("Done installing Keycloak : {}", OPERATOR_NS);
-            return TestUtils.asyncWaitFor("Keycloak instance ready", 1_000, FleetShardOperatorManager.INSTALL_TIMEOUT_MS,
-                    () -> TestUtils.isReady(KubeClient.getInstance()
-                            .client().apps().deployments().inNamespace(OPERATOR_NS).withName("keycloak-operator")));
+            return TestUtils.asyncWaitFor("Keycloak instance ready", 1_000, 600_000, () ->
+                    TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
+                            .list().getItems().stream().filter(pod ->
+                                    pod.getMetadata().getName().contains("keycloak-0")).findFirst().orElse(null)));
         } else {
             LOGGER.info("Keycloak is not installed suite will use values from env vars for oauth");
             return CompletableFuture.completedFuture(null);
