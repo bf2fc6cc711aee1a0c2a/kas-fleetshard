@@ -70,4 +70,5 @@ spec:
         -----END PRIVATE KEY-----
   versions:
     kafka: 2.7.0
-    strimzi: 0.21.1
+    strimzi: 0.23.0
+
