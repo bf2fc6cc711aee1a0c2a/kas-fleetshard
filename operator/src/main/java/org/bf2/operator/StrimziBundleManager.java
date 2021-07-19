@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -126,24 +127,30 @@ public class StrimziBundleManager {
             return true;
         } else {
             List<Kafka> kafkas = this.kafkaClient.list();
-            int coveredKafkas = 0;
-            for (String version : strimziVersions) {
-                coveredKafkas +=
-                        kafkas.stream()
-                                .filter(k -> k.getMetadata().getLabels() != null &&
-                                        k.getMetadata().getLabels().containsKey(this.strimziManager.getVersionLabel()) &&
-                                        version.equals(k.getMetadata().getLabels().get(this.strimziManager.getVersionLabel())))
-                                .count();
-            }
+            // get Kafkas that could be orphaned because handled by a Strimzi version that could be removed from the proposed bundle
+            Map<String, List<Kafka>> orphanedKafkas = kafkas.stream()
+                    .filter(k -> k.getMetadata().getLabels() != null &&
+                            k.getMetadata().getLabels().containsKey(this.strimziManager.getVersionLabel()) &&
+                            !strimziVersions.contains(k.getMetadata().getLabels().get(this.strimziManager.getVersionLabel())))
+                    .collect(Collectors.groupingBy(k -> k.getMetadata().getLabels().get(this.strimziManager.getVersionLabel())));
+
+            int coveredKafkas = kafkas.size() - orphanedKafkas.size();
+
             // the Strimzi versions available in the bundle cover all the Kafka instances running
             if (coveredKafkas == kafkas.size()) {
                 log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 return true;
             } else {
                 // covered Kafkas should be less, so if this bundle is installed, some Kafkas would be orphaned
-                // TODO: checking the spec.installedCSV to report what's missing? and Kafkas that could be orphaned?
                 log.infof("Subscription %s/%s will not be approved. Covered Kafka %d/%d.",
                         subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), coveredKafkas, kafkas.size());
+                log.infof("Kafka instances not covered per Strimzi version:");
+                for (Map.Entry<String, List<Kafka>> e : orphanedKafkas.entrySet()) {
+                    List<String> kafkaNames = e.getValue().stream()
+                            .map(k -> k.getMetadata().getNamespace() + "/" + k.getMetadata().getName())
+                            .collect(Collectors.toList());
+                    log.infof("\t- %s -> %s", e.getKey(), kafkaNames);
+                }
                 return false;
             }
         }
