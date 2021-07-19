@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Namespaced;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
@@ -144,5 +145,12 @@ public class StrimziOperatorManager {
 
     public String getDeploymentName() {
         return deploymentName;
+    }
+
+    public static String getStrimziOperatorNamespace() {
+        return KubeClient.getInstance().client().pods().inAnyNamespace().withLabel("name", "strimzi-cluster-operator")
+                .list().getItems().stream().findFirst()
+                .orElse(new PodBuilder().withNewMetadata().withNamespace(OPERATOR_NS).endMetadata().build())
+                .getMetadata().getNamespace();
     }
 }
