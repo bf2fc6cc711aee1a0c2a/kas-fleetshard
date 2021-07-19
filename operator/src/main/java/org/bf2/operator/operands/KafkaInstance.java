@@ -31,7 +31,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     @Inject
     ImagePullSecretManager imagePullSecretManager;
 
-    private final List<Operand<ManagedKafka>> operands = new ArrayList<>();
+    final List<Operand<ManagedKafka>> operands = new ArrayList<>();
 
     @PostConstruct
     void init() {
@@ -72,17 +72,21 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     @Override
     public OperandReadiness getReadiness(ManagedKafka managedKafka) {
         if (managedKafka.getSpec().isDeleted()) {
+            // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
         }
         List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).collect(Collectors.toList());
 
-        Reason reason = null;
+        // default to the first reason, with can come from the kafka by the order of the operands
+        Reason reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
+        // default the status to false or unknown if any are unknown
         Status status = readiness.stream().anyMatch(r -> Status.Unknown.equals(r.getStatus())) ? Status.Unknown : Status.False;
+        // combine all the messages
         String message = readiness.stream().map(OperandReadiness::getMessage).filter(Objects::nonNull).collect(Collectors.joining("; "));
 
+        // override in particular scenarios
         if (readiness.stream().allMatch(r -> Status.True.equals(r.getStatus()))) {
             status = Status.True;
-            reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
         } else if (readiness.stream().anyMatch(r -> Reason.Installing.equals(r.getReason()))) {
             reason = Reason.Installing; // may mask other error states
         } else if (readiness.stream().anyMatch(r -> Reason.Error.equals(r.getReason()))) {

@@ -17,8 +17,11 @@ import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -39,6 +42,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     @Override
     public Predicate<ManagedKafka> readiness(KubeClient client) {
         AtomicInteger count = new AtomicInteger();
+        Set<String> messages = Collections.synchronizedSet(new LinkedHashSet<>());
         return mk -> {
             if (mk == null) {
                 throw new IllegalStateException("ManagedKafka is null");
@@ -52,7 +56,10 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 return true;
             }
             if (ManagedKafkaCondition.Reason.Error.name().equals(mkc.getReason())) {
-                throw new IllegalStateException(String.format("ManagedKafka %s in error state %s", mk.getMetadata().getName(), mkc.getMessage()));
+                if (messages.add(mkc.getMessage())) {
+                    LOGGER.warn("ManagedKafka {} in error state {}", mk.getMetadata().getName(), mkc.getMessage());
+                }
+                //throw new IllegalStateException(String.format("ManagedKafka %s in error state %s", mk.getMetadata().getName(), mkc.getMessage()));
             }
             if (count.getAndIncrement() % 15 == 0) {
                 ListOptions opts = new ListOptionsBuilder().withFieldSelector("status.phase=Pending").build();
