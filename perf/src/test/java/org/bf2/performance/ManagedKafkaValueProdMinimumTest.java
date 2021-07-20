@@ -24,6 +24,7 @@ import java.util.List;
 public class ManagedKafkaValueProdMinimumTest extends TestBase {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaValueProdMinimumTest.class);
     private static final Quantity WORKER_SIZE = Quantity.parse("6Gi");
+    private static final Quantity CPU_SIZE = Quantity.parse("750m");
 
     private ManagedKafkaProvisioner kafkaProvisioner;
     private List<String> workers;
@@ -90,7 +91,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
                                         String kfCpu, int topics, int partitionsPerTopic, String key, String testName) throws Exception {
         int numWorkers = numClients / 10;
         int messageSize = 1024;
-        ensureClientClusterCapacityForWorkers(omb.getOmbCluster(), numWorkers, WORKER_SIZE);
+        ensureClientClusterCapacityForWorkers(omb.getOmbCluster(), numWorkers, WORKER_SIZE, CPU_SIZE);
 
         workers = omb.deployWorkers(numWorkers);
 

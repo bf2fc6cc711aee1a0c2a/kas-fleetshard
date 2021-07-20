@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class DrainCleanerTest extends TestBase {
     private static final Logger LOGGER = LogManager.getLogger(DrainCleanerTest.class);
     private static final Quantity WORKER_SIZE = Quantity.parse("2Gi");
+    private static final Quantity CPU_SIZE = Quantity.parse("750m");
 
     private ManagedKafkaProvisioner kafkaProvisioner;
     private List<String> workers;
@@ -66,7 +67,7 @@ public class DrainCleanerTest extends TestBase {
         int partitionsPerTopic = 205;
         int workerProducerRate = 40000;
 
-        ensureClientClusterCapacityForWorkers(omb.getOmbCluster(), numWorkers, WORKER_SIZE);
+        ensureClientClusterCapacityForWorkers(omb.getOmbCluster(), numWorkers, WORKER_SIZE, CPU_SIZE);
 
         workers = omb.deployWorkers(numWorkers);
 

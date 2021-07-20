@@ -55,8 +55,8 @@ public abstract class TestBase {
         Files.write(new File(instanceDir, "test-metadata.yaml").toPath(), TestMetadataCapture.getInstance().toYaml().getBytes(StandardCharsets.UTF_8));
     }
 
-    protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerSize) throws IOException {
-        BigDecimal requiredWorkerMemory = Quantity.getAmountInBytes(workerSize).multiply(new BigDecimal(numberOfWorkers));
+    protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerMemorySize, Quantity workerCpuSize) throws IOException {
+        BigDecimal requiredWorkerMemory = Quantity.getAmountInBytes(workerMemorySize).multiply(new BigDecimal(numberOfWorkers));
         NodeList nodes = ombCluster.kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker", "").list();
         BigDecimal nodeMem = BigDecimal.ZERO;
         for (Node node : nodes.getItems()) {
@@ -65,5 +65,13 @@ public abstract class TestBase {
         }
         assumeTrue(nodeMem.compareTo(requiredWorkerMemory) >= 0,
                 String.format("Insufficient worker node memory (%,.2f from %d node(s)) for this test (requires %,.2f).", nodeMem, nodes.getItems().size(), requiredWorkerMemory));
+
+        int cpuSize = 0;
+        for (Node node : nodes.getItems()) {
+            Quantity nodeCpu = Quantity.parse(String.valueOf(node.getStatus().getAllocatable().get("cpu")));
+            cpuSize += Integer.parseInt(nodeCpu.getAmount());
+        }
+        assumeTrue( cpuSize*1000 >= Integer.parseInt(workerCpuSize.getAmount())*numberOfWorkers,
+                String.format("Insufficient worker node cpu, available = %d, required =  %d", cpuSize*1000, Integer.parseInt(workerCpuSize.getAmount())*numberOfWorkers));
     }
 }
