@@ -15,9 +15,11 @@ import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.runtime.Startup;
+import io.quarkus.scheduler.Scheduled;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -62,32 +64,45 @@ public class StrimziBundleManager {
     // which supports the package manifests API out of the box
     MixedOperation<PackageManifest, KubernetesResourceList<PackageManifest>, Resource<PackageManifest>> packageManifestClient;
 
+    ResourceInformer<Subscription> subscriptionInformer;
+
     @PostConstruct
     protected void onStart() {
 
         this.packageManifestClient = this.createPackageManifestClient();
 
-        this.resourceInformerFactory.create(Subscription.class,
-                this.openShiftClient.operatorHub().subscriptions().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
-                new ResourceEventHandler<Subscription>() {
-                    @Override
-                    public void onAdd(Subscription subscription) {
-                        handleSubscription(subscription);
-                    }
+        this.subscriptionInformer =
+                this.resourceInformerFactory.create(Subscription.class,
+                        this.openShiftClient.operatorHub().subscriptions().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                        new ResourceEventHandler<Subscription>() {
+                            @Override
+                            public void onAdd(Subscription subscription) {
+                                handleSubscription(subscription);
+                            }
 
-                    @Override
-                    public void onUpdate(Subscription oldSubscription, Subscription newSubscription) {
-                        handleSubscription(newSubscription);
-                    }
+                            @Override
+                            public void onUpdate(Subscription oldSubscription, Subscription newSubscription) {
+                                handleSubscription(newSubscription);
+                            }
 
-                    @Override
-                    public void onDelete(Subscription subscription, boolean deletedFinalStateUnknown) {
-                        // nothing to do
-                    }
-                });
+                            @Override
+                            public void onDelete(Subscription subscription, boolean deletedFinalStateUnknown) {
+                                // nothing to do
+                            }
+                        });
     }
 
-    private void handleSubscription(Subscription subscription) {
+    @Scheduled(every = "{strimzi.bundle.interval}", delay = 1, concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    void handleSubscriptionLoop() {
+        log.debugf("Strimzi bundle Subscription periodic check");
+        Subscription subscription =
+                this.subscriptionInformer.getList().size() > 0 ? this.subscriptionInformer.getList().get(0) : null;
+        if (subscription != null) {
+            this.handleSubscription(subscription);
+        }
+    }
+
+    private synchronized void handleSubscription(Subscription subscription) {
         if (subscription.getStatus() != null) {
             Optional<SubscriptionCondition> conditionOptional =
                     subscription.getStatus().getConditions()
