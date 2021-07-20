@@ -161,7 +161,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .build();
 
         return new ManagedKafkaAgentStatusBuilder()
-                .withConditions(Arrays.asList(readyCondition))
+                .withConditions(status == null ? Arrays.asList(readyCondition) : status.getConditions())
                 .withTotal(total)
                 .withRemaining(remaining)
                 .withNodeInfo(nodeInfo)

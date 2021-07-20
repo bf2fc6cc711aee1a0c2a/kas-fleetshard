@@ -16,7 +16,8 @@ import lombok.ToString;
 public class ManagedKafkaCondition {
 
     public enum Type {
-        Ready
+        Ready,
+        StrimziBundleReady
     }
 
     public enum Reason {
@@ -24,7 +25,8 @@ public class ManagedKafkaCondition {
         Deleted,
         Error,
         Rejected,
-        StrimziUpdating;
+        StrimziUpdating,
+        OrphanedKafkas
     }
 
     public enum Status {

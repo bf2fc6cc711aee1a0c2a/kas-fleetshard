@@ -16,8 +16,12 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ConditionUtils;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.clients.KafkaResourceClient;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -52,7 +56,7 @@ public class StrimziBundleManager {
     StrimziManager strimziManager;
 
     @Inject
-    InformerManager informerManager;
+    ManagedKafkaAgentResourceClient agentClient;
 
     // TODO: this raw custom resource client can be removed once we have Quarkus + SDK extension using the fabric8 5.5.0
     // which supports the package manifests API out of the box
@@ -108,6 +112,7 @@ public class StrimziBundleManager {
                         installPlan.getSpec().setApproved(true);
                         this.openShiftClient.operatorHub().installPlans().inNamespace(installPlan.getMetadata().getNamespace()).createOrReplace(installPlan);
                     }
+                    this.updateStatus(approved);
                     log.infof("Subscription %s/%s approved = %s", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), approved);
                 } else {
                     log.warnf("InstallPlan reference missing in Subscription %s/%s",
@@ -200,5 +205,36 @@ public class StrimziBundleManager {
                         .list()
                         .getItems();
         return !crds.isEmpty();
+    }
+
+    /**
+     * Update status of ManagedKafkaAgent resource about approval of Strimzi bundle installation
+     * NOTE: it creates a condition if Strimzi bundle installation was not approved. The condition is taken out if approved.
+     *
+     * @param approved if the Strimzi bundle installation was approved
+     */
+    private void updateStatus(boolean approved) {
+        ManagedKafkaAgent resource = this.agentClient.getByName(this.agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
+        if (resource != null && resource.getStatus() != null) {
+            List<ManagedKafkaCondition> conditions = resource.getStatus().getConditions();
+
+            ManagedKafkaCondition bundleReadyCondition = ConditionUtils.findManagedKafkaCondition(conditions, ManagedKafkaCondition.Type.StrimziBundleReady).orElse(null);
+            if (bundleReadyCondition == null) {
+                if (approved) {
+                    return;
+                } else {
+                    bundleReadyCondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.StrimziBundleReady, ManagedKafkaCondition.Status.False);
+                    bundleReadyCondition.setReason(ManagedKafkaCondition.Reason.OrphanedKafkas.name());
+                    conditions.add(bundleReadyCondition);
+                }
+            } else {
+                if (approved) {
+                    conditions.remove(bundleReadyCondition);
+                } else {
+                    ConditionUtils.updateConditionStatus(bundleReadyCondition, ManagedKafkaCondition.Status.False, ManagedKafkaCondition.Reason.OrphanedKafkas);
+                }
+            }
+            this.agentClient.updateStatus(resource);
+        }
     }
 }
