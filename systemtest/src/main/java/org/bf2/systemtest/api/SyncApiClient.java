@@ -5,6 +5,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.systemtest.framework.ThrowableSupplier;
 
 import java.net.HttpURLConnection;
@@ -13,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.Objects;
 
 public class SyncApiClient {
@@ -76,7 +78,8 @@ public class SyncApiClient {
     public static String getLatestStrimziVersion(String endpoint) throws Exception {
         return Objects.requireNonNull(Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
-                .getStrimzi().stream().reduce((first, second) -> second).orElse(null)).getVersion();
+                .getStrimzi().stream().sorted(Comparator.comparing(StrimziVersionStatus::getVersion))
+                .reduce((first, second) -> second).orElse(null)).getVersion();
     }
 
     /**
