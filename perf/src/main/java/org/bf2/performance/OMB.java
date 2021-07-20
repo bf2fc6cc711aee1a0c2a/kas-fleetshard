@@ -145,7 +145,7 @@ public class OMB {
         LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}, JVM heap: {}", workers, workerContainerMemory, workerCpu, javaHeapFormatted);
         String jvmOpts = String.format("-Xms%s -Xmx%s -XX:+ExitOnOutOfMemoryError -Djavax.net.debug=ssl", javaHeapFormatted, javaHeapFormatted);
         List<Future<Void>> futures = new ArrayList<>();
-        List<Node> nodes = ombCluster.kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker").withLabelNotIn("node-role.kubernetes.io/infra").list().getItems();
+        List<Node> nodes = ombCluster.getWorkerNodes();
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
         try {
             for (int i = 0; i < workers; i++) {

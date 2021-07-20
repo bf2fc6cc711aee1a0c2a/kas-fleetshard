@@ -137,4 +137,8 @@ public class KubeClusterResource {
         LOGGER.info("TODO: Monitoring stack is not available for {}", namespace);
     }
 
+    public List<Node> getWorkerNodes() {
+        return kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker").withLabelNotIn("node-role.kubernetes.io/infra").list().getItems();
+    }
+
 }
