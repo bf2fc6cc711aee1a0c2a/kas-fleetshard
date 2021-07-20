@@ -95,23 +95,29 @@ public class StrimziBundleManager {
             // waiting for approval
             if (conditionOptional.isPresent()) {
                 log.infof("Subscription %s/%s waiting for approval", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
-                boolean approved = this.approveInstallation(subscription);
-                if (approved) {
+
+                if (subscription.getStatus().getInstallPlanRef() != null) {
                     InstallPlan installPlan =
                             this.openShiftClient.operatorHub().installPlans()
                                     .inNamespace(subscription.getStatus().getInstallPlanRef().getNamespace())
                                     .withName(subscription.getStatus().getInstallPlanRef().getName())
                                     .get();
 
-                    installPlan.getSpec().setApproved(true);
-                    this.openShiftClient.operatorHub().installPlans().inNamespace(installPlan.getMetadata().getNamespace()).createOrReplace(installPlan);
+                    boolean approved = this.approveInstallation(subscription);
+                    if (approved) {
+                        installPlan.getSpec().setApproved(true);
+                        this.openShiftClient.operatorHub().installPlans().inNamespace(installPlan.getMetadata().getNamespace()).createOrReplace(installPlan);
+                    }
+                    log.infof("Subscription %s/%s approved = %s", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), approved);
+                } else {
+                    log.warnf("InstallPlan reference missing in Subscription %s/%s",
+                            subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 }
-                log.infof("Subscription %s/%s approved = %s", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), approved);
             } else {
                 // not waiting for approval, nothing to do
             }
         } else {
-            // it seems never happen
+            // it should never happen
         }
     }
 
