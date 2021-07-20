@@ -202,7 +202,7 @@ public class KafkaInstanceConfiguration {
         protected String allowedListeners = null;
 
         public boolean isCustomEnabled() {
-            final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.'));
+            final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.') + 1);
             return "CustomAclAuthorizer".equals(simpleName);
         }
 
