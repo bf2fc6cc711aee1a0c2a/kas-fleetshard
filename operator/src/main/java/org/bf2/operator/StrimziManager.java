@@ -97,6 +97,10 @@ public class StrimziManager {
                             resource.getStatus().setStrimzi(getStrimziVersions());
                             agentClient.updateStatus(resource);
                         }
+                        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
+                        if (!getStrimziVersions().isEmpty()) {
+                            informerManager.createKafkaInformer();
+                        }
                     }
 
                     private Deployment getDeployment(ReplicaSet replicaSet) {

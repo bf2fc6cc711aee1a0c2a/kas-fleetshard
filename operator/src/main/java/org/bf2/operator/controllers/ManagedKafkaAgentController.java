@@ -98,11 +98,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             resource.setStatus(buildStatus(resource));
             this.agentClient.updateStatus(resource);
         }
-
-        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
-        if (!this.strimziManager.getStrimziVersions().isEmpty()) {
-            this.informerManager.createKafkaInformer();
-        }
     }
 
     /**
