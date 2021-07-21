@@ -13,6 +13,9 @@ import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlan;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
@@ -42,6 +45,8 @@ import java.util.stream.Collectors;
 @UnlessBuildProfile("test")
 public class StrimziBundleManager {
 
+    private static final String STRIMZI_ORPHANED_KAFKAS_METRIC = "strimzi_bundle_orphaned_kafkas";
+
     @Inject
     Logger log;
 
@@ -59,6 +64,9 @@ public class StrimziBundleManager {
 
     @Inject
     ManagedKafkaAgentResourceClient agentClient;
+
+    @Inject
+    MeterRegistry meterRegistry;
 
     // TODO: this raw custom resource client can be removed once we have Quarkus + SDK extension using the fabric8 5.5.0
     // which supports the package manifests API out of the box
@@ -150,6 +158,8 @@ public class StrimziBundleManager {
 
         // CRDs are not installed, nothing we can do more ... just approving installation
         if (!this.isKafkaCrdsInstalled()) {
+            this.clearMetrics();
+            log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
             return true;
         } else {
             List<Kafka> kafkas = this.kafkaClient.list();
@@ -164,6 +174,7 @@ public class StrimziBundleManager {
 
             // the Strimzi versions available in the bundle cover all the Kafka instances running
             if (coveredKafkas == kafkas.size()) {
+                this.clearMetrics();
                 log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 return true;
             } else {
@@ -172,6 +183,7 @@ public class StrimziBundleManager {
                         subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), coveredKafkas, kafkas.size());
                 log.infof("Kafka instances not covered per Strimzi version:");
                 for (Map.Entry<String, List<Kafka>> e : orphanedKafkas.entrySet()) {
+                    meterRegistry.gaugeCollectionSize(STRIMZI_ORPHANED_KAFKAS_METRIC, Tags.of("strimzi", e.getKey()), e.getValue());
                     List<String> kafkaNames = e.getValue().stream()
                             .map(k -> k.getMetadata().getNamespace() + "/" + k.getMetadata().getName())
                             .collect(Collectors.toList());
@@ -250,6 +262,16 @@ public class StrimziBundleManager {
                 }
             }
             this.agentClient.updateStatus(resource);
+        }
+    }
+
+    private void clearMetrics() {
+        List<Meter> toRemove = meterRegistry.getMeters().stream()
+                .filter(m -> STRIMZI_ORPHANED_KAFKAS_METRIC.equals(m.getId().getName()))
+                .collect(Collectors.toList());
+
+        for (Meter m : toRemove) {
+            meterRegistry.remove(m.getId());
         }
     }
 }

@@ -43,7 +43,7 @@ public class InformerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    private ResourceInformer<Kafka> kafkaInformer;
+    private volatile ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
     private ResourceInformer<ConfigMap> configMapInformer;
@@ -108,7 +108,7 @@ public class InformerManager {
      * Create the Kafka informer
      * NOTE: it's called when a Strimzi bundle is installed and Kafka related CRDs are available to be listed/watched
      */
-    public void createKafkaInformer() {
+    public synchronized void createKafkaInformer() {
         if (kafkaInformer == null) {
             kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
         }
