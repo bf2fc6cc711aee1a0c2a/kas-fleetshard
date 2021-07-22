@@ -81,7 +81,8 @@ public class StrimziBundleManager {
 
         this.subscriptionInformer =
                 this.resourceInformerFactory.create(Subscription.class,
-                        this.openShiftClient.operatorHub().subscriptions().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                        this.openShiftClient.operatorHub().subscriptions().inAnyNamespace()
+                                .withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka", "app.kubernetes.io/component", "strimzi-bundle")),
                         new ResourceEventHandler<Subscription>() {
                             @Override
                             public void onAdd(Subscription subscription) {

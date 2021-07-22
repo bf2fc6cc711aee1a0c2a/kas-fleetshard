@@ -216,7 +216,7 @@ public class StrimziBundleManagerTest {
                 .withNewMetadata()
                     .withName(name)
                     .withNamespace(namespace)
-                    .withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka"))
+                    .withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka", "app.kubernetes.io/component", "strimzi-bundle"))
                 .endMetadata()
                 .withNewSpec()
                     .withName(bundleName)
