@@ -42,7 +42,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     @Override
     public OperandReadiness getReadiness(ManagedKafka managedKafka) {
-        return AbstractAdminServer.getDeploymentReadiness(cachedDeployment(managedKafka), canaryName(managedKafka));
+        return Operand.getDeploymentReadiness(cachedDeployment(managedKafka), canaryName(managedKafka));
     }
 
     @Override

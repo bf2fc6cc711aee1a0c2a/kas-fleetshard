@@ -119,7 +119,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         if (readyCondition == null) {
             readyCondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, statusValue);
         } else {
-            ConditionUtils.updateConditionStatus(readyCondition, statusValue, null);
+            ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
         }
 
         ClusterCapacity total = new ClusterCapacityBuilder()

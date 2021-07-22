@@ -2,21 +2,15 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
-
-import java.util.Optional;
 
 public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
@@ -62,26 +56,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public OperandReadiness getReadiness(ManagedKafka managedKafka) {
-        return getDeploymentReadiness(cachedDeployment(managedKafka), adminServerName(managedKafka));
-    }
-
-    static OperandReadiness getDeploymentReadiness(Deployment deployment, String name) {
-        if (deployment == null) {
-            return new OperandReadiness(Status.False, Reason.Installing, String.format("Deployment %s does not exist", name));
-        }
-        if (Readiness.isDeploymentReady(deployment)) {
-            return new OperandReadiness(Status.True, null, null);
-        }
-        return Optional.ofNullable(deployment.getStatus())
-                .map(DeploymentStatus::getConditions)
-                .flatMap(l -> l.stream()
-                        .filter(c -> "Progressing".equals(c.getType()))
-                        .findAny()
-                        .map(dc -> new OperandReadiness(Status.False,
-                                "True".equals(dc.getStatus()) ? Reason.Installing : Reason.Error,
-                                dc.getMessage())))
-                .orElseGet(() -> new OperandReadiness(Status.False, Reason.Installing, String
-                        .format("Deployment %s has no progressing condition", deployment.getMetadata().getName())));
+        return Operand.getDeploymentReadiness(cachedDeployment(managedKafka), adminServerName(managedKafka));
     }
 
     @Override

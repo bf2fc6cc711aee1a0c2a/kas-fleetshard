@@ -46,13 +46,15 @@ public class ConditionUtils {
      * @param condition condition on which updating the status
      * @param newStatus new status to update
      * @param newReason new reason to update
+     * @param message that will always be set
      */
-    public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus, ManagedKafkaCondition.Reason newReason) {
+    public static void updateConditionStatus(ManagedKafkaCondition condition, ManagedKafkaCondition.Status newStatus, ManagedKafkaCondition.Reason newReason, String message) {
         if (!Objects.equals(condition.getStatus(), newStatus == null ? null : newStatus.name()) || !Objects.equals(condition.getReason(), newReason == null ? null : newReason.name())) {
             condition.setStatus(newStatus);
             condition.setLastTransitionTime(ConditionUtils.iso8601Now());
-            condition.reason(newReason).setMessage(null);
+            condition.reason(newReason);
         }
+        condition.setMessage(message);
     }
 
     /**

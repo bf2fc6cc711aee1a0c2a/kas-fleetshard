@@ -128,8 +128,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         OperandReadiness readiness = kafkaInstance.getReadiness(managedKafka);
 
-        ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason());
-        ready.setMessage(readiness.getMessage());
+        ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
