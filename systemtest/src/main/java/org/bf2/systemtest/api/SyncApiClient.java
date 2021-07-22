@@ -3,6 +3,7 @@ package org.bf2.systemtest.api;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
@@ -15,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public class SyncApiClient {
     public static final String BASE_PATH = "/api/kafkas_mgmt/v1/agent-clusters/";
@@ -75,9 +77,14 @@ public class SyncApiClient {
     }
 
     public static String getLatestStrimziVersion(String endpoint) throws Exception {
+        Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+)$");
         return Objects.requireNonNull(Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
-                .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted()
+                .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted((a, b) -> {
+                    ComparableVersion aVersion = new ComparableVersion(pattern.matcher(a).group("version"));
+                    ComparableVersion bVersion = new ComparableVersion(pattern.matcher(b).group("version"));
+                    return aVersion.compareTo(bVersion);
+                })
                 .reduce((first, second) -> second).orElse(null));
     }
 
