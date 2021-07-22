@@ -16,7 +16,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
-import io.quarkus.arc.profile.UnlessBuildProfile;
+import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.strimzi.api.kafka.model.Kafka;
@@ -41,8 +41,8 @@ import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
-// excluding during test profile running on Kubernetes without OLM
-@UnlessBuildProfile("test")
+// excluding during smoke tests (when kafka=dev is set) running on Kubernetes without OLM
+@UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class StrimziBundleManager {
 
     private static final String STRIMZI_ORPHANED_KAFKAS_METRIC = "strimzi_bundle_orphaned_kafkas";
@@ -110,7 +110,7 @@ public class StrimziBundleManager {
         }
     }
 
-    private synchronized void handleSubscription(Subscription subscription) {
+    /* test */ public synchronized void handleSubscription(Subscription subscription) {
         if (subscription.getStatus() != null) {
             Optional<SubscriptionCondition> conditionOptional =
                     subscription.getStatus().getConditions()

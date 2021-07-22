@@ -108,7 +108,7 @@ public class InformerManager {
      * Create the Kafka informer
      * NOTE: it's called when a Strimzi bundle is installed and Kafka related CRDs are available to be listed/watched
      */
-    public synchronized void createKafkaInformer() {
+    public void createKafkaInformer() {
         if (kafkaInformer == null) {
             kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
         }
