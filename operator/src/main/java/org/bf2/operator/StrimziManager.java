@@ -1,5 +1,6 @@
 package org.bf2.operator;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
@@ -67,7 +68,7 @@ public class StrimziManager {
                     public void onAdd(ReplicaSet replicaSet) {
                         log.debugf("Add event received for ReplicaSet %s/%s",
                                 replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
-                        updateStrimziVersion(replicaSet);
+                        updateStrimziVersion(getDeployment(replicaSet));
                         updateStatus();
                     }
 
@@ -76,7 +77,7 @@ public class StrimziManager {
                         log.debugf("Update event received for ReplicaSet %s/%s",
                                 newReplicaSet.getMetadata().getNamespace(), newReplicaSet.getMetadata().getName());
                         if (Readiness.isReplicaSetReady(newReplicaSet) ^ Readiness.isReplicaSetReady(oldReplicaSet)) {
-                            updateStrimziVersion(newReplicaSet);
+                            updateStrimziVersion(getDeployment(newReplicaSet));
                             updateStatus();
                         }
                     }
@@ -96,15 +97,29 @@ public class StrimziManager {
                             resource.getStatus().setStrimzi(getStrimziVersions());
                             agentClient.updateStatus(resource);
                         }
+                        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
+                        if (!getStrimziVersions().isEmpty()) {
+                            informerManager.createKafkaInformer();
+                        }
+                    }
+
+                    private Deployment getDeployment(ReplicaSet replicaSet) {
+                        // we need corresponding Deployment which takes into account if a new ReplicaSet for a common Strimzi operator
+                        // was created and another one is going to be removed, in order to have the overall readiness
+                        return kubernetesClient.apps()
+                                .deployments()
+                                .inNamespace(replicaSet.getMetadata().getNamespace())
+                                .withName(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
+                                .get();
                     }
                 });
     }
 
-    /* test */ public void updateStrimziVersion(ReplicaSet replicaSet) {
-        this.strimziVersions.put(replicaSet.getMetadata().getOwnerReferences().get(0).getName(),
+    /* test */ public void updateStrimziVersion(Deployment deployment) {
+        this.strimziVersions.put(deployment.getMetadata().getName(),
                 new StrimziVersionStatusBuilder()
-                        .withVersion(replicaSet.getMetadata().getOwnerReferences().get(0).getName())
-                        .withReady(Readiness.isReplicaSetReady(replicaSet))
+                        .withVersion(deployment.getMetadata().getName())
+                        .withReady(Readiness.isDeploymentReady(deployment))
                         .build());
     }
 
