@@ -47,6 +47,12 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
                 .delete();
     }
 
+    public void delete() {
+        resourceClient
+                .inAnyNamespace()
+                .delete();
+    }
+
     public T getByName(String namespace, String name) {
         return resourceClient
                 .inNamespace(namespace)

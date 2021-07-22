@@ -43,7 +43,7 @@ public class InformerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    private ResourceInformer<Kafka> kafkaInformer;
+    private volatile ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
     private ResourceInformer<ConfigMap> configMapInformer;
@@ -57,8 +57,6 @@ public class InformerManager {
 
     @PostConstruct
     protected void onStart() {
-        kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
-
         deploymentInformer = resourceInformerFactory.create(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
 
         serviceInformer = resourceInformerFactory.create(Service.class, filter(kubernetesClient.services()), eventSource);
@@ -78,7 +76,7 @@ public class InformerManager {
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
-        return kafkaInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
+        return kafkaInformer != null ? kafkaInformer.getByKey(Cache.namespaceKeyFunc(namespace, name)) : null;
     }
 
     public Deployment getLocalDeployment(String namespace, String name) {
@@ -107,13 +105,25 @@ public class InformerManager {
     }
 
     /**
+     * Create the Kafka informer
+     * NOTE: it's called when a Strimzi bundle is installed and Kafka related CRDs are available to be listed/watched
+     */
+    public void createKafkaInformer() {
+        if (kafkaInformer == null) {
+            kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
+        }
+    }
+
+    /**
      * Trigger Kafka CR changes following external context changes.
      */
     public void resyncKafkas() {
-        List<Kafka> kafkaList = kafkaInformer.getList();
-        log.debugf("Kafka instances to be resynced: %d", kafkaList.size());
-        kafkaList.forEach(k -> {
-            this.eventSource.onUpdate(k, k);
-        });
+        if (kafkaInformer != null) {
+            List<Kafka> kafkaList = kafkaInformer.getList();
+            log.debugf("Kafka instances to be resynced: %d", kafkaList.size());
+            kafkaList.forEach(k -> {
+                this.eventSource.onUpdate(k, k);
+            });
+        }
     }
 }

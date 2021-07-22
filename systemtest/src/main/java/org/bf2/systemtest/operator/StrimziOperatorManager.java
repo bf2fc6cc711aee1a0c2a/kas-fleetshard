@@ -44,8 +44,6 @@ public class StrimziOperatorManager {
     protected String operatorNs = OPERATOR_NS;
     protected String version = SystemTestEnvironment.STRIMZI_VERSION;
 
-    private volatile String deploymentName;
-
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
@@ -113,7 +111,7 @@ public class StrimziOperatorManager {
     }
 
     protected void modifyDeployment(Deployment deployment) {
-        deploymentName = String.format("%s.v%s", DEPLOYMENT_PREFIX, version);
+        String deploymentName = String.format("%s.v%s", DEPLOYMENT_PREFIX, version);
         deployment.getMetadata().setName(deploymentName);
         Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
         labels.put("app.kubernetes.io/part-of", "managed-kafka");
@@ -141,10 +139,6 @@ public class StrimziOperatorManager {
             LOGGER.info("No need to uninstall strimzi operator");
             return CompletableFuture.completedFuture(null);
         }
-    }
-
-    public String getDeploymentName() {
-        return deploymentName;
     }
 
     public static List<Pod> getStrimziOperatorPods() {

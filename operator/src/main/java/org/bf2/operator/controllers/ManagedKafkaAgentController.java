@@ -13,6 +13,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -57,6 +58,9 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Inject
     StrimziManager strimziManager;
+
+    @Inject
+    InformerManager informerManager;
 
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
@@ -106,14 +110,17 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         if (status != null) {
             readyCondition = ConditionUtils.findManagedKafkaCondition(status.getConditions(), Type.Ready).orElse(null);
         }
-        Status statusValue = this.observabilityManager.isObservabilityRunning()?ManagedKafkaCondition.Status.True:ManagedKafkaCondition.Status.False;
+
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+
+        // consider the fleetshard operator ready when observability is running and a Strimzi bundle is installed (aka at least one available version)
+        Status statusValue = this.observabilityManager.isObservabilityRunning() && !strimziVersions.isEmpty() ?
+                ManagedKafkaCondition.Status.True : ManagedKafkaCondition.Status.False;
         if (readyCondition == null) {
             readyCondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, statusValue);
         } else {
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null);
         }
-
-        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
 
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
@@ -149,7 +156,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
                 .build();
 
         return new ManagedKafkaAgentStatusBuilder()
-                .withConditions(Arrays.asList(readyCondition))
+                .withConditions(status == null ? Arrays.asList(readyCondition) : status.getConditions())
                 .withTotal(total)
                 .withRemaining(remaining)
                 .withNodeInfo(nodeInfo)

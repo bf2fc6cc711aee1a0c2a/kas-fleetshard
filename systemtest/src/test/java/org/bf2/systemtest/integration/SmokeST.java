@@ -48,7 +48,7 @@ public class SmokeST extends AbstractST {
 
         keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
-        latestStrimziVersion = strimziOperatorManager.getDeploymentName();
+        latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 

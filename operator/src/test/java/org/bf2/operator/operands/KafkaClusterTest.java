@@ -21,7 +21,9 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.DrainCleanerManager;
+import org.bf2.operator.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -46,6 +48,14 @@ class KafkaClusterTest {
 
     @Inject
     KafkaCluster kafkaCluster;
+
+    @Inject
+    InformerManager informerManager;
+
+    @BeforeEach
+    void beforeEach() {
+        informerManager.createKafkaInformer();
+    }
 
     @Test
     void testManagedKafkaToKafka() throws IOException {

@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -72,6 +73,7 @@ public class OMB {
     private Quantity workerContainerMemory = Quantity.parse("4Gi");
     private Quantity workerCpu = Quantity.parse("750m");
     private Set<EnvVar> envVars = new HashSet<>();
+    boolean useSingleNode = false;
 
     public OMB(KubeClusterResource ombCluster) throws IOException {
         this.ombCluster = ombCluster;
@@ -143,13 +145,15 @@ public class OMB {
         LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}, JVM heap: {}", workers, workerContainerMemory, workerCpu, javaHeapFormatted);
         String jvmOpts = String.format("-Xms%s -Xmx%s -XX:+ExitOnOutOfMemoryError -Djavax.net.debug=ssl", javaHeapFormatted, javaHeapFormatted);
         List<Future<Void>> futures = new ArrayList<>();
+        List<Node> nodes = ombCluster.kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker").withLabelNotIn("node-role.kubernetes.io/infra").list().getItems();
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
         try {
             for (int i = 0; i < workers; i++) {
                 String name = String.format("worker-%d", i);
+                final int nodeIdx = i % nodes.size();
                 futures.add(executorService.submit(() -> {
                     workerNames.add(name);
-                    createWorker(jvmOpts, name);
+                    createWorker(jvmOpts, name, this.useSingleNode ? nodes.get(0) : nodes.get(nodeIdx));
                     return null;
                 }));
             }
@@ -207,9 +211,9 @@ public class OMB {
         return hostnames;
     }
 
-    private void createWorker(String jvmOpts, String name) throws IOException {
+    private void createWorker(String jvmOpts, String name, Node node) throws IOException {
         KubeClient kubeClient = ombCluster.kubeClient();
-        kubeClient.client().apps().deployments().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new DeploymentBuilder()
+        DeploymentBuilder deploymentBuilder = new DeploymentBuilder()
                 .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(Constants.OMB_NAMESPACE)
@@ -265,9 +269,19 @@ public class OMB {
                 .endVolume()
                 .endSpec()
                 .endTemplate()
-                .endSpec()
-                .build());
+                .endSpec();
 
+        if (node != null) {
+            deploymentBuilder.editSpec()
+            .editTemplate()
+                .editSpec()
+                    .withNodeSelector(Collections.singletonMap("kubernetes.io/hostname", node.getMetadata().getLabels().get("kubernetes.io/hostname")))
+                .endSpec()
+            .endTemplate()
+            .endSpec();
+        }
+
+        kubeClient.client().apps().deployments().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(deploymentBuilder.build());
         kubeClient.client().services().inNamespace(Constants.OMB_NAMESPACE).createOrReplace(new ServiceBuilder()
                 .editOrNewMetadata()
                 .withName(name)
@@ -471,5 +485,9 @@ public class OMB {
         } catch (InterruptedException e) {
             throw new RuntimeException("Failed to wait for DaemonSet to become ready, received InterruptedException", e);
         }
+    }
+
+    public void setUseSingleNode(boolean single) {
+        this.useSingleNode = single;
     }
 }
