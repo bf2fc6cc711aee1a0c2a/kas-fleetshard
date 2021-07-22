@@ -16,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SyncApiClient {
@@ -81,8 +82,12 @@ public class SyncApiClient {
         return Objects.requireNonNull(Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
                 .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted((a, b) -> {
-                    ComparableVersion aVersion = new ComparableVersion(pattern.matcher(a).group("version"));
-                    ComparableVersion bVersion = new ComparableVersion(pattern.matcher(b).group("version"));
+                    Matcher aMatcher = pattern.matcher(a);
+                    Matcher bMatcher = pattern.matcher(b);
+                    aMatcher.matches();
+                    bMatcher.matches();
+                    ComparableVersion aVersion = new ComparableVersion(aMatcher.group("version"));
+                    ComparableVersion bVersion = new ComparableVersion(bMatcher.group("version"));
                     return aVersion.compareTo(bVersion);
                 })
                 .reduce((first, second) -> second).orElse(null));
