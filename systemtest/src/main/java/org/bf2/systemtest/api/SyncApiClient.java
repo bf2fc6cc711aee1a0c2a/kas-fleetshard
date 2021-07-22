@@ -3,7 +3,10 @@ package org.bf2.systemtest.api;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.systemtest.framework.ThrowableSupplier;
 
 import java.net.HttpURLConnection;
@@ -12,6 +15,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SyncApiClient {
     public static final String BASE_PATH = "/api/kafkas_mgmt/v1/agent-clusters/";
@@ -69,6 +75,22 @@ public class SyncApiClient {
                 .timeout(Duration.ofMinutes(2))
                 .build();
         return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+    }
+
+    public static String getLatestStrimziVersion(String endpoint) throws Exception {
+        Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+)$");
+        return Objects.requireNonNull(Serialization.jsonMapper()
+                .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
+                .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted((a, b) -> {
+                    Matcher aMatcher = pattern.matcher(a);
+                    Matcher bMatcher = pattern.matcher(b);
+                    aMatcher.matches();
+                    bMatcher.matches();
+                    ComparableVersion aVersion = new ComparableVersion(aMatcher.group("version"));
+                    ComparableVersion bVersion = new ComparableVersion(bMatcher.group("version"));
+                    return aVersion.compareTo(bVersion);
+                })
+                .reduce((first, second) -> second).orElse(null));
     }
 
     /**
