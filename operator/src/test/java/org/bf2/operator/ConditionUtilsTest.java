@@ -25,15 +25,15 @@ public class ConditionUtilsTest {
         ManagedKafkaCondition mkcondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.valueOf(type), Status.True);
         assertEquals("True", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());
-        ConditionUtils.updateConditionStatus(mkcondition, Status.False, null);
+        ConditionUtils.updateConditionStatus(mkcondition, Status.False, null, null);
         assertEquals("False", mkcondition.getStatus());
         assertEquals(type, mkcondition.getType());
 
         var mockCondition = Mockito.mock(ManagedKafkaCondition.class, Mockito.CALLS_REAL_METHODS);
-        ConditionUtils.updateConditionStatus(mockCondition, Status.False, Reason.Deleted);
+        ConditionUtils.updateConditionStatus(mockCondition, Status.False, Reason.Deleted, null);
         Mockito.verify(mockCondition, Mockito.times(1)).setLastTransitionTime(Mockito.anyString());
         // only update if different
-        ConditionUtils.updateConditionStatus(mockCondition, Status.False, Reason.Deleted);
+        ConditionUtils.updateConditionStatus(mockCondition, Status.False, Reason.Deleted, null);
         Mockito.verify(mockCondition, Mockito.times(1)).setLastTransitionTime(Mockito.anyString());
     }
 

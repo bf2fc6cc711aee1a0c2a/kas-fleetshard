@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.InformerManager;
@@ -56,25 +55,8 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     public abstract String uri(ManagedKafka managedKafka);
 
     @Override
-    public boolean isInstalling(ManagedKafka managedKafka) {
-        Deployment deployment = cachedDeployment(managedKafka);
-        boolean isInstalling = deployment == null || deployment.getStatus() == null;
-        log.tracef("Admin Server isInstalling = %s", isInstalling);
-        return isInstalling;
-    }
-
-    @Override
-    public boolean isReady(ManagedKafka managedKafka) {
-        Deployment deployment = cachedDeployment(managedKafka);
-        boolean isReady = Readiness.isDeploymentReady(deployment);
-        log.tracef("Admin Server isReady = %s", isReady);
-        return isReady;
-    }
-
-    @Override
-    public boolean isError(ManagedKafka managedKafka) {
-        // TODO: logic for check if it's error
-        return false;
+    public OperandReadiness getReadiness(ManagedKafka managedKafka) {
+        return Operand.getDeploymentReadiness(cachedDeployment(managedKafka), adminServerName(managedKafka));
     }
 
     @Override

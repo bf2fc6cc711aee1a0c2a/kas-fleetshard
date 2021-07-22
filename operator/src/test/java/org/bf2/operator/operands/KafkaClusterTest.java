@@ -12,7 +12,6 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
@@ -38,7 +37,6 @@ import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -67,10 +65,6 @@ class KafkaClusterTest {
 
         JsonNode patch = diffToExpected(kafka, "/expected/strimzi.yml");
         assertEquals("[]", patch.toString());
-
-        var kafkaCli = client.customResources(Kafka.class, KafkaList.class);
-        kafkaCli.create(kafka);
-        assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
     }
 
     @Test
@@ -97,7 +91,7 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");
-        assertEquals("[{\"op\":\"add\",\"path\":\"/metadata/annotations/strimzi.io~1pause-reconciliation\",\"value\":\"true\"},{\"op\":\"add\",\"path\":\"/metadata/annotations/managedkafka.bf2.org~1pause-reason\",\"value\":\"strimziupdating\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
+        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
     }
 
     @Test
@@ -124,10 +118,6 @@ class KafkaClusterTest {
 
             JsonNode patch = diffToExpected(kafka, "/expected/custom-config-strimzi.yml");
             assertEquals("[]", patch.toString());
-
-            var kafkaCli = client.customResources(Kafka.class, KafkaList.class);
-            kafkaCli.create(kafka);
-            assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
         } finally {
             kafkaCluster.setKafkaConfiguration(config);
         }

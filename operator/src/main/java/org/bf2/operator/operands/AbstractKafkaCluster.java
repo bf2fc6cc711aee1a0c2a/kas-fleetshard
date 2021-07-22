@@ -21,10 +21,15 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
+import io.strimzi.api.kafka.model.status.KafkaStatus;
 import org.bf2.operator.InformerManager;
+import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -69,41 +74,51 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return managedKafka.getMetadata().getNamespace();
     }
 
-    @Override
-    public boolean isInstalling(ManagedKafka managedKafka) {
-        Kafka kafka = cachedKafka(managedKafka);
-        boolean isInstalling = kafka == null || kafka.getStatus() == null ||
-                kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("NotReady")
-                && c.getStatus().equals("True")
-                && c.getReason().equals("Creating"));
-        log.tracef("KafkaCluster isInstalling = %s", isInstalling);
-        return isInstalling;
+    public boolean isStrimziUpdating(ManagedKafka managedKafka) {
+        Kafka kafka =  cachedKafka(managedKafka);
+        String pauseReason = kafka.getMetadata().getAnnotations() != null ?
+                kafka.getMetadata().getAnnotations().get(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION) : null;
+        return ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase().equals(pauseReason) &&
+                isReconciliationPaused(managedKafka);
+    }
+
+    public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
+        OperandReadiness readiness = getReadiness(managedKafka);
+        return Status.True.equals(readiness.getStatus()) && !Reason.StrimziUpdating.equals(readiness.getReason());
     }
 
     @Override
-    public boolean isReady(ManagedKafka managedKafka) {
+    public OperandReadiness getReadiness(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
-        boolean isReady = kafka != null && (kafka.getStatus() == null ||
-                kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("Ready") && c.getStatus().equals("True")));
-        log.tracef("KafkaCluster isReady = %s", isReady);
-        return isReady;
-    }
 
-    @Override
-    public boolean isError(ManagedKafka managedKafka) {
-        Kafka kafka = cachedKafka(managedKafka);
-        boolean isError = kafka != null && kafka.getStatus() != null
-            && kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("NotReady")
-            && c.getStatus().equals("True")
-            && !c.getReason().equals("Creating"));
-        log.tracef("KafkaCluster isError = %s", isError);
-        return isError;
+        if (kafka == null) {
+            return new OperandReadiness(Status.False, Reason.Installing, String.format("Kafka %s does not exist", kafkaClusterName(managedKafka)));
+        }
+
+        Optional<Condition> notReady = kafkaCondition(kafka, c -> "NotReady".equals(c.getType()));
+
+        if (notReady.filter(c -> "True".equals(c.getStatus())).isPresent()) {
+            Condition c = notReady.get();
+            return new OperandReadiness(Status.False, "Creating".equals(c.getReason()) ? Reason.Installing : Reason.Error, c.getMessage());
+        }
+
+        Optional<Condition> ready = kafkaCondition(kafka, c -> "Ready".equals(c.getType()));
+
+        if (ready.filter(c -> "True".equals(c.getStatus())).isPresent()) {
+            return new OperandReadiness(Status.True, null, null);
+        }
+
+        if (isStrimziUpdating(managedKafka)) {
+            return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
+        }
+
+        return new OperandReadiness(Status.False, Reason.Installing, String.format("Kafka %s is not providing status", kafkaClusterName(managedKafka)));
     }
 
     public boolean isReconciliationPaused(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
-                && kafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("ReconciliationPaused")
+                && hasKafkaCondition(kafka, c -> c.getType() != null && c.getType().equals("ReconciliationPaused")
                 && c.getStatus().equals("True"));
         log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
         return isReconciliationPaused;
@@ -116,8 +131,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return isDeleted;
     }
 
-    protected boolean kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
-        return kafka.getStatus().getConditions().stream().anyMatch(predicate);
+    protected boolean hasKafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
+        return kafkaCondition(kafka, predicate).isPresent();
+    }
+
+    protected Optional<Condition> kafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
+        return Optional.ofNullable(kafka.getStatus()).map(KafkaStatus::getConditions).flatMap(l -> l.stream().filter(predicate).findFirst());
     }
 
     protected Kafka cachedKafka(ManagedKafka managedKafka) {

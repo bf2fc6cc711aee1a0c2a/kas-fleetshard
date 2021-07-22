@@ -259,7 +259,7 @@ public class StrimziBundleManager {
                 if (approved) {
                     conditions.remove(bundleReadyCondition);
                 } else {
-                    ConditionUtils.updateConditionStatus(bundleReadyCondition, ManagedKafkaCondition.Status.False, ManagedKafkaCondition.Reason.OrphanedKafkas);
+                    ConditionUtils.updateConditionStatus(bundleReadyCondition, ManagedKafkaCondition.Status.False, ManagedKafkaCondition.Reason.OrphanedKafkas, null);
                 }
             }
             this.agentClient.updateStatus(resource);
