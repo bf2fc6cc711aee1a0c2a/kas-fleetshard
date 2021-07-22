@@ -8,10 +8,9 @@ import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
+import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.framework.KeycloakInstance;
@@ -41,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Tests for verifying that test suite is not broken and basic functionality is working properly
  */
 @QuarkusTest
-@QuarkusTestResource(KubernetesServerTestResource.class)
+@WithKubernetesTestServer
 public class SuiteUnitTest extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
     private static final String TEST_NS = "default";

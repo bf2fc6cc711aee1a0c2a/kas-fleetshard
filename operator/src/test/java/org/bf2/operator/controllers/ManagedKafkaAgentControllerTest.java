@@ -1,8 +1,7 @@
 package org.bf2.operator.controllers;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,7 @@ import javax.inject.Inject;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@QuarkusTestResource(KubernetesServerTestResource.class)
+@WithKubernetesTestServer
 @QuarkusTest
 public class ManagedKafkaAgentControllerTest {
 

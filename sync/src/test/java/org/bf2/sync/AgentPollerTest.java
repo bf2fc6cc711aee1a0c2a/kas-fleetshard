@@ -1,10 +1,9 @@
 package org.bf2.sync;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
-import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -19,7 +18,7 @@ import javax.inject.Inject;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@QuarkusTestResource(KubernetesServerTestResource.class)
+@WithKubernetesTestServer
 @QuarkusTest
 @TestProfile(MockSyncProfile.class)
 public class AgentPollerTest {

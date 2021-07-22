@@ -1,17 +1,14 @@
 package org.bf2.operator.operands;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
@@ -39,7 +36,7 @@ import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-@QuarkusTestResource(KubernetesServerTestResource.class)
+@WithKubernetesTestServer
 @QuarkusTest
 class KafkaClusterTest {
 
@@ -147,7 +144,8 @@ class KafkaClusterTest {
         assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("managedkafka.zookeeper.jvm-xx"));
 
     }
-    private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+
+    private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
@@ -155,7 +153,7 @@ class KafkaClusterTest {
     }
 
     @Test
-    void testDrainCleanerWebhookFound() throws IOException {
+    void testDrainCleanerWebhookFound() {
         DrainCleanerManager mock = Mockito.mock(DrainCleanerManager.class);
         Mockito.when(mock.isDrainCleanerWebhookFound()).thenReturn(true);
         QuarkusMock.installMockForType(mock, DrainCleanerManager.class);
@@ -168,7 +166,7 @@ class KafkaClusterTest {
     }
 
     @Test
-    void testDrainCleanerWebhookNotFound() throws IOException {
+    void testDrainCleanerWebhookNotFound() {
         DrainCleanerManager mock = Mockito.mock(DrainCleanerManager.class);
         Mockito.when(mock.isDrainCleanerWebhookFound()).thenReturn(false);
         QuarkusMock.installMockForType(mock, DrainCleanerManager.class);
@@ -220,9 +218,9 @@ class KafkaClusterTest {
         assertNull(((PersistentClaimStorage) reconciledKafka.getSpec().getZookeeper().getStorage()).getStorageClass());
         assertEquals(buildStorageOverrides(), ((PersistentClaimStorage) reconciledKafka.getSpec().getZookeeper().getStorage()).getOverrides());
 
-        ((JbodStorage)reconciledKafka.getSpec().getKafka().getStorage()).getVolumes().stream().forEach(v -> {
-            assertNull(((PersistentClaimStorage)v).getStorageClass());
-            assertEquals(buildStorageOverrides(), ((PersistentClaimStorage)v).getOverrides());
+        ((JbodStorage) reconciledKafka.getSpec().getKafka().getStorage()).getVolumes().forEach(v -> {
+            assertNull(((PersistentClaimStorage) v).getStorageClass());
+            assertEquals(buildStorageOverrides(), ((PersistentClaimStorage) v).getOverrides());
         });
     }
 
@@ -234,9 +232,9 @@ class KafkaClusterTest {
         for (int i = 0; i < num; i++) {
             overrides.add(
                     new PersistentClaimStorageOverrideBuilder()
-                    .withBroker(i)
-                    .withStorageClass(storageClasses.get(i % storageClasses.size()))
-                    .build());
+                            .withBroker(i)
+                            .withStorageClass(storageClasses.get(i % storageClasses.size()))
+                            .build());
         }
         return overrides;
     }

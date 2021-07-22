@@ -7,7 +7,6 @@ import org.bf2.operator.utils.ManagedKafkaUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class KafkaInstanceTest {
 
     @Test
-    void testStatus() throws IOException {
+    void testStatus() {
         // sample operand readiness
         Operand<ManagedKafka> error = mockOperand(new OperandReadiness(Status.False, Reason.Error, "I'm not well"));
         Operand<ManagedKafka> installing = mockOperand(new OperandReadiness(Status.False, Reason.Installing, "I'm installing"));
