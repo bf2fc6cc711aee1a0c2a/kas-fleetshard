@@ -87,7 +87,7 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaWithMaxConnections() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
-        mk.getSpec().getVersions().setStrimzi("0.23.0");
+        mk.getSpec().getVersions().setStrimzi("0.23.0-0");
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");

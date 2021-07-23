@@ -89,6 +89,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
     private static final String DIGEST = "org.bf2.operator/digest";
+    private static final String ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK = "org.apache.kafka.server.quota.StaticQuotaCallback";
+    private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     @Inject
     Logger log;
@@ -448,7 +450,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
-        config.put("client.quota.callback.class", "org.apache.kafka.server.quota.StaticQuotaCallback");
+
+        Versions versions = managedKafka.getSpec().getVersions();
+        boolean legacyQuotaClass = versions.isStrimziVersionIn(Versions.VERSION_0_22) || (versions.getStrimzi().endsWith("0.23.0-0"));
+        config.put("client.quota.callback.class", legacyQuotaClass ? ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK : IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
+
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
         long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).doubleValue() / this.config.getKafka().getReplicas());

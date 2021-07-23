@@ -18,6 +18,9 @@ public class VersionsTest {
         versions.setStrimzi("strimzi-cluster-operator.v0.22.1");
         assertTrue(versions.isStrimziVersionIn(Versions.VERSION_0_22));
 
+        versions.setStrimzi("strimzi-cluster-operator.v0.22.1-6");
+        assertTrue(versions.isStrimziVersionIn(Versions.VERSION_0_22));
+
         versions.setStrimzi("strimzi-cluster-operator.v0.23.0");
         assertFalse(versions.isStrimziVersionIn(Versions.VERSION_0_22));
     }
