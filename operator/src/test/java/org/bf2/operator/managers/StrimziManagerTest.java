@@ -1,4 +1,4 @@
-package org.bf2.operator.operands;
+package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
@@ -14,9 +14,8 @@ import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
-import org.bf2.operator.InformerManager;
-import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;

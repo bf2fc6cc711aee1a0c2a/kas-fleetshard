@@ -118,7 +118,7 @@ public class AdminServer extends AbstractAdminServer {
 
     /* test */
     @Override
-    protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
+    public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String adminServerName = adminServerName(managedKafka);
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
@@ -156,7 +156,7 @@ public class AdminServer extends AbstractAdminServer {
 
     /* test */
     @Override
-    protected Service serviceFrom(ManagedKafka managedKafka, Service current) {
+    public Service serviceFrom(ManagedKafka managedKafka, Service current) {
         String adminServerName = adminServerName(managedKafka);
 
         ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();

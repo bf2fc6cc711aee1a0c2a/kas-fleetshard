@@ -6,7 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.InformerManager;
+import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
@@ -48,9 +48,9 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         adminServiceResource(managedKafka).delete();
     }
 
-    protected abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
+    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
-    protected abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
+    public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
 
     public abstract String uri(ManagedKafka managedKafka);
 
