@@ -91,7 +91,7 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
+        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0-0\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
     }
 
     @Test
