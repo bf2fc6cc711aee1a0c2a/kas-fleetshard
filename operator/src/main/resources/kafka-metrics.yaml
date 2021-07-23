@@ -223,3 +223,6 @@ data:
       - pattern: kafka.server<type=Fetch, quota.type=FETCH><>throttle-time
         name: kafka_server_fetch_throttle_time
         type: GAUGE
+      - pattern : io.strimzi.kafka.quotas<type=(.+), name=(.+)><>Value
+        name: kafka_broker_quota_$2
+        type: GAUGE
