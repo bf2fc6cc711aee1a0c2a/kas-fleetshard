@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.quarkus.arc.config.ConfigProperties;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -201,7 +202,18 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("allowed-listeners")
         protected String allowedListeners = null;
 
-        public boolean isCustomEnabled() {
+        /**
+         * Determines if the custom ACL authorizer's features are enabled.
+         * Do be considered enabled, the `CustomAclAuthorizer` class must be configured
+         * and the ManagedKafka's list of owners must be a non-empty list.
+         *
+         * @param owners the ManagedKafka's list of owners
+         * @return true when additional custom ACL features are enabled, otherwise false
+         */
+        public boolean isCustomEnabled(List<String> owners) {
+            if (owners == null || owners.isEmpty()) {
+                return false;
+            }
             final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.') + 1);
             return "CustomAclAuthorizer".equals(simpleName);
         }

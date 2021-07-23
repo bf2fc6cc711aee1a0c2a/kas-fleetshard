@@ -27,8 +27,7 @@ public class ManagedKafkaSpec {
     @NotNull
     private Versions versions;
     private boolean deleted;
-    @NotNull
-    private List<@NotNull String> owners = new ArrayList<>();
+    private List<String> owners = new ArrayList<>();
 
     /**
      * Never null

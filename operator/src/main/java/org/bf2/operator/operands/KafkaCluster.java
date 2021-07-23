@@ -582,7 +582,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);
 
-        if (aclConfig.isCustomEnabled() && !owners.isEmpty()) {
+        if (aclConfig.isCustomEnabled(owners)) {
             config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
             for (String owner : owners) {
