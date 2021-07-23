@@ -296,7 +296,7 @@ public class AdminServer extends AbstractAdminServer {
 
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
 
-        if (this.config.getKafka().getAcl().isCustomEnabled(managedKafka.getSpec().getOwners())) {
+        if (this.config.getKafka().getAcl().isCustomAclAuthorizerEnabled(managedKafka.getSpec().getOwners())) {
             addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
         }
 

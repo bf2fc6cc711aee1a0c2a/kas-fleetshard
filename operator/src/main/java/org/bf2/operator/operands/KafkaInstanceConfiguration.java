@@ -204,13 +204,13 @@ public class KafkaInstanceConfiguration {
 
         /**
          * Determines if the custom ACL authorizer's features are enabled.
-         * Do be considered enabled, the `CustomAclAuthorizer` class must be configured
+         * To be considered enabled, the `CustomAclAuthorizer` class must be configured
          * and the ManagedKafka's list of owners must be a non-empty list.
          *
          * @param owners the ManagedKafka's list of owners
          * @return true when additional custom ACL features are enabled, otherwise false
          */
-        public boolean isCustomEnabled(List<String> owners) {
+        public boolean isCustomAclAuthorizerEnabled(List<String> owners) {
             if (owners == null || owners.isEmpty()) {
                 return false;
             }
