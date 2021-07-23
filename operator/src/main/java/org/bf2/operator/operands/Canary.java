@@ -59,7 +59,7 @@ public class Canary extends AbstractCanary {
     protected KafkaInstanceConfiguration config;
 
     @Override
-    protected Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
+    public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();

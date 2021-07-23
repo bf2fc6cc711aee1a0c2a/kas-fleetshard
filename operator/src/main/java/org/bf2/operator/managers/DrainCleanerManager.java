@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.admissionregistration.v1.ValidatingWebhookConfiguration;
 import io.fabric8.kubernetes.api.model.admissionregistration.v1.ValidatingWebhookConfigurationList;

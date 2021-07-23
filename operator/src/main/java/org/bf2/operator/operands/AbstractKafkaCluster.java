@@ -22,9 +22,9 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
-import org.bf2.operator.InformerManager;
-import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
+import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -150,7 +150,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         createOrUpdate(kafka);
     }
 
-    protected abstract Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current);
+    public abstract Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current);
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {

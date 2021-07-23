@@ -56,7 +56,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
     /* test */
     @Override
-    protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
+    public Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 

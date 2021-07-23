@@ -45,8 +45,8 @@ import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.DrainCleanerManager;
-import org.bf2.operator.StrimziManager;
+import org.bf2.operator.managers.DrainCleanerManager;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -178,7 +178,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     /* test */
     @Override
-    protected Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
+    public Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
         Kafka kafka = builder

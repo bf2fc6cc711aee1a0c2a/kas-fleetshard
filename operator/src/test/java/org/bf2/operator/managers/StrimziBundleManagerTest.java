@@ -1,4 +1,4 @@
-package org.bf2.operator.operands;
+package org.bf2.operator.managers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,8 +24,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
-import org.bf2.operator.StrimziBundleManager;
-import org.bf2.operator.StrimziManager;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

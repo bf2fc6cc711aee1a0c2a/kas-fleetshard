@@ -1,4 +1,4 @@
-package org.bf2.operator;
+package org.bf2.operator.managers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.HasMetadata;

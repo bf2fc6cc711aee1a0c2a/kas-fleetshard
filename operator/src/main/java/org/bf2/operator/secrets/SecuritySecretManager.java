@@ -6,7 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.KafkaResources;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.InformerManager;
+import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.enterprise.context.ApplicationScoped;
