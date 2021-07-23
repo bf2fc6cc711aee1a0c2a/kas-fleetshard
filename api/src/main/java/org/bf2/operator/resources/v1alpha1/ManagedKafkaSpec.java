@@ -6,6 +6,9 @@ import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Defines the specification of the ManagedKafka instance
  */
@@ -24,6 +27,7 @@ public class ManagedKafkaSpec {
     @NotNull
     private Versions versions;
     private boolean deleted;
+    private List<String> owners = new ArrayList<>();
 
     /**
      * Never null
@@ -72,5 +76,13 @@ public class ManagedKafkaSpec {
 
     public void setDeleted(boolean deleted) {
         this.deleted = deleted;
+    }
+
+    public List<String> getOwners() {
+        return owners;
+    }
+
+    public void setOwners(List<String> owners) {
+        this.owners = owners;
     }
 }

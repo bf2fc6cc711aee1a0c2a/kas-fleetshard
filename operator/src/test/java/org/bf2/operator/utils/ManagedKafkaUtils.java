@@ -51,6 +51,7 @@ public class ManagedKafkaUtils {
                         .withKafka("2.6.0")
                         .withStrimzi("0.22.1")
                     .endVersions()
+                    .withOwners("userid-123")
                     .build())
             .build();
         return mk;

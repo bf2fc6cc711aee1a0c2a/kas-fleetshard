@@ -89,6 +89,9 @@ public class AdminServer extends AbstractAdminServer {
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
+    @Inject
+    protected KafkaInstanceConfiguration config;
+
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
@@ -292,6 +295,10 @@ public class AdminServer extends AbstractAdminServer {
         List<EnvVar> envVars = new ArrayList<>();
 
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
+
+        if (this.config.getKafka().getAcl().isCustomAclAuthorizerEnabled(managedKafka.getSpec().getOwners())) {
+            addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
+        }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
