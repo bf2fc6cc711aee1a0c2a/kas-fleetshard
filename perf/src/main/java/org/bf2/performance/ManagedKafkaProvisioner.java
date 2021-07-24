@@ -1,13 +1,24 @@
 package org.bf2.performance;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
+import io.fabric8.kubernetes.client.dsl.base.PatchContext;
+import io.fabric8.kubernetes.client.dsl.base.PatchType;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
@@ -27,12 +38,16 @@ import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Provisioner for {@link ManagedKafka} instances
@@ -45,6 +60,7 @@ public class ManagedKafkaProvisioner {
     protected String domain;
     private TlsConfig tlsConfig;
     private OlmBasedStrimziOperatorManager strimziManager;
+    private SharedIndexInformer<Deployment> informer;
 
     static String createIngressController(KubeClusterResource cluster) throws IOException {
         var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
@@ -143,6 +159,7 @@ public class ManagedKafkaProvisioner {
      */
     public void teardown() throws Exception {
         deleteIngressController(cluster);
+        informer.stop();
     }
 
     /**
@@ -160,6 +177,63 @@ public class ManagedKafkaProvisioner {
         cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
+
+        List<Node> workers = cluster.getWorkerNodes();
+
+        // until we have node taints/tolerations on the brokers, make sure that the operators and other deployments are on just 3 nodes, so build a list of 1 node per az
+        Collection<Node> nodes = workers.stream().sorted((n1, n2) -> n1.getMetadata().getName().compareTo(n2.getMetadata().getName()))
+                .collect(Collectors.toMap(n -> n.getMetadata().getLabels().get("topology.kubernetes.io/zone"), Function.identity(), (n1, n2) -> n1)).values();
+        nodes.forEach(n -> cluster.kubeClient().client().nodes().withName(n.getMetadata().getName())
+                .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
+                        new NodeBuilder().editOrNewMetadata().addToLabels("perf-infra", "true").endMetadata().build()));
+
+        MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deployments = cluster.kubeClient().client().apps().deployments();
+        this.informer = deployments.inAnyNamespace().inform(new ResourceEventHandler<Deployment>() {
+
+            @Override
+            public void onUpdate(Deployment oldObj, Deployment newObj) {
+                onAdd(newObj);
+            }
+
+            @Override
+            public void onDelete(Deployment obj, boolean deletedFinalStateUnknown) {
+
+            }
+
+            @Override
+            public void onAdd(Deployment obj) {
+                if (!obj.getMetadata().getNamespace().equals(StrimziOperatorManager.OPERATOR_NS)
+                        && !obj.getMetadata().getNamespace().equals(FleetShardOperatorManager.OPERATOR_NS)) {
+                    return;
+                }
+
+                // patch any deployment that requests a lot of cpu, and make sure it's on the perf infra
+                deployments.inNamespace(obj.getMetadata().getNamespace())
+                        .withName(obj.getMetadata().getName()).edit(
+                                new TypedVisitor<ResourceRequirementsBuilder>() {
+                                    @Override
+                                    public void visit(ResourceRequirementsBuilder element) {
+                                        Quantity cpu = null;
+                                        if (element.getRequests() != null) {
+                                            cpu = element.getRequests().get("cpu");
+                                        }
+                                        if (cpu == null && element.getLimits() != null) {
+                                            cpu = element.getLimits().get("cpu");
+                                        }
+                                        if (cpu != null && Quantity.getAmountInBytes(cpu).compareTo(BigDecimal.valueOf(1)) > 0) {
+                                            element.addToRequests("cpu", Quantity.parse("1"));
+                                        }
+                                    }
+                                },
+
+                                new TypedVisitor<PodTemplateSpecBuilder>() {
+                                    @Override
+                                    public void visit(PodTemplateSpecBuilder element) {
+                                        element.editOrNewSpec().addToNodeSelector("perf-infra", "true").endSpec();
+                                    }
+                                });
+            }
+        });
 
         // installs the Strimzi Operator using the OLM bundle
         strimziManager.deployStrimziOperator();
@@ -225,7 +299,7 @@ public class ManagedKafkaProvisioner {
      *
      * @throws IOException
      */
-    private void removeClusters() throws IOException {
+    public void removeClusters() throws IOException {
         var client = cluster.kubeClient().client().customResources(ManagedKafka.class);
         Iterator<ManagedKafka> kafkaIterator = clusters.iterator();
         while (kafkaIterator.hasNext()) {

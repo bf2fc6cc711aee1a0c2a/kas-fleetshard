@@ -8,6 +8,10 @@ public class AdopterProfile {
             "4Gi", "1G", "1000m",
             "8Gi", "3G", "3000m");
 
+    public static final KafkaInstanceConfiguration M5_XLARGE = buildProfile(
+            "4Gi", "1G", "1000m",
+            "11Gi", "3G", "2500m");
+
     public static final KafkaInstanceConfiguration SMALL_VALUE_PROD = buildProfile(
             "1Gi", "500M", "500m",
             "1Gi", "500M", "1000m");
