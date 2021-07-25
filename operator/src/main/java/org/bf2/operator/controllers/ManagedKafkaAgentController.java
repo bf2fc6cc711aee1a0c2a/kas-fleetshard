@@ -13,7 +13,6 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
-import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -58,9 +57,6 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Inject
     StrimziManager strimziManager;
-
-    @Inject
-    InformerManager informerManager;
 
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
