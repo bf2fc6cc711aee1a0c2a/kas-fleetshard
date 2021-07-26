@@ -157,6 +157,9 @@ public class StrimziBundleManager {
 
         List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
 
+        if (strimziVersions == null || strimziVersions.isEmpty())
+            return false;
+
         // CRDs are not installed, nothing we can do more ... just approving installation
         if (!this.isKafkaCrdsInstalled()) {
             this.clearMetrics();
