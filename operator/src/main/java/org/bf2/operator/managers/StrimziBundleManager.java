@@ -112,6 +112,11 @@ public class StrimziBundleManager {
     }
 
     /* test */ public synchronized void handleSubscription(Subscription subscription) {
+        if (!this.isInstallPlanApprovalAsManual(subscription)) {
+            log.infof("Subscription %s/%s has InstallPlan approval on 'Automatic'. Skipping approval process.",
+                    subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
+            return;
+        }
         if (subscription.getStatus() != null) {
             Optional<SubscriptionCondition> conditionOptional =
                     subscription.getStatus().getConditions()
@@ -278,5 +283,10 @@ public class StrimziBundleManager {
         for (Meter m : toRemove) {
             meterRegistry.remove(m.getId());
         }
+    }
+
+    private boolean isInstallPlanApprovalAsManual(Subscription subscription) {
+        return subscription.getSpec() != null && subscription.getSpec().getInstallPlanApproval() != null &&
+                "Manual".equals(subscription.getSpec().getInstallPlanApproval());
     }
 }
