@@ -76,6 +76,14 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
+    public void testInstallationWithEmptyStrimzi() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", null);
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved due to empty Strimzi versions
+        this.checkInstallPlan(subscription, false);
+    }
+
+    @Test
     public void testUpdateInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
