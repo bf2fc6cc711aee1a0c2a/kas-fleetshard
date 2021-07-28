@@ -26,10 +26,16 @@ kubectl apply -f api/target/classes/META-INF/fabric8/managedkafkaagents.managedk
 ```
 
 Finally, you can start the operator from your IDE running the `Main` application (for a step by step debugging purposes),
-or you can run it from the command line by running the following command (with Quarkus in "dev" mode).
+or you can run it from the command line by running the following command (with Quarkus in "dev" mode). If you're running
+against a vanilla Kubernetes, you'll need to add `-Dkafka=dev` so that it doesn't assume that OLM, etc, are available.
 
 ```shell
+# OpenShift
 mvn -pl operator quarkus:dev
+
+# OR
+# Vanilla Kubernetes
+mvn -pl operator quarkus:dev -Dkafka=dev
 ```
 
 > NOTE: Quarkus will start debugger listener on port 5005 to which you can attach from your IDE.
