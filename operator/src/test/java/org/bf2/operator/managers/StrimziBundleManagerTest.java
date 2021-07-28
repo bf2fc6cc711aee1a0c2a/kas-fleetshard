@@ -68,7 +68,7 @@ public class StrimziBundleManagerTest {
 
     @Test
     public void testFirstInstallation() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved
@@ -77,15 +77,24 @@ public class StrimziBundleManagerTest {
 
     @Test
     public void testInstallationWithEmptyStrimzi() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", null);
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual", null);
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to empty Strimzi versions
         this.checkInstallPlan(subscription, false);
     }
 
     @Test
+    public void testInstallationWithAutomaticApproval() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Automatic",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved by the bundle manager due to Automatic approval (by OLM)
+        this.checkInstallPlan(subscription, false);
+    }
+
+    @Test
     public void testUpdateInstallation() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
@@ -93,7 +102,7 @@ public class StrimziBundleManagerTest {
 
         this.createKafkaCRDs();
 
-        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as update of Strimzi bundle with Kafka CRDs already existing
@@ -102,7 +111,7 @@ public class StrimziBundleManagerTest {
 
     @Test
     public void testNotApprovedInstallation() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
@@ -111,7 +120,7 @@ public class StrimziBundleManagerTest {
         this.createKafkaCRDs();
         this.createOrUpdateKafka("my-kafka-namespace", "my-kafka", "strimzi-cluster-operator.v1");
 
-        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to an orphaned Kafka instance
@@ -120,7 +129,7 @@ public class StrimziBundleManagerTest {
 
     @Test
     public void testApprovedInstallationAfterKafkaUpdate() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
@@ -129,7 +138,7 @@ public class StrimziBundleManagerTest {
         this.createKafkaCRDs();
         this.createOrUpdateKafka("my-kafka-namespace", "my-kafka", "strimzi-cluster-operator.v1");
 
-        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle",
+        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to an orphaned Kafka instance
@@ -148,10 +157,11 @@ public class StrimziBundleManagerTest {
      *
      * @param namespace namespace where installing the bundle
      * @param name name of the bundle
+     * @param installPlanApproval approval for the install plan (Manual or Automatic)
      * @param strimziVersions Strimzi versions provided by the bundle
      * @return Subscription created by the installation/update
      */
-    private Subscription installOrUpdateBundle(String namespace, String name, String ... strimziVersions) {
+    private Subscription installOrUpdateBundle(String namespace, String name, String installPlanApproval, String ... strimziVersions) {
         String installPlan = "install-" + UUID.randomUUID().toString().substring(0, 4);
 
         String jsonStrimziVersions = null;
@@ -162,7 +172,7 @@ public class StrimziBundleManagerTest {
             fail(e);
         }
 
-        Subscription subscription = this.createOrUpdateSubscription(namespace, name + "-sub", name, installPlan);
+        Subscription subscription = this.createOrUpdateSubscription(namespace, name + "-sub", name, installPlan, installPlanApproval);
         this.createOrUpdateInstallPlan(namespace, installPlan);
         this.createOrUpdatePackageManifest(namespace, name, jsonStrimziVersions);
         return subscription;
@@ -217,7 +227,7 @@ public class StrimziBundleManagerTest {
         return installPlan;
     }
 
-    private Subscription createOrUpdateSubscription(String namespace, String name, String bundleName, String installPlan) {
+    private Subscription createOrUpdateSubscription(String namespace, String name, String bundleName, String installPlan, String installPlanApproval) {
         Subscription subscription = new SubscriptionBuilder()
                 .withNewMetadata()
                     .withName(name)
@@ -226,7 +236,7 @@ public class StrimziBundleManagerTest {
                 .endMetadata()
                 .withNewSpec()
                     .withName(bundleName)
-                    .withInstallPlanApproval("Manual")
+                    .withInstallPlanApproval(installPlanApproval)
                 .endSpec()
                 .withNewStatus()
                     .withConditions(new SubscriptionConditionBuilder().withType("InstallPlanPending").withReason("RequiresApproval").build())
