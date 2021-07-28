@@ -113,7 +113,7 @@ public class StrimziBundleManager {
 
     /* test */ public synchronized void handleSubscription(Subscription subscription) {
         if (!this.isInstallPlanApprovalAsManual(subscription)) {
-            log.infof("Subscription %s/%s has InstallPlan approval on 'Automatic'. Skipping approval process.",
+            log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Skipping approval process.",
                     subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
             return;
         }
