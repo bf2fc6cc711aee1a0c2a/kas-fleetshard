@@ -228,7 +228,7 @@ function set_default() {
 }
 
 function download_ocm() {
-    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.51"
+    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.54"
     if [[ "$OSTYPE" == "linux"* ]]; then
         url="${url}/ocm-linux-amd64"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
