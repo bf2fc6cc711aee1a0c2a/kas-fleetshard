@@ -1,0 +1,20 @@
+operator:
+  - operator/**/*
+  - common/**/*
+
+sync:
+  - sync/**/*
+  - common/**/*
+
+github_ci:
+  - .github/**/*
+
+api:
+  - api/**/*
+
+perf:
+  - perf/**/*
+
+test:
+  - systemtest/**/*
+  - test/**/*
