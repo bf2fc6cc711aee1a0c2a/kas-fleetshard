@@ -223,7 +223,7 @@ function print_vars() {
 
 function set_default() {
     if [[ "${VERSION}" == "" ]]; then
-        VERSION=$($OCM list versions | tail -1)
+        VERSION=$($OCM list versions --default)
     fi
 }
 
