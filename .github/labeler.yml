@@ -10,10 +10,10 @@ github_ci:
   - .github/**/*
 
 api:
-  - api/**/**/*
+  - api/**/*
 
 perf:
-  - perf/**/**/*
+  - perf/**/*
 
 test:
   - systemtest/**/*
