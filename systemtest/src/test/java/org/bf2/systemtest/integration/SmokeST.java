@@ -8,10 +8,10 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.systemtest.api.SyncApiClient;
+import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.KeycloakInstance;
-import org.bf2.systemtest.framework.ParallelTest;
+import org.bf2.systemtest.framework.SequentialTest;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.systemtest.framework.TestTags;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
@@ -31,10 +31,11 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Tag(TestTags.SMOKE)
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
     private String syncEndpoint;
-    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
+    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
     private KeycloakInstance keycloak;
     private String latestStrimziVersion;
 
@@ -60,8 +61,7 @@ public class SmokeST extends AbstractST {
                 strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
     }
 
-    @Tag(TestTags.SMOKE)
-    @ParallelTest
+    @SequentialTest
     void testCreateManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);

@@ -10,7 +10,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
-import org.bf2.systemtest.api.SyncApiClient;
+import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ManagedKafkaST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaST.class);
     private String syncEndpoint;
-    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager();
+    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
     private KeycloakInstance keycloak;
     private String latestStrimziVersion;
 
@@ -111,7 +111,7 @@ public class ManagedKafkaST extends AbstractST {
 
         resourceManager.waitResourceCondition(mk, m ->
                         ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
-                        TimeUnit.MINUTES.toMillis(15));
+                TimeUnit.MINUTES.toMillis(15));
 
         AssertUtils.assertManagedKafka(mk);
     }
@@ -139,7 +139,7 @@ public class ManagedKafkaST extends AbstractST {
 
             resourceManager.waitResourceCondition(mk, m ->
                             ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
-                            TimeUnit.MINUTES.toMillis(15));
+                    TimeUnit.MINUTES.toMillis(15));
             LOGGER.info("ManagedKafka {} created", mkAppName);
 
             // wait for the sync to be up-to-date

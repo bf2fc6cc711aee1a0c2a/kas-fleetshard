@@ -1,4 +1,4 @@
-package org.bf2.systemtest.api;
+package org.bf2.systemtest.api.sync;
 
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
@@ -8,6 +8,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.systemtest.framework.ThrowableSupplier;
+import org.bf2.test.TestUtils;
 
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -15,9 +16,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SyncApiClient {
     public static final String BASE_PATH = "/api/kafkas_mgmt/v1/agent-clusters/";
@@ -78,7 +82,26 @@ public class SyncApiClient {
     }
 
     public static String getLatestStrimziVersion(String endpoint) throws Exception {
-        Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+-[0-9]+)$");
+        return getSortedAvailableStrimziVersions(endpoint).reduce((first, second) -> second).orElse(null);
+    }
+
+    public static String getPreviousStrimziVersion(String endpoint) throws Exception {
+        List<String> strimziVersions = getSortedAvailableStrimziVersions(endpoint).collect(Collectors.toList());
+        return strimziVersions.get(strimziVersions.size() - 2);
+    }
+
+    private static Stream<String> getSortedAvailableStrimziVersions(String endpoint) throws Exception {
+        TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
+            try {
+                return Serialization.jsonMapper()
+                        .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
+                        .getStrimzi().size() > 0;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+[-0-9]*)$");
         return Objects.requireNonNull(Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
                 .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted((a, b) -> {
@@ -89,8 +112,7 @@ public class SyncApiClient {
                     ComparableVersion aVersion = new ComparableVersion(aMatcher.group("version"));
                     ComparableVersion bVersion = new ComparableVersion(bMatcher.group("version"));
                     return aVersion.compareTo(bVersion);
-                })
-                .reduce((first, second) -> second).orElse(null));
+                }));
     }
 
     /**

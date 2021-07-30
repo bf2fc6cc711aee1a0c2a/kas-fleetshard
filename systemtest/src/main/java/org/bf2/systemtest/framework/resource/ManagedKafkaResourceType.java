@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.strimzi.api.kafka.KafkaList;
+import io.strimzi.api.kafka.model.Kafka;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -211,5 +213,10 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             LOGGER.info("Pod {} unschedulable {}", p.getMetadata().getName(), c.getMessage());
             throw new UnschedulablePodException(String.format("Unschedulable pod %s : %s", p.getMetadata().getName(), c.getMessage()));
         });
+    }
+
+    public static boolean isDevKafka(ManagedKafka mk) {
+        var kafkacli = KubeClient.getInstance().client().customResources(Kafka.class, KafkaList.class);
+        return kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get().getMetadata().getLabels().containsKey("dev-kafka");
     }
 }

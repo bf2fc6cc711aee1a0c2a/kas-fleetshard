@@ -86,7 +86,7 @@ public class KubeClient {
 
     public void apply(String namespace, InputStream is, Function<HasMetadata, HasMetadata> modifier) throws IOException {
         try (is) {
-            client.load(is).get().stream().forEach(i -> {
+            client.load(is).get().forEach(i -> {
                 HasMetadata h = modifier.apply(i);
                 if (h != null) {
                     client.resource(h).inNamespace(namespace).createOrReplace();

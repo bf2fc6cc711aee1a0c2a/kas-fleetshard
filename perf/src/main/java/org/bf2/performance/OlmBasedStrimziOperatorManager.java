@@ -173,7 +173,7 @@ public class OlmBasedStrimziOperatorManager {
     }
 
     public boolean isOperatorInstalled() {
-        return StrimziOperatorManager.isReady(kubeClient, namespace);
+        return StrimziOperatorManager.isReady(kubeClient, namespace, getCurrentVersion());
     }
 
     public List<String> getVersions() {

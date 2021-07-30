@@ -14,6 +14,7 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.api.github.GithubApiClient;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.SecurityUtils;
@@ -29,8 +30,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -130,5 +133,10 @@ public class SuiteUnitTest extends AbstractST {
         assertEquals("admin", k.getUsername());
         assertEquals("admin", k.getPassword());
         assertNotNull(k.getKeycloakCert());
+    }
+
+    @ParallelTest
+    void testGithubApiClient() throws ExecutionException, InterruptedException {
+        assertNotEquals(0, GithubApiClient.getReleases("strimzi", "strimzi-kafka-operator").length);
     }
 }
