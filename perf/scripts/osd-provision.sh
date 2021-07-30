@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DEFAULT_VERSION="4.7.19"
 MULTI_AZ="true"
 REPO_ROOT="${DIR}/../"
 SED=sed
@@ -28,7 +27,7 @@ function usage() {
         --install-addon ADDON_ID                    install selected addon id
         --set-ingress-controller                    setup ingresscontroller
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
-        --get credentials|api_url|kubeconfig        get data from cluster
+        --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
         --scale-count NUM                           scales the worker count
         --extend-expiration NUM                     extends the cluster expiration by NUM days
         --o|output  FILE                            output for kubeconfig
@@ -44,7 +43,7 @@ function usage() {
         --multi-az                                  aws multi availablility (true | false) (default ${MULTI_AZ})
         --count COUNT                               number of nodes (i.e. 4)
         --wait                                      wait for cluster installation complete
-        --version                                   version of OSD cluster (default ${DEFAULT_VERSION})
+        --version                                   version of OSD cluster (default latest released)
         --aws-access-key AWS_ACCESS_KEY             aws credentials access key
         --aws-secret-access-key AWS_SECRET_ACCESS_KEY  aws credentials secret access key
 
@@ -224,12 +223,12 @@ function print_vars() {
 
 function set_default() {
     if [[ "${VERSION}" == "" ]]; then
-        VERSION=${DEFAULT_VERSION}
+        VERSION=$($OCM list versions --default)
     fi
 }
 
 function download_ocm() {
-    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.42"
+    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.54"
     if [[ "$OSTYPE" == "linux"* ]]; then
         url="${url}/ocm-linux-amd64"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -259,11 +258,18 @@ function wait_for_cluster_install() {
         current=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $8}')
         ver=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $4}')
         echo "Status of cluster ${CLUSTER_NAME} is ${current} and version ${ver}"
+        if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
+            echo "Cluster state is error, stopping script"
+            exit 1
+        fi
         if [[ $current == "ready" ]] && [[ $ver == "NONE" ]]; then
             READY_COUNTER=$((READY_COUNTER+1))
         fi
         if [[ $current == "ready" ]] && ([[ $ver != "NONE" ]] || [ $READY_COUNTER -eq 10 ]); then
             READY="true"
+            cred=$(get_credentials)
+            echo "To connect to cluster use this command"
+            echo "oc login -u $(echo $cred | jq .user | sed -e s/\"//g) -p $(echo $cred | jq .password | sed -e s/\"//g) $(get_api_url)"
         fi
         sleep 120
     done
@@ -333,6 +339,12 @@ function get_credentials() {
     echo $cred
 }
 
+function get_kube_admin_login() {
+
+    cred=$(get_credentials)
+    echo "oc login -u $(echo $cred | jq -r .user) -p $(echo $cred | jq -r .password) $(get_api_url)"
+}
+
 function get_api_url() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
@@ -394,6 +406,8 @@ if [[ "${OPERATION}" == "get" ]]; then
         get_api_url
     elif [ "${DATA_FOR_GET}" == "kubeconfig" ]; then
         generate_kubeconfig
+    elif [ "${DATA_FOR_GET}" == "kube_admin_login" ]; then
+        get_kube_admin_login
     fi
     exit
 fi
