@@ -9,7 +9,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
-import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlan;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -130,16 +129,15 @@ public class StrimziBundleManager {
                 log.infof("Subscription %s/%s waiting for approval", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
 
                 if (subscription.getStatus().getInstallPlanRef() != null) {
-                    InstallPlan installPlan =
-                            this.openShiftClient.operatorHub().installPlans()
-                                    .inNamespace(subscription.getStatus().getInstallPlanRef().getNamespace())
-                                    .withName(subscription.getStatus().getInstallPlanRef().getName())
-                                    .get();
-
                     boolean approved = this.approveInstallation(subscription);
                     if (approved) {
-                        installPlan.getSpec().setApproved(true);
-                        this.openShiftClient.operatorHub().installPlans().inNamespace(installPlan.getMetadata().getNamespace()).createOrReplace(installPlan);
+                        this.openShiftClient.operatorHub().installPlans()
+                                .inNamespace(subscription.getStatus().getInstallPlanRef().getNamespace())
+                                .withName(subscription.getStatus().getInstallPlanRef().getName())
+                                .edit(ip -> {
+                                    ip.getSpec().setApproved(true);
+                                    return ip;
+                                });
                     }
                     this.updateStatus(approved);
                     log.infof("Subscription %s/%s approved = %s", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), approved);
