@@ -56,7 +56,7 @@ public class StrimziManager {
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
     protected String versionLabel;
 
-    private ResourceInformer<Deployment> strimziDeploymentsInformer;
+    private volatile ResourceInformer<Deployment> strimziDeploymentsInformer;
 
     private ResourceInformer<Deployment> createDeploymentInformer(String namespace) {
 
