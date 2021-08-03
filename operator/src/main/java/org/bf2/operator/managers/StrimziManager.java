@@ -58,7 +58,7 @@ public class StrimziManager {
 
     private ResourceInformer<Deployment> strimziDeploymentsInformer;
 
-    private ResourceInformer<Deployment> creteDeploymentInformer(String namespace) {
+    private ResourceInformer<Deployment> createDeploymentInformer(String namespace) {
 
         // this informer will get events for Deployments in the Strimzi operator namespace but
         // it skips the drain cleaner ones.
@@ -134,7 +134,7 @@ public class StrimziManager {
                         if (strimziDeploymentsInformer == null) {
                             Deployment deployment = getDeployment(replicaSet);
                             log.infof("Creating informer for Strimzi operator Deployments in %s namespace", deployment.getMetadata().getNamespace());
-                            strimziDeploymentsInformer = creteDeploymentInformer(deployment.getMetadata().getNamespace());
+                            strimziDeploymentsInformer = createDeploymentInformer(deployment.getMetadata().getNamespace());
                         }
                     }
 
