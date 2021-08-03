@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -55,39 +56,46 @@ public class StrimziManager {
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
     protected String versionLabel;
 
-    @PostConstruct
-    protected void onStart() {
+    private ResourceInformer<Deployment> strimziDeploymentsInformer;
 
-        // checking the ReplicaSet instead of Deployments is a temporary workaround waiting for OpenShift 4.8 (with OLM operator 1.18.0)
-        // OLM operator 1.17.0 (on OpenShift 4.7) doesn't support feature to set labels on Deployments from inside the CSV
-        // OLM operator 1.18.0 (on OpenShift 4.8) support the above feature
-        this.resourceInformerFactory.create(ReplicaSet.class,
-                this.kubernetesClient.apps().replicaSets().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
-                new ResourceEventHandler<ReplicaSet>() {
-                    @Override
-                    public void onAdd(ReplicaSet replicaSet) {
-                        log.debugf("Add event received for ReplicaSet %s/%s",
-                                replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
-                        updateStrimziVersion(getDeployment(replicaSet));
-                        updateStatus();
-                    }
+    private ResourceInformer<Deployment> creteDeploymentInformer(String namespace) {
 
+        // this informer will get events for Deployments in the Strimzi operator namespace but
+        // it skips the drain cleaner ones.
+        // This is still a workaround related to the need for Deployments (in CSV) labeling in OSD 4.8
+        return this.resourceInformerFactory.create(Deployment.class,
+                this.kubernetesClient.apps().deployments().inNamespace(namespace),
+                new ResourceEventHandler<Deployment>() {
                     @Override
-                    public void onUpdate(ReplicaSet oldReplicaSet, ReplicaSet newReplicaSet) {
-                        log.debugf("Update event received for ReplicaSet %s/%s",
-                                newReplicaSet.getMetadata().getNamespace(), newReplicaSet.getMetadata().getName());
-                        if (Readiness.isReplicaSetReady(newReplicaSet) ^ Readiness.isReplicaSetReady(oldReplicaSet)) {
-                            updateStrimziVersion(getDeployment(newReplicaSet));
+                    public void onAdd(Deployment deployment) {
+                        if (isStrimziDeployment(deployment)) {
+                            log.debugf("Add event received for Deployment %s/%s",
+                                    deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+                            updateStrimziVersion(deployment);
                             updateStatus();
                         }
                     }
 
                     @Override
-                    public void onDelete(ReplicaSet replicaSet, boolean deletedFinalStateUnknown) {
-                        log.debugf("Delete event received for ReplicaSet %s/%s",
-                                replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
-                        deleteStrimziVersion(replicaSet);
-                        updateStatus();
+                    public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
+                        if (isStrimziDeployment(newDeployment)) {
+                            log.debugf("Update event received for Deployment %s/%s",
+                                    newDeployment.getMetadata().getNamespace(), newDeployment.getMetadata().getName());
+                            if (Readiness.isDeploymentReady(newDeployment) ^ Readiness.isDeploymentReady(oldDeployment)) {
+                                updateStrimziVersion(newDeployment);
+                                updateStatus();
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
+                        if (isStrimziDeployment(deployment)) {
+                            log.debugf("Delete event received for Deployment %s/%s",
+                                    deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
+                            deleteStrimziVersion(deployment);
+                            updateStatus();
+                        }
                     }
 
                     private void updateStatus() {
@@ -101,6 +109,43 @@ public class StrimziManager {
                         if (!getStrimziVersions().isEmpty()) {
                             informerManager.createKafkaInformer();
                         }
+                    }
+
+                    private boolean isStrimziDeployment(Deployment deployment) {
+                        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
+                    }
+                });
+    }
+
+    @PostConstruct
+    protected void onStart() {
+
+        // checking the ReplicaSet instead of Deployments is a temporary workaround waiting for OpenShift 4.8 (with OLM operator 1.18.0)
+        // OLM operator 1.17.0 (on OpenShift 4.7) doesn't support feature to set labels on Deployments from inside the CSV
+        // OLM operator 1.18.0 (on OpenShift 4.8) support the above feature
+        this.resourceInformerFactory.create(ReplicaSet.class,
+                this.kubernetesClient.apps().replicaSets().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                new ResourceEventHandler<ReplicaSet>() {
+                    @Override
+                    public void onAdd(ReplicaSet replicaSet) {
+                        log.debugf("Add event received for ReplicaSet %s/%s",
+                                replicaSet.getMetadata().getNamespace(), replicaSet.getMetadata().getName());
+                        // as the first Strimzi related ReplicaSets is added, create an informer for the Strimzi Deployments to watch
+                        if (strimziDeploymentsInformer == null) {
+                            Deployment deployment = getDeployment(replicaSet);
+                            log.infof("Creating informer for Strimzi operator Deployments in %s namespace", deployment.getMetadata().getNamespace());
+                            strimziDeploymentsInformer = creteDeploymentInformer(deployment.getMetadata().getNamespace());
+                        }
+                    }
+
+                    @Override
+                    public void onUpdate(ReplicaSet oldReplicaSet, ReplicaSet newReplicaSet) {
+                        // nothing to do
+                    }
+
+                    @Override
+                    public void onDelete(ReplicaSet replicaSet, boolean deletedFinalStateUnknown) {
+                        // nothing to do
                     }
 
                     private Deployment getDeployment(ReplicaSet replicaSet) {
@@ -123,8 +168,8 @@ public class StrimziManager {
                         .build());
     }
 
-    /* test */ public void deleteStrimziVersion(ReplicaSet replicaSet) {
-        this.strimziVersions.remove(replicaSet.getMetadata().getOwnerReferences().get(0).getName());
+    /* test */ public void deleteStrimziVersion(Deployment deployment) {
+        this.strimziVersions.remove(deployment.getMetadata().getName());
     }
 
     /**
