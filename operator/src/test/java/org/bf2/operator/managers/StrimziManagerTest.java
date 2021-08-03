@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
 import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -245,14 +246,14 @@ public class StrimziManagerTest {
      * @param namespace namespace where the Strimzi operator is installed
      */
     private void uninstallStrimziOperator(String name, String namespace) {
-        ReplicaSet rs = this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").get();
-        this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset").delete();
-        this.server.getClient().apps().deployments().inNamespace(namespace).withName(name).delete();
-
-        // only if "discoverable" was added to the strimzi manager list
-        if (rs.getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
-            this.strimziManager.deleteStrimziVersion(rs);
+        Resource<ReplicaSet> rsResource = this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset");
+        Resource<Deployment> depResource = this.server.getClient().apps().deployments().inNamespace(namespace).withName(name);
+        // only if "discoverable" was added to the Strimzi manager list
+        if (rsResource.get().getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
+            this.strimziManager.deleteStrimziVersion(depResource.get());
         }
+        rsResource.delete();
+        depResource.delete();
     }
 
     /**
