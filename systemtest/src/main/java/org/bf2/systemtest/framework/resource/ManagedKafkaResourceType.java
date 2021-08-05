@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -125,8 +126,21 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         final String tlsCert;
         final String tlsKey;
 
+        String hostDomain = SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN;
+        if (!KubeClient.getInstance().isGenericKubernetes()) {
+            OpenShiftClient cli = KubeClient.getInstance().client().adapt(OpenShiftClient.class);
+            hostDomain = Optional.ofNullable(
+                            cli.operator().ingressControllers()
+                                    .inNamespace("openshift-ingress-operator")
+                                    .withName("sharded").get())
+                    .orElse(cli.operator().ingressControllers()
+                            .inNamespace("openshift-ingress-operator")
+                            .withName("default").get())
+                    .getStatus().getDomain();
+        }
+
         if (SystemTestEnvironment.DUMMY_CERT.equals(SystemTestEnvironment.ENDPOINT_TLS_CERT)) {
-            SecurityUtils.TlsConfig tlsConfig = SecurityUtils.getTLSConfig(SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN);
+            SecurityUtils.TlsConfig tlsConfig = SecurityUtils.getTLSConfig(hostDomain);
             tlsCert = tlsConfig.getCert();
             tlsKey = tlsConfig.getKey();
         } else {
@@ -171,7 +185,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
         return ManagedKafka.getDefault(appName,
                 namespace,
-                SystemTestEnvironment.BOOTSTRAP_HOST_DOMAIN,
+                hostDomain,
                 tlsCert,
                 tlsKey,
                 oauthClientId,
