@@ -25,6 +25,7 @@ function usage() {
     Option
         --set-storageclass                          change storageclass to unencrypted esb
         --install-addon ADDON_ID                    install selected addon id
+        --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
@@ -71,6 +72,12 @@ function usage() {
 
         Install addon
             ./scripts/osd-provision.sh --install-addon managed-kafka --name cluster-name
+
+        Remove addon
+            ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
+
+        Extend expiration date (for example 3 more days)
+            ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
     "
 }
 
@@ -94,6 +101,12 @@ while [[ $# -gt 0 ]]; do
         ;;
     --install-addon)
         OPERATION="install-addon"
+        ADDON_ID="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --remove-addon)
+        OPERATION="remove-addon"
         ADDON_ID="$2"
         shift # past argument
         shift # past value
@@ -363,6 +376,16 @@ function install_addon() {
     $OCM post "/api/clusters_mgmt/v1/clusters/${id}/addons" --body "${REPO_ROOT}/addon-${name}.json"
 }
 
+function remove_addon() {
+    name="${1}"
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    id=$(get_cluster_id $CLUSTER_NAME)
+    build_addon_template "$name"
+    $OCM delete "/api/clusters_mgmt/v1/clusters/${id}/addons/${name}"
+}
+
 function generate_kubeconfig() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
@@ -460,6 +483,12 @@ fi
 if [[ "${OPERATION}" == "install-addon" ]]; then
     echo "Installing addon ${ADDON_ID}"
     install_addon "$ADDON_ID"
+    exit
+fi
+
+if [[ "${OPERATION}" == "remove-addon" ]]; then
+    echo "Removing addon ${ADDON_ID}"
+    remove_addon "$ADDON_ID"
     exit
 fi
 
