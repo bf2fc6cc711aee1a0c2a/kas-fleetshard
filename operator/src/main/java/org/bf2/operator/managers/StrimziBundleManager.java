@@ -8,7 +8,10 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.CSVDescription;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageChannel;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -203,7 +206,19 @@ public class StrimziBundleManager {
     }
 
     private List<String> strimziVersionsFromPackageManifest(PackageManifest packageManifest) {
-        String strimziVersionsJson = packageManifest.getStatus().getChannels().get(0).getCurrentCSVDesc().getAnnotations().get("strimziVersions");
+        // avoiding the nullability of one of the status fields along the chain due to Kubernetes not updating
+        // the PackageManifest on time when the fleetshard operator starts to take care of the approval
+        // This way avoid a race condition raising an NPE
+        String strimziVersionsJson =
+                Optional.ofNullable(packageManifest)
+                        .map(PackageManifest::getStatus)
+                        .map(PackageManifestStatus::getChannels)
+                        .map(packageChannels -> !packageChannels.isEmpty() ? packageChannels.get(0) : null)
+                        .map(PackageChannel::getCurrentCSVDesc)
+                        .map(CSVDescription::getAnnotations)
+                        .map(annotations -> annotations.get("strimziVersions"))
+                        .orElse(null);
+
         ObjectMapper mapper = new ObjectMapper();
         List<String> strimziVersions = new ArrayList<>();
         try {

@@ -13,6 +13,8 @@ import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageChannelBuilder;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestBuilder;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatusBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlan;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlanBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
@@ -151,6 +153,74 @@ public class StrimziBundleManagerTest {
         this.checkInstallPlan(subscription, true);
     }
 
+    @Test
+    public void testPackageManifestWithoutStatus() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+
+        // overwrite the PackaheManifest with a "bad" one, completely missing the status
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", null);
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved
+        this.checkInstallPlan(subscription, false);
+    }
+
+    @Test
+    public void testPackageManifestWithoutChannels() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+
+        // overwrite the PackaheManifest with a "bad" one, completely missing the channel with the CSV description
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", new PackageManifestStatusBuilder().build());
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved
+        this.checkInstallPlan(subscription, false);
+    }
+
+    @Test
+    public void testPackageManifestWithoutCurrentCSVDesc() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+
+        // overwrite the PackaheManifest with a "bad" one, completely missing the CSV description
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
+                new PackageManifestStatusBuilder()
+                        .withChannels(new PackageChannelBuilder().build())
+                        .build()
+        );
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved
+        this.checkInstallPlan(subscription, false);
+    }
+
+    @Test
+    public void testPackageManifestWithoutCurrentCSVDescAnnotations() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+
+        // overwrite the PackaheManifest with a "bad" one, missing the annotations with Strimzi versions in the CSV description
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
+                new PackageManifestStatusBuilder()
+                        .withChannels(
+                                new PackageChannelBuilder()
+                                        .withNewCurrentCSVDesc()
+                                        .endCurrentCSVDesc()
+                                        .build())
+                        .build()
+        );
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was not approved
+        this.checkInstallPlan(subscription, false);
+    }
+
     /**
      * Install or update a Strimzi bundle, creating/updating the corresponding resources
      * like Subscription, InstallPlan and PackageManifest
@@ -192,21 +262,29 @@ public class StrimziBundleManagerTest {
         assertEquals(approved, installPlan.getSpec().getApproved());
     }
 
-    private PackageManifest createOrUpdatePackageManifest(String namespace, String name, String jsonStrimziVersions) {
-        PackageManifest packageManifest = new PackageManifestBuilder()
+    private PackageManifest createPackageManifestWithStatus(String namespace, String name, PackageManifestStatus status) {
+        PackageManifestBuilder packageManifestBuilder = new PackageManifestBuilder()
                 .withNewMetadata()
                     .withName(name)
                     .withNamespace(namespace)
-                .endMetadata()
-                .withNewStatus()
-                    .withChannels(
-                            new PackageChannelBuilder()
-                                    .withNewCurrentCSVDesc()
-                                        .withAnnotations(Map.of("strimziVersions", jsonStrimziVersions))
-                                    .endCurrentCSVDesc()
-                                    .build())
-                    .endStatus()
-                .build();
+                .endMetadata();
+        if (status != null) {
+            packageManifestBuilder.withStatus(status);
+        }
+        return packageManifestBuilder.build();
+    }
+
+    private PackageManifest createOrUpdatePackageManifest(String namespace, String name, String jsonStrimziVersions) {
+        PackageManifest packageManifest = this.createPackageManifestWithStatus(namespace, name,
+                new PackageManifestStatusBuilder()
+                        .withChannels(
+                                new PackageChannelBuilder()
+                                        .withNewCurrentCSVDesc()
+                                            .withAnnotations(Map.of("strimziVersions", jsonStrimziVersions))
+                                        .endCurrentCSVDesc()
+                                        .build())
+                        .build()
+        );
 
         this.packageManifestClient.inNamespace(namespace).createOrReplace(packageManifest);
         return packageManifest;
