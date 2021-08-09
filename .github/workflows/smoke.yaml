@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
+        if: github.event_name == 'pull_request'
         uses: styfle/cancel-workflow-action@0.9.1
 
       - name: Checkout
