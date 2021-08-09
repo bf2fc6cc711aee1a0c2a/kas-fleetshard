@@ -131,9 +131,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
-        if (Status.True.equals(readiness.getStatus()) && !Reason.StrimziUpdating.equals(readiness.getReason())) {
+        if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            if (!Reason.StrimziUpdating.equals(readiness.getReason())) {
+                status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            } else {
+                // just keep the current version
+            }
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
         }
     }
