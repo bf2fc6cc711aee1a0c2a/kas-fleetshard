@@ -75,7 +75,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isStrimziUpdating(ManagedKafka managedKafka) {
-        Kafka kafka =  cachedKafka(managedKafka);
+        Kafka kafka = cachedKafka(managedKafka);
         String pauseReason = kafka.getMetadata().getAnnotations() != null ?
                 kafka.getMetadata().getAnnotations().get(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION) : null;
         return ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase().equals(pauseReason) &&
@@ -217,8 +217,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         if(!managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
             listenerConfigBuilder
-                .withMaxConnections(totalMaxConnections)
-                .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
+                    .withMaxConnections(totalMaxConnections)
+                    .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
         }
 
         return new ArrayOrObjectKafkaListenersBuilder()

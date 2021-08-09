@@ -14,6 +14,8 @@ import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.bf2.systemtest.api.github.GithubApiClient;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.k8s.KubeClient;
@@ -21,13 +23,16 @@ import org.bf2.test.k8s.KubeClient;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * Installator of strimzi operator using upstream strimzi
@@ -42,12 +47,18 @@ public class StrimziOperatorManager {
 
     private final List<Consumer<Void>> clusterWideResourceDeleters = new LinkedList<>();
     protected String operatorNs = OPERATOR_NS;
-    protected String version = SystemTestEnvironment.STRIMZI_VERSION;
+    protected String version;
+
+    public StrimziOperatorManager(String version) {
+        this.version = version;
+    }
 
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
-        if (kubeClient.client().apiextensions().v1beta1().customResourceDefinitions().withLabel("app", "strimzi").list().getItems().size() == 0 ||
-                kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX))) {
+        if (kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
+                .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version)) &&
+                kubeClient.client().pods().inAnyNamespace().list().getItems().stream()
+                        .noneMatch(pod -> pod.getMetadata().getName().contains(DEPLOYMENT_PREFIX) &&
+                                !pod.getMetadata().getLabels().containsKey("installed-by-testsuite"))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
@@ -55,7 +66,7 @@ public class StrimziOperatorManager {
     }
 
     protected CompletableFuture<Void> doInstall(KubeClient kubeClient) throws IOException {
-        LOGGER.info("Installing Strimzi : {}", operatorNs);
+        LOGGER.info("Installing Strimzi : {} version: {}", operatorNs, version);
 
         Namespace namespace = new NamespaceBuilder().withNewMetadata().withName(operatorNs).endMetadata().build();
         kubeClient.client().namespaces().createOrReplace(namespace);
@@ -101,13 +112,12 @@ public class StrimziOperatorManager {
 
         LOGGER.info("Done installing Strimzi : {}", operatorNs);
         return TestUtils.asyncWaitFor("Strimzi operator ready", 1_000, FleetShardOperatorManager.INSTALL_TIMEOUT_MS, () ->
-                isReady(kubeClient, operatorNs));
+                isReady(kubeClient, operatorNs, version));
     }
 
-    public static boolean isReady(KubeClient kubeClient, String namespace) {
-        // TODO should be version specific
+    public static boolean isReady(KubeClient kubeClient, String namespace, String version) {
         return kubeClient.client().apps().deployments().inNamespace(namespace).list().getItems().stream()
-                .anyMatch(dep -> dep.getMetadata().getName().contains(DEPLOYMENT_PREFIX) && Readiness.isDeploymentReady(dep));
+                .anyMatch(dep -> dep.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version) && Readiness.isDeploymentReady(dep));
     }
 
     protected void modifyDeployment(Deployment deployment) {
@@ -115,6 +125,7 @@ public class StrimziOperatorManager {
         deployment.getMetadata().setName(deploymentName);
         Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
         labels.put("app.kubernetes.io/part-of", "managed-kafka");
+        labels.put("installed-by-testsuite", "true");
         deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
@@ -131,6 +142,7 @@ public class StrimziOperatorManager {
             LOGGER.info("Deleting Strimzi : {}", operatorNs);
             kubeClient.client().namespaces().withName(operatorNs).delete();
             clusterWideResourceDeleters.forEach(delete -> delete.accept(null));
+            kubeClient.client().apiextensions().v1().customResourceDefinitions().withLabel("app", "strimzi").delete();
             return TestUtils.asyncWaitFor("Delete strimzi", 2_000, FleetShardOperatorManager.DELETE_TIMEOUT_MS, () ->
                     kubeClient.client().pods().inNamespace(operatorNs).list().getItems().stream().noneMatch(pod ->
                             pod.getMetadata().getName().contains("strimzi-cluster-operator")) &&
@@ -144,5 +156,18 @@ public class StrimziOperatorManager {
     public static List<Pod> getStrimziOperatorPods() {
         return KubeClient.getInstance().client().pods().inAnyNamespace()
                 .withLabel("name", "strimzi-cluster-operator").list().getItems();
+    }
+
+    public static String getPreviousStrimziVersion(String actualVersion) throws InterruptedException, ExecutionException {
+        List<String> sortedReleases = Arrays.stream(GithubApiClient.getReleases("strimzi", "strimzi-kafka-operator"))
+                .filter(a -> !(a.prerelease || a.draft))
+                .sorted((a, b) -> {
+                    ComparableVersion aVersion = new ComparableVersion(a.name);
+                    ComparableVersion bVersion = new ComparableVersion(b.name);
+                    return aVersion.compareTo(bVersion);
+                })
+                .map(a -> a.name)
+                .collect(Collectors.toList());
+        return sortedReleases.get(sortedReleases.indexOf(actualVersion) - 1);
     }
 }

@@ -1,5 +1,15 @@
 <FindBugsFilter>
-<Match>
-  <Source name="~.*FluentImpl.*"/>
-</Match>
+    <Match>
+        <Source name="~.*FluentImpl.*"/>
+    </Match>
+    <Match>
+        <Bug pattern="NP_UNWRITTEN_PUBLIC_OR_PROTECTED_FIELD"/>
+        <Or>
+            <Class name="org.bf2.systemtest.api.github.GithubApiClient"/>
+            <Class name="org.bf2.systemtest.operator.StrimziOperatorManager"/>
+        </Or>
+    </Match>
+    <Match>
+        <Class name="org.bf2.systemtest.api.github.Release"/>
+    </Match>
 </FindBugsFilter>

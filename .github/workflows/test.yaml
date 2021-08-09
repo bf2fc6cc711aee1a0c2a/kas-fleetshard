@@ -37,9 +37,7 @@ jobs:
 
       - name: Run test
         run: |
-          mvn verify -P systemtest -pl systemtest -am --no-transfer-progress \
-            -Djunit.jupiter.execution.parallel.enabled=true \
-            -Djunit.jupiter.execution.parallel.config.fixed.parallelism=2
+          mvn verify -P systemtest -pl systemtest -am --no-transfer-progress
 
       - name: Archive results
         uses: actions/upload-artifact@v2
