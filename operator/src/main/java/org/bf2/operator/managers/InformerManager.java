@@ -19,6 +19,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.events.ResourceEventSource;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -26,6 +27,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Startup
@@ -39,10 +41,16 @@ public class InformerManager {
     KubernetesClient kubernetesClient;
 
     @Inject
+    OpenShiftClient openShiftClient;
+
+    @Inject
     ResourceEventSource eventSource;
 
     @Inject
     ResourceInformerFactory resourceInformerFactory;
+
+    @ConfigProperty(name = "kafka")
+    Optional<String> kafkaProperty;
 
     private volatile ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
@@ -51,9 +59,8 @@ public class InformerManager {
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
 
-
     boolean isOpenShift() {
-        return kubernetesClient.isAdaptable(OpenShiftClient.class);
+        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
     }
 
     @PostConstruct
@@ -67,7 +74,7 @@ public class InformerManager {
         secretInformer = resourceInformerFactory.create(Secret.class, filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
+            routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftClient.routes()), eventSource);
         }
     }
 

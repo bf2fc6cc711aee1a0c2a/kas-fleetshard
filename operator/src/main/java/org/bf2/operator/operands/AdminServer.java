@@ -31,7 +31,6 @@ import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
-import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -42,7 +41,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.event.Observes;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
@@ -86,6 +84,10 @@ public class AdminServer extends AbstractAdminServer {
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
+    @ConfigProperty(name = "kafka")
+    Optional<String> kafkaProperty;
+
+    @Inject
     OpenShiftClient openShiftClient;
 
     @Inject
@@ -97,17 +99,11 @@ public class AdminServer extends AbstractAdminServer {
     @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
-    void onStart(@Observes StartupEvent ev) {
-        if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
-            openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
-        }
-    }
-
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         super.createOrUpdate(managedKafka);
 
-        if (openShiftClient != null) {
+        if (isOpenShift()) {
             Route currentRoute = cachedRoute(managedKafka);
             Route route = routeFrom(managedKafka, currentRoute);
 
@@ -119,7 +115,7 @@ public class AdminServer extends AbstractAdminServer {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         super.delete(managedKafka, context);
 
-        if (openShiftClient != null) {
+        if (isOpenShift()) {
             adminRouteResource(managedKafka).delete();
         }
     }
@@ -406,7 +402,7 @@ public class AdminServer extends AbstractAdminServer {
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
-        if (openShiftClient != null) {
+        if (isOpenShift()) {
             isDeleted = isDeleted && cachedRoute(managedKafka) == null;
         }
         log.tracef("Admin Server isDeleted = %s", isDeleted);
@@ -428,4 +424,10 @@ public class AdminServer extends AbstractAdminServer {
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));
     }
+
+
+    boolean isOpenShift() {
+        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
+    }
+
 }

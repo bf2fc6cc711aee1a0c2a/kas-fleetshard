@@ -1,7 +1,6 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
 import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
@@ -61,6 +60,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @ConfigProperty(name = "image.zookeeper")
     protected Optional<String> zookeeperImage;
+
+    @ConfigProperty(name = "kafka")
+    Optional<String> kafkaProperty;
 
     @Inject
     protected KafkaInstanceConfiguration config;
@@ -199,7 +201,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             oauthAuthenticationListener = oauthAuthenticationListenerBuilder.build();
         }
 
-        KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
+        KafkaListenerType externalListenerType = isOpenShift() ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
         Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections())/this.config.getKafka().getReplicas();
@@ -289,4 +291,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withCertificate("keycloak.crt")
                 .build();
     }
+
+
+    protected boolean isOpenShift() {
+        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
+    }
+
 }

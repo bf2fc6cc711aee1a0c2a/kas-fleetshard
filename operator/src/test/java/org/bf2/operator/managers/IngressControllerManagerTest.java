@@ -2,17 +2,35 @@ package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.OperandUtils;
+import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,4 +73,100 @@ public class IngressControllerManagerTest {
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         assertEquals(4, ingressControllers.size(), "Expected 4 IngressControllers: one per zone, and one multi-zone");
     }
+
+    @Test
+    public void testGetManagedKafkaRoutesFor() {
+        final String mkName = "my-managedkafka";
+        ManagedKafka mk = new ManagedKafkaBuilder()
+                .withMetadata(new ObjectMetaBuilder().withName(mkName).withNamespace(mkName).build())
+                .withSpec(new ManagedKafkaSpecBuilder()
+                        .withNewEndpoint()
+                        .withBootstrapServerHost("bs.bf2.example.tld")
+                        .endEndpoint()
+                        .build())
+                .build();
+
+        final Function<? super String, ? extends Route> makeRoute = broker -> new RouteBuilder()
+                .editOrNewMetadata()
+                .withName(mkName + "-" + broker.replace("broker", "kafka"))
+                .withNamespace(mkName)
+                .addNewOwnerReference().withApiVersion(Kafka.V1BETA2).withKind(Kafka.RESOURCE_KIND).withName(AbstractKafkaCluster.kafkaClusterName(mk)).endOwnerReference()
+                .endMetadata()
+                .editOrNewSpec()
+                .withHost(broker + "-bs.bf2.example.tld")
+                .withTo(new RouteTargetReferenceBuilder().withNewKind("Service")
+                        .withName(mkName + "-" + broker)
+                        .withWeight(100)
+                        .build())
+                .endSpec()
+                .build();
+
+        final Function<? super String, ? extends Service> suffixToService = suffix -> new ServiceBuilder()
+                .editOrNewMetadata()
+                .withName(mkName + "-" + suffix)
+                .withNamespace(mkName)
+                .endMetadata()
+                .editOrNewSpec()
+                .withSelector(Map.of("dummy-label", mkName + "-" + suffix))
+                .endSpec()
+                .build();
+
+        final Function<? super String, ? extends Pod> suffixToPod = suffix -> new PodBuilder()
+                .editOrNewMetadata()
+                .withName(mkName + "-" + suffix)
+                .withNamespace(mkName)
+                .addToLabels(Map.of("dummy-label", mkName + "-" + suffix, "app.kubernetes.io/name", "kafka",
+                        OperandUtils.MANAGED_BY_LABEL, OperandUtils.STRIMZI_OPERATOR_NAME))
+                .endMetadata()
+                .editOrNewSpec()
+                .withNewNodeName("zone" + "-" + suffix)
+                .endSpec()
+                .build();
+
+        final Function<? super String, ? extends Node> suffixToNode = suffix -> new NodeBuilder()
+                .editOrNewMetadata()
+                .withName("zone" + "-" + suffix)
+                .withLabels(Map.of(IngressControllerManager.TOPOLOGY_KEY, "zone" + "-" + suffix,
+                        IngressControllerManager.WORKER_NODE_LABEL, "true"))
+                .endMetadata()
+                .build();
+
+        List<String> suffixes = List.of("broker-0", "broker-1", "broker-2");
+
+        suffixes.stream().map(makeRoute).forEach(route -> openShiftClient.routes().inNamespace(mkName).createOrReplace(route));
+        suffixes.stream().map(suffixToService).forEach(svc -> openShiftClient.services().inNamespace(mkName).createOrReplace(svc));
+        suffixes.stream().map(suffixToPod).forEach(pod -> openShiftClient.pods().inNamespace(mkName).createOrReplace(pod));
+        suffixes.stream().map(suffixToNode).forEach(node -> openShiftClient.nodes().createOrReplace(node));
+
+        ingressControllerManager.reconcileIngressControllers();
+        List<ManagedKafkaRoute> managedKafkaRoutes = ingressControllerManager.getManagedKafkaRoutesFor(mk);
+
+        assertEquals(5, managedKafkaRoutes.size());
+
+        assertEquals(
+                managedKafkaRoutes.stream().sorted(Comparator.comparing(ManagedKafkaRoute::getName)).collect(Collectors.toList()),
+                managedKafkaRoutes,
+                "Expected list of ManagedKafkaRoutes to be sorted by name");
+
+        assertEquals("admin-server", managedKafkaRoutes.get(0).getName());
+        assertEquals("admin-server", managedKafkaRoutes.get(0).getPrefix());
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(0).getRouter());
+
+        assertEquals("bootstrap", managedKafkaRoutes.get(1).getName());
+        assertEquals("", managedKafkaRoutes.get(1).getPrefix());
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(1).getRouter());
+
+        assertEquals("broker-0", managedKafkaRoutes.get(2).getName());
+        assertEquals("broker-0", managedKafkaRoutes.get(2).getPrefix());
+        assertEquals("ingresscontroller.kas-zone-broker-0.testing.domain.tld", managedKafkaRoutes.get(2).getRouter());
+
+        assertEquals("broker-1", managedKafkaRoutes.get(3).getName());
+        assertEquals("broker-1", managedKafkaRoutes.get(3).getPrefix());
+        assertEquals("ingresscontroller.kas-zone-broker-1.testing.domain.tld", managedKafkaRoutes.get(3).getRouter());
+
+        assertEquals("broker-2", managedKafkaRoutes.get(4).getName());
+        assertEquals("broker-2", managedKafkaRoutes.get(4).getPrefix());
+        assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
+    }
+
 }

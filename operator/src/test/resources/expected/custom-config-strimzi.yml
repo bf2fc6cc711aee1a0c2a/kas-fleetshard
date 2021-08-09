@@ -45,7 +45,7 @@ spec:
         type: "oauth"
     - name: "external"
       port: 9094
-      type: "ingress"
+      type: "route"
       tls: true
       authentication: !<oauth>
         clientId: "clientId"
