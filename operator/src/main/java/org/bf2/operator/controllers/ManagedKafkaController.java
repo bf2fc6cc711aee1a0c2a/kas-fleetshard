@@ -16,6 +16,7 @@ import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
@@ -132,7 +133,11 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            if (!Reason.StrimziUpdating.equals(readiness.getReason())) {
+                status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
+            } else {
+                // just keep the current version
+            }
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
         }
     }
