@@ -78,6 +78,12 @@ function usage() {
 
         Extend expiration date (for example 3 more days)
             ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
+
+        Hibernate cluster
+            ./scripts/osd-provision.sh --hibernate --name cluster-name
+
+        Resume cluster
+            ./scripts/osd-provision.sh --resume --name cluster-name
     "
 }
 
@@ -97,6 +103,14 @@ while [[ $# -gt 0 ]]; do
         ;;
     --create)
         OPERATION="create"
+        shift # past argument
+        ;;
+    --hibernate)
+        OPERATION="hibernate"
+        shift # past argument
+        ;;
+    --resume)
+        OPERATION="resume"
         shift # past argument
         ;;
     --install-addon)
@@ -480,9 +494,21 @@ if [[ "${OPERATION}" == "scale-count" ]]; then
     exit
 fi
 
-if [[ "${OPERATION}" == "install-addon" ]]; then
-    echo "Installing addon ${ADDON_ID}"
-    install_addon "$ADDON_ID"
+if [[ "${OPERATION}" == "hibernate" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+          CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Hibernate cluster ${CLUSTER_NAME}"
+    $OCM hibernate cluster "$(get_cluster_id $CLUSTER_NAME)"
+    exit
+fi
+
+if [[ "${OPERATION}" == "resume" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+          CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Resume cluster ${CLUSTER_NAME}"
+    $OCM resume cluster "$(get_cluster_id $CLUSTER_NAME)"
     exit
 fi
 
