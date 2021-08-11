@@ -512,6 +512,12 @@ if [[ "${OPERATION}" == "resume" ]]; then
     exit
 fi
 
+if [[ "${OPERATION}" == "install-addon" ]]; then
+    echo "Installing addon ${ADDON_ID}"
+    install_addon "$ADDON_ID"
+    exit
+fi
+
 if [[ "${OPERATION}" == "remove-addon" ]]; then
     echo "Removing addon ${ADDON_ID}"
     remove_addon "$ADDON_ID"
