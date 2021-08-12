@@ -54,11 +54,9 @@ public class StrimziOperatorManager {
     }
 
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
-        if (kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version)) &&
-                kubeClient.client().pods().inAnyNamespace().list().getItems().stream()
-                        .noneMatch(pod -> pod.getMetadata().getName().contains(DEPLOYMENT_PREFIX) &&
-                                !pod.getMetadata().getLabels().containsKey("installed-by-testsuite"))) {
+        if (!isNotTestSuiteStrimziOperatorInstalled(kubeClient) &&
+                kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version))) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
@@ -155,19 +153,27 @@ public class StrimziOperatorManager {
 
     public static List<Pod> getStrimziOperatorPods() {
         return KubeClient.getInstance().client().pods().inAnyNamespace()
-                .withLabel("name", "strimzi-cluster-operator").list().getItems();
+                .withLabel("name", DEPLOYMENT_PREFIX).list().getItems();
     }
 
-    public static String getPreviousStrimziVersion(String actualVersion) throws InterruptedException, ExecutionException {
-        List<String> sortedReleases = Arrays.stream(GithubApiClient.getReleases("strimzi", "strimzi-kafka-operator"))
-                .filter(a -> !(a.prerelease || a.draft))
-                .sorted((a, b) -> {
-                    ComparableVersion aVersion = new ComparableVersion(a.name);
-                    ComparableVersion bVersion = new ComparableVersion(b.name);
-                    return aVersion.compareTo(bVersion);
-                })
-                .map(a -> a.name)
-                .collect(Collectors.toList());
-        return sortedReleases.get(sortedReleases.indexOf(actualVersion) - 1);
+    public static String getPreviousUpstreamStrimziVersion(String actualVersion) throws InterruptedException, ExecutionException {
+        if (!isNotTestSuiteStrimziOperatorInstalled(KubeClient.getInstance())) {
+            List<String> sortedReleases = Arrays.stream(GithubApiClient.getReleases("strimzi", "strimzi-kafka-operator"))
+                    .filter(a -> !(a.prerelease || a.draft))
+                    .sorted((a, b) -> {
+                        ComparableVersion aVersion = new ComparableVersion(a.name);
+                        ComparableVersion bVersion = new ComparableVersion(b.name);
+                        return aVersion.compareTo(bVersion);
+                    })
+                    .map(a -> a.name)
+                    .collect(Collectors.toList());
+            return sortedReleases.get(sortedReleases.indexOf(actualVersion) - 1);
+        }
+        return "";
+    }
+
+    public static boolean isNotTestSuiteStrimziOperatorInstalled(KubeClient kubeClient) {
+        return getStrimziOperatorPods().size() > 0 && kubeClient.client().pods().inAnyNamespace().list().getItems().stream()
+                .noneMatch(pod -> pod.getMetadata().getName().contains(DEPLOYMENT_PREFIX) && pod.getMetadata().getLabels().containsKey("installed-by-testsuite"));
     }
 }

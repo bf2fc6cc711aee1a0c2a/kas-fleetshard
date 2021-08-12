@@ -38,7 +38,7 @@ public class UpgradeST extends AbstractST {
     @BeforeAll
     void deploy() throws Exception {
         strimziOperatorManagerOld = new StrimziOperatorManager(
-                StrimziOperatorManager.getPreviousStrimziVersion(SystemTestEnvironment.STRIMZI_VERSION));
+                StrimziOperatorManager.getPreviousUpstreamStrimziVersion(SystemTestEnvironment.STRIMZI_VERSION));
         strimziOperatorManagerNew = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
         CompletableFuture.allOf(
                 KeycloakOperatorManager.installKeycloak(kube),
