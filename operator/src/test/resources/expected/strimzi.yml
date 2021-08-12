@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
-    managedkafka.bf2.org/strimziVersion: "0.23.0-0"
+    managedkafka.bf2.org/strimziVersion: "0.23.0-2"
     managedkafka.bf2.org/kas-multi-zone: "true"
     managedkafka.bf2.org/kas-zone0: "true"
     managedkafka.bf2.org/kas-zone1: "true"
@@ -106,7 +106,7 @@ spec:
       authorizerClass: io.bf2.kafka.authorizer.CustomAclAuthorizer
     config:
       ssl.protocol: "TLS"
-      client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
+      client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"

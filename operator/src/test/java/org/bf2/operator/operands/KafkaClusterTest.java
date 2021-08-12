@@ -94,7 +94,6 @@ class KafkaClusterTest {
         assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
     }
 
-    @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {

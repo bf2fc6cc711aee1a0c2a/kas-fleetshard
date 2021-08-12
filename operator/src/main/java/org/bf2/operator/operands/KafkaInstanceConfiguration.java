@@ -75,7 +75,9 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("enable-quota")
         protected boolean enableQuota = true;
         @JsonUnwrapped(prefix = "acl.")
-        AccessControl acl = new AccessControl();
+        protected AccessControl acl = new AccessControl();
+        @JsonUnwrapped(prefix = "acl-legacy.")
+        protected AccessControl aclLegacy = new AccessControl();
 
         public int getReplicas() {
             return replicas;
@@ -185,10 +187,20 @@ public class KafkaInstanceConfiguration {
         public void setAcl(AccessControl acl) {
             this.acl = acl;
         }
+
+        public AccessControl getAclLegacy() {
+            return aclLegacy;
+        }
+
+        public void setAclLegacy(AccessControl aclLegacy) {
+            this.aclLegacy = aclLegacy;
+        }
     }
 
     @JsonInclude(value = Include.NON_NULL)
     public static class AccessControl {
+        @JsonProperty("final-version")
+        protected String finalVersion = null;
         @JsonProperty("authorizer-class")
         protected String authorizerClass = null;
         @JsonProperty("config-prefix")
@@ -216,6 +228,14 @@ public class KafkaInstanceConfiguration {
             }
             final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.') + 1);
             return "CustomAclAuthorizer".equals(simpleName);
+        }
+
+        public String getFinalVersion() {
+            return finalVersion;
+        }
+
+        public void setFinalVersion(String finalVersion) {
+            this.finalVersion = finalVersion;
         }
 
         public String getAuthorizerClass() {

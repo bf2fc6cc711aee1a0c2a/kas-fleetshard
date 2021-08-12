@@ -49,6 +49,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -206,7 +207,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withRack(buildKafkaRack(managedKafka))
                         .withTemplate(buildKafkaTemplate(managedKafka))
                         .withMetricsConfig(buildKafkaMetricsConfig(managedKafka))
-                        .withAuthorization(buildKafkaAuthorization())
+                        .withAuthorization(buildKafkaAuthorization(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                         .withExternalLogging(buildKafkaExternalLogging(managedKafka))
                     .endKafka()
@@ -569,16 +570,30 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return builder.build();
     }
 
-    private KafkaAuthorization buildKafkaAuthorization() {
+    private AccessControl getAclConfig(ManagedKafka managedKafka) {
+        AccessControl legacyConfig = config.getKafka().getAclLegacy();
+
+        if (legacyConfig != null && managedKafka.getSpec().getVersions().compareStrimziVersionTo(legacyConfig.getFinalVersion()) <= 0) {
+            /*
+             * Use legacy configuration when present and the Kafka Strimzi version is less than
+             * or equal to the final version given for legacy.
+             * */
+            return legacyConfig;
+        }
+
+        return config.getKafka().getAcl();
+    }
+
+    private KafkaAuthorization buildKafkaAuthorization(ManagedKafka managedKafka) {
         return new KafkaAuthorizationCustomBuilder()
-                .withAuthorizerClass(this.config.getKafka().getAcl().getAuthorizerClass())
+                .withAuthorizerClass(getAclConfig(managedKafka).getAuthorizerClass())
                 .build();
     }
 
     private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config) {
         List<String> owners = managedKafka.getSpec().getOwners();
         AtomicInteger aclCount = new AtomicInteger(0);
-        KafkaInstanceConfiguration.AccessControl aclConfig = this.config.getKafka().getAcl();
+        AccessControl aclConfig = getAclConfig(managedKafka);
 
         final String configPrefix = aclConfig.getConfigPrefix();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
