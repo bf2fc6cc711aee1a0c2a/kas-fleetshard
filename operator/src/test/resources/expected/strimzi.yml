@@ -98,7 +98,7 @@ spec:
     - name: "sre"
       port: 9096
       type: "internal"
-      tls: false        
+      tls: false
     authorization:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
@@ -177,7 +177,7 @@ spec:
                 strimzi.io/name: test-mk-kafka
             maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: ScheduleAnyway
+            whenUnsatisfiable: DoNotSchedule
   zookeeper:
     replicas: 3
     storage: !<persistent-claim>
@@ -209,7 +209,7 @@ spec:
         configMapKeyRef:
           key: log4j.properties
           name: test-mk-zookeeper-logging
-          optional: false          
+          optional: false
     template:
       pod:
         affinity:

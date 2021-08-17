@@ -313,18 +313,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
                 .withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build())
-                .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka));
-
-        if (this.config.getKafka().isConstrainSpread()) {
-            podTemplateBuilder.withTopologySpreadConstraints(new TopologySpreadConstraintBuilder()
-                    .withMaxSkew(1)
-                    .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
-                    .withNewLabelSelector()
-                        .withMatchLabels(Map.of("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka"))
-                    .endLabelSelector()
-                    .withWhenUnsatisfiable("ScheduleAnyway")
-                    .build());
-        }
+                .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                .withTopologySpreadConstraints(new TopologySpreadConstraintBuilder()
+                        .withMaxSkew(1)
+                        .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
+                        .withNewLabelSelector()
+                            .withMatchLabels(Map.of("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka"))
+                        .endLabelSelector()
+                        .withWhenUnsatisfiable("DoNotSchedule")
+                        .build());
 
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
