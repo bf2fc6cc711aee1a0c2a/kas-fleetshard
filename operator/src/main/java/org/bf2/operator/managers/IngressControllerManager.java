@@ -25,7 +25,6 @@ import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
-import org.bf2.operator.operands.Labels;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.jboss.logging.Logger;
@@ -91,12 +90,19 @@ public class IngressControllerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    @Inject
-    Labels routeMatchLabels;
+    private volatile Map<String, String> routeMatchLabels;
 
     ResourceInformer<Pod> brokerPodInformer;
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<IngressController> ingressControllerInformer;
+
+    public Map<String, String> getRouteMatchLabels() {
+        return routeMatchLabels;
+    }
+
+    public void addToRouteMatchLabels(String key, String value) {
+        routeMatchLabels.put(key, value);
+    }
 
     public List<ManagedKafkaRoute> getManagedKafkaRoutesFor(ManagedKafka mk) {
         String multiZoneRoute = getIngressControllerDomain("kas");
@@ -120,6 +126,8 @@ public class IngressControllerManager {
 
     @PostConstruct
     protected void onStart() {
+        routeMatchLabels = new HashMap<>(4);
+
         NonNamespaceOperation<IngressController, IngressControllerList, Resource<IngressController>> ingressControllers =
                 openShiftClient.operator().ingressControllers().inNamespace(INGRESS_OPERATOR_NAMESPACE);
 

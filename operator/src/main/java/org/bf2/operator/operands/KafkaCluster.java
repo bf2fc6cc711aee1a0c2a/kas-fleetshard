@@ -56,6 +56,7 @@ import org.bf2.operator.secrets.SecuritySecretManager;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import javax.xml.bind.DatatypeConverter;
 
@@ -110,7 +111,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     protected StrimziManager strimziManager;
 
     @Inject
-    protected Labels extraLabels;
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -638,7 +639,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
-        labels.putAll(extraLabels.get());
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
+        }
+
         log.debugf("Kafka %s/%s labels: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), labels);
         return labels;

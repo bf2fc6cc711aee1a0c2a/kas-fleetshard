@@ -33,6 +33,7 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -42,6 +43,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -93,7 +95,7 @@ public class AdminServer extends AbstractAdminServer {
     protected KafkaInstanceConfiguration config;
 
     @Inject
-    protected Labels extraLabels;
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
@@ -291,7 +293,10 @@ public class AdminServer extends AbstractAdminServer {
     private Map<String, String> buildRouteLabels() {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
-        labels.putAll(extraLabels.get());
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
+        }
         return labels;
     }
 
