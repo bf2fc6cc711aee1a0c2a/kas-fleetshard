@@ -37,7 +37,8 @@ public class VersionsTest {
         "strimzi-cluster-operator.v0.23.1,   0.23.0-1, GT",
         "0.23.1,                             0.22.1,   GT",
         ".23.1,                              .24.1,    LT",
-        "0.23.1-0,                           0.23.1,   GT"
+        "0.23.1-0,                           0.23.1,   GT",
+        "0.22,                               0.23.0-1, LT"
     })
     void testCompareStrimziVersionToMajor(String strimziVersion, String compareToVersion, String expectation) {
         Versions versions = new Versions();
