@@ -22,6 +22,7 @@ public class ManagedKafkaStatus {
     private Versions versions;
     private String adminServerURI;
     private String updatedTimestamp;
+    private List<ServiceAccount> serviceAccounts;
 
     public List<ManagedKafkaCondition> getConditions() {
         return conditions;
@@ -61,5 +62,13 @@ public class ManagedKafkaStatus {
 
     public void setUpdatedTimestamp(String updatedTimestamp) {
         this.updatedTimestamp = updatedTimestamp;
+    }
+
+    public List<ServiceAccount> getServiceAccounts() {
+        return serviceAccounts;
+    }
+
+    public void setServiceAccounts(List<ServiceAccount> serviceAccounts) {
+        this.serviceAccounts = serviceAccounts;
     }
 }
