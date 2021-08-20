@@ -192,7 +192,7 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
 
-        Optional<ServiceAccount> canaryServiceAccount = this.serviceAccountManager.getServiceAccount(managedKafka, ServiceAccount.ServiceAccountName.Canary);
+        Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
         if (canaryServiceAccount.isPresent()) {
             envVars.add(new EnvVarBuilder().withName("SASL_MECHANISM").withValue("PLAIN").build());
             envVars.add(new EnvVarBuilder().withName("SASL_USER").withValue(canaryServiceAccount.get().getPrincipal()).build());
