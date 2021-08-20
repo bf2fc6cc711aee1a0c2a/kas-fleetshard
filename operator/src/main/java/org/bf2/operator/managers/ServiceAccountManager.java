@@ -1,6 +1,5 @@
 package org.bf2.operator.managers;
 
-import io.quarkus.runtime.Startup;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 
@@ -9,7 +8,6 @@ import javax.enterprise.context.ApplicationScoped;
 import java.util.List;
 import java.util.Optional;
 
-@Startup
 @ApplicationScoped
 public class ServiceAccountManager {
 
