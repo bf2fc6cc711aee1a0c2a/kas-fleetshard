@@ -51,9 +51,11 @@ import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
+import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -66,6 +68,7 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,8 +99,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK = "org.apache.kafka.server.quota.StaticQuotaCallback";
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
+    private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
+
     @Inject
     Logger log;
+
+    @Inject
+    Config applicationConfig;
 
     @Inject
     protected SecuritySecretManager secretManager;
@@ -614,10 +622,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
             }
 
-            /*
-             * Future: iterate over ManagedKafka `.spec.serviceaccounts` and read configured ACLs from
-             * `managedkafka.kafka.acl.service-accounts.${serviceaccounts[].name} via `Config`.
-             **/
+            Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
+                .stream()
+                .forEach(account -> {
+                    String aclKey = String.format(SERVICE_ACCOUNT_KEY, account.getName());
+
+                    applicationConfig.getOptionalValue(aclKey, String.class)
+                        .ifPresent(acl -> addAcl(acl, account.getPrincipal(), aclKeyTemplate, aclCount, config));
+                });
         }
     }
 
