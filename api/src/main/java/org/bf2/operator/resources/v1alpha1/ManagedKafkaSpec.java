@@ -28,6 +28,7 @@ public class ManagedKafkaSpec {
     private Versions versions;
     private boolean deleted;
     private List<String> owners = new ArrayList<>();
+    private List<ServiceAccount> serviceAccounts = new ArrayList<>();
 
     /**
      * Never null
@@ -84,5 +85,13 @@ public class ManagedKafkaSpec {
 
     public void setOwners(List<String> owners) {
         this.owners = owners;
+    }
+
+    public List<ServiceAccount> getServiceAccounts() {
+        return serviceAccounts;
+    }
+
+    public void setServiceAccounts(List<ServiceAccount> serviceAccounts) {
+        this.serviceAccounts = serviceAccounts;
     }
 }

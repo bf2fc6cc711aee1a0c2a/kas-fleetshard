@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.ServiceAccountManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
@@ -21,6 +22,9 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     @Inject
     protected InformerManager informerManager;
+
+    @Inject
+    protected ServiceAccountManager serviceAccountManager;
 
     public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 

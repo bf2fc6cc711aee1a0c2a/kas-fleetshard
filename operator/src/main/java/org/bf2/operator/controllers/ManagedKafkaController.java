@@ -139,6 +139,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 // just keep the current version
             }
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
+            status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
         }
     }
 }
