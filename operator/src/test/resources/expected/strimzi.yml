@@ -21,6 +21,24 @@ spec:
       port: 9093
       type: "internal"
       tls: true
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+          - secretName: "test-mk-sso-cert"
+            certificate: "keycloak.crt"
+        enablePlain: true
+        tokenEndpointUri: "https://tokenEndpointURI"
+        enableOauthBearer: true
+        type: "oauth"
     - name: "external"
       port: 9094
       type: "ingress"
