@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
@@ -46,6 +47,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.DrainCleanerManager;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.Versions;
@@ -54,6 +56,7 @@ import org.bf2.operator.secrets.SecuritySecretManager;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import javax.xml.bind.DatatypeConverter;
 
@@ -106,6 +109,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StrimziManager strimziManager;
+
+    @Inject
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -305,13 +311,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
                 ).build();
 
-        KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder()
-                        .withAffinity(new AffinityBuilder()
-                                .withPodAntiAffinity(podAntiAffinity)
-                                .build())
-                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+        PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
+                .withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build())
+                .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                .withTopologySpreadConstraints(new TopologySpreadConstraintBuilder()
+                        .withMaxSkew(1)
+                        .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
+                        .withNewLabelSelector()
+                            .withMatchLabels(Map.of("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka"))
+                        .endLabelSelector()
+                        .withWhenUnsatisfiable("DoNotSchedule")
                         .build());
+
+        KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
+                .withPod(podTemplateBuilder.build());
 
         if (drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
@@ -623,6 +636,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
+        }
+
         log.debugf("Kafka %s/%s labels: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), labels);
         return labels;

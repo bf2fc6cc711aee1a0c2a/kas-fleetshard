@@ -6,6 +6,10 @@ metadata:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
     managedkafka.bf2.org/strimziVersion: "0.22.1"
+    managedkafka.bf2.org/kas-multi-zone: "true"
+    managedkafka.bf2.org/kas-zone0: "true"
+    managedkafka.bf2.org/kas-zone1: "true"
+    managedkafka.bf2.org/kas-zone2: "true"
   name: "test-mk"
   namespace: "test"
   ownerReferences:
@@ -72,7 +76,7 @@ spec:
         - broker: 2
           host: "broker-2-xxx.yyy.zzz"
         - broker: 3
-          host: "broker-3-xxx.yyy.zzz"          
+          host: "broker-3-xxx.yyy.zzz"
     - name: "oauth"
       port: 9095
       type: "internal"
@@ -96,7 +100,7 @@ spec:
     - name: "sre"
       port: 9096
       type: "internal"
-      tls: false        
+      tls: false
     authorization:
       type: custom
       authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
@@ -171,6 +175,13 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: "kubernetes.io/hostname"
+        topologySpreadConstraints:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/name: test-mk-kafka
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
   zookeeper:
     replicas: 5
     storage: !<persistent-claim>
@@ -204,7 +215,7 @@ spec:
         configMapKeyRef:
           key: log4j.properties
           name: test-mk-zookeeper-logging
-          optional: false          
+          optional: false
     template:
       pod:
         affinity:

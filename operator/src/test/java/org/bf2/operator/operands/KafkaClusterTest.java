@@ -22,6 +22,7 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,9 +53,18 @@ class KafkaClusterTest {
     @Inject
     InformerManager informerManager;
 
+    @Inject
+    IngressControllerManager ingressControllerManager;
+
     @BeforeEach
     void beforeEach() {
         informerManager.createKafkaInformer();
+
+        // Make label set more stable
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-multi-zone", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone0", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone1", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone2", "true");
     }
 
     @Test

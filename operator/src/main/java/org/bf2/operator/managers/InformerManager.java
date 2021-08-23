@@ -26,6 +26,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 @Startup
 @ApplicationScoped
@@ -59,20 +60,25 @@ public class InformerManager {
     protected void onStart() {
         deploymentInformer = resourceInformerFactory.create(Deployment.class, filter(kubernetesClient.apps().deployments()), eventSource);
 
-        serviceInformer = resourceInformerFactory.create(Service.class, filter(kubernetesClient.services()), eventSource);
+        serviceInformer = resourceInformerFactory.create(Service.class, filterManagedByFleetshardOrStrimzi(kubernetesClient.services()), eventSource);
 
         configMapInformer = resourceInformerFactory.create(ConfigMap.class, filter(kubernetesClient.configMaps()), eventSource);
 
         secretInformer = resourceInformerFactory.create(Secret.class, filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = resourceInformerFactory.create(Route.class, filter(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
+            routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
         }
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
             MixedOperation<T, ? extends KubernetesResourceList<T>, ?> mixedOperation) {
         return mixedOperation.inAnyNamespace().withLabels(OperandUtils.getDefaultLabels());
+    }
+
+    static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filterManagedByFleetshardOrStrimzi(
+            MixedOperation<T, ? extends KubernetesResourceList<T>, ?> mixedOperation) {
+        return mixedOperation.inAnyNamespace().withLabelIn(OperandUtils.MANAGED_BY_LABEL, OperandUtils.FLEETSHARD_OPERATOR_NAME, OperandUtils.STRIMZI_OPERATOR_NAME);
     }
 
     public Kafka getLocalKafka(String namespace, String name) {
@@ -101,6 +107,16 @@ public class InformerManager {
         } else {
             log.warn("Not running on OpenShift cluster, Routes are not available");
             return null;
+        }
+    }
+
+    protected Stream<Route> getRoutesInNamespace(String namespace) {
+        if (isOpenShift()) {
+            return routeInformer.getList().stream()
+                    .filter(r -> r.getMetadata().getNamespace().equals(namespace));
+        } else {
+            log.warn("Not running on OpenShift cluster, Routes are not available");
+            return Stream.empty();
         }
     }
 

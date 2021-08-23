@@ -33,6 +33,7 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.secrets.ImagePullSecretManager;
@@ -42,6 +43,7 @@ import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -91,6 +93,9 @@ public class AdminServer extends AbstractAdminServer {
 
     @Inject
     protected KafkaInstanceConfiguration config;
+
+    @Inject
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
@@ -288,6 +293,10 @@ public class AdminServer extends AbstractAdminServer {
     private Map<String, String> buildRouteLabels() {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         labels.put("ingressType", "sharded");
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
+        }
         return labels;
     }
 
@@ -386,13 +395,12 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private ResourceRequirements buildResources() {
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
                 .addToRequests("cpu", CONTAINER_CPU_REQUEST)
                 .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
                 .addToLimits("cpu", CONTAINER_CPU_LIMIT)
                 .build();
-        return resources;
     }
 
     @Override
