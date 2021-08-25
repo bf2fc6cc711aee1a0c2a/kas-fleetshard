@@ -49,7 +49,7 @@ public class ManagedKafkaUtils {
                     .endCapacity()
                     .withNewVersions()
                         .withKafka("2.6.0")
-                        .withStrimzi("0.23.0-0")
+                        .withStrimzi("0.23.0-2")
                     .endVersions()
                     .withOwners("userid-123")
                     .build())

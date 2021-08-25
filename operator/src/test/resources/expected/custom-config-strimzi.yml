@@ -5,7 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
-    managedkafka.bf2.org/strimziVersion: "0.23.0-0"
+    managedkafka.bf2.org/strimziVersion: "0.23.0-2"
     managedkafka.bf2.org/kas-multi-zone: "true"
     managedkafka.bf2.org/kas-zone0: "true"
     managedkafka.bf2.org/kas-zone1: "true"
@@ -105,10 +105,10 @@ spec:
       tls: false
     authorization:
       type: custom
-      authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
+      authorizerClass: io.bf2.kafka.authorizer.CustomAclAuthorizer
     config:
       ssl.protocol: "TLS"
-      client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
+      client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
@@ -127,10 +127,16 @@ spec:
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "524288"
       leader.imbalance.per.broker.percentage: 0
-      strimzi.authorization.global-authorizer.allowed-listeners: TLS-9093,SRE-9096
-      strimzi.authorization.global-authorizer.acl.1: permission=allow;topic=*;operations=all
-      strimzi.authorization.global-authorizer.acl.2: permission=allow;group=*;operations=all
-      strimzi.authorization.global-authorizer.acl.3: permission=allow;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
+      strimzi.authorization.custom-authorizer.acl.1: permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.2: default=true;permission=allow;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.3: default=true;permission=allow;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.4: default=true;permission=allow;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
+      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe,alter;apis=create_acls,describe_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;transactional_id=*;operations=all
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
