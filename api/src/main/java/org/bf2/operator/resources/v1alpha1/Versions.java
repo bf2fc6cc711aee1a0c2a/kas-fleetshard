@@ -23,7 +23,6 @@ import java.util.regex.Pattern;
 @EqualsAndHashCode
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Versions {
-    public static String VERSION_0_22 = "0.22";
     static final Pattern strimziVersionPattern = Pattern.compile("[a-z\\.\\-]*(\\d+\\.\\d+\\.\\d+)(?:-(\\d+))?");
     private static final Comparator<String> strimziComparator = new StrimziVersionComparator();
 

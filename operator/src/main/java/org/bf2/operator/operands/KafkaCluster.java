@@ -442,15 +442,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
-        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-            // Limit client connections per broker
-            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas())));
-            // Limit connection attempts per broker
-            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas()));
-        }
-
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {
             addQuotaConfig(managedKafka, current, config);
@@ -465,7 +456,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
 
         Versions versions = managedKafka.getSpec().getVersions();
-        boolean legacyQuotaClass = versions.isStrimziVersionIn(Versions.VERSION_0_22) || (versions.getStrimzi().endsWith("0.23.0-0"));
+        boolean legacyQuotaClass = versions.getStrimzi().endsWith("0.23.0-0");
         config.put("client.quota.callback.class", legacyQuotaClass ? ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK : IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
