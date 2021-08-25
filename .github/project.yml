@@ -3,5 +3,5 @@ release:
   # The values here will usually be stale on the main branch.  This is
   # intentional -- they should only be updated by creating a PR to the
   # release branch.
-  current-version: 0.8.0
-  next-version: 0.8.1-SNAPSHOT
+  current-version: 0.10.0
+  next-version: 0.10.1-SNAPSHOT
