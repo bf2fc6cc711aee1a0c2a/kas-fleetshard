@@ -1,7 +1,5 @@
 <?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -13,13 +11,13 @@
     <scm>
         <connection>scm:git:git://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard.git</connection>
         <developerConnection>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-fleetshard.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>0.10.0</tag>
     </scm>
 
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>999-SNAPSHOT</version>
+    <version>0.10.0</version>
 
     <properties>
         <!-- things we don't need from basepom -->
@@ -241,7 +239,7 @@
                     <!-- remove analyze-only and analyze-dep-mgt - they generate a lot of warnings, that we are unlikely to resolve -->
                     <execution>
                         <id>basepom.default</id>
-                        <phase/>
+                        <phase />
                     </execution>
                     <execution>
                         <id>dep-goals</id>
@@ -383,7 +381,7 @@
         <profile>
             <id>release</id>
             <properties>
-                <release.properties></release.properties>
+                <release.properties />
             </properties>
             <build>
                 <plugins>
@@ -400,7 +398,7 @@
         <profile>
             <id>release-perform</id>
             <properties>
-                <release.arguments></release.arguments>
+                <release.arguments />
                 <quarkus.container-image.build>true</quarkus.container-image.build>
                 <quarkus.container-image.push>true</quarkus.container-image.push>
                 <quarkus.container-image.group>bf2</quarkus.container-image.group>
