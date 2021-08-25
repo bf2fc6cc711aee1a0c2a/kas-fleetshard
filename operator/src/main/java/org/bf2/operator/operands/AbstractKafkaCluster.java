@@ -30,7 +30,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -213,13 +212,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                         .build()
                 )
                 .withBrokers(buildBrokerOverrides(managedKafka))
-                .withBrokerCertChainAndKey(buildTlsCertAndKeySecretSource(managedKafka));
-
-        if(!managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-            listenerConfigBuilder
-                    .withMaxConnections(totalMaxConnections)
-                    .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
-        }
+                .withBrokerCertChainAndKey(buildTlsCertAndKeySecretSource(managedKafka))
+                .withMaxConnections(totalMaxConnections)
+                .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
 
         return new ArrayOrObjectKafkaListenersBuilder()
                 .withGenericKafkaListeners(
