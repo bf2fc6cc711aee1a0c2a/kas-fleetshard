@@ -94,6 +94,7 @@ class KafkaClusterTest {
         assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
     }
 
+    @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
@@ -120,6 +121,16 @@ class KafkaClusterTest {
         } finally {
             kafkaCluster.setKafkaConfiguration(config);
         }
+    }
+
+    @Test
+    void testManagedKafkaWithGlobalAuthorizer() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getVersions().setStrimzi("0.23.0-1");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");
+        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0-1\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/authorization/authorizerClass\",\"value\":\"io.bf2.kafka.authorizer.GlobalAclAuthorizer\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.allowed-listeners\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.1\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.2\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.3\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.4\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.resource-operations\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.5\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.6\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.7\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.8\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.2\",\"value\":\"permission=allow;group=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.3\",\"value\":\"permission=allow;transactional_id=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.1\",\"value\":\"permission=allow;topic=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.allowed-listeners\",\"value\":\"TLS-9093,SRE-9096\"}]", patch.toString());
     }
 
     @Test
