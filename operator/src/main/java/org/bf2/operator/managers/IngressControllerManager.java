@@ -106,6 +106,7 @@ public class IngressControllerManager {
 
     public List<ManagedKafkaRoute> getManagedKafkaRoutesFor(ManagedKafka mk) {
         String multiZoneRoute = getIngressControllerDomain("kas");
+        String bootstrapDomain = mk.getSpec().getEndpoint().getBootstrapServerHost();
 
         return Stream.concat(
                 Stream.of(
@@ -114,11 +115,10 @@ public class IngressControllerManager {
                 routesFor(mk)
                     .filter(IS_BROKER_ROUTE)
                     .map(r -> {
-                        String namePrefix = mk.getMetadata().getName() + "-";
-                        String brokerName = r.getMetadata().getName().replaceFirst(namePrefix, "");
                         String router = getIngressControllerDomain("kas-" + getZoneForBrokerRoute(r));
+                        String routePrefix = r.getSpec().getHost().replaceFirst("-" + bootstrapDomain, "");
 
-                        return new ManagedKafkaRoute(brokerName, brokerName, router);
+                        return new ManagedKafkaRoute(routePrefix, routePrefix, router);
                     }))
                 .sorted(Comparator.comparing(ManagedKafkaRoute::getName))
                 .collect(Collectors.toList());
