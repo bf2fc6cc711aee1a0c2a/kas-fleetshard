@@ -60,7 +60,7 @@ public class InformerManager {
     private ResourceInformer<Route> routeInformer;
 
     boolean isOpenShift() {
-        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
+        return openShiftClient.isAdaptable(OpenShiftClient.class);
     }
 
     @PostConstruct

@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
 import io.strimzi.api.kafka.model.CertAndKeySecretSourceBuilder;
@@ -51,6 +52,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @Inject
     protected KubernetesClient kubernetesClient;
+
+    @Inject
+    protected OpenShiftClient openShiftClient;
 
     @Inject
     protected InformerManager informerManager;
@@ -294,7 +298,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
 
     protected boolean isOpenShift() {
-        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
+        return openShiftClient.isAdaptable(OpenShiftClient.class);
     }
 
 }

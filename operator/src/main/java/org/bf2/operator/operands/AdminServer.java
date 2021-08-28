@@ -427,7 +427,7 @@ public class AdminServer extends AbstractAdminServer {
 
 
     boolean isOpenShift() {
-        return !"dev".equalsIgnoreCase(kafkaProperty.orElse(""));
+        return openShiftClient.isAdaptable(OpenShiftClient.class);
     }
 
 }
