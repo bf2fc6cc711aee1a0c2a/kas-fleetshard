@@ -304,6 +304,8 @@ public class AdminServer extends AbstractAdminServer {
         List<EnvVar> envVars = new ArrayList<>();
 
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
+        addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
+        addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
 
         if (this.config.getKafka().getAcl().isCustomAclAuthorizerEnabled(managedKafka.getSpec().getOwners())) {
             addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
