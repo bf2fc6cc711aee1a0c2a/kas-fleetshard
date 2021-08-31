@@ -7,6 +7,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilde
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaEndpointBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ServiceAccountBuilder;
 
 public class ManagedKafkaUtils {
     private ManagedKafkaUtils() {
@@ -52,6 +53,13 @@ public class ManagedKafkaUtils {
                         .withStrimzi("0.23.0-2")
                     .endVersions()
                     .withOwners("userid-123")
+                    .withServiceAccounts(
+                        new ServiceAccountBuilder()
+                            .withName("canary")
+                            .withPrincipal("canary-123")
+                            .withPassword("canary-secret")
+                            .build()
+                    )
                     .build())
             .build();
         return mk;

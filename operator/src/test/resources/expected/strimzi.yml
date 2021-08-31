@@ -131,10 +131,14 @@ spec:
       strimzi.authorization.custom-authorizer.acl.3: default=true;permission=allow;group=*;operations=all
       strimzi.authorization.custom-authorizer.acl.4: default=true;permission=allow;transactional_id=*;operations=all
       strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
-      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe,alter;apis=create_acls,describe_acls,delete_acls
-      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.9: permission=allow;principal=userid-123;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.10: permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
+      strimzi.authorization.custom-authorizer.acl.11: permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
+      strimzi.authorization.custom-authorizer.acl.12: permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
