@@ -52,7 +52,6 @@ import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
-import org.bf2.operator.resources.v1alpha1.Versions;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.Config;
@@ -96,7 +95,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
     private static final String DIGEST = "org.bf2.operator/digest";
-    private static final String ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK = "org.apache.kafka.server.quota.StaticQuotaCallback";
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
@@ -464,9 +462,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
 
-        Versions versions = managedKafka.getSpec().getVersions();
-        boolean legacyQuotaClass = versions.getStrimzi().endsWith("0.23.0-0");
-        config.put("client.quota.callback.class", legacyQuotaClass ? ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK : IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
+        config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
