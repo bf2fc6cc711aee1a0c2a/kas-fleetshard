@@ -4,12 +4,12 @@ metadata:
   annotations: {}
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
-    ingressType: "sharded"
     managedkafka.bf2.org/strimziVersion: "0.23.0-2"
+    ingressType: "sharded"
+    managedkafka.bf2.org/kas-zone2: "true"
     managedkafka.bf2.org/kas-multi-zone: "true"
     managedkafka.bf2.org/kas-zone0: "true"
     managedkafka.bf2.org/kas-zone1: "true"
-    managedkafka.bf2.org/kas-zone2: "true"
   name: "test-mk"
   namespace: "test"
   ownerReferences:
@@ -19,7 +19,7 @@ metadata:
 spec:
   kafka:
     version: "2.6.0"
-    replicas: 4
+    replicas: 3
     listeners:
     - name: "tls"
       port: 9093
@@ -37,8 +37,8 @@ spec:
         checkAccessTokenType: true
         accessTokenIsJwt: true
         tlsTrustedCertificates:
-          - secretName: "test-mk-sso-cert"
-            certificate: "keycloak.crt"
+        - secretName: "test-mk-sso-cert"
+          certificate: "keycloak.crt"
         enablePlain: true
         tokenEndpointUri: "https://tokenEndpointURI"
         enableOauthBearer: true
@@ -66,8 +66,6 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
-        maxConnections: 125
-        maxConnectionCreationRate: 75
         bootstrap:
           host: "xxx.yyy.zzz"
         brokers:
@@ -77,12 +75,12 @@ spec:
           host: "broker-1-xxx.yyy.zzz"
         - broker: 2
           host: "broker-2-xxx.yyy.zzz"
-        - broker: 3
-          host: "broker-3-xxx.yyy.zzz"
+        maxConnections: 166
+        maxConnectionCreationRate: 33
     - name: "oauth"
       port: 9095
       type: "internal"
-      tls: true
+      tls: false
       authentication: !<oauth>
         clientId: "clientId"
         clientSecret:
@@ -103,54 +101,53 @@ spec:
       port: 9096
       type: "internal"
       tls: false
-    authorization:
-      type: custom
-      authorizerClass: io.bf2.kafka.authorizer.CustomAclAuthorizer
     config:
+      strimzi.authorization.custom-authorizer.acl.8: "permission=allow;principal=userid-123;transactional_id=*;operations=all"
+      auto.create.topics.enable: "false"
+      strimzi.authorization.custom-authorizer.acl.4: "default=true;permission=allow;transactional_id=*;operations=all"
+      strimzi.authorization.custom-authorizer.acl.5: "permission=allow;principal=userid-123;cluster=*;operations=describe,alter;apis=create_acls,describe_acls,delete_acls"
+      strimzi.authorization.custom-authorizer.acl.6: "permission=allow;principal=userid-123;topic=*;operations=all"
+      strimzi.authorization.custom-authorizer.acl.7: "permission=allow;principal=userid-123;group=*;operations=all"
+      strimzi.authorization.custom-authorizer.acl.1: "permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all"
+      min.insync.replicas: 2
+      strimzi.authorization.custom-authorizer.acl.2: "default=true;permission=allow;topic=*;operations=all"
+      offsets.topic.replication.factor: 3
+      strimzi.authorization.custom-authorizer.acl.3: "default=true;permission=allow;group=*;operations=all"
+      transaction.state.log.min.isr: 2
+      client.quota.callback.static.storage.soft: "28991029248"
+      default.replication.factor: 3
+      inter.broker.protocol.version: "2.6.0"
+      client.quota.callback.static.produce: "699050"
+      client.quota.callback.static.fetch: "699050"
+      client.quota.callback.static.disable-quota-anonymous: "true"
       ssl.protocol: "TLS"
       client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
-      auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
       ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
-      min.insync.replicas: 2
-      offsets.topic.replication.factor: 3
       quota.window.size.seconds: "2"
-      transaction.state.log.min.isr: 2
-      client.quota.callback.static.storage.soft: "24159191040"
+      strimzi.authorization.custom-authorizer.allowed-listeners: "SRE-9096"
       quota.window.num: "30"
-      client.quota.callback.static.fetch: "524288"
-      client.quota.callback.static.storage.hard: "25501368320"
+      client.quota.callback.static.storage.hard: "30601641984"
       client.quota.callback.static.storage.check-interval: "30"
-      client.quota.callback.static.disable-quota-anonymous: "true"
-      default.replication.factor: 3
-      inter.broker.protocol.version: "2.6.0"
-      client.quota.callback.static.produce: "524288"
+      strimzi.authorization.custom-authorizer.resource-operations: "{ \"cluster\"\
+        : [ \"describe\", \"alter\" ], \"group\": [ \"all\", \"delete\", \"describe\"\
+        , \"read\" ], \"topic\": [ \"all\", \"alter\", \"alter_configs\", \"create\"\
+        , \"delete\", \"describe\", \"describe_configs\", \"read\", \"write\" ], \"\
+        transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
-      connections.max.reauth.ms: 299000
-      strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
-      strimzi.authorization.custom-authorizer.acl.1: permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.2: default=true;permission=allow;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.3: default=true;permission=allow;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.4: default=true;permission=allow;transactional_id=*;operations=all
-      strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
-      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe
-      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
-      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.9: permission=allow;principal=userid-123;transactional_id=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.10: permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
-      strimzi.authorization.custom-authorizer.acl.11: permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
-      strimzi.authorization.custom-authorizer.acl.12: permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
         type: "persistent-claim"
-        size: "26843545600"
+        size: "32212254720"
         class: "gp2"
-        id: 0
         deleteClaim: true
+        id: 0
       type: "jbod"
+    authorization: !<custom>
+      type: "custom"
+      authorizerClass: "io.bf2.kafka.authorizer.CustomAclAuthorizer"
     rack:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
@@ -158,14 +155,12 @@ spec:
       "-Xms": "3G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
-        foo: "bar"
-        foo2: "bar2"
     resources:
       limits:
-        memory: "2Gi"
+        memory: "8Gi"
         cpu: "3000m"
       requests:
-        memory: "2Gi"
+        memory: "8Gi"
         cpu: "3000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
@@ -183,22 +178,33 @@ spec:
     template:
       pod:
         affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    strimzi.io/name: "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 50
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
-        topologySpreadConstraints:
-          - labelSelector:
-              matchLabels:
-                strimzi.io/name: test-mk-kafka
-            maxSkew: 1
-            topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: DoNotSchedule
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: "kafka"
+              topologyKey: "kubernetes.io/hostname"
         tolerations:
-          - effect: "NoExecute"       
-            key: "org.bf2.operator/kafka-broker"
-            operator: "Exists"            
+        - effect: "NoExecute"
+          key: "org.bf2.operator/kafka-broker"
+          operator: "Exists"
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              strimzi.io/name: "test-mk-kafka"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "DoNotSchedule"
   zookeeper:
-    replicas: 5
+    replicas: 3
     storage: !<persistent-claim>
       type: "persistent-claim"
       size: "10Gi"
@@ -209,14 +215,12 @@ spec:
       "-Xms": "2G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
-        zkfoo: "zkbar"
-        zkfoo2: "zkbar2"
     resources:
       limits:
-        memory: "11Gi"
+        memory: "4Gi"
         cpu: "1000m"
       requests:
-        memory: "11Gi"
+        memory: "4Gi"
         cpu: "1000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
@@ -230,7 +234,7 @@ spec:
         configMapKeyRef:
           key: log4j.properties
           name: test-mk-zookeeper-logging
-          optional: false
+          optional: false          
     template:
       pod:
         affinity:
@@ -246,3 +250,12 @@ spec:
       requests:
         memory: "128Mi"
         cpu: "500m"
+    template:
+      pod:
+        affinity:
+          podAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-zookeeper"
+              topologyKey: "kubernetes.io/hostname"

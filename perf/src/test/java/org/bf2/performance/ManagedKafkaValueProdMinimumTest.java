@@ -97,7 +97,7 @@ public class ManagedKafkaValueProdMinimumTest extends TestBase {
 
         LOGGER.info("Test config: {}", key);
         KafkaInstanceConfiguration profile = AdopterProfile.buildProfile(
-                zkContainerMemory, zkJavaMemory, "1000m", kafkaContainerMemory, kafkaJavaMemory, kfCpu
+                zkContainerMemory, zkJavaMemory, "1000m", kafkaContainerMemory, kafkaJavaMemory, kfCpu, 3
         );
 
         String bootstrapHosts = kafkaProvisioner.deployCluster("cluster1", capacity, profile).waitUntilReady();

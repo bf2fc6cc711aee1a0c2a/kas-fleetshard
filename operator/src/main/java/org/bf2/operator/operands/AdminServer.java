@@ -133,7 +133,7 @@ public class AdminServer extends AbstractAdminServer {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
-        Deployment deployment = builder
+        builder
                 .editOrNewMetadata()
                     .withName(adminServerName)
                     .withNamespace(adminServerNamespace(managedKafka))
@@ -154,8 +154,21 @@ public class AdminServer extends AbstractAdminServer {
                             .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
-                .endSpec()
-                .build();
+                .endSpec();
+
+
+        if(this.config.getAdminserver().isColocateWithZookeeper()) {
+            builder
+                .editOrNewSpec()
+                    .editOrNewTemplate()
+                        .editOrNewSpec()
+                        .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
+                        .endSpec()
+                    .endTemplate()
+                .endSpec();
+        }
+
+        Deployment deployment = builder.build();
 
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly

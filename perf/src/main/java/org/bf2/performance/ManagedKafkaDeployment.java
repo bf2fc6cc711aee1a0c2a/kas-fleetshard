@@ -1,7 +1,6 @@
 package org.bf2.performance;
 
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
@@ -16,13 +15,11 @@ import java.util.function.Predicate;
  */
 public class ManagedKafkaDeployment {
     private final KubeClusterResource cluster;
-    private final Kafka kafka;
     private CompletableFuture<Void> readyFuture;
     private final ManagedKafka managedKafka;
 
-    public ManagedKafkaDeployment(ManagedKafka managedKafka, Kafka kafka, KubeClusterResource cluster) {
+    public ManagedKafkaDeployment(ManagedKafka managedKafka, KubeClusterResource cluster) {
         this.managedKafka = managedKafka;
-        this.kafka = kafka;
         this.cluster = cluster;
     }
 
@@ -60,10 +57,6 @@ public class ManagedKafkaDeployment {
      */
     public Future<Void> readyFuture() {
         return readyFuture;
-    }
-
-    public Kafka getKafka() {
-        return kafka;
     }
 
     public ManagedKafka getManagedKafka() {

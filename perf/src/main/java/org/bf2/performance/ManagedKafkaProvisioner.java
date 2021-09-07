@@ -7,11 +7,11 @@ import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
@@ -36,16 +36,18 @@ import org.bf2.systemtest.framework.SecurityUtils.TlsConfig;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -53,56 +55,20 @@ import java.util.stream.Collectors;
  */
 public class ManagedKafkaProvisioner {
 
+    private static final String KAS_FLEETSHARD_CONFIG = "kas-fleetshard-config";
+    public static final String KAFKA_BROKER_TAINT_KEY = "org.bf2.operator/kafka-broker";
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaProvisioner.class);
-    private final List<ManagedKafka> clusters = new ArrayList<>();
+    private List<ManagedKafka> clusters = new ArrayList<>();
     protected KubeClusterResource cluster;
     protected String domain;
     private TlsConfig tlsConfig;
     private OlmBasedStrimziOperatorManager strimziManager;
     private SharedIndexInformer<Deployment> informer;
 
-    static String createIngressController(KubeClusterResource cluster) throws IOException {
+    static String determineDomain(KubeClusterResource cluster) throws IOException {
         var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
         String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR).withName("default").get().getStatus().getDomain();
-
-        return defaultDomain;
-        /*
-        String domain = defaultDomain.replace("apps", "bf2");
-        Map<String, String> routeSelectorLabel = Collections.singletonMap("ingressType", "sharded");
-        IngressController ingressController = new IngressControllerBuilder()
-                .editOrNewMetadata()
-                .withName("sharded-nlb")
-                .withNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
-                .endMetadata()
-                .editOrNewSpec()
-                .withDomain(domain)
-                .withRouteSelector(new LabelSelector(null, routeSelectorLabel))
-                .withReplicas(3)
-                .withNewNodePlacement()
-                .editOrNewNodeSelector()
-                .addToMatchLabels("node-role.kubernetes.io/worker", "")
-                .endNodeSelector()
-                .endNodePlacement()
-                .withNewEndpointPublishingStrategy()
-                .withType("LoadBalancerService")
-                .withNewLoadBalancer()
-                .withScope("External")
-                .withNewProviderParameters()
-                .withType("AWS")
-                .withNewAws()
-                .withType("NLB")
-                .endAws()
-                .endProviderParameters()
-                .endLoadBalancer()
-                .endEndpointPublishingStrategy()
-                .endSpec()
-                .build();
-
-        client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
-                .createOrReplace(ingressController);
-
-        return new RouterConfig(domain, routeSelectorLabel);
-        */
+        return defaultDomain.replace("apps", "kas"); // use the sharded domain
     }
 
     static void deleteIngressController(KubeClusterResource cluster) {
@@ -121,7 +87,7 @@ public class ManagedKafkaProvisioner {
         Map<String,String> propertyMap = profile.toMap(false);
 
         ConfigMap override =
-                new ConfigMapBuilder().withNewMetadata().withName("kas-fleetshard-config").endMetadata()
+                new ConfigMapBuilder().withNewMetadata().withName(KAS_FLEETSHARD_CONFIG).endMetadata()
                         .withData(propertyMap).build();
         return override;
     }
@@ -145,8 +111,23 @@ public class ManagedKafkaProvisioner {
      * One-time setup of provisioner. This should be called only once per test class.
      */
     public void setup() throws Exception {
-        this.domain = createIngressController(cluster);
-        this.tlsConfig = SecurityUtils.getTLSConfig(domain);
+        this.domain = determineDomain(cluster);
+        File tls = new File("target", domain +"-tls.json");
+        if (tls.exists()) {
+            try (FileInputStream fis = new FileInputStream(tls)) {
+                this.tlsConfig = Serialization.unmarshal(fis, SecurityUtils.TlsConfig.class);
+            }
+        } else {
+            this.tlsConfig = SecurityUtils.getTLSConfig(domain);
+            try (FileOutputStream fos = new FileOutputStream(tls)) {
+                fos.write(Serialization.asYaml(this.tlsConfig).getBytes(StandardCharsets.UTF_8));
+            }
+        }
+        try {
+            this.clusters.addAll(cluster.kubeClient().client().customResources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE).list().getItems());
+        } catch (KubernetesClientException e) {
+
+        }
     }
 
     public TlsConfig getTlsConfig() {
@@ -158,7 +139,9 @@ public class ManagedKafkaProvisioner {
      */
     public void teardown() throws Exception {
         deleteIngressController(cluster);
-        informer.stop();
+        if (informer != null) {
+            informer.stop();
+        }
     }
 
     /**
@@ -179,60 +162,50 @@ public class ManagedKafkaProvisioner {
 
         List<Node> workers = cluster.getWorkerNodes();
 
-        // until we have node taints/tolerations on the brokers, make sure that the operators and other deployments are on just 3 nodes, so build a list of 1 node per az
-        Collection<Node> nodes = workers.stream().sorted((n1, n2) -> n1.getMetadata().getName().compareTo(n2.getMetadata().getName()))
-                .collect(Collectors.toMap(n -> n.getMetadata().getLabels().get("topology.kubernetes.io/zone"), Function.identity(), (n1, n2) -> n1)).values();
-        nodes.forEach(n -> cluster.kubeClient().client().nodes().withName(n.getMetadata().getName())
-                .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
-                        new NodeBuilder().editOrNewMetadata().addToLabels("perf-infra", "true").endMetadata().build()));
+        boolean smallNodes = workers.stream().anyMatch(n -> TestUtils.getMaxAvailableResources(n).cpuMillis < 3000);
 
-        MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deployments = cluster.kubeClient().client().apps().deployments();
-        this.informer = deployments.inAnyNamespace().inform(new ResourceEventHandler<Deployment>() {
+        if (smallNodes) {
+            MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deployments = cluster.kubeClient().client().apps().deployments();
+            this.informer = deployments.inAnyNamespace().inform(new ResourceEventHandler<Deployment>() {
 
-            @Override
-            public void onUpdate(Deployment oldObj, Deployment newObj) {
-                onAdd(newObj);
-            }
-
-            @Override
-            public void onDelete(Deployment obj, boolean deletedFinalStateUnknown) {
-
-            }
-
-            @Override
-            public void onAdd(Deployment obj) {
-                if (!obj.getMetadata().getNamespace().equals(StrimziOperatorManager.OPERATOR_NS)
-                        && !obj.getMetadata().getNamespace().equals(FleetShardOperatorManager.OPERATOR_NS)) {
-                    return;
+                @Override
+                public void onUpdate(Deployment oldObj, Deployment newObj) {
+                    onAdd(newObj);
                 }
 
-                // patch any deployment that requests a lot of cpu, and make sure it's on the perf infra
-                deployments.inNamespace(obj.getMetadata().getNamespace())
-                        .withName(obj.getMetadata().getName()).edit(
-                                new TypedVisitor<ResourceRequirementsBuilder>() {
-                                    @Override
-                                    public void visit(ResourceRequirementsBuilder element) {
-                                        Quantity cpu = null;
-                                        if (element.getRequests() != null) {
-                                            cpu = element.getRequests().get("cpu");
-                                        }
-                                        if (cpu == null && element.getLimits() != null) {
-                                            cpu = element.getLimits().get("cpu");
-                                        }
-                                        if (cpu != null && Quantity.getAmountInBytes(cpu).compareTo(BigDecimal.valueOf(1)) > 0) {
-                                            element.addToRequests("cpu", Quantity.parse("1"));
-                                        }
-                                    }
-                                },
+                @Override
+                public void onDelete(Deployment obj, boolean deletedFinalStateUnknown) {
 
-                                new TypedVisitor<PodTemplateSpecBuilder>() {
-                                    @Override
-                                    public void visit(PodTemplateSpecBuilder element) {
-                                        element.editOrNewSpec().addToNodeSelector("perf-infra", "true").endSpec();
-                                    }
-                                });
-            }
-        });
+                }
+
+                @Override
+                public void onAdd(Deployment obj) {
+                    if (!obj.getMetadata().getNamespace().equals(StrimziOperatorManager.OPERATOR_NS)
+                            && !obj.getMetadata().getNamespace().equals(FleetShardOperatorManager.OPERATOR_NS)) {
+                        return;
+                    }
+
+                    // patch any deployment that requests a lot of cpu, and make sure it's on the perf infra
+                    deployments.inNamespace(obj.getMetadata().getNamespace())
+                            .withName(obj.getMetadata().getName()).edit(
+                                    new TypedVisitor<ResourceRequirementsBuilder>() {
+                                        @Override
+                                        public void visit(ResourceRequirementsBuilder element) {
+                                            Quantity cpu = null;
+                                            if (element.getRequests() != null) {
+                                                cpu = element.getRequests().get("cpu");
+                                            }
+                                            if (cpu == null && element.getLimits() != null) {
+                                                cpu = element.getLimits().get("cpu");
+                                            }
+                                            if (cpu != null && Quantity.getAmountInBytes(cpu).compareTo(BigDecimal.valueOf(1)) > 0) {
+                                                element.addToRequests("cpu", Quantity.parse("1"));
+                                            }
+                                        }
+                                    });
+                }
+            });
+        }
 
         // installs the Strimzi Operator using the OLM bundle
         strimziManager.deployStrimziOperator();
@@ -298,20 +271,34 @@ public class ManagedKafkaProvisioner {
      *
      * @throws IOException
      */
-    public void removeClusters() throws IOException {
-        var client = cluster.kubeClient().client().customResources(ManagedKafka.class);
-        Iterator<ManagedKafka> kafkaIterator = clusters.iterator();
-        while (kafkaIterator.hasNext()) {
-            ManagedKafka k = kafkaIterator.next();
+    public void removeClusters(boolean all) throws IOException {
+        var client = cluster.kubeClient().client().customResources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE);
+        List<ManagedKafka> kafkas = clusters;
+        if (all) {
+            kafkas = client.list().getItems();
+        }
+        for (ManagedKafka k : kafkas) {
             LOGGER.info("Removing cluster {}", k.getMetadata().getName());
-            client.inNamespace(Constants.KAFKA_NAMESPACE).withName(k.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+            client.withName(k.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
         }
-        kafkaIterator = clusters.iterator();
-        while (kafkaIterator.hasNext()) {
-            ManagedKafka k = kafkaIterator.next();
-            org.bf2.test.TestUtils.waitFor("await delete deployment", 1_000, 600_000, () -> client.inNamespace(Constants.KAFKA_NAMESPACE).withName(k.getMetadata().getName()).get() == null);
-            kafkaIterator.remove();
+        for (ManagedKafka k : kafkas) {
+            org.bf2.test.TestUtils.waitFor("await delete deployment", 1_000, 600_000, () -> client.withName(k.getMetadata().getName()).get() == null);
         }
+        clusters.clear();
+    }
+
+    public void removeTaintsOnNodes() {
+        List<Node> workers = cluster.getWorkerNodes();
+
+        workers.stream().forEach(n ->
+            cluster.kubeClient().client().nodes().withName(n.getMetadata().getName())
+            .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
+            new NodeBuilder()
+            .editOrNewSpec()
+            .removeMatchingFromTaints(t -> t.getKey().equals(KAFKA_BROKER_TAINT_KEY))
+            .endSpec()
+            .build())
+        );
     }
 
     /**
@@ -319,14 +306,60 @@ public class ManagedKafkaProvisioner {
      * the provisioner. This can be called once per test class or per test method.
      */
     public void uninstall() throws Exception {
-        removeClusters();
+        removeClusters(false);
         strimziManager.deleteStrimziOperator();
         FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient());
         LOGGER.info("Deleting namespace {}", Constants.KAFKA_NAMESPACE);
         cluster.waitForDeleteNamespace(Constants.KAFKA_NAMESPACE);
+        removeTaintsOnNodes();
     }
 
     void applyProfile(KafkaInstanceConfiguration profile) throws IOException {
+        if (!this.clusters.isEmpty()) {
+            // until install applies the profile, we can only do one deployment at a time
+            throw new IllegalStateException("the provisioner cannot currently manage multiple clusters");
+        }
+
+        // remove any previous taints.
+        removeTaintsOnNodes();
+
+        List<Node> workers = cluster.getWorkerNodes();
+
+        // divide the nodes by their zones, then sort them by their cpu availability then mark however brokers needed for the taint
+        Map<String, List<Node>> zoneAwareNodeList = workers.stream()
+                .collect(Collectors.groupingBy(n -> n.getMetadata().getLabels().get("topology.kubernetes.io/zone")));
+        zoneAwareNodeList.values()
+                .forEach(list -> Collections.sort(list,
+                        (n1, n2) -> Long.compare(TestUtils.getMaxAvailableResources(n1).cpuMillis,
+                                TestUtils.getMaxAvailableResources(n2).cpuMillis)));
+
+        for (List<Node> nodes : zoneAwareNodeList.values()) {
+            int brokersPerZone = profile.getKafka().getReplicas() / 3;
+            if (nodes.size() < brokersPerZone) {
+                throw new IllegalStateException("Not enough nodes per zone available");
+            }
+
+            for (int i = 1; i <= brokersPerZone; i++) {
+                Node n = nodes.get(nodes.size() - i);
+
+                if (!profile.getKafka().isColocateWithZookeeper()) {
+                    cluster.kubeClient()
+                            .client()
+                            .nodes()
+                            .withName(n.getMetadata().getName())
+                            .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
+                                    new NodeBuilder()
+                                            .editOrNewSpec()
+                                            .addNewTaint()
+                                            .withKey(KAFKA_BROKER_TAINT_KEY)
+                                            .withEffect("NoExecute")
+                                            .endTaint()
+                                            .endSpec()
+                                            .build());
+                }
+            }
+        }
+
         // convert the profile into simple configmap values
         ConfigMap override = toConfigMap(profile);
 
@@ -344,6 +377,8 @@ public class ManagedKafkaProvisioner {
 
         fleetshardOperatorDeployment.scale(0, true);
         fleetshardOperatorDeployment.scale(1, true);
+
+        //fleetshardOperatorDeployment.waitUntilReady(30, TimeUnit.SECONDS);
     }
 
     ManagedKafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka) throws Exception {
@@ -372,7 +407,7 @@ public class ManagedKafkaProvisioner {
         // track the result
         Kafka kafka = kafkaClient.require();
         LOGGER.info("Created Kafka {}", Serialization.asYaml(kafka));
-        return new ManagedKafkaDeployment(managedKafka, kafka, cluster);
+        return new ManagedKafkaDeployment(managedKafka, cluster);
     }
 
 }
