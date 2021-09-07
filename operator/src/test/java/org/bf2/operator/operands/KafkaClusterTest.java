@@ -130,7 +130,28 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0-1\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/authorization/authorizerClass\",\"value\":\"io.bf2.kafka.authorizer.GlobalAclAuthorizer\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.allowed-listeners\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.1\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.2\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.3\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.4\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.resource-operations\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.5\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.6\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.7\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.8\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.2\",\"value\":\"permission=allow;group=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.3\",\"value\":\"permission=allow;transactional_id=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.1\",\"value\":\"permission=allow;topic=*;operations=all\"},{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.allowed-listeners\",\"value\":\"TLS-9093,SRE-9096\"}]", patch.toString());
+        assertEquals("["
+                + "{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0-1\"},"
+                + "{\"op\":\"replace\",\"path\":\"/spec/kafka/authorization/authorizerClass\",\"value\":\"io.bf2.kafka.authorizer.GlobalAclAuthorizer\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.allowed-listeners\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.1\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.2\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.3\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.4\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.resource-operations\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.5\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.6\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.7\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.8\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.9\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.10\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.11\"},"
+                + "{\"op\":\"remove\",\"path\":\"/spec/kafka/config/strimzi.authorization.custom-authorizer.acl.12\"},"
+                + "{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.2\",\"value\":\"permission=allow;group=*;operations=all\"},"
+                + "{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.3\",\"value\":\"permission=allow;transactional_id=*;operations=all\"},"
+                + "{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.acl.1\",\"value\":\"permission=allow;topic=*;operations=all\"},"
+                + "{\"op\":\"add\",\"path\":\"/spec/kafka/config/strimzi.authorization.global-authorizer.allowed-listeners\",\"value\":\"TLS-9093,SRE-9096\"}]",
+                patch.toString());
     }
 
     @Test
