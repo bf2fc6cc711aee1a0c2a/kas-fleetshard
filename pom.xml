@@ -64,7 +64,7 @@
         <fabric8.openshift-model-operatorhub.version>5.5.0</fabric8.openshift-model-operatorhub.version>
         <quarkus.operator.extension>1.8.2</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
-        <junit.platform.version>1.7.0</junit.platform.version>
+        <junit.platform.version>1.7.2</junit.platform.version>
         <sundrio.version>0.24.3</sundrio.version>
         <lombok.version>1.18.16</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
