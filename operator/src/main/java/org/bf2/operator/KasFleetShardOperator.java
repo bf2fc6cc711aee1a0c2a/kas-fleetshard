@@ -7,6 +7,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
+
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
