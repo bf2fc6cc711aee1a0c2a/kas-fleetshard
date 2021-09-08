@@ -443,6 +443,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
+        config.put("connections.max.reauth.ms", 299000); // 4m 59s
 
         // forcing the preferred leader election as soon as possible
         // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected

@@ -127,6 +127,7 @@ spec:
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "524288"
       leader.imbalance.per.broker.percentage: 0
+      connections.max.reauth.ms: 299000
       strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
       strimzi.authorization.custom-authorizer.acl.1: permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all
       strimzi.authorization.custom-authorizer.acl.2: default=true;permission=allow;topic=*;operations=all
