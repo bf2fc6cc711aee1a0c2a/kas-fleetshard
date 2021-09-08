@@ -237,7 +237,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withName("oauth")
                                 .withPort(9095)
                                 .withType(KafkaListenerType.INTERNAL)
-                                .withTls(false)
+                                .withTls(true)
                                 .withAuth(oauthAuthenticationListener)
                                 .build(),
                         new GenericKafkaListenerBuilder()

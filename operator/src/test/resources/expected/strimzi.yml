@@ -80,7 +80,7 @@ spec:
     - name: "oauth"
       port: 9095
       type: "internal"
-      tls: false
+      tls: true
       authentication: !<oauth>
         clientId: "clientId"
         clientSecret:
