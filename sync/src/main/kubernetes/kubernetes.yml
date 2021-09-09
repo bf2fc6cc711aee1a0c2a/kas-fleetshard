@@ -8,6 +8,7 @@ rules:
   - apiGroups:
       - managedkafka.bf2.org
     resources:
+      # sync resources for getting Kafka instance to deploy, configuration and reporting back status
       - managedkafkas
       - managedkafkas/status
       - managedkafkaagents
@@ -23,6 +24,7 @@ rules:
   - apiGroups:
       - ""
     resources:
+      # sync has to create namespaces for Kafka instances to deploy
       - namespaces
     verbs:
       - get
