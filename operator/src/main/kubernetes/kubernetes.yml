@@ -13,15 +13,6 @@ metadata:
     app: kas-fleetshard-operator
 rules:
   - apiGroups:
-      - apiextensions.k8s.io
-    resources:
-      # the Java operator SDK seems to need listing CRDs
-      - customresourcedefinitions
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
       - managedkafka.bf2.org
     resources:
       # operator main custom resources for getting Kafka instance to deploy, configuration and reporting back status
