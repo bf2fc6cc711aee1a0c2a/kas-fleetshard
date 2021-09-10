@@ -366,7 +366,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // add toleration on broker pod such that it can be placed on specific worker nodes
         // note that the affinity/topology stuff make sure they are evenly spread across
         // the availability zone and worker nodes, but all worker nodes are same as
-        // some of them will have ZK, admin-server, canray and broker needs to be on its own
+        // some of them will have ZK, admin-server, canary and broker needs to be on its own
         podTemplateBuilder.withTolerations(buildKafkaBrokerToleration());
 
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
