@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -22,12 +23,12 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Inject
     protected InformerManager informerManager;
 
-    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
+    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, ConfigMap companionTemplates);
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Deployment current = cachedDeployment(managedKafka);
-        Deployment deployment = deploymentFrom(managedKafka, current);
+        ConfigMap companionTemplates = configMapResource(managedKafka, "tbd").get();
+        Deployment deployment = deploymentFrom(managedKafka, companionTemplates);
         createOrUpdate(deployment);
     }
 
@@ -69,5 +70,11 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
                 .deployments()
                 .inNamespace(canaryNamespace(managedKafka))
                 .withName(canaryName(managedKafka));
+    }
+
+    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+        return kubernetesClient.configMaps()
+                .inNamespace(canaryNamespace(managedKafka))
+                .withName(name);
     }
 }

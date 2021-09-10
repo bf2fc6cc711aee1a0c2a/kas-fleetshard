@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -25,8 +26,8 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Deployment currentDeployment = cachedDeployment(managedKafka);
-        Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
+        ConfigMap companionTemplates = configMapResource(managedKafka, "tbd").get();
+        Deployment deployment = deploymentFrom(managedKafka, companionTemplates);
         createOrUpdate(deployment);
 
         Service currentService = cachedService(managedKafka);
@@ -48,7 +49,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         adminServiceResource(managedKafka).delete();
     }
 
-    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
+    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, ConfigMap companionTemplates);
 
     public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
 
@@ -96,5 +97,11 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     public static String adminServerNamespace(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getNamespace();
+    }
+
+    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+        return kubernetesClient.configMaps()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(name);
     }
 }
