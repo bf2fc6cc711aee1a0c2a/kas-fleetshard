@@ -322,7 +322,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka) {
-        // onePerNode = true - one kafka broker per node with across the fleet of clusters,
+        // onePerNode = true - one kafka broker per node across the fleet of clusters,
         // onePerNode = false - one kafka broker per node per cluster
         boolean onePerNode = this.config.getKafka().isOneInstancePerNode();
         PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
