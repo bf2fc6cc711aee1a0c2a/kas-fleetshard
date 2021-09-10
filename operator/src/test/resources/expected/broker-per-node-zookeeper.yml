@@ -1,0 +1,7 @@
+---
+pod:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - topologyKey: "kubernetes.io/hostname"
+      - topologyKey: "topology.kubernetes.io/zone"

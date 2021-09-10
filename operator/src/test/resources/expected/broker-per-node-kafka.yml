@@ -1,0 +1,28 @@
+---
+pod:
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              strimzi.io/name: "test-mk-zookeeper"
+          topologyKey: "kubernetes.io/hostname"
+        weight: 50
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: "kafka"
+        topologyKey: "kubernetes.io/hostname"
+  tolerations:
+  - effect: "NoExecute"
+    key: "org.bf2.operator/kafka-broker"
+    operator: "Exists"
+  topologySpreadConstraints:
+  - labelSelector:
+      matchLabels:
+        strimzi.io/name: "test-mk-kafka"
+    maxSkew: 1
+    topologyKey: "topology.kubernetes.io/zone"
+    whenUnsatisfiable: "DoNotSchedule"

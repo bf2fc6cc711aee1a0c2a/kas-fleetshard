@@ -1,0 +1,9 @@
+---
+pod:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            strimzi.io/name: "test-mk-zookeeper"
+        topologyKey: "kubernetes.io/hostname"

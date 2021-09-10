@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
@@ -12,7 +11,6 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
@@ -39,7 +37,6 @@ import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -159,12 +156,12 @@ class KafkaClusterTest {
         try {
             ManagedKafka mk = exampleManagedKafka("60Gi");
             Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-            JsonNode patch = diffToExpected(kafka, "/expected/broker-per-node-strimzi.yml");
-            assertEquals("[]", patch.toString(), Serialization.asYaml(kafka));
-
-            var kafkaCli = client.customResources(Kafka.class, KafkaList.class);
-            kafkaCli.create(kafka);
-            assertNotNull(kafkaCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
+            JsonNode patch = diffToExpected(kafka.getSpec().getKafka().getTemplate(), "/expected/broker-per-node-kafka.yml");
+            assertEquals("[]", patch.toString());
+            patch = diffToExpected(kafka.getSpec().getKafkaExporter().getTemplate(), "/expected/broker-per-node-exporter.yml");
+            assertEquals("[]", patch.toString());
+            patch = diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
+            assertEquals("[]", patch.toString());
         } finally {
             config.getKafka().setOneInstancePerNode(false);
             config.getKafka().setColocateWithZookeeper(false);
@@ -172,8 +169,8 @@ class KafkaClusterTest {
         }
     }
 
-    private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
-        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+    private JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        ObjectMapper objectMapper = Serialization.yamlMapper();
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
         return JsonDiff.asJson(file1, file2);
