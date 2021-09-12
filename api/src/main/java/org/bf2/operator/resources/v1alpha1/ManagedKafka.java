@@ -3,7 +3,6 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Version;
@@ -107,8 +106,8 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
 
         if (endpointTlsCert != null && endpointTlsKey != null) {
             tls = new TlsKeyPairBuilder()
-                    .withNewCert(endpointTlsCert)
-                    .withNewKey(endpointTlsKey)
+                    .withCert(endpointTlsCert)
+                    .withKey(endpointTlsKey)
                     .build();
         }
 
@@ -118,19 +117,19 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                     .withTlsTrustedCertificate(oauthTlsCert)
                     .withClientSecret(oauthClientSecret)
                     .withUserNameClaim(oauthUserClaim)
-                    .withNewJwksEndpointURI(oauthJwksEndpoint)
-                    .withNewTokenEndpointURI(oauthTokenEndpoint)
-                    .withNewValidIssuerEndpointURI(oauthIssuerEndpoint)
+                    .withJwksEndpointURI(oauthJwksEndpoint)
+                    .withTokenEndpointURI(oauthTokenEndpoint)
+                    .withValidIssuerEndpointURI(oauthIssuerEndpoint)
                     .build();
         }
 
         return new ManagedKafkaBuilder()
-                .withMetadata(new ObjectMetaBuilder()
-                        .withNamespace(namespace)
-                        .withName(name)
-                        .addToAnnotations(ID, UUID.randomUUID().toString())
-                        .addToAnnotations(PLACEMENT_ID, name)
-                        .build())
+                .withNewMetadata()
+                    .withNamespace(namespace)
+                    .withName(name)
+                    .addToAnnotations(ID, UUID.randomUUID().toString())
+                    .addToAnnotations(PLACEMENT_ID, name)
+                .endMetadata()
                 .withSpec(new ManagedKafkaSpecBuilder()
                         .withNewVersions()
                             .withKafka("2.7.0")
@@ -138,13 +137,13 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                             .endVersions()
                         .withNewCapacity()
                             .withNewIngressEgressThroughputPerSec("4Mi")
-                            .withNewMaxDataRetentionPeriod("P14D")
+                            .withMaxDataRetentionPeriod("P14D")
                             .withNewMaxDataRetentionSize("100Gi")
                             .withTotalMaxConnections(500)
                             .withMaxPartitions(100)
                             .endCapacity()
                         .withNewEndpoint()
-                            .withNewBootstrapServerHost(String.format("%s.%s", name, bootstrapHostDomain))
+                            .withBootstrapServerHost(String.format("%s.%s", name, bootstrapHostDomain))
                             .withTls(tls)
                             .endEndpoint()
                         .withOauth(oauth)

@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
 import javax.enterprise.context.ApplicationScoped;
 
@@ -12,14 +13,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 @ApplicationScoped
 public class ResourceInformerFactory {
 
-    private ConcurrentLinkedQueue<ResourceInformer<?>> startedInformers = new ConcurrentLinkedQueue<>();
+    private ConcurrentLinkedQueue<SharedIndexInformer<?>> startedInformers = new ConcurrentLinkedQueue<>();
 
     public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type,
             WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
-        ResourceInformer<T> result = new ResourceInformer<>(type, watchListDeletable, eventHandler);
-        startedInformers.add(result);
-        return result;
+        SharedIndexInformer<T> informer = watchListDeletable.inform((ResourceEventHandler) eventHandler);
+        startedInformers.add(informer);
+        return new ResourceInformer<>(informer);
     }
 
     /**
@@ -27,7 +28,7 @@ public class ResourceInformerFactory {
      * has abnormally failed with the watch.
      */
     public boolean allInformersWatching() {
-        return startedInformers.stream().allMatch(ResourceInformer::isWatching);
+        return startedInformers.stream().allMatch(SharedIndexInformer::isWatching);
     }
 
 }

@@ -22,7 +22,7 @@ public class AssertUtils {
 
     public static void assertManagedKafka(ManagedKafka mk) {
         KubeClient kube = KubeClient.getInstance();
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().resources(Kafka.class, KafkaList.class);
 
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
         assertNotNull(kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());

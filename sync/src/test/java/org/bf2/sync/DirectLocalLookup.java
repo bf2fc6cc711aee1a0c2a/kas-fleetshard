@@ -39,7 +39,7 @@ public class DirectLocalLookup implements LocalLookup {
 
     @Override
     public ManagedKafkaAgent getLocalManagedKafkaAgent() {
-        List<ManagedKafkaAgent> items = kubeClient.customResources(ManagedKafkaAgent.class).list().getItems();
+        List<ManagedKafkaAgent> items = kubeClient.resources(ManagedKafkaAgent.class).list().getItems();
         if (items.isEmpty()) {
             return null;
         }

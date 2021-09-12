@@ -90,7 +90,7 @@ public class ManagedKafkaST extends AbstractST {
     void testDeleteDeployedResources(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-resource-recovery";
 
-        var kafkacli = kube.client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = kube.client().resources(Kafka.class, KafkaList.class);
 
         LOGGER.info("Create namespace");
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
