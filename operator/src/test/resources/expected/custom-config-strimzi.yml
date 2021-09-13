@@ -185,7 +185,10 @@ spec:
         affinity:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-kafka"
+              topologyKey: "kubernetes.io/hostname"              
         topologySpreadConstraints:
           - labelSelector:
               matchLabels:
@@ -236,8 +239,17 @@ spec:
         affinity:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
-            - topologyKey: "topology.kubernetes.io/zone"
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-zookeeper"
+              topologyKey: "kubernetes.io/hostname"            
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              strimzi.io/name: "test-mk-zookeeper"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "DoNotSchedule" 
   kafkaExporter:
     resources:
       limits:
