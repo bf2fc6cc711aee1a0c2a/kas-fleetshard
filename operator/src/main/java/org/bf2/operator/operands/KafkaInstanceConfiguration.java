@@ -5,15 +5,23 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import io.quarkus.arc.config.ConfigProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.runtime.Startup;
+import org.eclipse.microprofile.config.ConfigProvider;
+
+import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-@ConfigProperties(prefix = "managedkafka")
+@ApplicationScoped
+@Startup
 public class KafkaInstanceConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
@@ -48,6 +56,24 @@ public class KafkaInstanceConfiguration {
     protected ZooKeeper zookeeper = new ZooKeeper();
     @JsonUnwrapped(prefix = "managedkafka.exporter.")
     protected Exporter exporter = new Exporter();
+
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    private class MixIn {
+    }
+
+    @PostConstruct
+    void init() {
+        // workaround for not using ConfigProperties
+        HashMap<String, String> values = new HashMap<>();
+        ObjectMapper jsonMapper = new ObjectMapper();
+        Map<String,String> propertyMap = jsonMapper.addMixIn(AccessControl.class, MixIn.class).convertValue(this, new TypeReference<Map<String, String>>() {});
+        propertyMap.keySet().forEach(n -> ConfigProvider.getConfig().getOptionalValue(n, String.class).ifPresent(v -> values.put(n, v)));
+        KafkaInstanceConfiguration config = jsonMapper.convertValue(values, KafkaInstanceConfiguration.class);
+
+        this.kafka = config.kafka;
+        this.zookeeper = config.zookeeper;
+        this.exporter = config.exporter;
+    }
 
     public static class Kafka {
         @JsonProperty("connection-attempts-per-sec")
