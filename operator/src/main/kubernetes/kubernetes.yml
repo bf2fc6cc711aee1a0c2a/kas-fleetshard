@@ -176,7 +176,6 @@ spec:
       labels:
         app: kas-fleetshard-operator
     spec:
-      serviceAccountName: kas-fleetshard-operator
       containers:
         - name: kas-fleetshard-operator
           image: ##IMAGE##
