@@ -73,9 +73,6 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         JsonNode patch = diffToExpected(kafka, "/expected/strimzi.yml");
-        System.out.println(
-            Serialization.asYaml(kafka)
-        );
         assertEquals("[]", patch.toString());
     }
 
