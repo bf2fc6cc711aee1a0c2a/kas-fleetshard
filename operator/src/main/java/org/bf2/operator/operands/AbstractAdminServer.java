@@ -26,7 +26,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        ConfigMap companionTemplates = configMapResource(managedKafka, "tbd").get();
+        ConfigMap companionTemplates = configMapResource(managedKafka, "companion-templates-config-map").get();
         Deployment deployment = deploymentFrom(managedKafka, companionTemplates);
         createOrUpdate(deployment);
 

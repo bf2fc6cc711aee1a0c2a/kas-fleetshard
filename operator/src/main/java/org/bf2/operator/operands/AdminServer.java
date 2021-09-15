@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -10,14 +11,12 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Parameter;
 import io.fabric8.openshift.api.model.ParameterBuilder;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.TLSConfig;
 import io.fabric8.openshift.api.model.TLSConfigBuilder;
-import io.fabric8.openshift.api.model.Template;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
@@ -112,16 +111,12 @@ public class AdminServer extends AbstractAdminServer {
     /* test */
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, ConfigMap companionTemplates) {
-        Template template = Serialization.unmarshal(companionTemplates.getData().get("data"), Template.class);
-        template.setParameters(buildParameters(managedKafka));
+        Deployment deployment = Operand.deploymentFromTemplate(companionTemplates, "admin-server-template", "admin-server-deployment", buildParameters(managedKafka));
 
-        if (openShiftClient != null) {
-            // oc process somehow
-            openShiftClient.templates().inNamespace(managedKafka.getMetadata().getName());
-        }
-
-
-        Deployment deployment = template.getObjects().stream().map(object -> (Deployment) object).filter(dep -> dep.getMetadata().getName().equals("admin-server-deployment")).findFirst().get();
+        templateValidationWorkaround(deployment, managedKafka);
+        // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
+        // by the operator sdk to handle events on the Deployment resource properly
+        OperandUtils.setAsOwner(managedKafka, deployment);
 
         if(this.config.getAdminserver().isColocateWithZookeeper()) {
             builder
@@ -132,18 +127,25 @@ public class AdminServer extends AbstractAdminServer {
                             .endSpec()
                         .endTemplate()
                     .endSpec();
-        }
-        // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
-        // by the operator sdk to handle events on the Deployment resource properly
-        OperandUtils.setAsOwner(managedKafka, deployment);
-
         return deployment;
     }
 
-    private List<Parameter> buildParameters(ManagedKafka managedKafka) {
+    private void templateValidationWorkaround(Deployment deployment, ManagedKafka managedKafka) {
+        // we need to add Deployment parameters which cause validation failures while unmarshalling the template
+        // https://github.com/fabric8io/kubernetes-client/issues/3460
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTPS_PORT_NAME).withContainerPort(HTTPS_PORT).build());
+        } else {
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTP_PORT_NAME).withContainerPort(HTTP_PORT).build());
+        }
+        deployment.getSpec().getTemplate().getSpec().setImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka));
+    }
+
+    private Map<String, String> buildParameters(ManagedKafka managedKafka) {
         List<Parameter> parameters = new ArrayList<>();
 
-        parameters.add(new ParameterBuilder().withName("ADMIN_SERVER_APP").withValue(managedKafka.getMetadata().getName() + "-admin-server").build());
+        parameters.add(new ParameterBuilder().withName("KAFKA_ADMIN_SERVER_APP").withValue(managedKafka.getMetadata().getName() + "-admin-server").build());
+        parameters.add(new ParameterBuilder().withName("KAFKA_ADMIN_NAMESPACE").withValue(managedKafka.getMetadata().getNamespace()).build());
         addParameter(parameters, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addParameterSecret(parameters, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
 
@@ -186,25 +188,25 @@ public class AdminServer extends AbstractAdminServer {
         }
 
         if (corsAllowList.isPresent()) {
-            addParameter(parameters, "CORS_ALLOW_LIST_REGEX", corsAllowList.get());
+            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", corsAllowList.get());
         } else {
-            addParameter(parameters, "CORS_ALLOW_LIST_REGEX", "");
+            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", "");
         }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addParameter(parameters, "API_PORT_NAME", HTTPS_PORT_NAME);
-            addParameter(parameters, "API_PORT", Integer.toString(HTTPS_PORT));
+            addParameter(parameters, "KAFKA_ADMIN_API_PORT_NAME", HTTPS_PORT_NAME);
+            addParameter(parameters, "KAFKA_ADMIN_API_PORT", Integer.toString(HTTPS_PORT));
         } else {
-            addParameter(parameters, "API_PORT_NAME", HTTP_PORT_NAME);
-            addParameter(parameters, "API_PORT", Integer.toString(HTTP_PORT));
+            addParameter(parameters, "KAFKA_ADMIN_API_PORT_NAME", HTTP_PORT_NAME);
+            addParameter(parameters, "KAFKA_ADMIN_API_PORT", Integer.toString(HTTP_PORT));
         }
 
-        addParameter(parameters, "ADMIN_IMAGE_PULL_SECRETS", imagePullSecretManager.getOperatorImagePullSecrets(managedKafka).stream().map(ref -> ref.getName()).collect(Collectors.joining(", ")));
+        addParameter(parameters, "KAFKA_ADMIN_IMAGE_PULL_SECRETS", "[" + imagePullSecretManager.getOperatorImagePullSecrets(managedKafka).stream().map(ref -> ref.getName()).collect(Collectors.joining(", ")) + "]");
 
-        addParameter(parameters, "ADMIN_VOLUME_NAME", managedKafka.getMetadata().getName() + "-tls-ca-cert");
-        addParameter(parameters, "ADMIN_VOLUME_SECRET", managedKafka.getMetadata().getName() + "-cluster-ca-cert");
+        addParameter(parameters, "KAFKA_ADMIN_VOLUME_NAME", managedKafka.getMetadata().getName() + "-tls-ca-cert");
+        addParameter(parameters, "KAFKA_ADMIN_VOLUME_SECRET", managedKafka.getMetadata().getName() + "-cluster-ca-cert");
 
-        return parameters;
+        return parameters.stream().collect(Collectors.toMap(entry -> entry.getName(), entry -> entry.getValue() == null ? "" :  entry.getValue()));
     }
 
     /* test */

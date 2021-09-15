@@ -1,13 +1,21 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.KubernetesList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -62,5 +70,26 @@ public interface Operand<T extends CustomResource<?, ?>> {
                                 dc.getMessage())))
                 .orElseGet(() -> new OperandReadiness(Status.False, Reason.Installing, String
                         .format("Deployment %s has no progressing condition", deployment.getMetadata().getName())));
+    }
+
+    static Deployment deploymentFromTemplate(ConfigMap companionTemplates, String templateName, String deploymentName, Map<String, String> parameters) {
+        File tempFile = null;
+        try {
+            tempFile = File.createTempFile("template", ".tmp");
+
+        FileWriter writer = new FileWriter(tempFile, StandardCharsets.UTF_8);
+        writer.write(companionTemplates.getData().get(templateName));
+        writer.close();
+
+        DefaultOpenShiftClient dryOpenShiftClient = new DefaultOpenShiftClient();
+        KubernetesList res = dryOpenShiftClient.templates().withParameters(parameters).load(tempFile).processLocally();
+
+        dryOpenShiftClient.close();
+        tempFile.deleteOnExit();
+        Deployment deployment = (Deployment) res.getItems().stream().filter(item -> item.getMetadata().getName().equals(deploymentName)).findFirst().get();
+        return deployment;
+        } catch (IOException e) {
+            throw new RuntimeException("failed to create a Deployment");
+        }
     }
 }
