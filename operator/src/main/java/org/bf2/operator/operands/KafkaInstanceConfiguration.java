@@ -1,12 +1,12 @@
 package org.bf2.operator.operands;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.runtime.Startup;
 import org.eclipse.microprofile.config.ConfigProvider;
 
@@ -14,12 +14,16 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+/**
+ * Provides an object model that can externalize the operator configuration as a simple map.
+ * <br>Relies heavily on jackson processing - do not do anything that will prevent all property
+ * keys from being present in default output, such as use JsonInclude non-null on a field/class.
+ */
 @ApplicationScoped
 @Startup
 public class KafkaInstanceConfiguration {
@@ -57,22 +61,24 @@ public class KafkaInstanceConfiguration {
     @JsonUnwrapped(prefix = "managedkafka.exporter.")
     protected Exporter exporter = new Exporter();
 
-    @JsonInclude(JsonInclude.Include.ALWAYS)
-    private class MixIn {
-    }
-
     @PostConstruct
     void init() {
-        // workaround for not using ConfigProperties
-        HashMap<String, String> values = new HashMap<>();
-        ObjectMapper jsonMapper = new ObjectMapper();
-        Map<String,String> propertyMap = jsonMapper.addMixIn(AccessControl.class, MixIn.class).convertValue(this, new TypeReference<Map<String, String>>() {});
-        propertyMap.keySet().forEach(n -> ConfigProvider.getConfig().getOptionalValue(n, String.class).ifPresent(v -> values.put(n, v)));
-        KafkaInstanceConfiguration config = jsonMapper.convertValue(values, KafkaInstanceConfiguration.class);
+        // workaround for not using ConfigProperties.  Get the full property set, look them up in the config then inject those values
+        Map<String, String> values = toMap(true);
+        values.keySet().forEach(n -> ConfigProvider.getConfig().getOptionalValue(n, String.class).ifPresent(v -> values.put(n, v)));
+        KafkaInstanceConfiguration config = Serialization.jsonMapper().convertValue(values, KafkaInstanceConfiguration.class);
 
         this.kafka = config.kafka;
         this.zookeeper = config.zookeeper;
         this.exporter = config.exporter;
+    }
+
+    public Map<String, String> toMap(boolean includeAll) {
+        ObjectMapper mapper = Serialization.jsonMapper();
+        if (!includeAll) {
+            mapper = mapper.copy().setSerializationInclusion(Include.NON_NULL);
+        }
+        return mapper.convertValue(this, new TypeReference<Map<String, String>>() {});
     }
 
     public static class Kafka {
@@ -223,7 +229,6 @@ public class KafkaInstanceConfiguration {
         }
     }
 
-    @JsonInclude(value = Include.NON_NULL)
     public static class AccessControl {
         @JsonProperty("final-version")
         protected String finalVersion = null;

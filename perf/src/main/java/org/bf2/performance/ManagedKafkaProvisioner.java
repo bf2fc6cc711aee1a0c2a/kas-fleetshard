@@ -1,6 +1,5 @@
 package org.bf2.performance;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -118,8 +117,8 @@ public class ManagedKafkaProvisioner {
         return new ManagedKafkaProvisioner(cluster);
     }
 
-    static ConfigMap toConfigMap(Object profile) throws IOException {
-        Map<String,String> propertyMap = Serialization.jsonMapper().convertValue(profile, new TypeReference<Map<String, String>>() {});
+    static ConfigMap toConfigMap(KafkaInstanceConfiguration profile) throws IOException {
+        Map<String,String> propertyMap = profile.toMap(false);
 
         ConfigMap override =
                 new ConfigMapBuilder().withNewMetadata().withName("kas-fleetshard-config").endMetadata()
