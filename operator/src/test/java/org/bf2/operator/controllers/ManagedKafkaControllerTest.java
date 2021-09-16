@@ -13,11 +13,13 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.utils.ManagedKafkaUtils;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -31,8 +33,9 @@ public class ManagedKafkaControllerTest {
     ManagedKafkaController mkController;
 
     @Test
-    void shouldCreateStatus() throws InterruptedException {
+    void shouldCreateStatus() throws IOException {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        ManagedKafkaUtils.createCompanionConfigMap(mk.getMetadata().getNamespace());
         mk.getMetadata().setUid(UUID.randomUUID().toString());
         mk.getMetadata().setGeneration(1l);
         mk.getMetadata().setResourceVersion("1");
