@@ -135,14 +135,16 @@ spec:
       strimzi.authorization.custom-authorizer.acl.005: permission=deny;cluster=*;operations-except=alter,describe,idempotent_write
       strimzi.authorization.custom-authorizer.acl.006: permission=deny;cluster=*;operations=describe;apis-except=describe_acls,list_groups
       strimzi.authorization.custom-authorizer.acl.007: permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls
-      strimzi.authorization.custom-authorizer.acl.008: priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe
-      strimzi.authorization.custom-authorizer.acl.009: priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
-      strimzi.authorization.custom-authorizer.acl.010: priority=1;permission=allow;principal=userid-123;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.011: priority=1;permission=allow;principal=userid-123;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.012: priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.013: priority=1;permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
-      strimzi.authorization.custom-authorizer.acl.014: priority=1;permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
-      strimzi.authorization.custom-authorizer.acl.015: priority=1;permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
+      strimzi.authorization.custom-authorizer.acl.008: permission=deny;topic=__*;operations=all
+      strimzi.authorization.custom-authorizer.acl.009: permission=deny;group=strimzi-canary-group;operations=all
+      strimzi.authorization.custom-authorizer.acl.010: priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.011: priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.012: priority=1;permission=allow;principal=userid-123;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.013: priority=1;permission=allow;principal=userid-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.014: priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.015: priority=1;permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
+      strimzi.authorization.custom-authorizer.acl.016: priority=1;permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
+      strimzi.authorization.custom-authorizer.acl.017: priority=1;permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
