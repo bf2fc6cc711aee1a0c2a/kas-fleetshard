@@ -33,7 +33,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
@@ -168,7 +168,7 @@ class KafkaClusterTest {
         clone.getZookeeper().setContainerMemory("11Gi");
         clone.getZookeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
-        Properties propertyMap = Serialization.jsonMapper().convertValue(clone, Properties.class);
+        Map<String, String> propertyMap = clone.toMap(false);
         assertEquals("4", propertyMap.get("managedkafka.kafka.replicas"));
         assertEquals("2Gi", propertyMap.get("managedkafka.kafka.container-memory"));
         assertEquals("foo bar, foo2 bar2", propertyMap.get("managedkafka.kafka.jvm-xx"));

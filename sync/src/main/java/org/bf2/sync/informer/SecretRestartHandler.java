@@ -3,6 +3,7 @@ package org.bf2.sync.informer;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.runtime.Quarkus;
+import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -16,6 +17,7 @@ import javax.inject.Inject;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+@Startup
 @ApplicationScoped
 public class SecretRestartHandler {
     private static final Pattern SECRET_PATTERN = Pattern.compile(".*\\[secret=[^/]*/[^/]*/([^/]*)/([^/]*)\\]");

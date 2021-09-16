@@ -26,6 +26,8 @@ public class KasFleetShardOperator implements QuarkusApplication {
         log.info("kas fleetshard operator");
 
         printConfiguration();
+
+        operator.start();
         Quarkus.waitForExit();
         return 0;
     }

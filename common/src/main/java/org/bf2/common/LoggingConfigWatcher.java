@@ -1,6 +1,7 @@
 package org.bf2.common;
 
 import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.Startup;
 import io.quarkus.runtime.StartupEvent;
 import io.smallrye.config.PropertiesConfigSource;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -26,6 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @ApplicationScoped
+@Startup
 public class LoggingConfigWatcher {
 
     static final Pattern KEY_PATTERN = Pattern.compile("quarkus\\.log\\.category\\.[\"]?([^\"]*)[\"]?\\.level");

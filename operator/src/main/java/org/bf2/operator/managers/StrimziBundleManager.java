@@ -1,16 +1,14 @@
 package org.bf2.operator.managers;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.CSVDescription;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageChannel;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestList;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
@@ -70,16 +68,14 @@ public class StrimziBundleManager {
     @Inject
     MeterRegistry meterRegistry;
 
-    // TODO: this raw custom resource client can be removed once we have Quarkus + SDK extension using the fabric8 5.5.0
-    // which supports the package manifests API out of the box
-    MixedOperation<PackageManifest, KubernetesResourceList<PackageManifest>, Resource<PackageManifest>> packageManifestClient;
+    MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
 
     ResourceInformer<Subscription> subscriptionInformer;
 
     @PostConstruct
     protected void onStart() {
 
-        this.packageManifestClient = this.createPackageManifestClient();
+        this.packageManifestClient = this.openShiftClient.operatorHub().packageManifests();
 
         this.subscriptionInformer =
                 this.resourceInformerFactory.create(Subscription.class,
@@ -219,30 +215,16 @@ public class StrimziBundleManager {
                         .map(annotations -> annotations.get("strimziVersions"))
                         .orElse(null);
 
-        ObjectMapper mapper = new ObjectMapper();
         List<String> strimziVersions = new ArrayList<>();
         try {
-            strimziVersions = mapper.readValue(strimziVersionsJson, List.class);
+            strimziVersions = Serialization.jsonMapper().readValue(strimziVersionsJson, List.class);
             log.debugf("PackageManifest %s/%s Strimzi versions = %s",
                     packageManifest.getMetadata().getNamespace(), packageManifest.getMetadata().getName(), strimziVersions);
         } catch (Exception e) {
-            log.errorv(e, "Error processing Strimzi versions in PackageManifest %s/%s",
+            log.errorf(e, "Error processing Strimzi versions in PackageManifest %s/%s",
                     packageManifest.getMetadata().getNamespace(), packageManifest.getMetadata().getName());
         }
         return strimziVersions;
-    }
-
-    private MixedOperation<PackageManifest, KubernetesResourceList<PackageManifest>, Resource<PackageManifest>> createPackageManifestClient() {
-        CustomResourceDefinitionContext ctx = new CustomResourceDefinitionContext.Builder()
-                .withKind(HasMetadata.getKind(PackageManifest.class))
-                .withGroup(HasMetadata.getGroup(PackageManifest.class))
-                .withScope("Namespaced")
-                .withVersion(HasMetadata.getApiVersion(PackageManifest.class))
-                //.withPlural(HasMetadata.getPlural(PackageManifest.class))
-                .withPlural("packagemanifests")
-                .build();
-
-        return this.openShiftClient.customResources(ctx, PackageManifest.class, null);
     }
 
     /**
