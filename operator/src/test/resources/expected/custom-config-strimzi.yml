@@ -129,19 +129,22 @@ spec:
       leader.imbalance.per.broker.percentage: 0
       connections.max.reauth.ms: 299000
       strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
-      strimzi.authorization.custom-authorizer.acl.1: permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.2: default=true;permission=allow;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.3: default=true;permission=allow;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.4: default=true;permission=allow;transactional_id=*;operations=all
       strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
-      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe
-      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
-      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;topic=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.9: permission=allow;principal=userid-123;transactional_id=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.10: permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
-      strimzi.authorization.custom-authorizer.acl.11: permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
-      strimzi.authorization.custom-authorizer.acl.12: permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
+      strimzi.authorization.custom-authorizer.acl.001: default=true;permission=allow;topic=*;operations=describe,describe_configs
+      strimzi.authorization.custom-authorizer.acl.002: default=true;permission=allow;group=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.003: default=true;permission=allow;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.004: permission=allow;cluster=*;operations=idempotent_write
+      strimzi.authorization.custom-authorizer.acl.005: permission=deny;cluster=*;operations-except=alter,describe,idempotent_write
+      strimzi.authorization.custom-authorizer.acl.006: permission=deny;cluster=*;operations=describe;apis-except=describe_acls,list_groups
+      strimzi.authorization.custom-authorizer.acl.007: permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.008: priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.009: priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.010: priority=1;permission=allow;principal=userid-123;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.011: priority=1;permission=allow;principal=userid-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.012: priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.013: priority=1;permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
+      strimzi.authorization.custom-authorizer.acl.014: priority=1;permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
+      strimzi.authorization.custom-authorizer.acl.015: priority=1;permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
