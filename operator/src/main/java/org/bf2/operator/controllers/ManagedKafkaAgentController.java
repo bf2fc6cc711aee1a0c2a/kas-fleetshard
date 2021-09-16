@@ -92,7 +92,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
             log.debugf("Tick to update Kafka agent Status in namespace %s", this.agentClient.getNamespace());
             resource.setStatus(buildStatus(resource));
-            this.agentClient.updateStatus(resource);
+            this.agentClient.replaceStatus(resource);
         }
     }
 

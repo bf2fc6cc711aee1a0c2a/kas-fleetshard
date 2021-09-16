@@ -266,7 +266,7 @@ public class StrimziBundleManager {
                     ConditionUtils.updateConditionStatus(bundleReadyCondition, ManagedKafkaCondition.Status.False, ManagedKafkaCondition.Reason.OrphanedKafkas, null);
                 }
             }
-            this.agentClient.updateStatus(resource);
+            this.agentClient.replaceStatus(resource);
         }
     }
 

@@ -1,6 +1,5 @@
 package org.bf2.common;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentList;
@@ -37,8 +36,9 @@ public class ManagedKafkaAgentResourceClient extends AbstractCustomResourceClien
                 .withSpec(new ManagedKafkaAgentSpecBuilder()
                         .withObservability(observabilityConfig)
                         .build())
-                .withMetadata(new ObjectMetaBuilder().withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
-                        .build())
+                .withNewMetadata()
+                    .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
                 .build();
     }
 

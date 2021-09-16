@@ -64,7 +64,7 @@ public class OlmBasedStrimziOperatorManager {
     public CompletableFuture<Void> deleteStrimziOperator() {
         LOGGER.info("Deleting Strimzi Operator");
 
-        var kafkaCli = kubeClient.client().customResources(Kafka.class);
+        var kafkaCli = kubeClient.client().resources(Kafka.class);
 
         kafkaCli.inAnyNamespace().list().getItems()
             .forEach(mk -> kafkaCli.inNamespace(mk.getMetadata().getNamespace())
