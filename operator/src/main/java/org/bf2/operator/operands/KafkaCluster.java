@@ -614,22 +614,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);
 
-        if (aclConfig.isCustomAclAuthorizerEnabled(owners)) {
-            config.put(resourceOperationsKey, aclConfig.getResourceOperations());
+        config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
-            for (String owner : owners) {
-                addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
-            }
-
-            Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
-                .stream()
-                .forEach(account -> {
-                    String aclKey = String.format(SERVICE_ACCOUNT_KEY, account.getName());
-
-                    applicationConfig.getOptionalValue(aclKey, String.class)
-                        .ifPresent(acl -> addAcl(acl, account.getPrincipal(), aclKeyTemplate, aclCount, config));
-                });
+        for (String owner : owners) {
+            addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
         }
+
+        Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
+            .stream()
+            .forEach(account -> {
+                String aclKey = String.format(SERVICE_ACCOUNT_KEY, account.getName());
+
+                applicationConfig.getOptionalValue(aclKey, String.class)
+                    .ifPresent(acl -> addAcl(acl, account.getPrincipal(), aclKeyTemplate, aclCount, config));
+            });
     }
 
     private void addAcl(String configuredAcl, String principal, String keyTemplate, AtomicInteger aclCount, Map<String, Object> config) {

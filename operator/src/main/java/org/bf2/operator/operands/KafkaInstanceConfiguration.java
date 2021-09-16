@@ -14,7 +14,6 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -231,7 +230,7 @@ public class KafkaInstanceConfiguration {
 
     public static class AccessControl {
         @JsonProperty("final-version")
-        protected String finalVersion = null;
+        protected String finalVersion = "0.0.0"; // Default, disables `acl-legacy` configurations
         @JsonProperty("authorizer-class")
         protected String authorizerClass = null;
         @JsonProperty("config-prefix")
@@ -244,22 +243,6 @@ public class KafkaInstanceConfiguration {
         protected String resourceOperations = null;
         @JsonProperty("allowed-listeners")
         protected String allowedListeners = null;
-
-        /**
-         * Determines if the custom ACL authorizer's features are enabled.
-         * To be considered enabled, the `CustomAclAuthorizer` class must be configured
-         * and the ManagedKafka's list of owners must be a non-empty list.
-         *
-         * @param owners the ManagedKafka's list of owners
-         * @return true when additional custom ACL features are enabled, otherwise false
-         */
-        public boolean isCustomAclAuthorizerEnabled(List<String> owners) {
-            if (owners == null || owners.isEmpty()) {
-                return false;
-            }
-            final String simpleName = authorizerClass.substring(authorizerClass.lastIndexOf('.') + 1);
-            return "CustomAclAuthorizer".equals(simpleName);
-        }
 
         public String getFinalVersion() {
             return finalVersion;
