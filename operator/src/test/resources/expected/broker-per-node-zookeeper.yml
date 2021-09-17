@@ -13,4 +13,4 @@ pod:
         strimzi.io/name: "test-mk-zookeeper"
     maxSkew: 1
     topologyKey: "topology.kubernetes.io/zone"
-    whenUnsatisfiable: "DoNotSchedule"   
+    whenUnsatisfiable: "ScheduleAnyway"   

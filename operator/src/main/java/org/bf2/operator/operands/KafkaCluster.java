@@ -356,7 +356,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
                 .withAffinity(affinityBuilder.build())
                 .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka"));
+                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka", "DoNotSchedule"));
 
         // add toleration on broker pod such that it can be placed on specific worker nodes
         // note that the affinity/topology stuff make sure they are evenly spread across
@@ -385,14 +385,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private TopologySpreadConstraint azAwareTopologySpreadConstraint(String instanceName) {
+    private TopologySpreadConstraint azAwareTopologySpreadConstraint(String instanceName, String action) {
         return new TopologySpreadConstraintBuilder()
                 .withMaxSkew(1)
                 .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
                 .withNewLabelSelector()
                     .withMatchLabels(Map.of("strimzi.io/name", instanceName))
                 .endLabelSelector()
-                .withWhenUnsatisfiable("DoNotSchedule")
+                .withWhenUnsatisfiable(action)
                 .build();
     }
     //
@@ -417,11 +417,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         affinityBuilder.withPodAntiAffinity(podAntiAffinity);
 
+        // use "ScheduleAnyway" here due to fact that any previous ZK instances may not have been correctly AZ aware
+        // and StatefulSet can not be moved with across zone with current setup
         ZookeeperClusterTemplateBuilder templateBuilder = new ZookeeperClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
                         .withAffinity(affinityBuilder.build())
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper"))
+                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", "ScheduleAnyway"))
                         .build());
 
         if (drainCleanerManager.isDrainCleanerWebhookFound()) {
