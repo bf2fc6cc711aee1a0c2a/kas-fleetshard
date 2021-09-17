@@ -18,10 +18,12 @@ import java.util.List;
 public class ManagedKafkaStatus {
 
     private List<ManagedKafkaCondition> conditions;
+    private List<ManagedKafkaRoute> routes;
     private ManagedKafkaCapacity capacity;
     private Versions versions;
     private String adminServerURI;
     private String updatedTimestamp;
+    private List<ServiceAccount> serviceAccounts;
 
     public List<ManagedKafkaCondition> getConditions() {
         return conditions;
@@ -29,6 +31,14 @@ public class ManagedKafkaStatus {
 
     public void setConditions(List<ManagedKafkaCondition> conditions) {
         this.conditions = conditions;
+    }
+
+    public List<ManagedKafkaRoute> getRoutes() {
+        return routes;
+    }
+
+    public void setRoutes(List<ManagedKafkaRoute> routes) {
+        this.routes = routes;
     }
 
     public ManagedKafkaCapacity getCapacity() {
@@ -61,5 +71,13 @@ public class ManagedKafkaStatus {
 
     public void setUpdatedTimestamp(String updatedTimestamp) {
         this.updatedTimestamp = updatedTimestamp;
+    }
+
+    public List<ServiceAccount> getServiceAccounts() {
+        return serviceAccounts;
+    }
+
+    public void setServiceAccounts(List<ServiceAccount> serviceAccounts) {
+        this.serviceAccounts = serviceAccounts;
     }
 }

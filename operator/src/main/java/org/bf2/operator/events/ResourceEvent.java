@@ -2,9 +2,9 @@ package org.bf2.operator.events;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.Watcher;
-import io.javaoperatorsdk.operator.processing.event.AbstractEvent;
+import io.javaoperatorsdk.operator.processing.event.DefaultEvent;
 
-public class ResourceEvent<T extends HasMetadata> extends AbstractEvent {
+public class ResourceEvent<T extends HasMetadata> extends DefaultEvent {
 
     private T resource;
     private Watcher.Action action;

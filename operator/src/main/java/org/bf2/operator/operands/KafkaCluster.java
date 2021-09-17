@@ -11,9 +11,11 @@ import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
+import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.ExternalLogging;
 import io.strimzi.api.kafka.model.ExternalLoggingBuilder;
@@ -46,14 +48,18 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.DrainCleanerManager;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.Versions;
+import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
+import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import javax.xml.bind.DatatypeConverter;
 
@@ -62,6 +68,7 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +80,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
  * and checking the corresponding status
  */
+@Startup
 @ApplicationScoped
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
@@ -89,11 +97,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
     private static final String DIGEST = "org.bf2.operator/digest";
-    private static final String ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK = "org.apache.kafka.server.quota.StaticQuotaCallback";
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
+
+    private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
 
     @Inject
     Logger log;
+
+    @Inject
+    Config applicationConfig;
 
     @Inject
     protected SecuritySecretManager secretManager;
@@ -106,6 +118,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StrimziManager strimziManager;
+
+    @Inject
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
@@ -200,7 +215,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withRack(buildKafkaRack(managedKafka))
                         .withTemplate(buildKafkaTemplate(managedKafka))
                         .withMetricsConfig(buildKafkaMetricsConfig(managedKafka))
-                        .withAuthorization(buildKafkaAuthorization())
+                        .withAuthorization(buildKafkaAuthorization(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                         .withExternalLogging(buildKafkaExternalLogging(managedKafka))
                     .endKafka()
@@ -305,13 +320,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname").build()
                 ).build();
 
-        KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
-                .withPod(new PodTemplateBuilder()
-                        .withAffinity(new AffinityBuilder()
-                                .withPodAntiAffinity(podAntiAffinity)
-                                .build())
-                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+        PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
+                .withAffinity(new AffinityBuilder().withPodAntiAffinity(podAntiAffinity).build())
+                .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                .withTopologySpreadConstraints(new TopologySpreadConstraintBuilder()
+                        .withMaxSkew(1)
+                        .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
+                        .withNewLabelSelector()
+                            .withMatchLabels(Map.of("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka"))
+                        .endLabelSelector()
+                        .withWhenUnsatisfiable("DoNotSchedule")
                         .build());
+
+        KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
+                .withPod(podTemplateBuilder.build());
 
         if (drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
@@ -423,20 +445,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
+        config.put("connections.max.reauth.ms", 299000); // 4m 59s
 
         // forcing the preferred leader election as soon as possible
         // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
-
-        if(managedKafka.getSpec().getVersions().isStrimziVersionIn(Versions.VERSION_0_22)) {
-            // Limit client connections per broker
-            Integer totalMaxConnections = managedKafka.getSpec().getCapacity().getTotalMaxConnections();
-            config.put("max.connections", String.valueOf((long)(Objects.requireNonNullElse(totalMaxConnections, this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas())));
-            // Limit connection attempts per broker
-            Integer maxConnectionAttemptsPerSec = managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec();
-            config.put("max.connections.creation.rate", String.valueOf(Objects.requireNonNullElse(maxConnectionAttemptsPerSec, this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas()));
-        }
 
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {
@@ -451,9 +465,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
 
-        Versions versions = managedKafka.getSpec().getVersions();
-        boolean legacyQuotaClass = versions.isStrimziVersionIn(Versions.VERSION_0_22) || (versions.getStrimzi().endsWith("0.23.0-0"));
-        config.put("client.quota.callback.class", legacyQuotaClass ? ORG_APACHE_KAFKA_SERVER_QUOTA_STATIC_QUOTA_CALLBACK : IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
+        config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
         Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
@@ -565,16 +577,30 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return builder.build();
     }
 
-    private KafkaAuthorization buildKafkaAuthorization() {
+    private AccessControl getAclConfig(ManagedKafka managedKafka) {
+        AccessControl legacyConfig = config.getKafka().getAclLegacy();
+
+        if (legacyConfig != null && managedKafka.getSpec().getVersions().compareStrimziVersionTo(legacyConfig.getFinalVersion()) <= 0) {
+            /*
+             * Use legacy configuration when present and the Kafka Strimzi version is less than
+             * or equal to the final version given for legacy.
+             * */
+            return legacyConfig;
+        }
+
+        return config.getKafka().getAcl();
+    }
+
+    private KafkaAuthorization buildKafkaAuthorization(ManagedKafka managedKafka) {
         return new KafkaAuthorizationCustomBuilder()
-                .withAuthorizerClass(this.config.getKafka().getAcl().getAuthorizerClass())
+                .withAuthorizerClass(getAclConfig(managedKafka).getAuthorizerClass())
                 .build();
     }
 
     private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config) {
         List<String> owners = managedKafka.getSpec().getOwners();
         AtomicInteger aclCount = new AtomicInteger(0);
-        KafkaInstanceConfiguration.AccessControl aclConfig = this.config.getKafka().getAcl();
+        AccessControl aclConfig = getAclConfig(managedKafka);
 
         final String configPrefix = aclConfig.getConfigPrefix();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
@@ -588,18 +614,20 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);
 
-        if (aclConfig.isCustomAclAuthorizerEnabled(owners)) {
-            config.put(resourceOperationsKey, aclConfig.getResourceOperations());
+        config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
-            for (String owner : owners) {
-                addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
-            }
-
-            /*
-             * Future: iterate over ManagedKafka `.spec.serviceaccounts` and read configured ACLs from
-             * `managedkafka.kafka.acl.service-accounts.${serviceaccounts[].name} via `Config`.
-             **/
+        for (String owner : owners) {
+            addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
         }
+
+        Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
+            .stream()
+            .forEach(account -> {
+                String aclKey = String.format(SERVICE_ACCOUNT_KEY, account.getName());
+
+                applicationConfig.getOptionalValue(aclKey, String.class)
+                    .ifPresent(acl -> addAcl(acl, account.getPrincipal(), aclKeyTemplate, aclCount, config));
+            });
     }
 
     private void addAcl(String configuredAcl, String principal, String keyTemplate, AtomicInteger aclCount, Map<String, Object> config) {
@@ -623,6 +651,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
+        }
+
         log.debugf("Kafka %s/%s labels: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), labels);
         return labels;

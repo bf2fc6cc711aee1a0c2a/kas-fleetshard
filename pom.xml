@@ -56,17 +56,16 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
-        <quarkus.platform.version>1.13.1.Final</quarkus.platform.version>
-        <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
+        <quarkus.platform.version>2.2.2.Final</quarkus.platform.version>
+        <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.23.0</strimzi.version>
-        <fabric8.crd-generator.version>5.1.1</fabric8.crd-generator.version>
-        <fabric8.openshift-model-operatorhub.version>5.5.0</fabric8.openshift-model-operatorhub.version>
-        <quarkus.operator.extension>1.8.2</quarkus.operator.extension>
+        <fabric8.client.version>5.7.2</fabric8.client.version>
+        <quarkus.operator.extension>2.0.0.Beta5</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
-        <junit.platform.version>1.7.0</junit.platform.version>
-        <sundrio.version>0.24.3</sundrio.version>
-        <lombok.version>1.18.16</lombok.version>
+        <junit.platform.version>1.7.2</junit.platform.version>
+        <sundrio.version>0.40.1</sundrio.version>
+        <lombok.version>1.18.20</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
         <properties-plugin.version>1.0.0</properties-plugin.version>
         <impsort-plugin.version>1.6.0</impsort-plugin.version>
@@ -88,8 +87,15 @@
         <dependencies>
             <dependency>
                 <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>${fabric8.client.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
                 <artifactId>openshift-model-operatorhub</artifactId>
-                <version>${fabric8.openshift-model-operatorhub.version}</version>
+                <version>${fabric8.client.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bf2</groupId>
@@ -107,14 +113,6 @@
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>crd-generator</artifactId>
-                <version>${fabric8.crd-generator.version}</version>
-                <!-- we need to keep this optional to avoid conflicts with quarkus-kubernetes -->
-                <optional>true</optional>
-                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.quarkiverse.operatorsdk</groupId>
@@ -140,6 +138,7 @@
                 <groupId>io.sundr</groupId>
                 <artifactId>builder-annotations</artifactId>
                 <version>${sundrio.version}</version>
+                <scope>provided</scope>
             </dependency>
             <dependency>
                 <groupId>io.quarkus</groupId>

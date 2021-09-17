@@ -11,6 +11,7 @@ import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -18,12 +19,14 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.logging.NDC;
 
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -42,6 +45,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     KafkaInstance kafkaInstance;
+
+    @Inject
+    Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
@@ -131,6 +137,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
+        // routes should always be set on the CR status, even if it's just an empty list
+        status.setRoutes(List.of());
+
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
             if (!Reason.StrimziUpdating.equals(readiness.getReason())) {
@@ -139,6 +148,13 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 // just keep the current version
             }
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
+            status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
+
+            if (ingressControllerManagerInstance.isResolvable()) {
+                IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
+                List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
+                status.setRoutes(routes);
+            }
         }
     }
 }

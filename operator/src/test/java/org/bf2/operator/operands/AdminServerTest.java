@@ -1,6 +1,5 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.junit.QuarkusTest;
@@ -28,11 +27,10 @@ public class AdminServerTest {
     @Test
     void createAdminServerDeployment() {
         ManagedKafka mk = new ManagedKafkaBuilder()
-                .withMetadata(
-                        new ObjectMetaBuilder()
-                                .withNamespace("test")
-                                .withName("test-mk")
-                                .build())
+                .withNewMetadata()
+                    .withNamespace("test")
+                    .withName("test-mk")
+                .endMetadata()
                 .withSpec(
                         new ManagedKafkaSpecBuilder()
                                 .withNewEndpoint().endEndpoint()

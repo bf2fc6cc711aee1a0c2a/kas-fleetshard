@@ -13,7 +13,12 @@
     <dependencies>
         <dependency>
             <groupId>io.fabric8</groupId>
-            <artifactId>crd-generator</artifactId>
+            <artifactId>kubernetes-client</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-common</artifactId>
         </dependency>
         <dependency>
             <groupId>io.sundr</groupId>
@@ -31,6 +36,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -5,7 +5,11 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
-    managedkafka.bf2.org/strimziVersion: "0.22.1"
+    managedkafka.bf2.org/strimziVersion: "0.23.0-2"
+    managedkafka.bf2.org/kas-multi-zone: "true"
+    managedkafka.bf2.org/kas-zone0: "true"
+    managedkafka.bf2.org/kas-zone1: "true"
+    managedkafka.bf2.org/kas-zone2: "true"
   name: "test-mk"
   namespace: "test"
   ownerReferences:
@@ -21,6 +25,24 @@ spec:
       port: 9093
       type: "internal"
       tls: true
+      authentication: !<oauth>
+        clientId: "clientId"
+        clientSecret:
+          secretName: "test-mk-sso-secret"
+          key: "ssoClientSecret"
+        validIssuerUri: "https://validIssuerEndpointURI"
+        checkIssuer: true
+        jwksEndpointUri: "https://jwksEndpointURI"
+        userNameClaim: "userNameClaim"
+        checkAccessTokenType: true
+        accessTokenIsJwt: true
+        tlsTrustedCertificates:
+          - secretName: "test-mk-sso-cert"
+            certificate: "keycloak.crt"
+        enablePlain: true
+        tokenEndpointUri: "https://tokenEndpointURI"
+        enableOauthBearer: true
+        type: "oauth"
     - name: "external"
       port: 9094
       type: "ingress"
@@ -44,6 +66,8 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
+        maxConnections: 125
+        maxConnectionCreationRate: 75
         bootstrap:
           host: "xxx.yyy.zzz"
         brokers:
@@ -54,11 +78,11 @@ spec:
         - broker: 2
           host: "broker-2-xxx.yyy.zzz"
         - broker: 3
-          host: "broker-3-xxx.yyy.zzz"          
+          host: "broker-3-xxx.yyy.zzz"
     - name: "oauth"
       port: 9095
       type: "internal"
-      tls: false
+      tls: true
       authentication: !<oauth>
         clientId: "clientId"
         clientSecret:
@@ -78,13 +102,13 @@ spec:
     - name: "sre"
       port: 9096
       type: "internal"
-      tls: false        
+      tls: false
     authorization:
       type: custom
-      authorizerClass: io.bf2.kafka.authorizer.GlobalAclAuthorizer
+      authorizerClass: io.bf2.kafka.authorizer.CustomAclAuthorizer
     config:
       ssl.protocol: "TLS"
-      client.quota.callback.class: "org.apache.kafka.server.quota.StaticQuotaCallback"
+      client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
       log.message.format.version: "2.6.0"
@@ -100,15 +124,24 @@ spec:
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.static.disable-quota-anonymous: "true"
       default.replication.factor: 3
-      max.connections.creation.rate: "75"
-      max.connections: "125"
       inter.broker.protocol.version: "2.6.0"
       client.quota.callback.static.produce: "524288"
       leader.imbalance.per.broker.percentage: 0
-      strimzi.authorization.global-authorizer.allowed-listeners: TLS-9093,SRE-9096
-      strimzi.authorization.global-authorizer.acl.1: permission=allow;topic=*;operations=all
-      strimzi.authorization.global-authorizer.acl.2: permission=allow;group=*;operations=all
-      strimzi.authorization.global-authorizer.acl.3: permission=allow;transactional_id=*;operations=all
+      connections.max.reauth.ms: 299000
+      strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
+      strimzi.authorization.custom-authorizer.acl.1: permission=deny;listeners=EXTERNAL.*;cluster=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.2: default=true;permission=allow;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.3: default=true;permission=allow;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.4: default=true;permission=allow;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
+      strimzi.authorization.custom-authorizer.acl.5: permission=allow;principal=userid-123;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.6: permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
+      strimzi.authorization.custom-authorizer.acl.7: permission=allow;principal=userid-123;topic=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.8: permission=allow;principal=userid-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.9: permission=allow;principal=userid-123;transactional_id=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.10: permission=allow;principal=service-account-canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
+      strimzi.authorization.custom-authorizer.acl.11: permission=allow;principal=service-account-canary-123;topic=__strimzi_canary;operations=create,describe,read,write,alter
+      strimzi.authorization.custom-authorizer.acl.12: permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
@@ -153,6 +186,13 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: "kubernetes.io/hostname"
+        topologySpreadConstraints:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/name: test-mk-kafka
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: DoNotSchedule
   zookeeper:
     replicas: 5
     storage: !<persistent-claim>
@@ -186,7 +226,7 @@ spec:
         configMapKeyRef:
           key: log4j.properties
           name: test-mk-zookeeper-logging
-          optional: false          
+          optional: false
     template:
       pod:
         affinity:

@@ -2,17 +2,15 @@ package org.bf2.operator.managers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinitionBuilder;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageChannelBuilder;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestBuilder;
+import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestList;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatusBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlan;
@@ -23,6 +21,7 @@ import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
+import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.clients.KafkaResourceClient;
@@ -53,11 +52,11 @@ public class StrimziBundleManagerTest {
     @Inject
     StrimziManager strimziManager;
 
-    MixedOperation<PackageManifest, KubernetesResourceList<PackageManifest>, Resource<PackageManifest>> packageManifestClient;
+    MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
 
     @BeforeEach
     public void beforeEach() {
-        this.packageManifestClient = createPackageManifestClient();
+        this.packageManifestClient = this.openShiftClient.operatorHub().packageManifests();
 
         // cleaning OpenShift cluster
         this.openShiftClient.operatorHub().subscriptions().inAnyNamespace().delete();
@@ -326,8 +325,8 @@ public class StrimziBundleManagerTest {
     }
 
     private CustomResourceDefinition createKafkaCRDs() {
-        CustomResourceDefinition crd = new CustomResourceDefinitionBuilder()
-                .withNewMetadata()
+        CustomResourceDefinition crd = new CustomResourceDefinitionBuilder(Crds.kafka())
+                .editMetadata()
                     .withName("kafkas.kafka.strimzi.io")
                     .withLabels(Map.of("app", "strimzi"))
                 .endMetadata()
@@ -352,16 +351,4 @@ public class StrimziBundleManagerTest {
         return kafka;
     }
 
-    private MixedOperation<PackageManifest, KubernetesResourceList<PackageManifest>, Resource<PackageManifest>> createPackageManifestClient() {
-        CustomResourceDefinitionContext ctx = new CustomResourceDefinitionContext.Builder()
-                .withKind(HasMetadata.getKind(PackageManifest.class))
-                .withGroup(HasMetadata.getGroup(PackageManifest.class))
-                .withScope("Namespaced")
-                .withVersion(HasMetadata.getApiVersion(PackageManifest.class))
-                //.withPlural(HasMetadata.getPlural(PackageManifest.class))
-                .withPlural("packagemanifests")
-                .build();
-
-        return this.openShiftClient.customResources(ctx, PackageManifest.class, null);
-    }
 }

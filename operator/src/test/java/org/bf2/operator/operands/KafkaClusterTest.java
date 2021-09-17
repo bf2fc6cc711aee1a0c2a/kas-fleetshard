@@ -19,6 +19,7 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
@@ -49,9 +50,18 @@ class KafkaClusterTest {
     @Inject
     InformerManager informerManager;
 
+    @Inject
+    IngressControllerManager ingressControllerManager;
+
     @BeforeEach
     void beforeEach() {
         informerManager.createKafkaInformer();
+
+        // Make label set more stable
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-multi-zone", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone0", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone1", "true");
+        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone2", "true");
     }
 
     @Test
@@ -79,16 +89,6 @@ class KafkaClusterTest {
         // should change to a larger size
         patch = diffToExpected(larger, "/expected/strimzi.yml");
         assertEquals("[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"35433480191\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"37402006868\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39370533546\"}]", patch.toString());
-    }
-
-    @Test
-    void testManagedKafkaWithMaxConnections() throws IOException {
-        ManagedKafka mk = exampleManagedKafka("60Gi");
-        mk.getSpec().getVersions().setStrimzi("0.23.0-0");
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-        JsonNode patch = diffToExpected(kafka,"/expected/strimzi.yml");
-        assertEquals("[{\"op\":\"replace\",\"path\":\"/metadata/labels/managedkafka.bf2.org~1strimziVersion\",\"value\":\"0.23.0-0\"},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnections\",\"value\":166},{\"op\":\"add\",\"path\":\"/spec/kafka/listeners/1/configuration/maxConnectionCreationRate\",\"value\":33},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections\"},{\"op\":\"remove\",\"path\":\"/spec/kafka/config/max.connections.creation.rate\"}]", patch.toString());
     }
 
     @Test
@@ -134,7 +134,7 @@ class KafkaClusterTest {
         clone.getZookeeper().setContainerMemory("11Gi");
         clone.getZookeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
-        Properties propertyMap = Serialization.jsonMapper().convertValue(clone, Properties.class);
+        Map<String, String> propertyMap = clone.toMap(false);
         assertEquals("4", propertyMap.get("managedkafka.kafka.replicas"));
         assertEquals("2Gi", propertyMap.get("managedkafka.kafka.container-memory"));
         assertEquals("foo bar, foo2 bar2", propertyMap.get("managedkafka.kafka.jvm-xx"));

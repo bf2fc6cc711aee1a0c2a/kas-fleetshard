@@ -25,7 +25,7 @@ public class FleetShardOperatorManager {
 
     private static final String CRD_FILE_SUFFIX = "-v1.yml";
 
-    public static final Path CRD_PATH = SystemTestEnvironment.ROOT_PATH.resolve("api").resolve("target").resolve("classes").resolve("META-INF").resolve("fabric8");
+    public static final Path CRD_PATH = SystemTestEnvironment.ROOT_PATH.resolve("operator").resolve("target").resolve("kubernetes");
 
     private static final Logger LOGGER = LogManager.getLogger(FleetShardOperatorManager.class);
     public static final String OPERATOR_NS = "kas-fleetshard";
@@ -114,7 +114,7 @@ public class FleetShardOperatorManager {
     public static CompletableFuture<Void> deleteFleetShard(KubeClient kubeClient) {
         if (!SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
-            var mkCli = kubeClient.client().customResources(ManagedKafka.class);
+            var mkCli = kubeClient.client().resources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
             installedCrds.forEach(crd -> {
                 String fileName = crd.getFileName().toString();

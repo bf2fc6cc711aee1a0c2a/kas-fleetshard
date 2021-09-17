@@ -1,5 +1,6 @@
 package org.bf2.sync;
 
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -30,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -43,6 +45,8 @@ import java.util.concurrent.ExecutorService;
  */
 @ApplicationScoped
 public class ManagedKafkaSync {
+    private static final String MANAGEDKAFKA_ID_LABEL = "bf2.org/id";
+    private static final String MANAGEDKAFKA_ID_NAMESPACE_LABEL = "bf2.org/managedkafka-id";
     private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
 
     @Inject
@@ -99,8 +103,24 @@ public class ManagedKafkaSync {
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
-            } else if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
-                reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
+            } else {
+                final String localNamespace = existing.getMetadata().getNamespace();
+                final String managedKafkaId = existing.getMetadata().getAnnotations() == null ? null : existing.getMetadata().getAnnotations().get(MANAGEDKAFKA_ID_LABEL);
+                Namespace n = kubeClient.namespaces().withName(localNamespace).get();
+                if (n != null) {
+                    String namespaceLabel = Optional.ofNullable(n.getMetadata().getLabels()).map(m -> m.get(MANAGEDKAFKA_ID_NAMESPACE_LABEL)).orElse("");
+                    if (managedKafkaId != null && !namespaceLabel.equals(managedKafkaId)) {
+                        kubeClient.namespaces().withName(localNamespace).edit(namespace -> new NamespaceBuilder(namespace)
+                                .editMetadata()
+                                .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, managedKafkaId)
+                                .endMetadata()
+                                .build());
+                    }
+                }
+
+                if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
+                    reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
+                }
             }
         }
 
@@ -227,15 +247,18 @@ public class ManagedKafkaSync {
         // log after the namespace is set
         log.debugf("Creating ManagedKafka %s", Cache.metaNamespaceKeyFunc(remote));
         final String remoteNamespace = remote.getMetadata().getNamespace();
+        final String remoteManagedKafkaId = remote.getMetadata().getAnnotations() == null ? null : remote.getMetadata().getAnnotations().get(MANAGEDKAFKA_ID_LABEL);
 
-        kubeClient.namespaces().createOrReplace(
-                new NamespaceBuilder()
-                        .withNewMetadata()
-                            .withName(remoteNamespace)
-                            .withLabels(OperandUtils.getDefaultLabels())
-                            .addToLabels("observability-operator/scrape-logging", "true")
-                        .endMetadata()
-                        .build());
+            kubeClient.namespaces().createOrReplace(
+                    new NamespaceBuilder()
+                            .withNewMetadata()
+                                .withName(remoteNamespace)
+                                .withLabels(OperandUtils.getDefaultLabels())
+                                .addToLabels("observability-operator/scrape-logging", "true")
+                                .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
+                            .endMetadata()
+                            .build());
+
         try {
             client.create(remote);
         } catch (KubernetesClientException e) {
@@ -253,5 +276,4 @@ public class ManagedKafkaSync {
         // based upon a delta revision / timestmap to get a smaller list
         syncKafkaClusters();
     }
-
 }

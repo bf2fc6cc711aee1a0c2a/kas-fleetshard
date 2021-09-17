@@ -7,7 +7,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,12 +33,12 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
 
     public static MixedOperation<ManagedKafka, KubernetesResourceList<ManagedKafka>, Resource<ManagedKafka>> getOperation() {
-        return KubeClient.getInstance().client().customResources(ManagedKafka.class);
+        return KubeClient.getInstance().client().resources(ManagedKafka.class);
     }
 
     @Override
     public Resource<ManagedKafka> resource(KubeClient client, ManagedKafka resource) {
-        return client.client().customResources(ManagedKafka.class).inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName());
+        return client.client().resources(ManagedKafka.class).inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName());
     }
 
     @Override
@@ -216,7 +215,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
     }
 
     public static boolean isDevKafka(ManagedKafka mk) {
-        var kafkacli = KubeClient.getInstance().client().customResources(Kafka.class, KafkaList.class);
+        var kafkacli = KubeClient.getInstance().client().resources(Kafka.class);
         return kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get().getMetadata().getLabels().containsKey("dev-kafka");
     }
 }

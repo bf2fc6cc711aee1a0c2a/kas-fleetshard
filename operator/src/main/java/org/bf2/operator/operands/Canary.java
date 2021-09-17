@@ -22,8 +22,10 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
+import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.secrets.ImagePullSecretManager;
 import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -35,11 +37,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Provides same functionalities to get a Canary deployment from a ManagedKafka one
  * and checking the corresponding status
  */
+@Startup
 @ApplicationScoped
 @DefaultBean
 public class Canary extends AbstractCanary {
@@ -160,7 +164,7 @@ public class Canary extends AbstractCanary {
     }
 
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
-        List<EnvVar> envVars = new ArrayList<>(3);
+        List<EnvVar> envVars = new ArrayList<>(9);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093").build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
@@ -189,6 +193,13 @@ public class Canary extends AbstractCanary {
 
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
+
+        Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
+        if (canaryServiceAccount.isPresent()) {
+            envVars.add(new EnvVarBuilder().withName("SASL_MECHANISM").withValue("PLAIN").build());
+            envVars.add(new EnvVarBuilder().withName("SASL_USER").withValue(canaryServiceAccount.get().getPrincipal()).build());
+            envVars.add(new EnvVarBuilder().withName("SASL_PASSWORD").withValue(canaryServiceAccount.get().getPassword()).build());
+        }
         return envVars;
     }
 

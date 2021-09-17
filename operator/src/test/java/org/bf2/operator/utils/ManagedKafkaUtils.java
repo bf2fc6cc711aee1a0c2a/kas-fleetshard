@@ -1,12 +1,12 @@
 package org.bf2.operator.utils;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaEndpointBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ServiceAccountBuilder;
 
 public class ManagedKafkaUtils {
     private ManagedKafkaUtils() {
@@ -20,11 +20,10 @@ public class ManagedKafkaUtils {
 
     public static ManagedKafka exampleManagedKafka(String size) {
         ManagedKafka mk = new ManagedKafkaBuilder()
-            .withMetadata(
-                new ObjectMetaBuilder()
-                    .withNamespace("test")
-                    .withName("test-mk")
-                    .build())
+            .withNewMetadata()
+                .withNamespace("test")
+                .withName("test-mk")
+            .endMetadata()
             .withSpec(
                 new ManagedKafkaSpecBuilder()
                     .withEndpoint(
@@ -49,9 +48,16 @@ public class ManagedKafkaUtils {
                     .endCapacity()
                     .withNewVersions()
                         .withKafka("2.6.0")
-                        .withStrimzi("0.22.1")
+                        .withStrimzi("0.23.0-2")
                     .endVersions()
                     .withOwners("userid-123")
+                    .withServiceAccounts(
+                        new ServiceAccountBuilder()
+                            .withName("canary")
+                            .withPrincipal("canary-123")
+                            .withPassword("canary-secret")
+                            .build()
+                    )
                     .build())
             .build();
         return mk;
