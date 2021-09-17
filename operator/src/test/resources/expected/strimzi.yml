@@ -137,11 +137,11 @@ spec:
       strimzi.authorization.custom-authorizer.acl.004: default=true;permission=allow;cluster=*;operations=describe
       strimzi.authorization.custom-authorizer.acl.005: permission=allow;cluster=*;operations=idempotent_write
       strimzi.authorization.custom-authorizer.acl.006: permission=deny;cluster=*;operations-except=alter,describe,idempotent_write
-      strimzi.authorization.custom-authorizer.acl.007: permission=deny;cluster=*;operations=describe;apis-except=describe_acls,list_groups
+      strimzi.authorization.custom-authorizer.acl.007: permission=deny;cluster=*;operations=describe;apis-except=describe_acls
       strimzi.authorization.custom-authorizer.acl.008: permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls
       strimzi.authorization.custom-authorizer.acl.009: permission=deny;topic=__*;operations=all
       strimzi.authorization.custom-authorizer.acl.010: permission=deny;group=strimzi-canary-group;operations=all
-      strimzi.authorization.custom-authorizer.acl.011: priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe
+      strimzi.authorization.custom-authorizer.acl.011: priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe;apis=describe_acls
       strimzi.authorization.custom-authorizer.acl.012: priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
       strimzi.authorization.custom-authorizer.acl.013: priority=1;permission=allow;principal=userid-123;topic=*;operations=all
       strimzi.authorization.custom-authorizer.acl.014: priority=1;permission=allow;principal=userid-123;group=*;operations=all
