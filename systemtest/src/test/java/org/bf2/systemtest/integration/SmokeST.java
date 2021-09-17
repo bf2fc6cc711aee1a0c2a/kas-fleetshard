@@ -1,6 +1,8 @@
 package org.bf2.systemtest.integration;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,6 +71,11 @@ public class SmokeST extends AbstractST {
 
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+
+        // simulate CM installed from bundle
+        DefaultKubernetesClient client = new DefaultKubernetesClient();
+        ConfigMap cm = createCompanionConfigMap(mk.getMetadata().getNamespace());
+        client.configMaps().inNamespace(mk.getMetadata().getNamespace()).create(cm);
         resourceManager.addResource(extensionContext, mk);
 
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
@@ -115,6 +122,7 @@ public class SmokeST extends AbstractST {
         assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
         ManagedKafkaResourceType.isDeleted(mk);
+        client.configMaps().inNamespace(mk.getMetadata().getNamespace()).withName(cm.getMetadata().getName()).delete();
 
         LOGGER.info("ManagedKafka {} deleted", mkAppName);
     }
