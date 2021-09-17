@@ -3,6 +3,7 @@ package org.bf2.operator.operands;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.KubernetesList;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
@@ -72,22 +73,26 @@ public interface Operand<T extends CustomResource<?, ?>> {
                         .format("Deployment %s has no progressing condition", deployment.getMetadata().getName())));
     }
 
-    static Deployment deploymentFromTemplate(ConfigMap companionTemplates, String templateName, String deploymentName, Map<String, String> parameters) {
+    static Deployment deploymentFromTemplate(ConfigMap companionTemplates, String templateName, String deploymentName, Map<String, String> parameters, Deployment current) {
         File tempFile = null;
         try {
             tempFile = File.createTempFile("template", ".tmp");
 
-        FileWriter writer = new FileWriter(tempFile, StandardCharsets.UTF_8);
-        writer.write(companionTemplates.getData().get(templateName));
-        writer.close();
+            FileWriter writer = new FileWriter(tempFile, StandardCharsets.UTF_8);
+            writer.write(companionTemplates.getData().get(templateName));
+            writer.close();
 
-        DefaultOpenShiftClient dryOpenShiftClient = new DefaultOpenShiftClient();
-        KubernetesList res = dryOpenShiftClient.templates().withParameters(parameters).load(tempFile).processLocally();
+            DefaultOpenShiftClient dryOpenShiftClient = new DefaultOpenShiftClient();
+            KubernetesList res = dryOpenShiftClient.templates().withParameters(parameters).load(tempFile).processLocally();
+            dryOpenShiftClient.close();
+            tempFile.deleteOnExit();
+            Deployment desired = (Deployment) res.getItems().stream().filter(item -> item.getMetadata().getName().equals(deploymentName)).findFirst().get();
 
-        dryOpenShiftClient.close();
-        tempFile.deleteOnExit();
-        Deployment deployment = (Deployment) res.getItems().stream().filter(item -> item.getMetadata().getName().equals(deploymentName)).findFirst().get();
-        return deployment;
+            if (current == null) {
+                return new DeploymentBuilder(desired).build();
+            } else {
+                return new DeploymentBuilder(current).withSpec(desired.getSpec()).build();
+            }
         } catch (IOException e) {
             throw new RuntimeException("failed to create a Deployment");
         }

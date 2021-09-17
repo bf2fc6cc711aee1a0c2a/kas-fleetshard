@@ -111,7 +111,8 @@ public class AdminServer extends AbstractAdminServer {
     /* test */
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, ConfigMap companionTemplates) {
-        Deployment deployment = Operand.deploymentFromTemplate(companionTemplates, "admin-server-template", "admin-server-deployment", buildParameters(managedKafka));
+        Deployment current = cachedDeployment(managedKafka);
+        Deployment deployment = Operand.deploymentFromTemplate(companionTemplates, "admin-server-template", adminServerName(managedKafka), buildParameters(managedKafka), current);
 
         templateValidationWorkaround(deployment, managedKafka);
         // setting the ManagedKafka has owner of the Admin Server deployment resource is needed
@@ -131,62 +132,64 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private void templateValidationWorkaround(Deployment deployment, ManagedKafka managedKafka) {
-        // we need to add Deployment parameters which cause validation failures while unmarshalling the template
+        // we need to add Deployment parameters which cause validation failures while unmarshalling the template + conditional parameters do not seem to be supported
         // https://github.com/fabric8io/kubernetes-client/issues/3460
+
+        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt"));
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTPS_PORT_NAME).withContainerPort(HTTPS_PORT).build());
         } else {
             deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTP_PORT_NAME).withContainerPort(HTTP_PORT).build());
         }
+
+        // list
         deployment.getSpec().getTemplate().getSpec().setImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka));
+
+        // quotes in the value
         deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS").withValue(this.config.getKafka().getAcl().getResourceOperations()).build());
+
+        // conditional envar (value cannot be omitted)
+        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
+            ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
+            if (oauth.getTlsTrustedCertificate() != null) {
+                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_OAUTH_TRUSTED_CERT", SecuritySecretManager.ssoTlsSecretName(managedKafka), "keycloak.crt"));
+            }
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI").withValue(oauth.getJwksEndpointURI()).build());
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI").withValue(oauth.getValidIssuerEndpointURI()).build());
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI").withValue(oauth.getTokenEndpointURI()).build());
+        }
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt"));
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key"));
+        }
     }
 
     private Map<String, String> buildParameters(ManagedKafka managedKafka) {
         List<Parameter> parameters = new ArrayList<>();
 
-        addParameter(parameters, "KAFKA_ADMIN_SERVER_APP", managedKafka.getMetadata().getName() + "-admin-server");
+        addParameter(parameters, "KAFKA_ADMIN_SERVER_APP", adminServerName(managedKafka));
+        addParameter(parameters, "KAFKA_ADMIN_SERVER_DEPLOYMENT", adminServerName(managedKafka));
         addParameter(parameters, "KAFKA_ADMIN_NAMESPACE", managedKafka.getMetadata().getNamespace());
         addParameter(parameters, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
-        addParameterSecret(parameters, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
-        addParameter(parameters, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addParameterSecret(parameters, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
-            addParameterSecret(parameters, "KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key");
             addParameter(parameters, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3,TLSv1.2");
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_TLS_CERT", "");
-            addParameter(parameters, "KAFKA_ADMIN_TLS_KEY", "");
-            addParameter(parameters, "KAFKA_ADMIN_TLS_VERSION", "");
+            addParameter(parameters, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3");
         }
 
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
-            ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
-
             addParameter(parameters, "KAFKA_ADMIN_OAUTH_ENABLED", "true");
-            if (oauth.getTlsTrustedCertificate() != null) {
-                addParameterSecret(parameters, "KAFKA_ADMIN_OAUTH_TRUSTED_CERT", SecuritySecretManager.ssoTlsSecretName(managedKafka), "keycloak.crt");
-            } else {
-                addParameter(parameters, "KAFKA_ADMIN_OAUTH_TRUSTED_CERT", "");
-            }
 
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI", oauth.getJwksEndpointURI());
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI", oauth.getValidIssuerEndpointURI());
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI", oauth.getTokenEndpointURI());
         } else {
             addParameter(parameters, "KAFKA_ADMIN_OAUTH_ENABLED", "false");
-
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_TRUSTED_CERT", "");
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI", "");
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI", "");
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI", "");
         }
 
         if (corsAllowList.isPresent()) {
             addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", corsAllowList.get());
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", "");
+            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", "(https?:\\/\\/localhost(:\\d*)?)");
         }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
@@ -202,7 +205,7 @@ public class AdminServer extends AbstractAdminServer {
         addParameter(parameters, "KAFKA_ADMIN_VOLUME_NAME", managedKafka.getMetadata().getName() + "-tls-ca-cert");
         addParameter(parameters, "KAFKA_ADMIN_VOLUME_SECRET", managedKafka.getMetadata().getName() + "-cluster-ca-cert");
 
-        return parameters.stream().collect(Collectors.toMap(entry -> entry.getName(), entry -> entry.getValue() == null ? "" :  entry.getValue()));
+        return parameters.stream().collect(Collectors.toMap(entry -> entry.getName(), entry -> entry.getValue() == null ? "\"\"" :  entry.getValue()));
     }
 
     /* test */
@@ -301,15 +304,13 @@ public class AdminServer extends AbstractAdminServer {
         parameters.add(new ParameterBuilder().withName(name).withValue(value).build());
     }
 
-    private void addParameterSecret(List<Parameter> parameters, String parameterName, String secretName, String secretEntry) {
-        // Parameter does not have a valueFrom method, we need to use wrapper
-        EnvVar tmp = new EnvVarBuilder()
-                .withName(parameterName)
+    private EnvVar envVarFromSecret(String envVarName, String secretName, String secretKey) {
+        return new EnvVarBuilder()
+                .withName(envVarName)
                 .withNewValueFrom()
-                .withNewSecretKeyRef(secretEntry, secretName, false)
+                .withNewSecretKeyRef(secretKey, secretName, false)
                 .endValueFrom()
                 .build();
-        parameters.add(new ParameterBuilder().withName(tmp.getName()).withValue(tmp.getValue()).build());
     }
 
     private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {

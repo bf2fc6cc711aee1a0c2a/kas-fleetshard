@@ -34,65 +34,65 @@ data:
                 app.kubernetes.io/component: canary
                 app: ${CANARY_APP}
             spec:
-              containers:
-                - name: canary
-                  image: quay.io/mk-ci-cd/strimzi-canary:0.0.7
-                  env:
-                    - name: KAFKA_BOOTSTRAP_SERVERS
-                      value: ${CANARY_KAFKA_BOOTSTRAP_SERVERS}
-                    - name: RECONCILE_INTERVAL_MS
-                      value: 5000
-                    - name: EXPECTED_CLUSTER_SIZE
-                      value: ${CANARY_EXPECTED_CLUSTER_SIZE}
-                    - name: KAFKA_VERSION
-                      value: ${CANARY_KAFKA_VERSION}
-                    - name: TZ
-                      value: UTC
-                    - name: TLS_ENABLED
-                      value: true
-                    - name: TLS_CA_CERT
-                      value: /tmp/tls-ca-cert/ca.crt
-                    - name: SARAMA_LOG_ENABLED
-                      valueFrom:
-                        configMapKeyRef:
-                          name: canary-config
-                          key: sarama.log.enabled
-                          optional: true
-                    - name: VERBOSITY_LOG_LEVEL
-                      valueFrom:
-                        configMapKeyRef:
-                          name: canary-config
-                          key: verbosity.log.level
-                          optional: true
-                  ports:
-                    - containerPort: 8080
-                      name: metrics
-                  resources:
-                    limits:
-                      cpu: 10m
-                      memory: 64Mi
-                    requests:
-                      cpu: 5m
-                      memory: 32Mi
-                  readinessProbe:
-                    httpGet:
-                      path: /readiness
-                      port: 8080
-                    initialDelaySeconds: 15
-                    timeoutSeconds: 5
-                  livenessProbe:
-                    httpGet:
-                      path: /liveness
-                      port: 8080
-                    initialDelaySeconds: 15
-                    timeoutSeconds: 5
-                  volumeMounts:
-                    - name: ${CANARY_VOLUME_NAME}
-                      mountPath: /tmp/tls-ca-cert
-            volumes:
+              volumes:
               - name: ${CANARY_VOLUME_NAME}
                 secret:
                   secretName: ${CANARY_VOLUME_SECRET}
+              containers:
+              - name: canary
+                image: quay.io/mk-ci-cd/strimzi-canary:0.0.7
+                env:
+                - name: KAFKA_BOOTSTRAP_SERVERS
+                  value: ${CANARY_KAFKA_BOOTSTRAP_SERVERS}
+                - name: RECONCILE_INTERVAL_MS
+                  value: 5000
+                - name: EXPECTED_CLUSTER_SIZE
+                  value: ${CANARY_EXPECTED_CLUSTER_SIZE}
+                - name: KAFKA_VERSION
+                  value: ${CANARY_KAFKA_VERSION}
+                - name: TZ
+                  value: UTC
+                - name: TLS_ENABLED
+                  value: true
+                - name: TLS_CA_CERT
+                  value: /tmp/tls-ca-cert/ca.crt
+                - name: SARAMA_LOG_ENABLED
+                  valueFrom:
+                    configMapKeyRef:
+                      name: canary-config
+                      key: sarama.log.enabled
+                      optional: true
+                - name: VERBOSITY_LOG_LEVEL
+                  valueFrom:
+                    configMapKeyRef:
+                      name: canary-config
+                      key: verbosity.log.level
+                      optional: true
+                ports:
+                - containerPort: 8080
+                  name: metrics
+                resources:
+                  limits:
+                    cpu: 10m
+                    memory: 64Mi
+                  requests:
+                    cpu: 5m
+                    memory: 32Mi
+                readinessProbe:
+                  httpGet:
+                    path: /readiness
+                    port: 8080
+                  initialDelaySeconds: 15
+                  timeoutSeconds: 5
+                livenessProbe:
+                  httpGet:
+                    path: /liveness
+                    port: 8080
+                  initialDelaySeconds: 15
+                  timeoutSeconds: 5
+                volumeMounts:
+                - name: ${CANARY_VOLUME_NAME}
+                  mountPath: /tmp/tls-ca-cert
   admin-server-template: |
     apiVersion: v1
     kind: Template
@@ -158,13 +158,13 @@ data:
                     memory: 256Mi
                 readinessProbe:
                   httpGet:
-                    path: /liveness
+                    path: /health/liveness
                     port: management
                   initialDelaySeconds: 15
                   timeoutSeconds: 5
                 livenessProbe:
                   httpGet:
-                    path: /liveness
+                    path: /health/liveness
                     port: management
                   initialDelaySeconds: 15
                   timeoutSeconds: 5

@@ -75,11 +75,14 @@ public class ManagedKafkaUtils {
         return mk;
     }
 
-    public static void createCompanionConfigMap(String namespace) throws IOException {
-        KubernetesClient client = new DefaultKubernetesClient();
+    public static ConfigMap readCompanionConfigMap() throws IOException {
         String url = ManagedKafkaControllerTest.class.getResource("/controllers/companion-templates-config-map.yaml").getPath();
         String f = Files.readString(Paths.get(url), StandardCharsets.UTF_8);
-        ConfigMap cm = Serialization.unmarshal(f, ConfigMap.class);
-        client.configMaps().inNamespace(namespace).create(cm);
+        return Serialization.unmarshal(f, ConfigMap.class);
+    }
+
+    public static void createCompanionConfigMap(String namespace) throws IOException {
+        KubernetesClient client = new DefaultKubernetesClient();
+        client.configMaps().inNamespace(namespace).create(readCompanionConfigMap());
     }
 }

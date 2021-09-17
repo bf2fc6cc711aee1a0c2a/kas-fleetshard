@@ -7,12 +7,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
+import org.bf2.test.Environment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.k8s.KubeClient;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +49,7 @@ public class FleetShardOperatorManager {
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
+
         installedCrds =
                 Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).collect(Collectors.toList());
         LOGGER.info("Installing CRDs {}", installedCrds);
@@ -59,6 +62,9 @@ public class FleetShardOperatorManager {
             deployPullSecrets(kubeClient);
         }
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
+        kubeClient.cmdClient().namespace(OPERATOR_NS)
+                .execInCurrentNamespace("apply", "-f",
+                        Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "companion-templates-config-map.yaml").toAbsolutePath().toString());
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS, () -> isOperatorInstalled(kubeClient));
     }

@@ -35,7 +35,7 @@ public class ManagedKafkaControllerTest {
     @Test
     void shouldCreateStatus() throws IOException {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        ManagedKafkaUtils.createCompanionConfigMap(mk.getMetadata().getNamespace());
+        ManagedKafkaUtils.createCompanionConfigMap("test");
         mk.getMetadata().setUid(UUID.randomUUID().toString());
         mk.getMetadata().setGeneration(1l);
         mk.getMetadata().setResourceVersion("1");

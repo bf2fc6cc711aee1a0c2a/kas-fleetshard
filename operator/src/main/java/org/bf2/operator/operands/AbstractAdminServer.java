@@ -26,7 +26,7 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        ConfigMap companionTemplates = configMapResource(managedKafka, "companion-templates-config-map").get();
+        ConfigMap companionTemplates = configMapResource(kubernetesClient.getNamespace(), "companion-templates-config-map").get();
         Deployment deployment = deploymentFrom(managedKafka, companionTemplates);
         createOrUpdate(deployment);
 
@@ -99,9 +99,9 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         return managedKafka.getMetadata().getNamespace();
     }
 
-    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+    protected Resource<ConfigMap> configMapResource(String namespace, String name) {
         return kubernetesClient.configMaps()
-                .inNamespace(adminServerNamespace(managedKafka))
+                .inNamespace(namespace)
                 .withName(name);
     }
 }

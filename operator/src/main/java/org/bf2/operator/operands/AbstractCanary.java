@@ -27,7 +27,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        ConfigMap companionTemplates = configMapResource(managedKafka, "companion-templates-config-map").get();
+        ConfigMap companionTemplates = configMapResource(kubernetesClient.getNamespace(), "companion-templates-config-map").get();
         Deployment deployment = deploymentFrom(managedKafka, companionTemplates);
         createOrUpdate(deployment);
     }
@@ -72,9 +72,9 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
                 .withName(canaryName(managedKafka));
     }
 
-    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
+    protected Resource<ConfigMap> configMapResource(String namespace, String name) {
         return kubernetesClient.configMaps()
-                .inNamespace(canaryNamespace(managedKafka))
+                .inNamespace(namespace)
                 .withName(name);
     }
 }
