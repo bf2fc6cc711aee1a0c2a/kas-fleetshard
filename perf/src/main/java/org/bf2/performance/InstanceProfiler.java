@@ -1,5 +1,6 @@
 package org.bf2.performance;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -118,12 +119,14 @@ public class InstanceProfiler {
         public double medianMaxConsumerMBs;
     }
 
+    @JsonInclude(content = JsonInclude.Include.NON_NULL)
     @SuppressFBWarnings
     public static class LatencyResult {
         public Double aggregatedEndToEndLatency50pct;
         public Double medianEndToEndLatency99pct;
         public Double aggregatedPublishLatency50pct;
         public Double aggregatedPublishLatency99pct;
+        public String error;
     }
 
     // TODO will need to hold all of the instance state as well to ensure we're continuing the same test
@@ -399,7 +402,7 @@ public class InstanceProfiler {
             double avgPublishThrougput = avgPublishRate*profile.messageSize;
 
             if (!isThroughputAcceptable(load, loadTestResult)) {
-                throw new IllegalStateException("latency result not acceptable");
+                throw new IllegalStateException("latency result not acceptable due to throughput");
             }
             result.aggregatedEndToEndLatency50pct = loadTestResult.aggregatedEndToEndLatency50pct;
             // the 99% tile can be very noisy, we'll use the median instead of the aggregated value.  This will
@@ -415,6 +418,7 @@ public class InstanceProfiler {
                     pub, load.partitionsPerTopic, avgPublishThrougput / ONE_MB, loadTestResult.aggregatedEndToEndLatency50pct, result.medianEndToEndLatency99pct,
                     loadTestResult.aggregatedEndToEndLatency99pct));
         } catch (Exception e) {
+            result.error = e.getMessage();
             LOGGER.info(String.format("not accepting %s as there were errors during the test", load.name), e);
         }
         return result;
