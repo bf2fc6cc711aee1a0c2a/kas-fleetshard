@@ -72,10 +72,6 @@ public class SmokeST extends AbstractST {
         //Create mk using api
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
-        // simulate CM installed from bundle
-        DefaultKubernetesClient client = new DefaultKubernetesClient();
-        ConfigMap cm = createCompanionConfigMap(mk.getMetadata().getNamespace());
-        client.configMaps().inNamespace(mk.getMetadata().getNamespace()).create(cm);
         resourceManager.addResource(extensionContext, mk);
 
         HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
@@ -84,7 +80,13 @@ public class SmokeST extends AbstractST {
         resourceManager.waitResourceCondition(mk, Objects::nonNull);
         mk = resourceManager.waitUntilReady(mk, 300_000);
 
-        LOGGER.info("ManagedKafka {} created", mkAppName);
+        LOGGER.info("ManagedKafka {} created in ns {}", mkAppName, mk.getMetadata().getNamespace());
+
+        // simulate CM installed from bundle
+        DefaultKubernetesClient client = new DefaultKubernetesClient();
+        ConfigMap cm = createCompanionConfigMap(mk.getMetadata().getNamespace());
+        client.configMaps().inNamespace(mk.getMetadata().getNamespace()).create(cm);
+
 
         // wait for the sync to be up-to-date
         TestUtils.waitFor("Managed kafka status sync", 1_000, 30_000, () -> {

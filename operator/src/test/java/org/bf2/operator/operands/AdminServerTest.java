@@ -2,7 +2,6 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -73,8 +72,6 @@ public class AdminServerTest {
                         "                  value: \"true\"\n" +
                         "                - name: KAFKA_ADMIN_BROKER_TRUSTED_CERT\n" +
                         "                  value: ${KAFKA_ADMIN_BROKER_TRUSTED_CERT}\n" +
-                        "                - name: KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS\n" +
-                        "                  value: ${KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS}\n" +
                         "                - name: KAFKA_ADMIN_TLS_CERT\n" +
                         "                  value: ${KAFKA_ADMIN_TLS_CERT}\n" +
                         "                - name: KAFKA_ADMIN_TLS_KEY\n" +

@@ -9,7 +9,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.openshift.api.model.Parameter;
 import io.fabric8.openshift.api.model.ParameterBuilder;
 import io.quarkus.arc.DefaultBean;
-import io.quarkus.runtime.StartupEvent;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;

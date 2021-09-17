@@ -135,11 +135,9 @@ data:
                     - name: KAFKA_ADMIN_BOOTSTRAP_SERVERS
                       value: ${KAFKA_ADMIN_BOOTSTRAP_SERVERS}
                     - name: KAFKA_ADMIN_BROKER_TLS_ENABLED
-                      value: \"true\"
+                      value: true
                     - name: KAFKA_ADMIN_BROKER_TRUSTED_CERT
                       value: ${KAFKA_ADMIN_BROKER_TRUSTED_CERT}
-                    - name: KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS
-                      value: ${KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS}
                     - name: KAFKA_ADMIN_TLS_CERT
                       value: ${KAFKA_ADMIN_TLS_CERT}
                     - name: KAFKA_ADMIN_TLS_KEY

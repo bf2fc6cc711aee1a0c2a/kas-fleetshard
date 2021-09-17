@@ -139,21 +139,17 @@ public class AdminServer extends AbstractAdminServer {
             deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTP_PORT_NAME).withContainerPort(HTTP_PORT).build());
         }
         deployment.getSpec().getTemplate().getSpec().setImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka));
+        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS").withValue(this.config.getKafka().getAcl().getResourceOperations()).build());
     }
 
     private Map<String, String> buildParameters(ManagedKafka managedKafka) {
         List<Parameter> parameters = new ArrayList<>();
 
-        parameters.add(new ParameterBuilder().withName("KAFKA_ADMIN_SERVER_APP").withValue(managedKafka.getMetadata().getName() + "-admin-server").build());
-        parameters.add(new ParameterBuilder().withName("KAFKA_ADMIN_NAMESPACE").withValue(managedKafka.getMetadata().getNamespace()).build());
+        addParameter(parameters, "KAFKA_ADMIN_SERVER_APP", managedKafka.getMetadata().getName() + "-admin-server");
+        addParameter(parameters, "KAFKA_ADMIN_NAMESPACE", managedKafka.getMetadata().getNamespace());
         addParameter(parameters, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addParameterSecret(parameters, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
-
-        if (this.config.getKafka().getAcl().isCustomAclAuthorizerEnabled(managedKafka.getSpec().getOwners())) {
-            addParameter(parameters, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
-        } else {
-            addParameter(parameters, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", "");
-        }
+        addParameter(parameters, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             addParameterSecret(parameters, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
