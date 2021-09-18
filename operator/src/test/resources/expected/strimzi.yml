@@ -148,6 +148,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.018: priority=1;permission=allow;principal=service-account-canary-123;group=strimzi-canary-group;operations=describe,read
       strimzi.authorization.custom-authorizer.acl.019: priority=2;permission=deny;principal=service-account-canary-123;topic=*;operations=all
       strimzi.authorization.custom-authorizer.acl.020: priority=2;permission=deny;principal=service-account-canary-123;group=*;operations=all
+      strimzi.authorization.custom-authorizer.acl.021: priority=2;permission=deny;principal=service-account-canary-123;transactional_id=*;operations=all
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
