@@ -1,6 +1,5 @@
 package org.bf2.operator.utils;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuthBuilder;
@@ -21,11 +20,10 @@ public class ManagedKafkaUtils {
 
     public static ManagedKafka exampleManagedKafka(String size) {
         ManagedKafka mk = new ManagedKafkaBuilder()
-            .withMetadata(
-                new ObjectMetaBuilder()
-                    .withNamespace("test")
-                    .withName("test-mk")
-                    .build())
+            .withNewMetadata()
+                .withNamespace("test")
+                .withName("test-mk")
+            .endMetadata()
             .withSpec(
                 new ManagedKafkaSpecBuilder()
                     .withEndpoint(

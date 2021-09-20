@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.jboss.logging.Logger;
@@ -12,7 +11,6 @@ import org.jboss.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
-import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
@@ -31,7 +29,7 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
     protected abstract Class<L> getCustomResourceListClass();
 
     protected MixedOperation<T, L, Resource<T>> getResourceClient() {
-        return kubernetesClient.customResources(getCustomResourceClass(), getCustomResourceListClass());
+        return kubernetesClient.resources(getCustomResourceClass(), getCustomResourceListClass());
     }
 
     @PostConstruct
@@ -82,17 +80,8 @@ public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?
         return resourceClient.inAnyNamespace().list().getItems();
     }
 
-    public boolean updateStatus(T resource) {
-        try {
-            resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).updateStatus(resource);
-            return true;
-        } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_CONFLICT) {
-                log.infof("Conflict on %s status update", getCustomResourceClass().getSimpleName());
-                return false;
-            }
-            throw e;
-        }
+    public void replaceStatus(T resource) {
+        resourceClient.inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName()).replaceStatus(resource);
     }
 
     /**

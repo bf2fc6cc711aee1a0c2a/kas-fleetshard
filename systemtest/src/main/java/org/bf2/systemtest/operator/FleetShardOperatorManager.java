@@ -114,7 +114,7 @@ public class FleetShardOperatorManager {
     public static CompletableFuture<Void> deleteFleetShard(KubeClient kubeClient) {
         if (!SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
-            var mkCli = kubeClient.client().customResources(ManagedKafka.class);
+            var mkCli = kubeClient.client().resources(ManagedKafka.class);
             mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
             installedCrds.forEach(crd -> {
                 String fileName = crd.getFileName().toString();

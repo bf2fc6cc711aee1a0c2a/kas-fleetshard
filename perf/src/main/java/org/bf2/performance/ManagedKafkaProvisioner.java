@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -44,6 +43,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -241,7 +241,7 @@ public class ManagedKafkaProvisioner {
         String namespace = Constants.KAFKA_NAMESPACE;
 
         ManagedKafka managedKafka = new ManagedKafkaBuilder()
-                .withMetadata(new ObjectMetaBuilder().withName(name).withNamespace(namespace).build())
+                .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
                 .withSpec(new ManagedKafkaSpecBuilder().withCapacity(managedKafkaCapacity)
                         .withNewEndpoint()
                         .withBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", name, namespace, domain))
@@ -272,12 +272,14 @@ public class ManagedKafkaProvisioner {
      * @throws IOException
      */
     public void removeClusters(boolean all) throws IOException {
-        var client = cluster.kubeClient().client().customResources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE);
+        var client = cluster.kubeClient().client().resources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE);
         List<ManagedKafka> kafkas = clusters;
         if (all) {
             kafkas = client.list().getItems();
         }
-        for (ManagedKafka k : kafkas) {
+        Iterator<ManagedKafka> kafkaIterator = clusters.iterator();
+        while (kafkaIterator.hasNext()) {
+            ManagedKafka k = kafkaIterator.next();
             LOGGER.info("Removing cluster {}", k.getMetadata().getName());
             client.withName(k.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
         }
@@ -396,11 +398,11 @@ public class ManagedKafkaProvisioner {
         }
 
         // create the managed kafka
-        var managedKakfaClient = cluster.kubeClient().client().customResources(ManagedKafka.class);
+        var managedKakfaClient = cluster.kubeClient().client().resources(ManagedKafka.class);
 
         managedKafka = managedKakfaClient.inNamespace(namespace).createOrReplace(managedKafka);
 
-        var kafkaClient = cluster.kubeClient().client().customResources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
+        var kafkaClient = cluster.kubeClient().client().resources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
 
         org.bf2.test.TestUtils.waitFor("kafka resource", 1_000, 300_000, () -> kafkaClient.get() != null);
 

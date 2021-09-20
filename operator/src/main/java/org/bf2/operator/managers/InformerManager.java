@@ -126,7 +126,7 @@ public class InformerManager {
      */
     public void createKafkaInformer() {
         if (kafkaInformer == null) {
-            kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.customResources(Kafka.class, KafkaList.class)), eventSource);
+            kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.resources(Kafka.class, KafkaList.class)), eventSource);
         }
     }
 

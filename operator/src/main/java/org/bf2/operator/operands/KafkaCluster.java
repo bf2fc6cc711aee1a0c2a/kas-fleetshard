@@ -680,7 +680,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         final String configPrefix = aclConfig.getConfigPrefix();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
         final String resourceOperationsKey = configPrefix + "resource-operations";
-        final String aclKeyTemplate = configPrefix + "acl.%d";
+        final String aclKeyTemplate = configPrefix + "acl.%03d";
 
         // Deprecated option: Remove when canary, must-gather, and SRE are configured via ManagedKafka CR
         if (aclConfig.allowedListeners != null) {
