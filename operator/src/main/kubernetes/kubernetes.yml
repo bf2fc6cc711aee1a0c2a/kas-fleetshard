@@ -4,6 +4,15 @@ metadata:
   name: kas-fleetshard-operator
 rules:
   - apiGroups:
+      - "apiextensions.k8s.io"
+    resources:
+      # the Strimzi bundle manager checks if Strimzi operator related CRDs are installed
+      - 'customresourcedefinitions'
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - managedkafka.bf2.org
     resources:
       # operator main custom resources for getting Kafka instance to deploy, configuration and reporting back status
