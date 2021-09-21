@@ -62,9 +62,7 @@ public class FleetShardOperatorManager {
             deployPullSecrets(kubeClient);
         }
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
-        kubeClient.cmdClient().namespace(OPERATOR_NS)
-                .execInCurrentNamespace("apply", "-f",
-                        Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "companion-templates-config-map.yaml").toAbsolutePath().toString());
+        kubeClient.apply(OPERATOR_NS, Paths.get(Environment.SUITE_ROOT, "src", "main", "resources", "companion-templates-config-map.yaml").toAbsolutePath());
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS, () -> isOperatorInstalled(kubeClient));
     }
