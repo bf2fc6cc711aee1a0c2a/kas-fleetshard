@@ -17,9 +17,14 @@ public class LivenessHealthCheck implements HealthCheck {
 
     @Override
     public HealthCheckResponse call() {
+        // Temporary disabling health check based on Informers watching due to a fabric8 bug fixed in 5.8.0 version
+        // https://github.com/fabric8io/kubernetes-client/pull/3485
+        /*
         if (this.resourceInformerFactory.allInformersWatching()) {
             return HealthCheckResponse.up("Informers are watching");
         }
         return HealthCheckResponse.down("Informers are not watching");
+        */
+        return HealthCheckResponse.up("Synchronizer up and running");
     }
 }
