@@ -26,6 +26,7 @@ public class ManagedKafkaAuthenticationOAuth {
     private String jwksEndpointURI;
     private String validIssuerEndpointURI;
     private String userNameClaim;
+    private String fallbackUserNameClaim;
     private String tlsTrustedCertificate;
     private String customClaimCheck;
 
@@ -83,6 +84,14 @@ public class ManagedKafkaAuthenticationOAuth {
 
     public void setUserNameClaim(String userNameClaim) {
         this.userNameClaim = userNameClaim;
+    }
+
+    public String getFallbackUserNameClaim() {
+        return fallbackUserNameClaim;
+    }
+
+    public void setFallbackUserNameClaim(String fallbackUserNameClaim) {
+        this.fallbackUserNameClaim = fallbackUserNameClaim;
     }
 
     public String getTlsTrustedCertificate() {

@@ -34,6 +34,7 @@ spec:
         checkIssuer: true
         jwksEndpointUri: "https://jwksEndpointURI"
         userNameClaim: "userNameClaim"
+        fallbackUserNameClaim: "fallbackUserNameClaim"
         checkAccessTokenType: true
         accessTokenIsJwt: true
         tlsTrustedCertificates:
@@ -56,6 +57,7 @@ spec:
         checkIssuer: true
         jwksEndpointUri: "https://jwksEndpointURI"
         userNameClaim: "userNameClaim"
+        fallbackUserNameClaim: "fallbackUserNameClaim"
         checkAccessTokenType: true
         accessTokenIsJwt: true
         tlsTrustedCertificates:
@@ -90,6 +92,7 @@ spec:
         checkIssuer: true
         jwksEndpointUri: "https://jwksEndpointURI"
         userNameClaim: "userNameClaim"
+        fallbackUserNameClaim: "fallbackUserNameClaim"
         checkAccessTokenType: true
         accessTokenIsJwt: true
         tlsTrustedCertificates:

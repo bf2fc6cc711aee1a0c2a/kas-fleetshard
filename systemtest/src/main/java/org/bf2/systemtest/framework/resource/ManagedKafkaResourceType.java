@@ -153,6 +153,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
         final String oauthTlsCert;
         final String oauthClientSecret;
         final String oauthUserClaim;
+        final String oauthFallbackUserClaim;
         final String oauthJwksEndpoint;
         final String oauthTokenEndpoint;
         final String oauthIssuerEndpoint;
@@ -162,6 +163,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             oauthTlsCert = keycloak.getKeycloakCert();
             oauthClientSecret = "kafka";
             oauthUserClaim = keycloak.getUserNameClaim();
+            oauthFallbackUserClaim = keycloak.getFallbackUserNameClaim();
             oauthJwksEndpoint = keycloak.getJwksEndpointUri();
             oauthTokenEndpoint = keycloak.getOauthTokenEndpointUri();
             oauthIssuerEndpoint = keycloak.getValidIssuerUri();
@@ -170,6 +172,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             oauthTlsCert = null;
             oauthClientSecret = null;
             oauthUserClaim = null;
+            oauthFallbackUserClaim = null;
             oauthJwksEndpoint = null;
             oauthTokenEndpoint = null;
             oauthIssuerEndpoint = null;
@@ -179,6 +182,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
             oauthTlsCert = SystemTestEnvironment.DUMMY_CERT.equals(SystemTestEnvironment.OAUTH_TLS_CERT) ? null : SystemTestEnvironment.OAUTH_TLS_CERT;
             oauthClientSecret = SystemTestEnvironment.OAUTH_CLIENT_SECRET;
             oauthUserClaim = SystemTestEnvironment.OAUTH_USER_CLAIM;
+            oauthFallbackUserClaim = SystemTestEnvironment.OAUTH_FALLBACK_USER_CLAIM;
             oauthJwksEndpoint = SystemTestEnvironment.OAUTH_JWKS_ENDPOINT;
             oauthTokenEndpoint = SystemTestEnvironment.OAUTH_TOKEN_ENDPOINT;
             oauthIssuerEndpoint = SystemTestEnvironment.OAUTH_ISSUER_ENDPOINT;
@@ -193,6 +197,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
                 oauthTlsCert,
                 oauthClientSecret,
                 oauthUserClaim,
+                oauthFallbackUserClaim,
                 oauthJwksEndpoint,
                 oauthTokenEndpoint,
                 oauthIssuerEndpoint,

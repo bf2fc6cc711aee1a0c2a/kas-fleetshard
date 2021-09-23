@@ -39,6 +39,7 @@ public class ManagedKafkaUtils {
                             .withJwksEndpointURI("https://jwksEndpointURI")
                             .withValidIssuerEndpointURI("https://validIssuerEndpointURI")
                             .withUserNameClaim("userNameClaim")
+                            .withFallbackUserNameClaim("fallbackUserNameClaim")
                             .withTlsTrustedCertificate("TLS trusted cert")
                             .build()
                     )
