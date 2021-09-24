@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
-import io.fabric8.kubernetes.api.model.WeightedPodAffinityTerm;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
@@ -338,7 +337,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (this.config.getKafka().isColocateWithZookeeper()) {
             // adds preference to co-locate Kafka broker pods with ZK pods with same cluster label
             PodAffinity zkPodAffinity = new PodAffinityBuilder()
-                    .withPreferredDuringSchedulingIgnoredDuringExecution(new WeightedPodAffinityTerm(new PodAffinityTermBuilder()
+                    .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                            .withWeight(50)
+                            .withNewPodAffinityTerm()
                             .withTopologyKey("kubernetes.io/hostname")
                             .withNewLabelSelector()
                                 .addToMatchExpressions(new LabelSelectorRequirementBuilder()
@@ -346,7 +347,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                                     .withOperator("In")
                                     .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
                             .endLabelSelector()
-                            .build(), 50))
+                            .endPodAffinityTerm()
+                    .endPreferredDuringSchedulingIgnoredDuringExecution()
                     .build();
             affinityBuilder.withPodAffinity(zkPodAffinity);
         }
@@ -391,7 +393,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withMaxSkew(1)
                 .withTopologyKey(IngressControllerManager.TOPOLOGY_KEY)
                 .withNewLabelSelector()
-                    .withMatchLabels(Map.of("strimzi.io/name", instanceName))
+                    .addNewMatchExpression()
+                        .withKey("strimzi.io/name")
+                        .withValues(instanceName)
+                        .withOperator("In")
+                    .endMatchExpression()
                 .endLabelSelector()
                 .withWhenUnsatisfiable(action)
                 .build();

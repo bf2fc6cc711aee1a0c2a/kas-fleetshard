@@ -72,7 +72,9 @@ public class OperandUtils {
     public static Affinity buildZookeeperPodAffinity(ManagedKafka managedKafka) {
         // place where zookeeper is placed
         return new AffinityBuilder().withNewPodAffinity()
-                .addNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                    .withWeight(50)
+                    .withNewPodAffinityTerm()
                     .withTopologyKey("kubernetes.io/hostname")
                     .withNewLabelSelector()
                         .addToMatchExpressions(new LabelSelectorRequirementBuilder()
@@ -80,7 +82,8 @@ public class OperandUtils {
                             .withOperator("In")
                             .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
                     .endLabelSelector()
-                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                    .endPodAffinityTerm()
+                .endPreferredDuringSchedulingIgnoredDuringExecution()
             .endPodAffinity()
         .build();
     }

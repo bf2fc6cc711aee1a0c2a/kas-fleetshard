@@ -207,8 +207,11 @@ spec:
               topologyKey: "kubernetes.io/hostname"              
         topologySpreadConstraints:
           - labelSelector:
-              matchLabels:
-                strimzi.io/name: test-mk-kafka
+               matchExpressions:
+               - key: "strimzi.io/name"
+                 operator: "In"
+                 values:
+                 - "test-mk-kafka"
             maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
             whenUnsatisfiable: DoNotSchedule
@@ -264,8 +267,11 @@ spec:
               topologyKey: "kubernetes.io/hostname"            
         topologySpreadConstraints:
         - labelSelector:
-            matchLabels:
-              strimzi.io/name: "test-mk-zookeeper"
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-zookeeper"
           maxSkew: 1
           topologyKey: "topology.kubernetes.io/zone"
           whenUnsatisfiable: "ScheduleAnyway" 

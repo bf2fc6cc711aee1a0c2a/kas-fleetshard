@@ -2,11 +2,13 @@
 pod:
   affinity:
     podAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: "strimzi.io/name"
-            operator: "In"
-            values:
-            - "test-mk-zookeeper"
-        topologyKey: "kubernetes.io/hostname"
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-zookeeper"
+          topologyKey: "kubernetes.io/hostname"
+        weight: 50

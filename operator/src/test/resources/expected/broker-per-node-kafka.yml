@@ -27,8 +27,11 @@ pod:
     operator: "Exists"
   topologySpreadConstraints:
   - labelSelector:
-      matchLabels:
-        strimzi.io/name: "test-mk-kafka"
+       matchExpressions:
+       - key: "strimzi.io/name"
+         operator: "In"
+         values:
+         - "test-mk-kafka"
     maxSkew: 1
     topologyKey: "topology.kubernetes.io/zone"
     whenUnsatisfiable: "DoNotSchedule"
