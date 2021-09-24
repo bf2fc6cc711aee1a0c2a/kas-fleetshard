@@ -169,7 +169,7 @@ class KafkaClusterTest {
         }
     }
 
-    private JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+    static JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = Serialization.yamlMapper();
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));

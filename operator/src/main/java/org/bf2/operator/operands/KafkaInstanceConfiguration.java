@@ -7,11 +7,6 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.quarkus.runtime.Startup;
-import org.eclipse.microprofile.config.ConfigProvider;
-
-import javax.annotation.PostConstruct;
-import javax.enterprise.context.ApplicationScoped;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -23,8 +18,6 @@ import java.util.stream.Collectors;
  * <br>Relies heavily on jackson processing - do not do anything that will prevent all property
  * keys from being present in default output, such as use JsonInclude non-null on a field/class.
  */
-@ApplicationScoped
-@Startup
 public class KafkaInstanceConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
@@ -63,18 +56,6 @@ public class KafkaInstanceConfiguration {
     protected AdminServer adminserver = new AdminServer();
     @JsonUnwrapped(prefix = "managedkafka.canary.")
     protected Canary canary = new Canary();
-
-    @PostConstruct
-    void init() {
-        // workaround for not using ConfigProperties.  Get the full property set, look them up in the config then inject those values
-        Map<String, String> values = toMap(true);
-        values.keySet().forEach(n -> ConfigProvider.getConfig().getOptionalValue(n, String.class).ifPresent(v -> values.put(n, v)));
-        KafkaInstanceConfiguration config = Serialization.jsonMapper().convertValue(values, KafkaInstanceConfiguration.class);
-
-        this.kafka = config.kafka;
-        this.zookeeper = config.zookeeper;
-        this.exporter = config.exporter;
-    }
 
     public Map<String, String> toMap(boolean includeAll) {
         ObjectMapper mapper = Serialization.jsonMapper();
