@@ -68,7 +68,7 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
-        maxConnections: 166
+        maxConnections: 666
         maxConnectionCreationRate: 33
         bootstrap:
           host: "xxx.yyy.zzz"
@@ -165,17 +165,17 @@ spec:
     rack:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
-      "-Xmx": "3G"
-      "-Xms": "3G"
+      "-Xmx": "6442450944"
+      "-Xms": "6442450944"
       "-XX":
         ExitOnOutOfMemoryError: "true"
     resources:
       limits:
-        memory: "8Gi"
-        cpu: "3000m"
+        memory: "19Gi"
+        cpu: "4500m"
       requests:
-        memory: "8Gi"
-        cpu: "3000m"
+        memory: "19Gi"
+        cpu: "4500m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
@@ -195,9 +195,12 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-                matchLabels:
-                  strimzi.io/name: "test-mk-kafka"
-              topologyKey: "kubernetes.io/hostname"            
+                matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                  - "test-mk-kafka"
+              topologyKey: "kubernetes.io/hostname"
         topologySpreadConstraints:
           - labelSelector:
               matchLabels:
@@ -247,8 +250,11 @@ spec:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
             - labelSelector:
-                matchLabels:
-                  strimzi.io/name: "test-mk-zookeeper"
+                matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                  - "test-mk-zookeeper"
               topologyKey: "kubernetes.io/hostname"            
         topologySpreadConstraints:
         - labelSelector:

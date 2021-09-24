@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelector;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelectorBuilder;
+import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinity;
 import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinityTerm;
@@ -340,7 +341,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .withPreferredDuringSchedulingIgnoredDuringExecution(new WeightedPodAffinityTerm(new PodAffinityTermBuilder()
                             .withTopologyKey("kubernetes.io/hostname")
                             .withNewLabelSelector()
-                                .addToMatchLabels("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper")
+                                .addToMatchExpressions(new LabelSelectorRequirementBuilder()
+                                    .withKey("strimzi.io/name")
+                                    .withOperator("In")
+                                    .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
                             .endLabelSelector()
                             .build(), 50))
                     .build();
@@ -397,7 +401,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new PodAffinityTermBuilder()
                 .withTopologyKey("kubernetes.io/hostname")
                 .withNewLabelSelector()
-                .withMatchLabels(Map.of(key, value))
+                .addToMatchExpressions(new LabelSelectorRequirementBuilder()
+                    .withKey(key)
+                    .withOperator("In")
+                    .withValues(value).build())
                 .endLabelSelector().build();
     }
 

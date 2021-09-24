@@ -4,6 +4,9 @@ pod:
     podAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
-          matchLabels:
-            strimzi.io/name: "test-mk-zookeeper"
+          matchExpressions:
+          - key: "strimzi.io/name"
+            operator: "In"
+            values:
+            - "test-mk-zookeeper"
         topologyKey: "kubernetes.io/hostname"
