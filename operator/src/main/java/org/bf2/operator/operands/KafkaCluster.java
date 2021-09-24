@@ -77,7 +77,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -337,13 +336,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         if (this.config.getKafka().isColocateWithZookeeper()) {
             // adds preference to co-locate Kafka broker pods with ZK pods with same cluster label
-            LinkedHashMap<String, String> clusterSelectorLabels = new LinkedHashMap<>(1);
-            clusterSelectorLabels.put("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper");
             PodAffinity zkPodAffinity = new PodAffinityBuilder()
                     .withPreferredDuringSchedulingIgnoredDuringExecution(new WeightedPodAffinityTerm(new PodAffinityTermBuilder()
                             .withTopologyKey("kubernetes.io/hostname")
                             .withNewLabelSelector()
-                                .withMatchLabels(clusterSelectorLabels)
+                                .addToMatchLabels("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper")
                             .endLabelSelector()
                             .build(), 50))
                     .build();
@@ -395,13 +392,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withWhenUnsatisfiable(action)
                 .build();
     }
-    //
+
     private PodAffinityTerm affinityTerm(String key, String value) {
-        PodAffinityTermBuilder builder = new PodAffinityTermBuilder().withTopologyKey("kubernetes.io/hostname");
-        builder.withNewLabelSelector()
-            .withMatchLabels(Map.of(key, value))
-            .endLabelSelector();
-        return builder.build();
+        return new PodAffinityTermBuilder()
+                .withTopologyKey("kubernetes.io/hostname")
+                .withNewLabelSelector()
+                .withMatchLabels(Map.of(key, value))
+                .endLabelSelector().build();
     }
 
     private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
