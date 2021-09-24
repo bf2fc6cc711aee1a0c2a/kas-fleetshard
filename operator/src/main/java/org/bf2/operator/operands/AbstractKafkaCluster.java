@@ -174,6 +174,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                     .withClientId(managedKafkaAuthenticationOAuth.getClientId())
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
+                    .withFallbackUserNameClaim(managedKafkaAuthenticationOAuth.getFallbackUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
                     .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
                     .withClientSecret(buildSsoClientGenericSecretSource(managedKafka))
@@ -189,6 +190,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                     .withClientId(managedKafkaAuthenticationOAuth.getClientId())
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
+                    .withFallbackUserNameClaim(managedKafkaAuthenticationOAuth.getFallbackUserNameClaim())
                     .withCustomClaimCheck(managedKafkaAuthenticationOAuth.getCustomClaimCheck())
                     .withValidIssuerUri(managedKafkaAuthenticationOAuth.getValidIssuerEndpointURI())
                     .withClientSecret(buildSsoClientGenericSecretSource(managedKafka));

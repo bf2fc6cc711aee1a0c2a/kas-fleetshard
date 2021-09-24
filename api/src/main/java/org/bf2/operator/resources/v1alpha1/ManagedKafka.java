@@ -98,8 +98,8 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      */
     public static ManagedKafka getDefault(String name, String namespace, String bootstrapHostDomain,
             String endpointTlsCert, String endpointTlsKey, String oauthClientId, String oauthTlsCert,
-            String oauthClientSecret, String oauthUserClaim, String oauthJwksEndpoint, String oauthTokenEndpoint,
-            String oauthIssuerEndpoint, String strimziVersion) {
+            String oauthClientSecret, String oauthUserClaim, String oauthFallbackUserClaim, String oauthJwksEndpoint,
+            String oauthTokenEndpoint, String oauthIssuerEndpoint, String strimziVersion) {
 
         ManagedKafkaAuthenticationOAuth oauth = null;
         TlsKeyPair tls = null;
@@ -117,6 +117,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
                     .withTlsTrustedCertificate(oauthTlsCert)
                     .withClientSecret(oauthClientSecret)
                     .withUserNameClaim(oauthUserClaim)
+                    .withFallbackUserNameClaim(oauthFallbackUserClaim)
                     .withJwksEndpointURI(oauthJwksEndpoint)
                     .withTokenEndpointURI(oauthTokenEndpoint)
                     .withValidIssuerEndpointURI(oauthIssuerEndpoint)
@@ -156,7 +157,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
      */
     public static ManagedKafka getDummyInstance(int name) {
         return getDefault("mk-" + name, "mk-" + name, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
-                "claim", "http://jwks", "https://token", "http://issuer", "strimzi-cluster-operator.v0.23.0");
+                "claim", "fallbackClaim", "http://jwks", "https://token", "http://issuer", "strimzi-cluster-operator.v0.23.0");
     }
 
 }

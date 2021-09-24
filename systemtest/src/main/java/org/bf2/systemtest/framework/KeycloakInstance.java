@@ -27,6 +27,7 @@ public class KeycloakInstance {
     private String oauthTokenEndpointUri;
     private String introspectionEndpointUri;
     private String userNameClaim;
+    private String fallbackUserNameClaim;
     private final String keycloakCert;
 
 
@@ -41,7 +42,8 @@ public class KeycloakInstance {
         this.jwksEndpointUri = "https://" + httpsUri + "/auth/realms/demo/protocol/openid-connect/certs";
         this.oauthTokenEndpointUri = "https://" + httpsUri + "/auth/realms/demo/protocol/openid-connect/token";
         this.introspectionEndpointUri = "https://" + httpsUri + "/auth/realms/demo/protocol/openid-connect/token/introspect";
-        this.userNameClaim = "preferred_username";
+        this.userNameClaim = "clientId";
+        this.fallbackUserNameClaim = "preferred_username";
         this.keycloakCert = readKeycloakCert();
     }
 
@@ -121,6 +123,14 @@ public class KeycloakInstance {
 
     public void setUserNameClaim(String userNameClaim) {
         this.userNameClaim = userNameClaim;
+    }
+
+    public String getFallbackUserNameClaim() {
+        return fallbackUserNameClaim;
+    }
+
+    public void setFallbackUserNameClaim(String fallbackUserNameClaim) {
+        this.fallbackUserNameClaim = fallbackUserNameClaim;
     }
 
     public int getJwksExpireSeconds() {

@@ -14,6 +14,7 @@ public class SystemTestEnvironment extends Environment {
     private static final String BOOTSTRAP_HOST_DOMAIN_ENV = "BOOTSTRAP_HOST_DOMAIN";
     private static final String OAUTH_CLIENT_SECRET_ENV = "OAUTH_CLIENT_SECRET";
     private static final String OAUTH_USER_CLAIM_ENV = "OAUTH_USER_CLAIM";
+    private static final String OAUTH_FALLBACK_USER_CLAIM_ENV = "OAUTH_FALLBACK_USER_CLAIM";
     private static final String OAUTH_JWKS_ENDPOINT_ENV = "OAUTH_JWKS_ENDPOINT";
     private static final String OAUTH_TOKEN_ENDPOINT_ENV = "OAUTH_TOKEN_ENDPOINT";
     private static final String OAUTH_ISSUER_ENDPOINT_ENV = "OAUTH_ISSUER_ENDPOINT";
@@ -35,7 +36,8 @@ public class SystemTestEnvironment extends Environment {
 
     public static final String BOOTSTRAP_HOST_DOMAIN = getOrDefault(BOOTSTRAP_HOST_DOMAIN_ENV, "my-domain.com");
     public static final String OAUTH_CLIENT_SECRET = getOrDefault(OAUTH_CLIENT_SECRET_ENV, "client_secret");
-    public static final String OAUTH_USER_CLAIM = getOrDefault(OAUTH_USER_CLAIM_ENV, "preferred_username");
+    public static final String OAUTH_USER_CLAIM = getOrDefault(OAUTH_USER_CLAIM_ENV, "clientId");
+    public static final String OAUTH_FALLBACK_USER_CLAIM = getOrDefault(OAUTH_FALLBACK_USER_CLAIM_ENV, "preferred_username");
     public static final String OAUTH_JWKS_ENDPOINT = getOrDefault(OAUTH_JWKS_ENDPOINT_ENV, DUMMY_OAUTH_JWKS_URI);
     public static final String OAUTH_TOKEN_ENDPOINT = getOrDefault(OAUTH_TOKEN_ENDPOINT_ENV, "token_endpoint");
     public static final String OAUTH_ISSUER_ENDPOINT = getOrDefault(OAUTH_ISSUER_ENDPOINT_ENV, "issuer_endpoint");
