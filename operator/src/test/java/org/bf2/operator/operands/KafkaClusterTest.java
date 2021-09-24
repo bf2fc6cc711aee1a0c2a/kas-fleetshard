@@ -185,7 +185,6 @@ class KafkaClusterTest {
             ManagedKafka mk = exampleManagedKafka("60Gi");
             Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
             JsonNode patch = diffToExpected(kafka.getSpec().getKafka().getTemplate(), "/expected/broker-per-node-kafka.yml");
-            System.out.println(Serialization.asYaml(kafka));
             assertEquals("[]", patch.toString());
             patch = diffToExpected(kafka.getSpec().getKafkaExporter().getTemplate(), "/expected/broker-per-node-exporter.yml");
             assertEquals("[]", patch.toString());
