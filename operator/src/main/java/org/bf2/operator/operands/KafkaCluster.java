@@ -523,6 +523,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.protocol", "TLS");
         config.put("connections.max.reauth.ms", 299000); // 4m 59s
 
+        // extension to manage the create topic to ensure valid Replication Factor and ISR
+        config.put("create.topic.policy.class.name", "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy");
+
         // forcing the preferred leader election as soon as possible
         // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
