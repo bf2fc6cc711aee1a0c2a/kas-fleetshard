@@ -32,6 +32,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Date;
 
 public class SecurityUtils {
@@ -39,13 +40,16 @@ public class SecurityUtils {
     public static class TlsConfig {
         private String cert;
         private String key;
-        private ByteArrayOutputStream truststore;
+        private String trustStoreBase64;
+
+        public TlsConfig() {
+
+        }
 
         public TlsConfig(String cert, String key, ByteArrayOutputStream truststore) {
-            super();
             this.cert = cert;
             this.key = key;
-            this.truststore = truststore;
+            this.trustStoreBase64 = Base64.getEncoder().encodeToString(truststore.toByteArray());
         }
 
         public String getCert() {
@@ -56,9 +60,10 @@ public class SecurityUtils {
             return key;
         }
 
-        public byte[] getTruststore() {
-            return truststore.toByteArray();
+        public String getTrustStoreBase64() {
+            return trustStoreBase64;
         }
+
     }
 
     public static final String TRUSTSTORE_PASSWORD = "changeit";

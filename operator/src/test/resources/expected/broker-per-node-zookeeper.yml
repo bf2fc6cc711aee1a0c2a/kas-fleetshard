@@ -1,0 +1,16 @@
+---
+pod:
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: "zookeeper"      
+        topologyKey: "kubernetes.io/hostname"
+  topologySpreadConstraints:
+  - labelSelector:
+      matchLabels:
+        strimzi.io/name: "test-mk-zookeeper"
+    maxSkew: 1
+    topologyKey: "topology.kubernetes.io/zone"
+    whenUnsatisfiable: "ScheduleAnyway"   

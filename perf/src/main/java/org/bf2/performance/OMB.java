@@ -26,6 +26,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.openmessaging.benchmark.TestResult;
 import io.openmessaging.benchmark.WorkloadGenerator;
 import io.openmessaging.benchmark.worker.DistributedWorkersEnsemble;
+import io.openmessaging.benchmark.worker.LocalWorker;
 import io.openmessaging.benchmark.worker.Worker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,7 +45,6 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -122,7 +123,7 @@ public class OMB {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
-        String keystore = Base64.getEncoder().encodeToString(tlsConfig.getTruststore());
+        String keystore = tlsConfig.getTrustStoreBase64();
         ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName("ext-listener-crt")
@@ -141,9 +142,9 @@ public class OMB {
      * @return List of worker hostnames.
      */
     public List<String> deployWorkers(int workers) throws Exception {
-        String javaHeapFormatted = String.format("%dK", Quantity.getAmountInBytes(workerContainerMemory).longValueExact() / 2 / 1024);
-        LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}, JVM heap: {}", workers, workerContainerMemory, workerCpu, javaHeapFormatted);
-        String jvmOpts = String.format("-Xms%s -Xmx%s -XX:+ExitOnOutOfMemoryError -Djavax.net.debug=ssl", javaHeapFormatted, javaHeapFormatted);
+        LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}", workers, workerContainerMemory, workerCpu);
+        // we are now on java 11 which defaults to https://www.eclipse.org/openj9/docs/xxusecontainersupport/ and -XX:+PreferContainerQuotaForCPUCount
+        String jvmOpts = String.format("-XX:+ExitOnOutOfMemoryError");
         List<Future<Void>> futures = new ArrayList<>();
         List<Node> nodes = ombCluster.getWorkerNodes();
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
@@ -163,14 +164,15 @@ public class OMB {
         }
         LOGGER.info("Collecting hosts");
 
-        List<String> hostnames = new ArrayList<>();
+        TreeMap<Integer, String> sortedHostnames = new TreeMap<>();
         ombCluster.kubeClient().client().adapt(OpenShiftClient.class).routes().inNamespace(Constants.OMB_NAMESPACE).withLabel("app", "worker").list().getItems().forEach(r -> {
             String host = r.getSpec().getHost();
             if (host == null || host.isEmpty()) {
                 throw new IllegalStateException("Host node not defined");
             }
-            hostnames.add(String.format("http://%s", host));
+            sortedHostnames.put(workerNames.indexOf(r.getMetadata().getLabels().get("app.kubernetes.io/name")), String.format("http://%s", host));
         });
+        List<String> hostnames = new ArrayList<>(sortedHostnames.values());
 
         LOGGER.info("Waiting for worker pods to run");
         // Wait until workers are running
@@ -345,7 +347,7 @@ public class OMB {
         workload.validate();
 
         try (
-             Worker worker = new DistributedWorkersEnsemble(workers);
+             Worker worker = workers.isEmpty()?new LocalWorker():new DistributedWorkersEnsemble(workers);
              WorkloadGenerator generator = new WorkloadGenerator(driver.name, workload, worker);
         ) {
             LOGGER.info("--------------- WORKLOAD: {} --- DRIVER: {} ---------------", workload.name, driver.name);
@@ -415,6 +417,7 @@ public class OMB {
             Thread.sleep(5000);
         }
         LOGGER.info("Deleted {} workers", workerNames.size());
+        workerNames.clear();
     }
 
     private TestResult createTestResult(File file) throws IOException {

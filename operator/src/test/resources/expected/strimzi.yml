@@ -190,7 +190,10 @@ spec:
         affinity:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-kafka"
+              topologyKey: "kubernetes.io/hostname"            
         topologySpreadConstraints:
           - labelSelector:
               matchLabels:
@@ -198,6 +201,10 @@ spec:
             maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
             whenUnsatisfiable: DoNotSchedule
+        tolerations:
+          - effect: "NoExecute"       
+            key: "org.bf2.operator/kafka-broker"
+            operator: "Exists"                   
   zookeeper:
     replicas: 3
     storage: !<persistent-claim>
@@ -235,8 +242,17 @@ spec:
         affinity:
           podAntiAffinity:
             requiredDuringSchedulingIgnoredDuringExecution:
-            - topologyKey: "kubernetes.io/hostname"
-            - topologyKey: "topology.kubernetes.io/zone"
+            - labelSelector:
+                matchLabels:
+                  strimzi.io/name: "test-mk-zookeeper"
+              topologyKey: "kubernetes.io/hostname"            
+        topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              strimzi.io/name: "test-mk-zookeeper"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "ScheduleAnyway"            
   kafkaExporter:
     resources:
       limits:

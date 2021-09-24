@@ -1,18 +1,16 @@
 package org.bf2.performance;
 
-import io.openmessaging.benchmark.DriverConfiguration;
+import io.openmessaging.benchmark.driver.kafka.Config;
 import org.bf2.systemtest.framework.SecurityUtils;
 
-public class OMBDriver extends DriverConfiguration {
+public class OMBDriver extends Config {
 
-    private Integer replicationFactor;
-    private String topicConfig;
-    private String commonConfig;
-    private String producerConfig;
-    private String consumerConfig;
+    public String name;
+    public String driverClass;
 
     public OMBDriver() {
         super();
+        reset = true; // delete all test topics before each run
         name = "Kafka";
         driverClass = "io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver";
     }
@@ -25,7 +23,7 @@ public class OMBDriver extends DriverConfiguration {
         return driverClass;
     }
 
-    public Integer getReplicationFactor() {
+    public short getReplicationFactor() {
         return replicationFactor;
     }
 
@@ -45,8 +43,8 @@ public class OMBDriver extends DriverConfiguration {
         return consumerConfig;
     }
 
-    public OMBDriver setReplicationFactor(Integer replicationFactor) {
-        this.replicationFactor = replicationFactor;
+    public OMBDriver setReplicationFactor(int replicationFactor) {
+        this.replicationFactor = (short)replicationFactor;
         return this;
     }
 
@@ -75,6 +73,11 @@ public class OMBDriver extends DriverConfiguration {
         return this;
     }
 
+    public OMBDriver reset(boolean b) {
+        this.reset = b;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "OMBDriver{" +
@@ -85,6 +88,7 @@ public class OMBDriver extends DriverConfiguration {
                 ", commonConfig='" + commonConfig + '\'' +
                 ", producerConfig='" + producerConfig + '\'' +
                 ", consumerConfig='" + consumerConfig + '\'' +
+                ", reset='" + reset + '\'' +
                 '}';
     }
 }

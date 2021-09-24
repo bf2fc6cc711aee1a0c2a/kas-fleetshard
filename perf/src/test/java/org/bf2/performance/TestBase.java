@@ -1,7 +1,5 @@
 package org.bf2.performance;
 
-import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Quantity;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.ManagedKafkaStateAssertionParameterResolver;
@@ -19,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
@@ -35,6 +32,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @DisplayNameGeneration(IndicativeSentences.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class TestBase {
+
     protected File testDir;
     protected File instanceDir;
 
@@ -55,23 +53,11 @@ public abstract class TestBase {
         Files.write(new File(instanceDir, "test-metadata.yaml").toPath(), TestMetadataCapture.getInstance().toYaml().getBytes(StandardCharsets.UTF_8));
     }
 
-    protected void ensureClientClusterCapacityForWorkers(KubeClusterResource ombCluster, int numberOfWorkers, Quantity workerMemorySize, Quantity workerCpuSize) throws IOException {
-        BigDecimal requiredWorkerMemory = Quantity.getAmountInBytes(workerMemorySize).multiply(new BigDecimal(numberOfWorkers));
-        NodeList nodes = ombCluster.kubeClient().client().nodes().withLabel("node-role.kubernetes.io/worker", "").list();
-        BigDecimal nodeMem = BigDecimal.ZERO;
-        for (Node node : nodes.getItems()) {
-            Quantity nodeMemory = Quantity.parse(String.valueOf(node.getStatus().getAllocatable().get("memory")));
-            nodeMem = nodeMem.add(Quantity.getAmountInBytes(nodeMemory));
-        }
-        assumeTrue(nodeMem.compareTo(requiredWorkerMemory) >= 0,
-                String.format("Insufficient worker node memory (%,.2f from %d node(s)) for this test (requires %,.2f).", nodeMem, nodes.getItems().size(), requiredWorkerMemory));
+    public static void ensureClientClusterCapacityForWorkers(KubeClusterResource cluster, int numberOfWorkers, Quantity workerMemorySize, Quantity workerCpuSize) throws IOException {
+        long count = TestUtils.getNumberThatWillFit(cluster.getWorkerNodes(), workerMemorySize, workerCpuSize);
 
-        int cpuSize = 0;
-        for (Node node : nodes.getItems()) {
-            Quantity nodeCpu = Quantity.parse(String.valueOf(node.getStatus().getAllocatable().get("cpu")));
-            cpuSize += Integer.parseInt(nodeCpu.getAmount());
-        }
-        assumeTrue( cpuSize*1000 >= Integer.parseInt(workerCpuSize.getAmount())*numberOfWorkers,
-                String.format("Insufficient worker node cpu, available = %d, required =  %d", cpuSize*1000, Integer.parseInt(workerCpuSize.getAmount())*numberOfWorkers));
+        assumeTrue(count > numberOfWorkers,
+                String.format("Insufficient worker capcity only %s will fit", count));
     }
+
 }

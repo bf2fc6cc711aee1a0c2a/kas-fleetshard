@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
@@ -147,8 +146,31 @@ class KafkaClusterTest {
         assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("managedkafka.zookeeper.jvm-xx"));
 
     }
-    private JsonNode diffToExpected(Kafka kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
-        ObjectMapper objectMapper = new ObjectMapper(new YAMLFactory());
+
+    @Test
+    void testManagedKafkaToKafkaBrokerPerNode() throws IOException {
+        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
+        config.getKafka().setOneInstancePerNode(true);
+        config.getKafka().setColocateWithZookeeper(true);
+        config.getExporter().setColocateWithZookeeper(true);
+        try {
+            ManagedKafka mk = exampleManagedKafka("60Gi");
+            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+            JsonNode patch = diffToExpected(kafka.getSpec().getKafka().getTemplate(), "/expected/broker-per-node-kafka.yml");
+            assertEquals("[]", patch.toString());
+            patch = diffToExpected(kafka.getSpec().getKafkaExporter().getTemplate(), "/expected/broker-per-node-exporter.yml");
+            assertEquals("[]", patch.toString());
+            patch = diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
+            assertEquals("[]", patch.toString());
+        } finally {
+            config.getKafka().setOneInstancePerNode(false);
+            config.getKafka().setColocateWithZookeeper(false);
+            config.getExporter().setColocateWithZookeeper(false);
+        }
+    }
+
+    private JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        ObjectMapper objectMapper = Serialization.yamlMapper();
         JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         JsonNode file2 = objectMapper.readTree(Serialization.asYaml(kafka));
         return JsonDiff.asJson(file1, file2);

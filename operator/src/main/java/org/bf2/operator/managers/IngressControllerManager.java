@@ -25,6 +25,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.jboss.logging.Logger;
@@ -270,6 +271,7 @@ public class IngressControllerManager {
                             .addToMatchLabels(TOPOLOGY_KEY, topologyValue)
                             .addToMatchLabels(WORKER_NODE_LABEL, "")
                         .endNodeSelector()
+                        .addToTolerations(KafkaCluster.buildKafkaBrokerToleration())
                     .endNodePlacement()
                 .endSpec();
         }
