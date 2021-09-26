@@ -48,13 +48,13 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.DrainCleanerManager;
+import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
-import org.bf2.operator.secrets.ImagePullSecretManager;
-import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 

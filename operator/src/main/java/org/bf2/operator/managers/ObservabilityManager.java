@@ -1,4 +1,4 @@
-package org.bf2.operator.secrets;
+package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ObservabilityConfiguration;
 
 import javax.enterprise.context.ApplicationScoped;

@@ -12,10 +12,10 @@ import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.ImagePullSecretManager;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.secrets.ImagePullSecretManager;
-import org.bf2.operator.secrets.SecuritySecretManager;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;

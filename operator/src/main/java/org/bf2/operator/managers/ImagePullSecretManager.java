@@ -1,4 +1,4 @@
-package org.bf2.operator.secrets;
+package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
