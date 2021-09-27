@@ -169,6 +169,7 @@ public class StrimziManagerTest {
         Deployment deployment = new DeploymentBuilder()
                 .withNewMetadata()
                     .withName(name)
+                        .withLabels(labels)
                     .withNamespace(namespace)
                 .endMetadata()
                 .withNewSpec()
@@ -249,7 +250,7 @@ public class StrimziManagerTest {
         Resource<ReplicaSet> rsResource = this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset");
         Resource<Deployment> depResource = this.server.getClient().apps().deployments().inNamespace(namespace).withName(name);
         // only if "discoverable" was added to the Strimzi manager list
-        if (rsResource.get().getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
+        if (depResource.get().getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
             this.strimziManager.deleteStrimziVersion(depResource.get());
         }
         rsResource.delete();
