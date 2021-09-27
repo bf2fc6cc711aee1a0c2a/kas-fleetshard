@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
@@ -63,6 +64,31 @@ public class AdminServer extends AbstractAdminServer {
     private static final IntOrString HTTP_PORT_TARGET = new IntOrString(HTTP_PORT_NAME);
     private static final IntOrString HTTPS_PORT_TARGET = new IntOrString(HTTPS_PORT_NAME);
     private static final IntOrString MANAGEMENT_PORT_TARGET = new IntOrString(MANAGEMENT_PORT_NAME);
+
+    private static final String PREFIX = "KAFKA_ADMIN_";
+
+    public static final String KAFKA_ADMIN_BOOTSTRAP_SERVERS = PREFIX + "BOOTSTRAP_SERVERS";
+    public static final String KAFKA_ADMIN_BASIC_ENABLED = PREFIX + "BASIC_ENABLED";
+    public static final String KAFKA_ADMIN_OAUTH_ENABLED = PREFIX + "OAUTH_ENABLED";
+    public static final String OAUTH_TRUSTED_CERT = PREFIX + "OAUTH_TRUSTED_CERT";
+    public static final String OAUTH_JWKS_ENDPOINT_URI = PREFIX + "OAUTH_JWKS_ENDPOINT_URI";
+    public static final String OAUTH_VALID_ISSUER_URI = PREFIX + "OAUTH_VALID_ISSUER_URI";
+    public static final String OAUTH_TOKEN_ENDPOINT_URI = PREFIX + "OAUTH_TOKEN_ENDPOINT_URI";
+    public static final String BROKER_TRUSTED_CERT = PREFIX + "BROKER_TRUSTED_CERT";
+    public static final String TLS_CERT = PREFIX + "TLS_CERT";
+    public static final String TLS_KEY = PREFIX + "TLS_KEY";
+    public static final String ACL_RESOURCE_OPERATIONS = PREFIX + "ACL_RESOURCE_OPERATIONS";
+
+    public static final String KAFKA_ADMIN_SERVER_APP = PREFIX + "SERVER_APP";
+    public static final String KAFKA_ADMIN_SERVER_DEPLOYMENT = PREFIX + "SERVER_DEPLOYMENT";
+    public static final String KAFKA_ADMIN_NAMESPACE = PREFIX + "NAMESPACE";
+    public static final String KAFKA_ADMIN_TLS_VERSION = PREFIX + "TLS_VERSION";
+    public static final String KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX = PREFIX + "CORS_ALLOW_LIST_REGEX";
+    public static final String KAFKA_ADMIN_API_PORT_NAME = PREFIX + "API_PORT_NAME";
+    public static final String KAFKA_ADMIN_API_PORT = PREFIX + "API_PORT";
+    public static final String KAFKA_ADMIN_IMAGE_PULL_SECRETS = PREFIX + "IMAGE_PULL_SECRETS";
+    public static final String KAFKA_ADMIN_VOLUME_NAME = PREFIX + "VOLUME_NAME";
+    public static final String KAFKA_ADMIN_VOLUME_SECRET = PREFIX + "VOLUME_SECRET";
 
     @Inject
     Logger log;
@@ -135,75 +161,76 @@ public class AdminServer extends AbstractAdminServer {
         // we need to add Deployment parameters which cause validation failures while unmarshalling the template + conditional parameters do not seem to be supported
         // https://github.com/fabric8io/kubernetes-client/issues/3460
 
-        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt"));
+        Container containerTemplate = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
+
+        containerTemplate.getEnv().add(envVarFromSecret(BROKER_TRUSTED_CERT, SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt"));
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTPS_PORT_NAME).withContainerPort(HTTPS_PORT).build());
+            containerTemplate.getPorts().add(new ContainerPortBuilder().withName(HTTPS_PORT_NAME).withContainerPort(HTTPS_PORT).build());
         } else {
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getPorts().add(new ContainerPortBuilder().withName(HTTP_PORT_NAME).withContainerPort(HTTP_PORT).build());
+            containerTemplate.getPorts().add(new ContainerPortBuilder().withName(HTTP_PORT_NAME).withContainerPort(HTTP_PORT).build());
         }
 
         // list
         deployment.getSpec().getTemplate().getSpec().setImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka));
 
         // quotes in the value
-        deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS").withValue(this.config.getKafka().getAcl().getResourceOperations()).build());
+        containerTemplate.getEnv().add(new EnvVarBuilder().withName(ACL_RESOURCE_OPERATIONS).withValue(this.config.getKafka().getAcl().getResourceOperations()).build());
 
         // conditional envar (value cannot be omitted)
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
             ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
             if (oauth.getTlsTrustedCertificate() != null) {
-                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_OAUTH_TRUSTED_CERT", SecuritySecretManager.ssoTlsSecretName(managedKafka), "keycloak.crt"));
+                containerTemplate.getEnv().add(envVarFromSecret(OAUTH_TRUSTED_CERT, SecuritySecretManager.ssoTlsSecretName(managedKafka), "keycloak.crt"));
             }
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI").withValue(oauth.getJwksEndpointURI()).build());
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI").withValue(oauth.getValidIssuerEndpointURI()).build());
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(new EnvVarBuilder().withName("KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI").withValue(oauth.getTokenEndpointURI()).build());
+            containerTemplate.getEnv().add(new EnvVarBuilder().withName(OAUTH_JWKS_ENDPOINT_URI).withValue(oauth.getJwksEndpointURI()).build());
+            containerTemplate.getEnv().add(new EnvVarBuilder().withName(OAUTH_VALID_ISSUER_URI).withValue(oauth.getValidIssuerEndpointURI()).build());
+            containerTemplate.getEnv().add(new EnvVarBuilder().withName(OAUTH_TOKEN_ENDPOINT_URI).withValue(oauth.getTokenEndpointURI()).build());
         }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt"));
-            deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().add(envVarFromSecret("KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key"));
+            containerTemplate.getEnv().add(envVarFromSecret(TLS_CERT, SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt"));
+            containerTemplate.getEnv().add(envVarFromSecret(TLS_KEY, SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key"));
         }
     }
 
     private Map<String, String> buildParameters(ManagedKafka managedKafka) {
         List<Parameter> parameters = new ArrayList<>();
 
-        addParameter(parameters, "KAFKA_ADMIN_SERVER_APP", adminServerName(managedKafka));
-        addParameter(parameters, "KAFKA_ADMIN_SERVER_DEPLOYMENT", adminServerName(managedKafka));
-        addParameter(parameters, "KAFKA_ADMIN_NAMESPACE", managedKafka.getMetadata().getNamespace());
-        addParameter(parameters, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
+        addParameter(parameters, KAFKA_ADMIN_SERVER_APP, adminServerName(managedKafka));
+        addParameter(parameters, KAFKA_ADMIN_SERVER_DEPLOYMENT, adminServerName(managedKafka));
+        addParameter(parameters, KAFKA_ADMIN_NAMESPACE, managedKafka.getMetadata().getNamespace());
+        addParameter(parameters, KAFKA_ADMIN_BOOTSTRAP_SERVERS, managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addParameter(parameters, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3,TLSv1.2");
+            addParameter(parameters, KAFKA_ADMIN_TLS_VERSION, "TLSv1.3,TLSv1.2");
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3");
+            addParameter(parameters, KAFKA_ADMIN_TLS_VERSION, "TLSv1.3");
         }
 
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_ENABLED", "true");
-
+            addParameter(parameters, KAFKA_ADMIN_OAUTH_ENABLED, "true");
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_OAUTH_ENABLED", "false");
+            addParameter(parameters, KAFKA_ADMIN_OAUTH_ENABLED, "false");
         }
 
         if (corsAllowList.isPresent()) {
-            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", corsAllowList.get());
+            addParameter(parameters, KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX, corsAllowList.get());
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX", "(https?:\\/\\/localhost(:\\d*)?)");
+            addParameter(parameters, KAFKA_ADMIN_CORS_ALLOW_LIST_REGEX, "(https?:\\/\\/localhost(:\\d*)?)");
         }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addParameter(parameters, "KAFKA_ADMIN_API_PORT_NAME", HTTPS_PORT_NAME);
-            addParameter(parameters, "KAFKA_ADMIN_API_PORT", Integer.toString(HTTPS_PORT));
+            addParameter(parameters, KAFKA_ADMIN_API_PORT_NAME, HTTPS_PORT_NAME);
+            addParameter(parameters, KAFKA_ADMIN_API_PORT, Integer.toString(HTTPS_PORT));
         } else {
-            addParameter(parameters, "KAFKA_ADMIN_API_PORT_NAME", HTTP_PORT_NAME);
-            addParameter(parameters, "KAFKA_ADMIN_API_PORT", Integer.toString(HTTP_PORT));
+            addParameter(parameters, KAFKA_ADMIN_API_PORT_NAME, HTTP_PORT_NAME);
+            addParameter(parameters, KAFKA_ADMIN_API_PORT, Integer.toString(HTTP_PORT));
         }
 
-        addParameter(parameters, "KAFKA_ADMIN_IMAGE_PULL_SECRETS", "[" + imagePullSecretManager.getOperatorImagePullSecrets(managedKafka).stream().map(ref -> ref.getName()).collect(Collectors.joining(", ")) + "]");
+        addParameter(parameters, KAFKA_ADMIN_IMAGE_PULL_SECRETS, "[" + imagePullSecretManager.getOperatorImagePullSecrets(managedKafka).stream().map(ref -> ref.getName()).collect(Collectors.joining(", ")) + "]");
 
-        addParameter(parameters, "KAFKA_ADMIN_VOLUME_NAME", managedKafka.getMetadata().getName() + "-tls-ca-cert");
-        addParameter(parameters, "KAFKA_ADMIN_VOLUME_SECRET", managedKafka.getMetadata().getName() + "-cluster-ca-cert");
+        addParameter(parameters, KAFKA_ADMIN_VOLUME_NAME, managedKafka.getMetadata().getName() + "-tls-ca-cert");
+        addParameter(parameters, KAFKA_ADMIN_VOLUME_SECRET, managedKafka.getMetadata().getName() + "-cluster-ca-cert");
 
         return parameters.stream().collect(Collectors.toMap(entry -> entry.getName(), entry -> entry.getValue() == null ? "\"\"" :  entry.getValue()));
     }
