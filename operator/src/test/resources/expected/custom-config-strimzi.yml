@@ -68,7 +68,7 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
-        maxConnections: 500
+        maxConnections: 125
         maxConnectionCreationRate: 75
         bootstrap:
           host: "xxx.yyy.zzz"
@@ -167,8 +167,8 @@ spec:
     rack:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
-      "-Xmx": "6442450944"
-      "-Xms": "6442450944"
+      "-Xmx": "3G"
+      "-Xms": "3G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
         foo: "bar"
@@ -176,10 +176,10 @@ spec:
     resources:
       limits:
         memory: "2Gi"
-        cpu: "4500m"
+        cpu: "3000m"
       requests:
         memory: "2Gi"
-        cpu: "4500m"
+        cpu: "3000m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
