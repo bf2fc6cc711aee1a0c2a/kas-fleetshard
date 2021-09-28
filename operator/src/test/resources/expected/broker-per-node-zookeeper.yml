@@ -1,15 +1,5 @@
 ---
 pod:
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: "app.kubernetes.io/name"
-            operator: "In"
-            values:
-            - "zookeeper"     
-        topologyKey: "kubernetes.io/hostname"
   topologySpreadConstraints:
   - labelSelector:
       matchExpressions:

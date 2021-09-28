@@ -25,13 +25,6 @@ spec:
         app: "test-mk-canary"
         app.kubernetes.io/component: "canary"
     spec:
-      affinity:
-        podAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchLabels:
-                strimzi.io/name: "test-mk-zookeeper"
-            topologyKey: "kubernetes.io/hostname"
       containers:
       - env:
         - name: "KAFKA_BOOTSTRAP_SERVERS"

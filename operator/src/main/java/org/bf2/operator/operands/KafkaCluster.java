@@ -415,23 +415,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
-        // onePerNode = true - one zk per node across the fleet of clusters,
-        // onePerNode = false - one zk per node per cluster
-        boolean onePerNode = this.config.getKafka().isOneInstancePerNode();
-        PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                .withRequiredDuringSchedulingIgnoredDuringExecution(onePerNode ?
-                    affinityTerm("app.kubernetes.io/name", "zookeeper")
-                    : affinityTerm("strimzi.io/name", managedKafka.getMetadata().getName() + "-zookeeper"))
-                .build();
-
-        AffinityBuilder affinityBuilder = new AffinityBuilder();
-        affinityBuilder.withPodAntiAffinity(podAntiAffinity);
+        // should enforce 1 per node, but cannot because the pod labels are namespaced and
+        // each managed kafka is in it's own namespace
+        // we need kubernetes 1.22 to address this an empty anti-affinity namespaceselector
 
         // use "ScheduleAnyway" here due to fact that any previous ZK instances may not have been correctly AZ aware
         // and StatefulSet can not be moved with across zone with current setup
         ZookeeperClusterTemplateBuilder templateBuilder = new ZookeeperClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
-                        .withAffinity(affinityBuilder.build())
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", "ScheduleAnyway"))
                         .build());
