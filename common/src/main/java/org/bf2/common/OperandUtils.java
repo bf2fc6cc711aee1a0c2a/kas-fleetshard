@@ -3,6 +3,7 @@ package org.bf2.common;
 import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -71,12 +72,18 @@ public class OperandUtils {
     public static Affinity buildZookeeperPodAffinity(ManagedKafka managedKafka) {
         // place where zookeeper is placed
         return new AffinityBuilder().withNewPodAffinity()
-                .addNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                    .withWeight(50)
+                    .withNewPodAffinityTerm()
                     .withTopologyKey("kubernetes.io/hostname")
                     .withNewLabelSelector()
-                        .addToMatchLabels("strimzi.io/name",  managedKafka.getMetadata().getName()+"-zookeeper")
+                        .addToMatchExpressions(new LabelSelectorRequirementBuilder()
+                            .withKey("strimzi.io/name")
+                            .withOperator("In")
+                            .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
                     .endLabelSelector()
-                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                    .endPodAffinityTerm()
+                .endPreferredDuringSchedulingIgnoredDuringExecution()
             .endPodAffinity()
         .build();
     }

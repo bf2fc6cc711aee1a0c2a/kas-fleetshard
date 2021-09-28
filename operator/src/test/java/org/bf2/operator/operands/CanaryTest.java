@@ -13,8 +13,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class CanaryTest {
@@ -26,7 +24,7 @@ public class CanaryTest {
     Canary canary;
 
     @Test
-    void createCanaryDeployment() {
+    void createCanaryDeployment() throws Exception {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withNewMetadata()
                     .withNamespace("test")
@@ -41,10 +39,6 @@ public class CanaryTest {
                 .build();
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
-
-        server.getClient().apps().deployments().create(canaryDeployment);
-        assertNotNull(server.getClient().apps().deployments()
-                .inNamespace(canaryDeployment.getMetadata().getNamespace())
-                .withName(canaryDeployment.getMetadata().getName()).get());
+        KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml");
     }
 }

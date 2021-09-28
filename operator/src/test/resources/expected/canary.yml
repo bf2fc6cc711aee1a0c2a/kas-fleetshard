@@ -1,0 +1,86 @@
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    app: "test-mk-canary"
+    app.kubernetes.io/component: "canary"
+  name: "test-mk-canary"
+  namespace: "test"
+  ownerReferences:
+  - apiVersion: "managedkafka.bf2.org/v1alpha1"
+    kind: "ManagedKafka"
+    name: "test-mk"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      app: "test-mk-canary"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        app: "test-mk-canary"
+        app.kubernetes.io/component: "canary"
+    spec:
+      containers:
+      - env:
+        - name: "KAFKA_BOOTSTRAP_SERVERS"
+          value: "test-mk-kafka-bootstrap:9093"
+        - name: "RECONCILE_INTERVAL_MS"
+          value: "5000"
+        - name: "EXPECTED_CLUSTER_SIZE"
+          value: "3"
+        - name: "KAFKA_VERSION"
+          value: "2.6.0"
+        - name: "TZ"
+          value: "UTC"
+        - name: "TLS_ENABLED"
+          value: "true"
+        - name: "TLS_CA_CERT"
+          value: "/tmp/tls-ca-cert/ca.crt"
+        - name: "SARAMA_LOG_ENABLED"
+          valueFrom:
+            configMapKeyRef:
+              key: "sarama.log.enabled"
+              name: "canary-config"
+              optional: true
+        - name: "VERBOSITY_LOG_LEVEL"
+          valueFrom:
+            configMapKeyRef:
+              key: "verbosity.log.level"
+              name: "canary-config"
+              optional: true
+        image: "quay.io/mk-ci-cd/strimzi-canary:0.0.8"
+        livenessProbe:
+          httpGet:
+            path: "/liveness"
+            port: 8080
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        name: "canary"
+        ports:
+        - containerPort: 8080
+          name: "metrics"
+        readinessProbe:
+          httpGet:
+            path: "/readiness"
+            port: 8080
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "10m"
+          requests:
+            memory: "32Mi"
+            cpu: "5m"
+        volumeMounts:
+        - mountPath: "/tmp/tls-ca-cert"
+          name: "test-mk-tls-ca-cert"
+      volumes:
+      - name: "test-mk-tls-ca-cert"
+        secret:
+          secretName: "test-mk-cluster-ca-cert"

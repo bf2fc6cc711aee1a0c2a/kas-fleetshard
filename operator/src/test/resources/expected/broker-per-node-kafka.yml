@@ -5,15 +5,21 @@ pod:
       preferredDuringSchedulingIgnoredDuringExecution:
       - podAffinityTerm:
           labelSelector:
-            matchLabels:
-              strimzi.io/name: "test-mk-zookeeper"
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-zookeeper"
           topologyKey: "kubernetes.io/hostname"
         weight: 50
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
       - labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: "kafka"
+          matchExpressions:
+          - key: "app.kubernetes.io/name"
+            operator: "In"
+            values:
+            - "kafka"
         topologyKey: "kubernetes.io/hostname"
   tolerations:
   - effect: "NoExecute"
@@ -21,8 +27,11 @@ pod:
     operator: "Exists"
   topologySpreadConstraints:
   - labelSelector:
-      matchLabels:
-        strimzi.io/name: "test-mk-kafka"
+       matchExpressions:
+       - key: "strimzi.io/name"
+         operator: "In"
+         values:
+         - "test-mk-kafka"
     maxSkew: 1
     topologyKey: "topology.kubernetes.io/zone"
     whenUnsatisfiable: "DoNotSchedule"
