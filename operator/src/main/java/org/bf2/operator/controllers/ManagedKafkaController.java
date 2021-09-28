@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@Controller
+@Controller(finalizerName = Controller.NO_FINALIZER)
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     @Inject
