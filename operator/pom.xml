@@ -55,11 +55,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>
-        </dependency>  
+        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-kubernetes-config</artifactId>
-        </dependency>              
+        </dependency>
         <!-- test -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -144,6 +144,45 @@
             <properties>
                 <quarkus.package.type>native</quarkus.package.type>
             </properties>
+        </profile>
+        <profile>
+            <id>attach-kubernetes-resources</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-artifacts</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>attach-artifact</goal>
+                                </goals>
+                                <configuration>
+                                    <artifacts>
+                                        <artifact>
+                                            <file>${project.build.directory}/kubernetes/kubernetes.yml</file>
+                                            <type>yml</type>
+                                            <classifier>kubernetes</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/kubernetes/managedkafkaagents.managedkafka.bf2.org-v1.yml</file>
+                                            <type>yml</type>
+                                            <classifier>crd-managedkafkaagents</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/kubernetes/managedkafkas.managedkafka.bf2.org-v1.yml</file>
+                                            <type>yml</type>
+                                            <classifier>crd-managedkafkas</classifier>
+                                        </artifact>
+                                    </artifacts>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

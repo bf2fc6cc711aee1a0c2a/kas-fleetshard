@@ -69,6 +69,7 @@
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
         <properties-plugin.version>1.0.0</properties-plugin.version>
         <impsort-plugin.version>1.6.0</impsort-plugin.version>
+        <buildhelper-plugin.version>3.2.0</buildhelper-plugin.version>
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
     </properties>
@@ -274,6 +275,11 @@
                     <configuration>
                         <showWarnings>${maven.compiler.showWarnings}</showWarnings>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>${buildhelper-plugin.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
