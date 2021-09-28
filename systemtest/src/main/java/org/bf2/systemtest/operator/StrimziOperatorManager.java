@@ -124,7 +124,7 @@ public class StrimziOperatorManager {
         Map<String, String> labels = deployment.getSpec().getTemplate().getMetadata().getLabels();
         labels.put("app.kubernetes.io/part-of", "managed-kafka");
         labels.put("installed-by-testsuite", "true");
-        deployment.getSpec().getTemplate().getMetadata().setLabels(labels);
+        deployment.getMetadata().setLabels(labels);
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
         EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
