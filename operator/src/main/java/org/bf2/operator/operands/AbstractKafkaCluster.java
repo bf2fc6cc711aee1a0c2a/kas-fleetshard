@@ -24,13 +24,13 @@ import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 

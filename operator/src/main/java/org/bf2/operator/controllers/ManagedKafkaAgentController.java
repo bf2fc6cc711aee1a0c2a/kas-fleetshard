@@ -13,6 +13,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.managers.ObservabilityManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
@@ -27,7 +28,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
-import org.bf2.operator.secrets.ObservabilityManager;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;

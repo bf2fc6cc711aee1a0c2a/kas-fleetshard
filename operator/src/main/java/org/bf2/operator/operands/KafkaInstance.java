@@ -1,10 +1,10 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.Context;
+import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.bf2.operator.secrets.ImagePullSecretManager;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;

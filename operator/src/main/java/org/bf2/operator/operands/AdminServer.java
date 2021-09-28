@@ -34,11 +34,11 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
-import org.bf2.operator.secrets.ImagePullSecretManager;
-import org.bf2.operator.secrets.SecuritySecretManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
