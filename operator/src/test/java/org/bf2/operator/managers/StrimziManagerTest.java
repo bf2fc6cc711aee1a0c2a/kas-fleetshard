@@ -1,11 +1,8 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
-import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.fabric8.kubernetes.api.model.apps.ReplicaSet;
-import io.fabric8.kubernetes.api.model.apps.ReplicaSetBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -56,7 +53,7 @@ public class StrimziManagerTest {
 
     @BeforeEach
     public void beforeEach() {
-        // before each test clean Kubernetes server (no Deployments, no ReplicaSets from other runs)
+        // before each test clean Kubernetes server (no Deployments from other runs)
         this.server.before();
         this.strimziManager.clearStrimziVersions();
 
@@ -151,10 +148,10 @@ public class StrimziManagerTest {
     }
 
     /**
-     * Install a Strimzi operator creating the corresponding Deployment and ReplicaSet in the specified namespace
+     * Install a Strimzi operator creating the corresponding Deployment in the specified namespace
      * and making it ready and discoverable if requested
      *
-     * @param name Strimzi operator deployment/replicaset name
+     * @param name Strimzi operator deployment name
      * @param namespace namespace where the Strimzi operator is installed
      * @param ready if the Strimzi operator has to be ready
      * @param discoverable if the Strimzi operator should be discoverable by the Strimzi manager
@@ -197,43 +194,7 @@ public class StrimziManagerTest {
                 .endStatus()
                 .build();
 
-        ReplicaSet replicaSet = new ReplicaSetBuilder()
-                .withNewMetadata()
-                    .withName(name + "-replicaset")
-                    .withNamespace(namespace)
-                    .withLabels(labels)
-                    .withOwnerReferences(new OwnerReferenceBuilder()
-                            .withName(name)
-                            .build()
-                    )
-                .endMetadata()
-                .withNewSpec()
-                    .withReplicas(1)
-                    .withNewSelector()
-                        .withMatchLabels(Collections.singletonMap("name", name))
-                    .endSelector()
-                    .withNewTemplate()
-                        .withNewMetadata()
-                        .withLabels(labels)
-                        .endMetadata()
-                        .withNewSpec()
-                        .withContainers(new ContainerBuilder()
-                                .withName(name)
-                                .withImage(name + "-image")
-                                .build()
-                        )
-                        .endSpec()
-                    .endTemplate()
-                .endSpec()
-                .withNewStatus()
-                    .withReplicas(1)
-                    .withAvailableReplicas(ready ? 1 : 0)
-                    .withReadyReplicas(ready ? 1 : 0)
-                .endStatus()
-                .build();
-
         this.server.getClient().apps().deployments().inNamespace(namespace).create(deployment);
-        this.server.getClient().apps().replicaSets().inNamespace(namespace).create(replicaSet);
 
         if (discoverable) {
             this.strimziManager.updateStrimziVersion(deployment);
@@ -241,19 +202,17 @@ public class StrimziManagerTest {
     }
 
     /**
-     * Uninstall a specific Strimzi operator deleting the corresponding Deployment and ReplicaSet
+     * Uninstall a specific Strimzi operator deleting the corresponding Deployment
      *
-     * @param name Strimzi operator deployment/replicaset name
+     * @param name Strimzi operator deployment name
      * @param namespace namespace where the Strimzi operator is installed
      */
     private void uninstallStrimziOperator(String name, String namespace) {
-        Resource<ReplicaSet> rsResource = this.server.getClient().apps().replicaSets().inNamespace(namespace).withName(name + "-replicaset");
         Resource<Deployment> depResource = this.server.getClient().apps().deployments().inNamespace(namespace).withName(name);
         // only if "discoverable" was added to the Strimzi manager list
         if (depResource.get().getMetadata().getLabels().containsKey("app.kubernetes.io/part-of")) {
             this.strimziManager.deleteStrimziVersion(depResource.get());
         }
-        rsResource.delete();
         depResource.delete();
     }
 
