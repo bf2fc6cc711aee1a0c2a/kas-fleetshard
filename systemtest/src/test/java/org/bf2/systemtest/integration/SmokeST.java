@@ -30,7 +30,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag(TestTags.SMOKE)
 public class SmokeST extends AbstractST {
@@ -99,8 +98,6 @@ public class SmokeST extends AbstractST {
         ManagedKafkaStatus apiStatus = Serialization.jsonMapper()
                 .readValue(SyncApiClient.getManagedKafkaStatus(mk.getId(), syncEndpoint).body(), ManagedKafkaStatus.class);
         ManagedKafka managedKafka = ManagedKafkaResourceType.getOperation().inNamespace(mkAppName).withName(mkAppName).get();
-
-        assertTrue(managedKafka.getMetadata().getFinalizers() == null || managedKafka.getMetadata().getFinalizers().isEmpty());
 
         AssertUtils.assertManagedKafkaStatus(managedKafka, apiStatus);
 

@@ -43,7 +43,7 @@ import java.util.List;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@Controller(finalizerName = Controller.NO_FINALIZER)
+@Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     @Inject
