@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinityTerm;
+import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -73,18 +75,21 @@ public class OperandUtils {
         // place where zookeeper is placed
         return new AffinityBuilder().withNewPodAffinity()
                 .addNewPreferredDuringSchedulingIgnoredDuringExecution()
-                    .withWeight(50)
-                    .withNewPodAffinityTerm()
-                    .withTopologyKey("kubernetes.io/hostname")
-                    .withNewLabelSelector()
-                        .addToMatchExpressions(new LabelSelectorRequirementBuilder()
-                            .withKey("strimzi.io/name")
-                            .withOperator("In")
-                            .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
-                    .endLabelSelector()
-                    .endPodAffinityTerm()
+                    .withWeight(100)
+                    .withPodAffinityTerm(affinityTerm("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper"))
                 .endPreferredDuringSchedulingIgnoredDuringExecution()
             .endPodAffinity()
         .build();
+    }
+
+    public static PodAffinityTerm affinityTerm(String key, String value) {
+        return new PodAffinityTermBuilder()
+                .withTopologyKey("kubernetes.io/hostname")
+                .withNewLabelSelector()
+                .addToMatchExpressions(new LabelSelectorRequirementBuilder()
+                    .withKey(key)
+                    .withOperator("In")
+                    .withValues(value).build())
+                .endLabelSelector().build();
     }
 }

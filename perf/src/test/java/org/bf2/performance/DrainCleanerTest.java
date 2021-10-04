@@ -44,6 +44,9 @@ public class DrainCleanerTest extends TestBase {
     void afterAll() throws Exception {
         omb.uninstall();
         kafkaProvisioner.teardown();
+        kafkaProvisioner.getKubernetesCluster().kubeClient().getClusterWorkers().forEach(node -> {
+            TestUtils.setNodeSchedule(kafkaProvisioner.getKubernetesCluster(), node.getMetadata().getName(), true);
+        });
     }
 
     @BeforeEach
@@ -61,7 +64,7 @@ public class DrainCleanerTest extends TestBase {
     @Tag(TestTags.PERF)
     void testKafkaAvailabilityDuringClusterUpgrade(TestInfo info) throws Exception {
         long throughput = 41943040;
-        int numWorkers = 20;
+        int numWorkers = 12;
         int topics = 10;
         int messageSize = 1024;
         int partitionsPerTopic = 205;

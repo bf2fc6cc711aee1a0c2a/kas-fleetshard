@@ -17,7 +17,9 @@ import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.k8s.KubeClient;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -48,7 +50,11 @@ public class OlmBasedStrimziOperatorManager {
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
         if (!kubeClient.namespaceExists(namespace)) {
-            kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(namespace).endMetadata().build());
+            Map<String, String> nsAnnotations = new HashMap<>();
+            if (PerformanceEnvironment.STRIMZI_COLLECT_LOG) {
+                nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
+            }
+            kubeClient.client().namespaces().createOrReplace(new NamespaceBuilder().withNewMetadata().withName(namespace).withAnnotations(nsAnnotations).endMetadata().build());
         }
 
         installCatalogSource();

@@ -202,16 +202,6 @@ spec:
           optional: false
     template:
       pod:
-        affinity:
-          podAntiAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                - key: "strimzi.io/name"
-                  operator: "In"
-                  values:
-                  - "test-mk-kafka"
-              topologyKey: "kubernetes.io/hostname"              
         topologySpreadConstraints:
           - labelSelector:
                matchExpressions:

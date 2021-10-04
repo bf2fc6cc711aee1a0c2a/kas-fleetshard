@@ -27,7 +27,7 @@ public class AdopterProfile {
         config.getKafka().setMaxConnections(Integer.MAX_VALUE);
         config.getKafka().setConnectionAttemptsPerSec(Integer.MAX_VALUE);
         config.getKafka().setOneInstancePerNode(true);
-        config.getKafka().setColocateWithZookeeper(true);
+        config.getKafka().setColocateWithZookeeper(BROKER_COLLOCATED_WITH_ZOOKEEPER);
         config.setColocateWithZookeeper(BROKER_COLLOCATED_WITH_ZOOKEEPER);
         config.getKafka().setContainerMemory(kafkaContainerMemory);
         config.getKafka().setContainerCpu(kafkaCpu);
@@ -36,6 +36,7 @@ public class AdopterProfile {
         config.getZookeeper().setContainerCpu(zookeeperCpu);
         config.getZookeeper().setContainerMemory(zookeeperContainerMemory);
         config.getZookeeper().setJvmXms(zookeeperJavaMemory);
+        config.getKafka().getAcl().setAllowedListeners("TLS-9093,SRE-9096"); // by-pass canary acl
         return config;
     }
 }

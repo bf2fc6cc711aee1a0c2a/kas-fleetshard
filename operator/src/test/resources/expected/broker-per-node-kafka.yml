@@ -11,16 +11,7 @@ pod:
               values:
               - "test-mk-zookeeper"
           topologyKey: "kubernetes.io/hostname"
-        weight: 50
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: "app.kubernetes.io/name"
-            operator: "In"
-            values:
-            - "kafka"
-        topologyKey: "kubernetes.io/hostname"
+        weight: 100
   tolerations:
   - effect: "NoExecute"
     key: "org.bf2.operator/kafka-broker"

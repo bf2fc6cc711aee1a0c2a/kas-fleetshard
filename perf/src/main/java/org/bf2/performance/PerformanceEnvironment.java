@@ -23,6 +23,7 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     private static final String STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV = "STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS";
     private static final String OMB_COLLECT_LOG_ENV = "OMB_COLLECT_LOG";
     private static final String KAFKA_COLLECT_LOG_ENV = "KAFKA_COLLECT_LOG";
+    private static final String STRIMZI_COLLECT_LOG_ENV = "STRIMZI_COLLECT_LOG";
     private static final String MAX_KAFKA_INSTANCES_ENV = "MAX_KAFKA_INSTANCES";
     private static final String NUM_INGRESS_CONTROLLERS_ENV = "NUM_INGRESS_CONTROLLERS";
     private static final String PROVIDED_KAFKA_CLUSTERS_FILE_ENV = "PROVIDED_KAFKA_CLUSTERS_FILE";
@@ -48,6 +49,7 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     public static final int MAXIMUM_EXEC_LOG_CHARACTER_SIZE = getOrDefault(STRIMZI_EXEC_MAX_LOG_OUTPUT_CHARACTERS_ENV, Integer::parseInt, 20000);
     public static final boolean OMB_COLLECT_LOG = getOrDefault(OMB_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
     public static final boolean KAFKA_COLLECT_LOG = getOrDefault(KAFKA_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
+    public static final boolean STRIMZI_COLLECT_LOG = getOrDefault(STRIMZI_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
     public static final int MAX_KAFKA_INSTANCES = getOrDefault(MAX_KAFKA_INSTANCES_ENV, Integer::parseInt, Integer.MAX_VALUE);
     public static final int NUM_INGRESS_CONTROLLERS = getOrDefault(NUM_INGRESS_CONTROLLERS_ENV, Integer::parseInt, 1);
     public static final Path PROVIDED_KAFKA_CLUSTERS_FILE = getOrDefault(PROVIDED_KAFKA_CLUSTERS_FILE_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "provided_clusters.yaml"));

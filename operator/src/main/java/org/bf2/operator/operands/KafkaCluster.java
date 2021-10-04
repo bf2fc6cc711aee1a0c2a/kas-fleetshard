@@ -5,13 +5,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelector;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelectorBuilder;
-import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinity;
-import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
-import io.fabric8.kubernetes.api.model.PodAffinityTerm;
-import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
-import io.fabric8.kubernetes.api.model.PodAntiAffinity;
-import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -322,44 +316,26 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka) {
-        // onePerNode = true - only 1 broker per node
-        // onePerNode = false - possibly "bin-packed", brokers from different managed kafkas could be on the same node
-        boolean onePerNode = this.config.getKafka().isOneInstancePerNode();
-        PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                .withRequiredDuringSchedulingIgnoredDuringExecution(onePerNode ?
-                        affinityTerm("app.kubernetes.io/name", "kafka")
-                        : affinityTerm("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka"))
-                .build();
-
         AffinityBuilder affinityBuilder = new AffinityBuilder();
-        affinityBuilder.withPodAntiAffinity(podAntiAffinity);
 
+        boolean addAffinity = false;
         if (this.config.getKafka().isColocateWithZookeeper()) {
             // adds preference to co-locate Kafka broker pods with ZK pods with same cluster label
-            PodAffinity zkPodAffinity = new PodAffinityBuilder()
-                    .addNewPreferredDuringSchedulingIgnoredDuringExecution()
-                            .withWeight(50)
-                            .withNewPodAffinityTerm()
-                            .withTopologyKey("kubernetes.io/hostname")
-                            .withNewLabelSelector()
-                                .addToMatchExpressions(new LabelSelectorRequirementBuilder()
-                                    .withKey("strimzi.io/name")
-                                    .withOperator("In")
-                                    .withValues(managedKafka.getMetadata().getName()+"-zookeeper").build())
-                            .endLabelSelector()
-                            .endPodAffinityTerm()
-                    .endPreferredDuringSchedulingIgnoredDuringExecution()
-                    .build();
+            PodAffinity zkPodAffinity = OperandUtils.buildZookeeperPodAffinity(managedKafka).getPodAffinity();
             affinityBuilder.withPodAffinity(zkPodAffinity);
+            addAffinity = true;
         }
 
         // ensures even distribution of the Kafka pods in a given cluster across the availability zones
         // the previous affinity make sure single per node or not
         // this only comes into picture when there are more number of nodes than the brokers
         PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
-                .withAffinity(affinityBuilder.build())
                 .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                 .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka", "DoNotSchedule"));
+
+        if (addAffinity) {
+            podTemplateBuilder.withAffinity(affinityBuilder.build());
+        }
 
         // add toleration on broker pod such that it can be placed on specific worker nodes
         // note that the affinity/topology stuff make sure they are evenly spread across
@@ -401,17 +377,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endLabelSelector()
                 .withWhenUnsatisfiable(action)
                 .build();
-    }
-
-    private PodAffinityTerm affinityTerm(String key, String value) {
-        return new PodAffinityTermBuilder()
-                .withTopologyKey("kubernetes.io/hostname")
-                .withNewLabelSelector()
-                .addToMatchExpressions(new LabelSelectorRequirementBuilder()
-                    .withKey(key)
-                    .withOperator("In")
-                    .withValues(value).build())
-                .endLabelSelector().build();
     }
 
     private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
