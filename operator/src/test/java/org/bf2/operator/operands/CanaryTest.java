@@ -17,8 +17,6 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class CanaryTest {

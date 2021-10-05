@@ -17,8 +17,6 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class AdminServerTest {
@@ -48,10 +46,6 @@ public class AdminServerTest {
                 .build();
 
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, cm);
-
-        server.getClient().apps().deployments().create(adminServerDeployment);
-        assertNotNull(server.getClient().apps().deployments()
-                .inNamespace(adminServerDeployment.getMetadata().getNamespace())
-                .withName(adminServerDeployment.getMetadata().getName()).get());
+        KafkaClusterTest.diffToExpected(adminServerDeployment, "/expected/admin.yml");
     }
 }

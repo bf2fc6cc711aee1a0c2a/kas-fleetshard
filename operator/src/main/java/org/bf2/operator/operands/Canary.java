@@ -57,14 +57,7 @@ public class Canary extends AbstractCanary {
 
         templateValidationWorkaround(deployment, managedKafka);
         if(this.config.getCanary().isColocateWithZookeeper()) {
-            builder
-                    .editOrNewSpec()
-                        .editOrNewTemplate()
-                            .editOrNewSpec()
-                                .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
-                            .endSpec()
-                        .endTemplate()
-                    .endSpec();
+            deployment.getSpec().getTemplate().getSpec().setAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka));
         }
         // setting the ManagedKafka has owner of the Canary deployment resource is needed
         // by the operator sdk to handle events on the Deployment resource properly

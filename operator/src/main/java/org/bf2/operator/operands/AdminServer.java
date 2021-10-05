@@ -146,14 +146,8 @@ public class AdminServer extends AbstractAdminServer {
         OperandUtils.setAsOwner(managedKafka, deployment);
 
         if(this.config.getAdminserver().isColocateWithZookeeper()) {
-            builder
-                    .editOrNewSpec()
-                        .editOrNewTemplate()
-                            .editOrNewSpec()
-                                .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
-                            .endSpec()
-                        .endTemplate()
-                    .endSpec();
+            deployment.getSpec().getTemplate().getSpec().setAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka));
+        }
         return deployment;
     }
 

@@ -1,0 +1,90 @@
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    app.kubernetes.io/component: "adminserver"
+    app: "test-mk-admin-server"
+  name: "test-mk-admin-server"
+  namespace: "test"
+  ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      app: "test-mk-admin-server"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        app.kubernetes.io/component: "adminserver"
+        app: "test-mk-admin-server"
+    spec:
+      containers:
+        - env:
+            - name: "KAFKA_ADMIN_BOOTSTRAP_SERVERS"
+              value: "test-mk-kafka-bootstrap:9095"
+            - name: "KAFKA_ADMIN_BROKER_TLS_ENABLED"
+              value: "true"
+            - name: "KAFKA_ADMIN_TLS_VERSION"
+              value: "TLSv1.3"
+            - name: "KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI"
+              value: "${KAFKA_ADMIN_OAUTH_JWKS_ENDPOINT_URI}"
+            - name: "KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI"
+              value: "${KAFKA_ADMIN_OAUTH_VALID_ISSUER_URI}"
+            - name: "KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI"
+              value: "${KAFKA_ADMIN_OAUTH_TOKEN_ENDPOINT_URI}"
+            - name: "KAFKA_ADMIN_OAUTH_ENABLED"
+              value: "false"
+            - name: "CORS_ALLOW_LIST_REGEX"
+              value: "(https?:\\/\\/localhost(:\\d*)?)"
+            - name: "KAFKA_ADMIN_BROKER_TRUSTED_CERT"
+              valueFrom:
+                secretKeyRef:
+                  key: "ca.crt"
+                  name: "test-mk-cluster-ca-cert"
+                  optional: false
+            - name: "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS"
+              value: "{ \"cluster\": [ \"describe\", \"alter\" ], \"group\": [ \"all\"\
+            , \"delete\", \"describe\", \"read\" ], \"topic\": [ \"all\", \"alter\"\
+            , \"alter_configs\", \"create\", \"delete\", \"describe\", \"describe_configs\"\
+            , \"read\", \"write\" ], \"transactional_id\": [ \"all\", \"describe\"\
+            , \"write\" ] }"
+          image: "quay.io/mk-ci-cd/kafka-admin-api:0.4.0"
+          livenessProbe:
+            httpGet:
+              path: "/liveness"
+              port: "management"
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          name: "admin-server"
+          ports:
+            - containerPort: 9990
+              name: "management"
+            - containerPort: 8080
+              name: "http"
+          readinessProbe:
+            httpGet:
+              path: "/liveness"
+              port: "management"
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+          volumeMounts:
+            - mountPath: "/opt/kafka-admin-api/custom-config/"
+              name: "test-mk-tls-ca-cert"
+      volumes:
+        - name: "test-mk-tls-ca-cert"
+          secret:
+            secretName: "test-mk-cluster-ca-cert"
