@@ -124,6 +124,23 @@ public class FleetShardOperatorManager {
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
+
+            var rbac = kubeClient.client().rbac();
+            List<String> clusterRoles = new ArrayList<>();
+
+            rbac.clusterRoleBindings().list().getItems().forEach(roleBinding -> {
+                if (roleBinding.getSubjects().stream().anyMatch(sub -> OPERATOR_NS.equals(sub.getNamespace()))) {
+                    clusterRoles.add(roleBinding.getRoleRef().getName());
+                    LOGGER.info("Delete ClusterRoleBinding: {}", roleBinding.getMetadata().getName());
+                    rbac.clusterRoleBindings().withName(roleBinding.getMetadata().getName()).delete();
+                }
+            });
+
+            clusterRoles.stream().map(rbac.clusterRoles()::withName).forEach(role -> {
+                LOGGER.info("Delete ClusterRole: {}", role.get().getMetadata().getName());
+                role.delete();
+            });
+
             return TestUtils.asyncWaitFor("Operator ns deleted", 2_000, DELETE_TIMEOUT_MS, () -> !kubeClient.namespaceExists(OPERATOR_NS));
         } else {
             LOGGER.info("SKIP_TEARDOWN is set to true.");
