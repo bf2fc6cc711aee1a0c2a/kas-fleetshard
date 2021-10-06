@@ -521,11 +521,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
-        // the connection.max.reauth.ms should be set on the external listener only because it drives to problems with
-        // Sarama client (in the canary) not able to deal with disconnections in this specific case.
-        // Currently, Strimzi doesn't support to define it per-listener: https://github.com/strimzi/strimzi-kafka-operator/issues/5639
-        // Disable it temporarily as workaround, waiting for the proper per-listener support in Strimzi.
-        //config.put("connections.max.reauth.ms", 299000); // 4m 59s
+        config.put("connections.max.reauth.ms", 299000); // 4m 59s
 
         // forcing the preferred leader election as soon as possible
         // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected
