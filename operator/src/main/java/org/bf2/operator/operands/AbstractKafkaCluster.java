@@ -38,6 +38,7 @@ import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -211,6 +212,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder =  new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
                         .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
+                        .withAnnotations(Map.of("haproxy.router.openshift.io/balance", "leastconn"))
                         .build()
                 )
                 .withBrokers(buildBrokerOverrides(managedKafka))

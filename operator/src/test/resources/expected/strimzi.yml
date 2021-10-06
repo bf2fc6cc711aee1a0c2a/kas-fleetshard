@@ -72,6 +72,8 @@ spec:
         maxConnectionCreationRate: 33
         bootstrap:
           host: "xxx.yyy.zzz"
+          annotations:
+            "haproxy.router.openshift.io/balance": leastconn
         brokers:
         - broker: 0
           host: "broker-0-xxx.yyy.zzz"
