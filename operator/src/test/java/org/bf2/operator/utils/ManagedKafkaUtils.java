@@ -7,6 +7,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaEndpointBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ServiceAccountBuilder;
+import org.bf2.operator.resources.v1alpha1.Versions;
 
 public class ManagedKafkaUtils {
     private ManagedKafkaUtils() {
@@ -49,7 +50,7 @@ public class ManagedKafkaUtils {
                     .endCapacity()
                     .withNewVersions()
                         .withKafka("2.6.0")
-                        .withStrimzi("0.23.0-2")
+                        .withStrimzi(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4)
                     .endVersions()
                     .withOwners("userid-123")
                     .withServiceAccounts(
