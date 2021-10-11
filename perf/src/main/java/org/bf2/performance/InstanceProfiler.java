@@ -361,7 +361,7 @@ public class InstanceProfiler {
 
     private void deployIfNeeded(String name) throws Exception {
         ManagedKafka mk = null;
-        Resource<ManagedKafka> mkResource = kafkaCluster.kubeClient().client().customResources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE).withName(name);
+        Resource<ManagedKafka> mkResource = kafkaCluster.kubeClient().client().resources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE).withName(name);
         try {
             mk = mkResource.get();
         } catch (KubernetesClientException e) {

@@ -11,4 +11,4 @@ pod:
               values:
               - "test-mk-zookeeper"
           topologyKey: "kubernetes.io/hostname"
-        weight: 50
+        weight: 100

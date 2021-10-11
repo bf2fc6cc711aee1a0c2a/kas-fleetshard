@@ -43,6 +43,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -156,7 +157,11 @@ public class ManagedKafkaProvisioner {
      */
     public void install() throws Exception {
         // delete/create the namespaces to be used
-        cluster.createNamespace(Constants.KAFKA_NAMESPACE, Map.of(), Map.of());
+        Map<String, String> nsAnnotations = new HashMap<>();
+        if (PerformanceEnvironment.KAFKA_COLLECT_LOG) {
+            nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
+        }
+        cluster.createNamespace(Constants.KAFKA_NAMESPACE, nsAnnotations, Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
 
