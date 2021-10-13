@@ -647,12 +647,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config) {
         List<String> owners = managedKafka.getSpec().getOwners();
         AtomicInteger aclCount = new AtomicInteger(0);
+        AtomicInteger aclLoggingCount = new AtomicInteger(0);
         AccessControl aclConfig = getAclConfig(managedKafka);
 
         final String configPrefix = aclConfig.getConfigPrefix();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
         final String resourceOperationsKey = configPrefix + "resource-operations";
         final String aclKeyTemplate = configPrefix + "acl.%03d";
+        final String aclLoggingKeyTemplate = configPrefix + "acl.logging.%03d";
 
         // Deprecated option: Remove when canary, must-gather, and SRE are configured via ManagedKafka CR
         if (aclConfig.allowedListeners != null) {
@@ -660,6 +662,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);
+        addAcl(aclConfig.getLogging(), "", aclLoggingKeyTemplate, aclLoggingCount, config);
 
         config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
