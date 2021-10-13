@@ -197,7 +197,7 @@ public class KafkaInstanceConfiguration {
 
         @JsonIgnore
         public Map<String, String> getJvmXxMap() {
-            return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
+            return strToMap(JVM_OPTIONS_XX.equals(this.jvmXx) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
         }
 
         public AccessControl getAcl() {
@@ -248,6 +248,8 @@ public class KafkaInstanceConfiguration {
         protected String resourceOperations = null;
         @JsonProperty("allowed-listeners")
         protected String allowedListeners = null;
+        @JsonProperty("logging")
+        protected String logging = null;
 
         public String getFinalVersion() {
             return finalVersion;
@@ -303,6 +305,14 @@ public class KafkaInstanceConfiguration {
 
         public void setAllowedListeners(String allowedListeners) {
             this.allowedListeners = allowedListeners;
+        }
+
+        public String getLogging() {
+            return logging;
+        }
+
+        public void setLogging(String level) {
+            this.logging = level;
         }
     }
 
@@ -370,7 +380,7 @@ public class KafkaInstanceConfiguration {
 
         @JsonIgnore
         public Map<String, String> getJvmXxMap() {
-            return strToMap(this.jvmXx.equals(JVM_OPTIONS_XX) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
+            return strToMap(JVM_OPTIONS_XX.equals(this.jvmXx) ? this.jvmXx : this.jvmXx + "," + JVM_OPTIONS_XX);
         }
     }
 
@@ -456,7 +466,7 @@ public class KafkaInstanceConfiguration {
     private static Map<String, String> strToMap(String strs) {
         if (strs != null) {
             return Arrays.stream(strs.split(","))
-                    .map(e -> e.trim())
+                    .map(String::trim)
                     .map(e -> e.split("\\s+"))
                     .filter(e -> e[0].trim().length() > 0)
                     .collect(Collectors.toMap(e -> e[0], e -> e[1]));
