@@ -11,13 +11,13 @@
     <scm>
         <connection>scm:git:git://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard.git</connection>
         <developerConnection>scm:git:git@github.com:bf2fc6cc711aee1a0c2a/kas-fleetshard.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>0.14.2</tag>
     </scm>
 
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>0.14.2-SNAPSHOT</version>
+    <version>0.14.2</version>
 
     <properties>
         <!-- things we don't need from basepom -->
