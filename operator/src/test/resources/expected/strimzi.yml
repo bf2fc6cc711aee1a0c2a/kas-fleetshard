@@ -166,7 +166,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.logging.002: topic=*;apis=list_offsets;level=DEBUG
       strimzi.authorization.custom-authorizer.acl.logging.003: topic=*;operations=describe;level=DEBUG
       strimzi.authorization.custom-authorizer.acl.logging.004: priority=1;topic=__strimzi_canary;operations=describe,read,write;level=DEBUG
-      strimzi.authorization.custom-authorizer.acl.logging.005: group=*;apis=offset_fetch;level=DEBUG
+      strimzi.authorization.custom-authorizer.acl.logging.005: group=*;apis=offset_fetch,offset_commit,heartbeat,describe_groups;level=DEBUG
     storage: !<jbod>
       volumes:
       - !<persistent-claim>
