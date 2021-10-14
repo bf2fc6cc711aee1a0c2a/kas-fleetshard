@@ -34,6 +34,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -215,6 +216,11 @@ public class StrimziBundleManager {
                         .map(annotations -> annotations.get("strimziVersions"))
                         .orElse(null);
 
+        if (strimziVersionsJson == null) {
+            log.warnf("No Strimzi versions found in PackageManifest %s/%s yet.",
+                    packageManifest.getMetadata().getNamespace(), packageManifest.getMetadata().getName());
+            return Collections.emptyList();
+        }
         List<String> strimziVersions = new ArrayList<>();
         try {
             strimziVersions = Serialization.jsonMapper().readValue(strimziVersionsJson, List.class);
