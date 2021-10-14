@@ -72,6 +72,12 @@
         <buildhelper-plugin.version>3.2.0</buildhelper-plugin.version>
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
+
+        <!-- Override version for maven-install-plugin because there is a bug in
+             3.0.0-M1 preventing installing of modules with packaging of feature
+             see: https://issues.apache.org/jira/browse/MINSTALL-151 -->
+        <dep.plugin.install.version>2.5.2</dep.plugin.install.version>
+        <dep.plugin.deploy.version>2.8.2</dep.plugin.deploy.version>
     </properties>
 
     <modules>
