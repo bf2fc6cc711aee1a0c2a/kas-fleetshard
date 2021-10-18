@@ -6,6 +6,8 @@ import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
 
+import java.util.List;
+
 /**
  * Define the status for installed Strimzi versions on the Kubernetes cluster
  * and if they are ready or not
@@ -22,6 +24,8 @@ public class StrimziVersionStatus {
     private String version;
     @NotNull
     private boolean ready;
+    @NotNull
+    private List<String> kafkaVersions;
 
     public String getVersion() {
         return version;
@@ -37,5 +41,13 @@ public class StrimziVersionStatus {
 
     public void setReady(boolean ready) {
         this.ready = ready;
+    }
+
+    public List<String> getKafkaVersions() {
+        return kafkaVersions;
+    }
+
+    public void setKafkaVersions(List<String> kafkaVersions) {
+        this.kafkaVersions = kafkaVersions;
     }
 }
