@@ -37,7 +37,7 @@ function usage() {
         --cloud-token-file FILE                     cloud redhat com token in file
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
-        --aws-accout-id ID                          id of aws account
+        --aws-account-id ID                         id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
         --flavor FLAVOR                             aws flavor (i.e. m5.xlarge)
@@ -55,9 +55,9 @@ function usage() {
             ./osd-provision.sh --get kubeconfig --name test-cluster --output kafka-config
 
         Install cluster:
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-accout-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
 
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-accout-id 4545454545454 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
 
         Delete cluster
             ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --name test-cluster
@@ -168,7 +168,7 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    --aws-accout-id)
+    --aws-account-id)
         AWS_ACCOUNT_ID="$2"
         shift # past argument
         shift # past value
