@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -91,7 +92,7 @@ public class IngressControllerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    private volatile Map<String, String> routeMatchLabels;
+    private Map<String, String> routeMatchLabels = new ConcurrentHashMap<>();
 
     ResourceInformer<Pod> brokerPodInformer;
     ResourceInformer<Node> nodeInformer;
@@ -127,8 +128,6 @@ public class IngressControllerManager {
 
     @PostConstruct
     protected void onStart() {
-        routeMatchLabels = new HashMap<>(4);
-
         NonNamespaceOperation<IngressController, IngressControllerList, Resource<IngressController>> ingressControllers =
                 openShiftClient.operator().ingressControllers().inNamespace(INGRESS_OPERATOR_NAMESPACE);
 
@@ -225,7 +224,7 @@ public class IngressControllerManager {
 
     private IngressController buildDefaultIngressController(List<String> zones, String defaultDomain) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
-        int replicas = Math.min(3, Math.toIntExact(zones.stream().map(this::numReplicasForZone).count()));
+        int replicas = Math.min(3, zones.size());
 
         final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
