@@ -1,5 +1,6 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
@@ -22,8 +23,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Startup
@@ -111,9 +114,27 @@ public class StrimziManager {
     }
 
     /* test */ public void updateStrimziVersion(Deployment deployment) {
+
+        Optional<EnvVar> kafkaImagesEnvVar =
+                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv()
+                        .stream()
+                        .filter(ev -> ev.getName().equals("STRIMZI_KAFKA_IMAGES"))
+                        .findFirst();
+
+        List<String> kafkaVersions = Collections.emptyList();
+        if (kafkaImagesEnvVar.isPresent() && kafkaImagesEnvVar.get().getValue() != null) {
+            String kafkaImages = kafkaImagesEnvVar.get().getValue();
+            String[] kafkaImagesList = kafkaImages.split("\n");
+            kafkaVersions = new ArrayList<>(kafkaImagesList.length);
+            for (String kafkaImage : kafkaImagesList) {
+                kafkaVersions.add(kafkaImage.split("=")[0]);
+            }
+        }
+
         this.strimziVersions.put(deployment.getMetadata().getName(),
                 new StrimziVersionStatusBuilder()
                         .withVersion(deployment.getMetadata().getName())
+                        .withKafkaVersions(kafkaVersions)
                         .withReady(Readiness.isDeploymentReady(deployment))
                         .build());
     }

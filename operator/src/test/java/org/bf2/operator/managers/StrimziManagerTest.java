@@ -1,6 +1,7 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -18,11 +19,13 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -68,8 +71,8 @@ public class StrimziManagerTest {
 
     @Test
     public void testInstalledStrimziOperators() {
-        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
-        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", true, true);
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
@@ -77,10 +80,27 @@ public class StrimziManagerTest {
     }
 
     @Test
+    public void testInstalledStrimziOperatorsKafkaVersions() {
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0\n2.8.0=kafka-2.8.0", true, true);
+
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
+
+        List<String> v1KafkaExpected = Collections.singletonList("2.7.0");
+        List<String> v2KafkaExpected = Arrays.asList("2.7.0", "2.8.0");
+        List<String> v1KafkaCurrent = strimziVersions.stream().filter(svs -> svs.getVersion().equals("strimzi-cluster-operator.v1")).map(StrimziVersionStatus::getKafkaVersions).findFirst().get();
+        List<String> v2KafkaCurrent = strimziVersions.stream().filter(svs -> svs.getVersion().equals("strimzi-cluster-operator.v2")).map(StrimziVersionStatus::getKafkaVersions).findFirst().get();
+        Assertions.assertIterableEquals(v1KafkaExpected, v1KafkaCurrent);
+        Assertions.assertIterableEquals(v2KafkaExpected, v2KafkaCurrent);
+    }
+
+    @Test
     public void testNotReadyStrimziOperators() {
-        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
         // setting the operator v2 as not ready
-        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", false, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", false, true);
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
@@ -89,9 +109,9 @@ public class StrimziManagerTest {
 
     @Test
     public void testNotDiscoverableStrimziOperators() {
-        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
         // setting the operator v2 as not discoverable
-        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, false);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", true, false);
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
@@ -100,8 +120,8 @@ public class StrimziManagerTest {
 
     @Test
     public void testUninstallingStrimziOperator() {
-        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", true, true);
-        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", true, true);
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
@@ -153,10 +173,11 @@ public class StrimziManagerTest {
      *
      * @param name Strimzi operator deployment name
      * @param namespace namespace where the Strimzi operator is installed
+     * @param kafkaImages kafka images supported by the Strimzi operator
      * @param ready if the Strimzi operator has to be ready
      * @param discoverable if the Strimzi operator should be discoverable by the Strimzi manager
      */
-    private void installStrimziOperator(String name, String namespace, boolean ready, boolean discoverable) {
+    private void installStrimziOperator(String name, String namespace, String kafkaImages, boolean ready, boolean discoverable) {
         Map<String, String> labels = new HashMap<>(+2);
         labels.put("name", name);
         if (discoverable) {
@@ -193,6 +214,11 @@ public class StrimziManagerTest {
                     .withReadyReplicas(ready ? 1 : 0)
                 .endStatus()
                 .build();
+
+        if (kafkaImages != null) {
+            deployment.getSpec().getTemplate().getSpec().getContainers().get(0)
+                    .setEnv(Collections.singletonList(new EnvVarBuilder().withName("STRIMZI_KAFKA_IMAGES").withValue(kafkaImages).build()));
+        }
 
         this.server.getClient().apps().deployments().inNamespace(namespace).create(deployment);
 
