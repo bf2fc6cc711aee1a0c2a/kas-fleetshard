@@ -97,11 +97,11 @@ separator
 # NOTE: cluster names should not exceed 15 characters!
 KAFKA_CLUSTER_NAME="kafka-$(echo -e $(uuidgen) | cut -d '-' -f 2)"
 OMB_CLUSTER_NAME="omb-$(echo -e $(uuidgen) | cut -d '-' -f 2)"
-$OSD --create --cloud-token-file "${OCM_TOKEN_FILE}" --aws-accout-id "${AWS_ACCOUNT_ID}" --aws-access-key "${AWS_ACCESS_KEY_ID}" --aws-secret-access-key "${AWS_SECRET_ACCESS_KEY}" --name "${KAFKA_CLUSTER_NAME}" --region "${REGION}" --flavor "${FLAVOR}" --count "${KAFKA_WORKER_COUNT}" --multi-az "${MULTI_AZ}"
+$OSD --create --cloud-token-file "${OCM_TOKEN_FILE}" --aws-account-id "${AWS_ACCOUNT_ID}" --aws-access-key "${AWS_ACCESS_KEY_ID}" --aws-secret-access-key "${AWS_SECRET_ACCESS_KEY}" --name "${KAFKA_CLUSTER_NAME}" --region "${REGION}" --flavor "${FLAVOR}" --count "${KAFKA_WORKER_COUNT}" --multi-az "${MULTI_AZ}"
 if [[ $? -eq 0 ]]; then
   echo ${KAFKA_CLUSTER_NAME} >"${KAFKA_CLUSTER_NAME_FILE}"
 fi
-$OSD --create --cloud-token-file "${OCM_TOKEN_FILE}" --aws-accout-id "${AWS_ACCOUNT_ID}" --aws-access-key "${AWS_ACCESS_KEY_ID}" --aws-secret-access-key "${AWS_SECRET_ACCESS_KEY}" --name "${OMB_CLUSTER_NAME}" --region "${REGION}" --flavor "${FLAVOR}" --count "${OMB_WORKER_COUNT}" --multi-az "${MULTI_AZ}"
+$OSD --create --cloud-token-file "${OCM_TOKEN_FILE}" --aws-account-id "${AWS_ACCOUNT_ID}" --aws-access-key "${AWS_ACCESS_KEY_ID}" --aws-secret-access-key "${AWS_SECRET_ACCESS_KEY}" --name "${OMB_CLUSTER_NAME}" --region "${REGION}" --flavor "${FLAVOR}" --count "${OMB_WORKER_COUNT}" --multi-az "${MULTI_AZ}"
 if [[ $? -eq 0 ]]; then
   echo ${OMB_CLUSTER_NAME} >"${OMB_CLUSTER_NAME_FILE}"
 fi
