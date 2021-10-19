@@ -224,7 +224,7 @@ public class IngressControllerManager {
 
     private IngressController buildDefaultIngressController(List<String> zones, String defaultDomain) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
-        int replicas = Math.min(3, zones.size());
+        int replicas = Math.min(3, nodeInformer.getList().size());
 
         final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
