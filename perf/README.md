@@ -21,9 +21,9 @@ Create clusters like this:
 AWS_ID=<account id>
 AWS_SEC_CREDENTIALS_FILE=<osdCcsAdmin_accessKeys.csv>
 
-./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-accout-id ${AWS_ID} \
+./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-account-id ${AWS_ID} \
     --name ${USER}-kafka --region us-east-1 --flavor m5.xlarge --count 9 # kafka
-./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-accout-id ${AWS_ID} \
+./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-account-id ${AWS_ID} \
     --name ${USER}-client --region us-east-1 --flavor m5.2xlarge --count 3 # clients
 ```
 
