@@ -26,6 +26,8 @@ public class StrimziVersionStatus {
     private boolean ready;
     @NotNull
     private List<String> kafkaVersions;
+    @NotNull
+    private List<String> kafkaIbpVersions;
 
     public String getVersion() {
         return version;
@@ -49,5 +51,13 @@ public class StrimziVersionStatus {
 
     public void setKafkaVersions(List<String> kafkaVersions) {
         this.kafkaVersions = kafkaVersions;
+    }
+
+    public List<String> getKafkaIbpVersions() {
+        return kafkaIbpVersions;
+    }
+
+    public void setKafkaIbpVersions(List<String> kafkaIbpVersions) {
+        this.kafkaIbpVersions = kafkaIbpVersions;
     }
 }

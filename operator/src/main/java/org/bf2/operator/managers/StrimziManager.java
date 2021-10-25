@@ -122,12 +122,17 @@ public class StrimziManager {
                         .findFirst();
 
         List<String> kafkaVersions = Collections.emptyList();
+        List<String> kafkaIbpVersions = Collections.emptyList();
         if (kafkaImagesEnvVar.isPresent() && kafkaImagesEnvVar.get().getValue() != null) {
             String kafkaImages = kafkaImagesEnvVar.get().getValue();
             String[] kafkaImagesList = kafkaImages.split("\n");
             kafkaVersions = new ArrayList<>(kafkaImagesList.length);
+            kafkaIbpVersions = new ArrayList<>(kafkaImagesList.length);
             for (String kafkaImage : kafkaImagesList) {
-                kafkaVersions.add(kafkaImage.split("=")[0]);
+                String kafkaVersion = kafkaImage.split("=")[0];
+                String kafkaIbpVersion = kafkaVersion.substring(0, kafkaVersion.lastIndexOf("."));
+                kafkaVersions.add(kafkaVersion);
+                kafkaIbpVersions.add(kafkaIbpVersion);
             }
         }
 
@@ -135,6 +140,7 @@ public class StrimziManager {
                 new StrimziVersionStatusBuilder()
                         .withVersion(deployment.getMetadata().getName())
                         .withKafkaVersions(kafkaVersions)
+                        .withKafkaIbpVersions(kafkaIbpVersions)
                         .withReady(Readiness.isDeploymentReady(deployment))
                         .build());
     }

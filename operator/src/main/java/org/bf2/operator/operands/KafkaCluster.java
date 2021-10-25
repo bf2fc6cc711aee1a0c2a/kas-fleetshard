@@ -484,7 +484,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("min.insync.replicas", 2);
         config.put("default.replication.factor", 3);
         config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
-        config.put("inter.broker.protocol.version", managedKafka.getSpec().getVersions().getKafka());
+        config.put("inter.broker.protocol.version",
+                managedKafka.getSpec().getVersions().getKafkaIbp() != null ?
+                managedKafka.getSpec().getVersions().getKafkaIbp() :
+                managedKafka.getSpec().getVersions().getKafka());
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
         config.put("connections.max.reauth.ms", 299000); // 4m 59s

@@ -94,6 +94,13 @@ public class StrimziManagerTest {
         List<String> v2KafkaCurrent = strimziVersions.stream().filter(svs -> svs.getVersion().equals("strimzi-cluster-operator.v2")).map(StrimziVersionStatus::getKafkaVersions).findFirst().get();
         Assertions.assertIterableEquals(v1KafkaExpected, v1KafkaCurrent);
         Assertions.assertIterableEquals(v2KafkaExpected, v2KafkaCurrent);
+
+        List<String> v1KafkaIbpExpected = Collections.singletonList("2.7");
+        List<String> v2KafkaIbpExpected = Arrays.asList("2.7", "2.8");
+        List<String> v1KafkaIbpCurrent = strimziVersions.stream().filter(svs -> svs.getVersion().equals("strimzi-cluster-operator.v1")).map(StrimziVersionStatus::getKafkaIbpVersions).findFirst().get();
+        List<String> v2KafkaIbpCurrent = strimziVersions.stream().filter(svs -> svs.getVersion().equals("strimzi-cluster-operator.v2")).map(StrimziVersionStatus::getKafkaIbpVersions).findFirst().get();
+        Assertions.assertIterableEquals(v1KafkaIbpExpected, v1KafkaIbpCurrent);
+        Assertions.assertIterableEquals(v2KafkaIbpExpected, v2KafkaIbpCurrent);
     }
 
     @Test
