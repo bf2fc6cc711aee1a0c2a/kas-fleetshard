@@ -130,7 +130,7 @@ public class StrimziManager {
             kafkaIbpVersions = new ArrayList<>(kafkaImagesList.length);
             for (String kafkaImage : kafkaImagesList) {
                 String kafkaVersion = kafkaImage.split("=")[0];
-                String kafkaIbpVersion = kafkaVersion.substring(0, kafkaVersion.lastIndexOf("."));
+                String kafkaIbpVersion = this.getKafkaIbpVersion(kafkaVersion);
                 kafkaVersions.add(kafkaVersion);
                 kafkaIbpVersions.add(kafkaIbpVersion);
             }
@@ -283,5 +283,13 @@ public class StrimziManager {
 
     public String getVersionLabel() {
         return versionLabel;
+    }
+
+    private String getKafkaIbpVersion(String kafkaVersion) {
+        String[] digits = kafkaVersion.split("\\.");
+        if (digits.length != 3) {
+            throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
+        }
+        return String.format("%s.%s", digits[0], digits[1]);
     }
 }
