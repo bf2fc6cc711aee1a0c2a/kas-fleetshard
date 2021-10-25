@@ -122,12 +122,17 @@ public class StrimziManager {
                         .findFirst();
 
         List<String> kafkaVersions = Collections.emptyList();
+        List<String> kafkaIbpVersions = Collections.emptyList();
         if (kafkaImagesEnvVar.isPresent() && kafkaImagesEnvVar.get().getValue() != null) {
             String kafkaImages = kafkaImagesEnvVar.get().getValue();
             String[] kafkaImagesList = kafkaImages.split("\n");
             kafkaVersions = new ArrayList<>(kafkaImagesList.length);
+            kafkaIbpVersions = new ArrayList<>(kafkaImagesList.length);
             for (String kafkaImage : kafkaImagesList) {
-                kafkaVersions.add(kafkaImage.split("=")[0]);
+                String kafkaVersion = kafkaImage.split("=")[0];
+                String kafkaIbpVersion = this.getKafkaIbpVersion(kafkaVersion);
+                kafkaVersions.add(kafkaVersion);
+                kafkaIbpVersions.add(kafkaIbpVersion);
             }
         }
 
@@ -135,6 +140,7 @@ public class StrimziManager {
                 new StrimziVersionStatusBuilder()
                         .withVersion(deployment.getMetadata().getName())
                         .withKafkaVersions(kafkaVersions)
+                        .withKafkaIbpVersions(kafkaIbpVersions)
                         .withReady(Readiness.isDeploymentReady(deployment))
                         .build());
     }
@@ -277,5 +283,13 @@ public class StrimziManager {
 
     public String getVersionLabel() {
         return versionLabel;
+    }
+
+    private String getKafkaIbpVersion(String kafkaVersion) {
+        String[] digits = kafkaVersion.split("\\.");
+        if (digits.length != 3) {
+            throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
+        }
+        return String.format("%s.%s", digits[0], digits[1]);
     }
 }

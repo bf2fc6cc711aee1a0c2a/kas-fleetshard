@@ -32,6 +32,7 @@ public class Versions {
     private String kafka;
     @NotNull
     private String strimzi;
+    private String kafkaIbp;
 
     public String getKafka() {
         return kafka;
@@ -47,6 +48,14 @@ public class Versions {
 
     public void setStrimzi(String strimzi) {
         this.strimzi = strimzi;
+    }
+
+    public String getKafkaIbp() {
+        return kafkaIbp;
+    }
+
+    public void setKafkaIbp(String kafkaIbp) {
+        this.kafkaIbp = kafkaIbp;
     }
 
     public boolean isStrimziVersionIn(String... versions) {
