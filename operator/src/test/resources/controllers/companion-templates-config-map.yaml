@@ -36,7 +36,7 @@ data:
             spec:
               containers:
                 - name: canary
-                  image: quay.io/mk-ci-cd/strimzi-canary:0.0.7
+                  image: quay.io/mk-ci-cd/strimzi-canary:0.0.9
                   env:
                     - name: KAFKA_BOOTSTRAP_SERVERS
                       value: ${CANARY_KAFKA_BOOTSTRAP_SERVERS}
@@ -64,6 +64,8 @@ data:
                           name: canary-config
                           key: verbosity.log.level
                           optional: true
+                    - name: "TOPIC_CONFIG"
+                      value: "retention.ms=600000;segment.bytes=16384"
                   ports:
                     - containerPort: 8080
                       name: metrics
