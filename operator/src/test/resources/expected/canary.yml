@@ -55,6 +55,12 @@ spec:
               optional: true
         - name: "TOPIC_CONFIG"
           value: "retention.ms=600000;segment.bytes=16384"
+        - name: "PRODUCER_LATENCY_BUCKETS"
+          value: "50,100,150,200,250,300,350,400,450,500"
+        - name: "ENDTOEND_LATENCY_BUCKETS"
+          value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
+        - name: "CONNECTION_CHECK_LATENCY_BUCKETS"
+          value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
         image: "quay.io/mk-ci-cd/strimzi-canary:0.0.9"
         livenessProbe:
           httpGet:

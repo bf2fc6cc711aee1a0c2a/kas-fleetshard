@@ -206,6 +206,10 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC_CONFIG").withValue("retention.ms=600000;segment.bytes=16384").build());
+        envVars.add(new EnvVarBuilder().withName("PRODUCER_LATENCY_BUCKETS").withValue("50,100,150,200,250,300,350,400,450,500").build());
+        envVars.add(new EnvVarBuilder().withName("ENDTOEND_LATENCY_BUCKETS").withValue("100,200,300,400,500,600,700,800,900,1000,1100,1200").build());
+        envVars.add(new EnvVarBuilder().withName("CONNECTION_CHECK_LATENCY_BUCKETS").withValue("100,200,300,400,500,600,700,800,900,1000,1100,1200").build());
+
 
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
         if (canaryServiceAccount.isPresent()) {
