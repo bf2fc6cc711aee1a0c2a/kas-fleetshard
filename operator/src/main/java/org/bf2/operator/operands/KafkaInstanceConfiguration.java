@@ -98,6 +98,8 @@ public class KafkaInstanceConfiguration {
         protected boolean colocateWithZookeeper = false;
         @JsonProperty("one-instance-per-node")
         protected boolean oneInstancePerNode = false;
+        @JsonProperty("maximum-session-lifetime-default")
+        protected long maximumSessionLifetimeDefault;
 
         public int getReplicas() {
             return replicas;
@@ -230,6 +232,14 @@ public class KafkaInstanceConfiguration {
 
         public void setOneInstancePerNode(boolean oneInstancePerNode) {
             this.oneInstancePerNode = oneInstancePerNode;
+        }
+
+        public long getMaximumSessionLifetimeDefault() {
+            return maximumSessionLifetimeDefault;
+        }
+
+        public void setMaximumSessionLifetimeDefault(long maximumSessionLifetimeDefault) {
+            this.maximumSessionLifetimeDefault = maximumSessionLifetimeDefault;
         }
     }
 
