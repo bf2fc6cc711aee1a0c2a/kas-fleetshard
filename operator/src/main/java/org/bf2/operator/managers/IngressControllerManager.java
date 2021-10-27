@@ -1,12 +1,16 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -27,6 +31,7 @@ import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -51,6 +56,9 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    protected static final String MEMORY = "memory";
+    protected static final String CPU = "cpu";
+
     /**
      * The label key for the multi-AZ IngressController
      */
@@ -62,6 +70,8 @@ public class IngressControllerManager {
     public static final String TOPOLOGY_KEY = "topology.kubernetes.io/zone";
 
     protected static final String INGRESS_OPERATOR_NAMESPACE = "openshift-ingress-operator";
+
+    protected static final String INGRESS_ROUTER_NAMESPACE = "openshift-ingress";
 
     protected static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
 
@@ -96,6 +106,15 @@ public class IngressControllerManager {
     ResourceInformer<Pod> brokerPodInformer;
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<IngressController> ingressControllerInformer;
+
+    @ConfigProperty(name = "ingresscontroller.limit-cpu")
+    Optional<String> limitCpu;
+    @ConfigProperty(name = "ingresscontroller.limit-memory")
+    Optional<String> limitMemory;
+    @ConfigProperty(name = "ingresscontroller.request-cpu")
+    Optional<String> requestCpu;
+    @ConfigProperty(name = "ingresscontroller.request-memory")
+    Optional<String> requestMemory;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -158,7 +177,89 @@ public class IngressControllerManager {
             }
         });
 
+        // this is to patch the IngressController Router deployments to correctly size for resources, should be removed
+        // after https://issues.redhat.com/browse/RFE-1475 is resolved.
+        this.resourceInformerFactory.create(Deployment.class,
+                this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE),
+                new ResourceEventHandler<Deployment>() {
+                    @Override
+                    public void onAdd(Deployment deployment) {
+                        patchIngressDeploymentResources(deployment);
+                    }
+                    @Override
+                    public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
+                        patchIngressDeploymentResources(newDeployment);
+                    }
+                    @Override
+                    public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
+                        // do nothing
+                    }
+        });
+
+        resyncIngressControllerDeployments();
         reconcileIngressControllers();
+    }
+
+    private void patchIngressDeploymentResources(Deployment d) {
+        if (d.getMetadata().getName().startsWith("router-kas")) {
+            log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+            openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
+                .withName(d.getMetadata().getName()).edit(
+                    new TypedVisitor<ResourceRequirementsBuilder>() {
+                        @Override
+                        public void visit(ResourceRequirementsBuilder element) {
+                            if (!requestCpu.isPresent()) {
+                                element.removeFromRequests(CPU);
+                            } else {
+                                Quantity value = Quantity.parse(requestCpu.get());
+                                if (element.getRequests() == null || element.getRequests() != null
+                                        && !matches(element.getRequests().get(CPU), value)) {
+                                    element.addToRequests(CPU, value);
+                                }
+                            }
+                            if (!requestMemory.isPresent()) {
+                                element.removeFromRequests(MEMORY);
+                            } else {
+                                Quantity value = Quantity.parse(requestMemory.get());
+                                if (element.getRequests() == null || element.getRequests() != null
+                                        && !matches(element.getRequests().get(MEMORY), value)) {
+                                    element.addToRequests(MEMORY, value);
+                                }
+                            }
+                            if (!limitCpu.isPresent()) {
+                                element.removeFromLimits(CPU);
+                            } else {
+                                Quantity value = Quantity.parse(limitCpu.get());
+                                if (element.getLimits() == null || element.getLimits() != null
+                                        && !matches(element.getLimits().get(CPU), value)) {
+                                    element.addToLimits(CPU, value);
+                                }
+                            }
+                            if (!limitMemory.isPresent()) {
+                                element.removeFromLimits(MEMORY);
+                            } else {
+                                Quantity value = Quantity.parse(limitMemory.get());
+                                if (element.getLimits() == null || element.getLimits() != null
+                                        && !matches(element.getLimits().get(MEMORY), value)) {
+                                    element.addToLimits(MEMORY, value);
+                                }
+                            }
+                        }
+                    });
+        }
+    }
+
+    private boolean matches(Quantity actual, Quantity expected) {
+        if (actual == null || expected == null) {
+            return false;
+        }
+        return Quantity.getAmountInBytes(actual).compareTo(Quantity.getAmountInBytes(expected)) == 0;
+    }
+
+    void resyncIngressControllerDeployments() {
+        openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).list().getItems().forEach(d -> {
+            patchIngressDeploymentResources(d);
+        });
     }
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
