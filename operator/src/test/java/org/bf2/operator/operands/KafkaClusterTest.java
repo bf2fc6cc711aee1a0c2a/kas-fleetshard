@@ -286,7 +286,7 @@ class KafkaClusterTest {
         "1,           1",
         "299000, 299000"
     })
-    void testManagedKafkaMaximumSessionLifetimeMapping(Integer maximumSessionLifetime, int maxReauthMs) throws IOException {
+    void testManagedKafkaMaximumSessionLifetimeMapping(Long maximumSessionLifetime, long maxReauthMs) throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
         mk.getSpec().getOauth().setMaximumSessionLifetime(maximumSessionLifetime);
 

@@ -29,7 +29,7 @@ public class ManagedKafkaAuthenticationOAuth {
     private String fallbackUserNameClaim;
     private String tlsTrustedCertificate;
     private String customClaimCheck;
-    private Integer maximumSessionLifetime;
+    private Long maximumSessionLifetime;
 
     public String getCustomClaimCheck() {
         return customClaimCheck;
@@ -103,11 +103,11 @@ public class ManagedKafkaAuthenticationOAuth {
         this.tlsTrustedCertificate = tlsTrustedCertificate;
     }
 
-    public Integer getMaximumSessionLifetime() {
+    public Long getMaximumSessionLifetime() {
         return maximumSessionLifetime;
     }
 
-    public void setMaximumSessionLifetime(Integer maximumSessionLifetime) {
+    public void setMaximumSessionLifetime(Long maximumSessionLifetime) {
         this.maximumSessionLifetime = maximumSessionLifetime;
     }
 }

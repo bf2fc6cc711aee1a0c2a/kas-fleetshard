@@ -492,7 +492,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.protocol", "TLS");
 
         var maximumSessionLifetime = managedKafka.getSpec().getOauth().getMaximumSessionLifetime();
-        int maxReauthMs = maximumSessionLifetime != null ? Math.max(maximumSessionLifetime, 0) : 299000; // 4m 59s
+        long maxReauthMs = maximumSessionLifetime != null ? Math.max(maximumSessionLifetime, 0) : 299000; // 4m 59s
         config.put("connections.max.reauth.ms", maxReauthMs);
 
         if (managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4) >= 0) {
