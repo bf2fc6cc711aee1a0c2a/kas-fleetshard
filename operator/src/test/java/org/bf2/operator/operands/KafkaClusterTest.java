@@ -25,6 +25,8 @@ import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
@@ -274,6 +276,22 @@ class KafkaClusterTest {
             assertNull(((PersistentClaimStorage)v).getStorageClass());
             assertEquals(buildStorageOverrides(), ((PersistentClaimStorage)v).getOverrides());
         });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        ",       299000", // Default to 4m 59s
+        "-1,          0", // No less than zero
+        "0,           0",
+        "1,           1",
+        "299000, 299000"
+    })
+    void testManagedKafkaMaximumSessionLifetimeMapping(Long maximumSessionLifetime, long maxReauthMs) throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getOauth().setMaximumSessionLifetime(maximumSessionLifetime);
+
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        assertEquals(maxReauthMs, kafka.getSpec().getKafka().getConfig().get("connections.max.reauth.ms"));
     }
 
     private List<PersistentClaimStorageOverride> buildStorageOverrides() {

@@ -490,7 +490,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 managedKafka.getSpec().getVersions().getKafka());
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
-        config.put("connections.max.reauth.ms", 299000); // 4m 59s
+
+        var maximumSessionLifetime = managedKafka.getSpec().getOauth().getMaximumSessionLifetime();
+        long maxReauthMs = maximumSessionLifetime != null ?
+                Math.max(maximumSessionLifetime, 0) :
+                this.config.getKafka().getMaximumSessionLifetimeDefault();
+        config.put("connections.max.reauth.ms", maxReauthMs);
 
         if (managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4) >= 0) {
             // extension to manage the create topic to ensure valid Replication Factor and ISR
