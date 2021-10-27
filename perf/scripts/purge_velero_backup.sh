@@ -1,29 +1,22 @@
 #!/usr/bin/env bash
-# Usage: purge_velero_backup.sh <AWS credentials CSV>
+# Usage: purge_velero_backup.sh
 
-set -e
-
-SED=sed
-GREP=grep
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    SED=gsed
+# Install AWS CLI
+if ! [ -x "$(command -v aws)" ]; then
+  echo "Installing the AWS CLI..."
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip -qq awscliv2.zip
+  sudo ./aws/install
+  sudo rm -rf ./aws
+  echo "AWS CLI successfully installed"
 fi
-AWS_CSV_PATH=$1
 
-cred=$($SED '2q;d' "${AWS_CSV_PATH}")
-AWS_ACCESS_KEY="$(cut -d',' -f1 <<<"${cred//[$'\t\r\n']/}")"
-AWS_SECRET_ACCESS_KEY="$(cut -d',' -f2 <<<"${cred//[$'\t\r\n']/}")"
-
-trap 'rm -rf "$TMPFILE"' EXIT
-TMPFILE=$(mktemp -d) || exit 1
-chmod og-r ${TMPFILE}
-
-AWS_CONFIG_FILE=$TMPFILE
-aws configure --profile default set aws_access_key_id ${AWS_ACCESS_KEY}
-aws configure --profile default set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY}
+# Configure the AWS CLI
+aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID" --profile default
+aws configure set secret_access_key "$AWS_SECRET_ACCESS_KEY" --profile default
+aws configure set region "$AWS_REGION" --profile default
 
 for i in $(aws s3api list-buckets | jq -r '.Buckets[].Name' | grep velero-backups )
 do
 aws s3 rb --force s3://$i
 done
-

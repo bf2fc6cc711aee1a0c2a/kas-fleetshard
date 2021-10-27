@@ -50,11 +50,14 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Provisioner for {@link ManagedKafka} instances
  */
 public class ManagedKafkaProvisioner {
+
+    public static final int ZONES = 3;
 
     private static final String KAS_FLEETSHARD_CONFIG = "kas-fleetshard-config";
     public static final String KAFKA_BROKER_TAINT_KEY = "org.bf2.operator/kafka-broker";
@@ -333,39 +336,7 @@ public class ManagedKafkaProvisioner {
         List<Node> workers = cluster.getWorkerNodes();
 
         // divide the nodes by their zones, then sort them by their cpu availability then mark however brokers needed for the taint
-        Map<String, List<Node>> zoneAwareNodeList = workers.stream()
-                .collect(Collectors.groupingBy(n -> n.getMetadata().getLabels().get("topology.kubernetes.io/zone")));
-        zoneAwareNodeList.values()
-                .forEach(list -> Collections.sort(list,
-                        (n1, n2) -> Long.compare(TestUtils.getMaxAvailableResources(n1).cpuMillis,
-                                TestUtils.getMaxAvailableResources(n2).cpuMillis)));
-
-        for (List<Node> nodes : zoneAwareNodeList.values()) {
-            int brokersPerZone = profile.getKafka().getReplicas() / 3;
-            if (nodes.size() < brokersPerZone) {
-                throw new IllegalStateException("Not enough nodes per zone available");
-            }
-
-            for (int i = 1; i <= brokersPerZone; i++) {
-                Node n = nodes.get(nodes.size() - i);
-
-                if (!profile.getKafka().isColocateWithZookeeper()) {
-                    cluster.kubeClient()
-                            .client()
-                            .nodes()
-                            .withName(n.getMetadata().getName())
-                            .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
-                                    new NodeBuilder()
-                                            .editOrNewSpec()
-                                            .addNewTaint()
-                                            .withKey(KAFKA_BROKER_TAINT_KEY)
-                                            .withEffect("NoExecute")
-                                            .endTaint()
-                                            .endSpec()
-                                            .build());
-                }
-            }
-        }
+        validateClusterForBrokers(profile.getKafka().getReplicas(), profile.getKafka().isColocateWithZookeeper(), workers.stream());
 
         // convert the profile into simple configmap values
         ConfigMap override = toConfigMap(profile);
@@ -386,6 +357,42 @@ public class ManagedKafkaProvisioner {
         fleetshardOperatorDeployment.scale(1, true);
 
         //fleetshardOperatorDeployment.waitUntilReady(30, TimeUnit.SECONDS);
+    }
+
+    public void validateClusterForBrokers(int brokers, boolean colocateWithZookeeper, Stream<Node> workers) {
+        Map<String, List<Node>> zoneAwareNodeList = workers
+                .collect(Collectors.groupingBy(n -> n.getMetadata().getLabels().get("topology.kubernetes.io/zone")));
+        zoneAwareNodeList.values()
+                .forEach(list -> Collections.sort(list,
+                        (n1, n2) -> Long.compare(TestUtils.getMaxAvailableResources(n1).cpuMillis,
+                                TestUtils.getMaxAvailableResources(n2).cpuMillis)));
+
+        int brokersPerZone = brokers / ZONES;
+        for (List<Node> nodes : zoneAwareNodeList.values()) {
+            if (nodes.size() < brokersPerZone) {
+                throw new IllegalStateException("Not enough nodes per zone available");
+            }
+
+            for (int i = 1; i <= brokersPerZone; i++) {
+                Node n = nodes.get(nodes.size() - i);
+
+                if (!colocateWithZookeeper) {
+                    cluster.kubeClient()
+                            .client()
+                            .nodes()
+                            .withName(n.getMetadata().getName())
+                            .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
+                                    new NodeBuilder()
+                                            .editOrNewSpec()
+                                            .addNewTaint()
+                                            .withKey(KAFKA_BROKER_TAINT_KEY)
+                                            .withEffect("NoExecute")
+                                            .endTaint()
+                                            .endSpec()
+                                            .build());
+                }
+            }
+        }
     }
 
     ManagedKafkaDeployment deployCluster(String namespace, ManagedKafka managedKafka) throws Exception {
