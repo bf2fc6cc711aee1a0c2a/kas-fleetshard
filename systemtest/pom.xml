@@ -5,7 +5,7 @@
     <parent>
         <artifactId>kas-fleetshard</artifactId>
         <groupId>org.bf2</groupId>
-        <version>0.15.1</version>
+        <version>0.15.2-SNAPSHOT</version>
     </parent>
     <artifactId>systemtest</artifactId>
 
