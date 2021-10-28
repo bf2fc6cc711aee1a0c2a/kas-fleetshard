@@ -108,13 +108,13 @@ public class IngressControllerManager {
     ResourceInformer<IngressController> ingressControllerInformer;
 
     @ConfigProperty(name = "ingresscontroller.limit-cpu")
-    Optional<String> limitCpu;
+    Optional<Quantity> limitCpu;
     @ConfigProperty(name = "ingresscontroller.limit-memory")
-    Optional<String> limitMemory;
+    Optional<Quantity> limitMemory;
     @ConfigProperty(name = "ingresscontroller.request-cpu")
-    Optional<String> requestCpu;
+    Optional<Quantity> requestCpu;
     @ConfigProperty(name = "ingresscontroller.request-memory")
-    Optional<String> requestMemory;
+    Optional<Quantity> requestMemory;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -208,41 +208,38 @@ public class IngressControllerManager {
                     new TypedVisitor<ResourceRequirementsBuilder>() {
                         @Override
                         public void visit(ResourceRequirementsBuilder element) {
-                            if (!requestCpu.isPresent()) {
+                            if (requestCpu.isPresent()) {
+                                if (element.getRequests() == null || (element.getRequests() != null
+                                        && !matches(element.getRequests().get(CPU), requestCpu.get()))) {
+                                    element.addToRequests(CPU, requestCpu.get());
+                                }
+                            } else {
                                 element.removeFromRequests(CPU);
-                            } else {
-                                Quantity value = Quantity.parse(requestCpu.get());
-                                if (element.getRequests() == null || element.getRequests() != null
-                                        && !matches(element.getRequests().get(CPU), value)) {
-                                    element.addToRequests(CPU, value);
-                                }
                             }
-                            if (!requestMemory.isPresent()) {
+                            if (requestMemory.isPresent()) {
+                                if (element.getRequests() == null || (element.getRequests() != null
+                                        && !matches(element.getRequests().get(MEMORY), requestMemory.get()))) {
+                                    element.addToRequests(MEMORY, requestMemory.get());
+                                }
+
+                            } else {
                                 element.removeFromRequests(MEMORY);
-                            } else {
-                                Quantity value = Quantity.parse(requestMemory.get());
-                                if (element.getRequests() == null || element.getRequests() != null
-                                        && !matches(element.getRequests().get(MEMORY), value)) {
-                                    element.addToRequests(MEMORY, value);
-                                }
                             }
-                            if (!limitCpu.isPresent()) {
+                            if (limitCpu.isPresent()) {
+                                if (element.getLimits() == null || (element.getLimits() != null
+                                        && !matches(element.getLimits().get(CPU), limitCpu.get()))) {
+                                    element.addToLimits(CPU, limitCpu.get());
+                                }
+                            } else {
                                 element.removeFromLimits(CPU);
-                            } else {
-                                Quantity value = Quantity.parse(limitCpu.get());
-                                if (element.getLimits() == null || element.getLimits() != null
-                                        && !matches(element.getLimits().get(CPU), value)) {
-                                    element.addToLimits(CPU, value);
-                                }
                             }
-                            if (!limitMemory.isPresent()) {
-                                element.removeFromLimits(MEMORY);
-                            } else {
-                                Quantity value = Quantity.parse(limitMemory.get());
-                                if (element.getLimits() == null || element.getLimits() != null
-                                        && !matches(element.getLimits().get(MEMORY), value)) {
-                                    element.addToLimits(MEMORY, value);
+                            if (limitMemory.isPresent()) {
+                                if (element.getLimits() == null || (element.getLimits() != null
+                                        && !matches(element.getLimits().get(MEMORY), limitMemory.get()))) {
+                                    element.addToLimits(MEMORY, limitMemory.get());
                                 }
+                            } else {
+                                element.removeFromLimits(MEMORY);
                             }
                         }
                     });
