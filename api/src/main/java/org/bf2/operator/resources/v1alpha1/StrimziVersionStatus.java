@@ -24,9 +24,9 @@ public class StrimziVersionStatus {
     private String version;
     @NotNull
     private boolean ready;
-    @NotNull
+
     private List<String> kafkaVersions;
-    @NotNull
+
     private List<String> kafkaIbpVersions;
 
     public String getVersion() {
