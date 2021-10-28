@@ -79,33 +79,31 @@ public class InstanceProfiler {
     public enum Profile {
         // recommended latency optimized profile
         LATENCY("acks=1\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n", 25),
+                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n"),
         // recommended latency optimized profile, but with batching disabled for throughput testing
         LATENCY_NO_BATCHING("acks=1\nbatch.size=0\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n", 25),
+                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n"),
         // using both https://www.confluent.io/blog/configure-kafka-to-minimize-latency/
         // and https://docs.confluent.io/cloud/current/client-apps/optimizing/throughput.html#optimizing-for-throughput
         THROUGHPUT("acks=1\nbatch.size=200000\nlinger.ms=100\n",
                 "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n", 200);
+                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
 
         final String producerConfig;
         final String consumerConfig;
         final String topicConfig;
-        final int catchUpToleranceMs;
         // must be changed together - and we may adapt the logic to use a spectrum of values
         final int messageSize;
         final String payloadFile;
 
-        Profile(String producerConfig, String consumerConfig, String topicConfig, int catchUpToleranceMs) {
-            this(producerConfig, consumerConfig, topicConfig, catchUpToleranceMs, 1024, "src/test/resources/payload/payload-1Kb.data");
+        Profile(String producerConfig, String consumerConfig, String topicConfig) {
+            this(producerConfig, consumerConfig, topicConfig, 1024, "src/test/resources/payload/payload-1Kb.data");
         }
 
-        Profile(String producerConfig, String consumerConfig, String topicConfig, int catchUpToleranceMs, int messageSize, String payloadFile) {
+        Profile(String producerConfig, String consumerConfig, String topicConfig, int messageSize, String payloadFile) {
             this.producerConfig = producerConfig;
             this.consumerConfig = consumerConfig;
             this.topicConfig = topicConfig;
-            this.catchUpToleranceMs = catchUpToleranceMs;
             this.messageSize = messageSize;
             this.payloadFile = payloadFile;
         }
@@ -480,7 +478,8 @@ public class InstanceProfiler {
     protected void sizeInstance() throws Exception {
         Stream<Node> workerNodes = kafkaCluster.getWorkerNodes().stream();
         if (!collocateBrokerWithZookeeper){
-            workerNodes = workerNodes.filter(n -> n.getSpec().getTaints().stream()
+            kafkaProvisioner.validateClusterForBrokers(numberOfBrokers, false, workerNodes);
+            workerNodes = kafkaCluster.getWorkerNodes().stream().filter(n -> n.getSpec().getTaints().stream()
                         .anyMatch(t -> t.getKey().equals(ManagedKafkaProvisioner.KAFKA_BROKER_TAINT_KEY)));
         }
 

@@ -13,13 +13,11 @@ The primary goal is to be able to run these tests locally against multiple OSD c
 
 ## Obtaining the OSD clusters
 Normally, we use an OSD cluster for the kafka instances, and a separate OSD cluster for the test workers.  
-However, it is also possible co-deploy to a single cluster if desired.
 
 Create clusters like this:
 
 ```
-AWS_ID=<account id>
-AWS_SEC_CREDENTIALS_FILE=<osdCcsAdmin_accessKeys.csv>
+. ./scripts/update_env.sh <path to osdCcsAdmin_accessKeys_x.csv> <default region>
 
 ./scripts/osd-provision.sh --create  --aws-sec-credentials-file ${AWS_SEC_CREDENTIALS_FILE} --aws-account-id ${AWS_ID} \
     --name ${USER}-kafka --region us-east-1 --flavor m5.xlarge --count 9 # kafka
@@ -28,6 +26,8 @@ AWS_SEC_CREDENTIALS_FILE=<osdCcsAdmin_accessKeys.csv>
 ```
 
 To run the instance profiling logic we have standardized on a 9 node m5.2xlarge cluster.
+
+If you see one of the clusters in an error state, check the console for the reason.  If it is about too many S3 buckets, use scripts/purge_velero_backups.sh
 
 For the kafka osd cluster the number of nodes needed will depend on what settings are being tested as well.  To test on m5.xlarge you need a 9 node cluster and settings that will fully dedicate a node to the broker.  On m5.2xlarge you still need 9 nodes to test the fully dedicated broker per node.  If you run instead with everything collated, then you only need a 6 node m5.2xlarge cluster.
 
