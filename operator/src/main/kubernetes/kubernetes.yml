@@ -138,6 +138,15 @@ rules:
       - list
       - watch
   - apiGroups:
+      - events.k8s.io
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch      
+  - apiGroups:
       - operator.openshift.io
     resources:
       # the operator creates IngressControllers in the openshift-ingress-operator namespace
