@@ -50,7 +50,7 @@ public class KafkaInstanceConfiguration {
     protected Kafka kafka = new Kafka();
     @JsonUnwrapped(prefix = "managedkafka.zookeeper.")
     protected ZooKeeper zookeeper = new ZooKeeper();
-    @JsonUnwrapped(prefix = "managedkafka.exporter.")
+    @JsonUnwrapped(prefix = "managedkafka.kafkaexporter.")
     protected Exporter exporter = new Exporter();
     @JsonUnwrapped(prefix = "managedkafka.adminserver.")
     protected AdminServer adminserver = new AdminServer();
