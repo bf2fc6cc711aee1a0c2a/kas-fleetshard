@@ -68,7 +68,7 @@ spec:
         enableOauthBearer: true
         type: "oauth"
       configuration:
-        maxConnections: 500
+        maxConnections: 750
         maxConnectionCreationRate: 75
         bootstrap:
           host: "xxx.yyy.zzz"

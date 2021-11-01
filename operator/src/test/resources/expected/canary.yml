@@ -36,7 +36,7 @@ spec:
                  values:
                  - "test-mk-zookeeper"
              topologyKey: "kubernetes.io/hostname"
-           weight: 50    
+           weight: 100    
       containers:
       - env:
         - name: "KAFKA_BOOTSTRAP_SERVERS"
