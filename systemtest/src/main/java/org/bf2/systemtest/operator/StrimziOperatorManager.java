@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.maven.artifact.versioning.ComparableVersion;
@@ -56,7 +57,8 @@ public class StrimziOperatorManager {
     public CompletableFuture<Void> installStrimzi(KubeClient kubeClient) throws Exception {
         if (!isNotTestSuiteStrimziOperatorInstalled(kubeClient) &&
                 kubeClient.client().apps().deployments().inAnyNamespace().list().getItems().stream()
-                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version))) {
+                        .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version)) &&
+                !isStrimziSubPresent()) {
             return doInstall(kubeClient);
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
@@ -149,6 +151,14 @@ public class StrimziOperatorManager {
             LOGGER.info("No need to uninstall strimzi operator");
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    private static boolean isStrimziSubPresent() {
+        return !KubeClient.getInstance().isGenericKubernetes() &&
+                KubeClient.getInstance().client().adapt(OpenShiftClient.class)
+                        .operatorHub().subscriptions().inAnyNamespace()
+                        .list().getItems().stream().anyMatch(subscription ->
+                                subscription.getMetadata().getLabels().containsValue("strimzi-bundle"));
     }
 
     public static List<Pod> getStrimziOperatorPods() {
