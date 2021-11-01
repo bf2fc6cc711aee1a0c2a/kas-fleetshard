@@ -1,6 +1,7 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
@@ -8,6 +9,7 @@ import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -202,55 +204,37 @@ public class IngressControllerManager {
 
     private void patchIngressDeploymentResources(Deployment d) {
         if (d.getMetadata().getName().startsWith("router-kas")) {
-            log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+            Map<String, Quantity> limitMap = new HashMap<>();
+            Map<String, Quantity> requestMap = new HashMap<>();
+            if (limitCpu.isPresent()) {
+                limitMap.put(CPU, limitCpu.get());
+            }
+            if (limitMemory.isPresent()) {
+                limitMap.put(MEMORY, limitMemory.get());
+            }
+            if (requestCpu.isPresent()) {
+                limitMap.put(CPU, requestCpu.get());
+            }
+            if (requestMemory.isPresent()) {
+                limitMap.put(MEMORY, requestMemory.get());
+            }
+            ResourceRequirements resources = new ResourceRequirementsBuilder()
+                    .withLimits(limitMap)
+                    .withRequests(requestMap)
+                    .build();
+
+            log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(),
+                    d.getMetadata().getName());
+
             openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
                 .withName(d.getMetadata().getName()).edit(
-                    new TypedVisitor<ResourceRequirementsBuilder>() {
+                    new TypedVisitor<ContainerBuilder>() {
                         @Override
-                        public void visit(ResourceRequirementsBuilder element) {
-                            if (requestCpu.isPresent()) {
-                                if (element.getRequests() == null || (element.getRequests() != null
-                                        && !matches(element.getRequests().get(CPU), requestCpu.get()))) {
-                                    element.addToRequests(CPU, requestCpu.get());
-                                }
-                            } else {
-                                element.removeFromRequests(CPU);
-                            }
-                            if (requestMemory.isPresent()) {
-                                if (element.getRequests() == null || (element.getRequests() != null
-                                        && !matches(element.getRequests().get(MEMORY), requestMemory.get()))) {
-                                    element.addToRequests(MEMORY, requestMemory.get());
-                                }
-
-                            } else {
-                                element.removeFromRequests(MEMORY);
-                            }
-                            if (limitCpu.isPresent()) {
-                                if (element.getLimits() == null || (element.getLimits() != null
-                                        && !matches(element.getLimits().get(CPU), limitCpu.get()))) {
-                                    element.addToLimits(CPU, limitCpu.get());
-                                }
-                            } else {
-                                element.removeFromLimits(CPU);
-                            }
-                            if (limitMemory.isPresent()) {
-                                if (element.getLimits() == null || (element.getLimits() != null
-                                        && !matches(element.getLimits().get(MEMORY), limitMemory.get()))) {
-                                    element.addToLimits(MEMORY, limitMemory.get());
-                                }
-                            } else {
-                                element.removeFromLimits(MEMORY);
-                            }
+                        public void visit(ContainerBuilder element) {
+                            element.withResources(resources);
                         }
                     });
         }
-    }
-
-    private boolean matches(Quantity actual, Quantity expected) {
-        if (actual == null || expected == null) {
-            return false;
-        }
-        return Quantity.getAmountInBytes(actual).compareTo(Quantity.getAmountInBytes(expected)) == 0;
     }
 
     void resyncIngressControllerDeployments() {
