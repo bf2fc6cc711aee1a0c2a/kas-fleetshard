@@ -133,13 +133,14 @@ rules:
       - pods
       # the operator reads nodes to get AZ information
       - nodes
+      # the operator reads namespaces for event monitoring
+      - namespaces
     verbs:
       - get
       - list
       - watch
   - apiGroups:
       - events.k8s.io
-      - ""
     resources:
       - events
     verbs:
