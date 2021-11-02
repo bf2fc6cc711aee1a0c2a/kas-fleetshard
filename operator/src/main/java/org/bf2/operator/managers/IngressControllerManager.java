@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -203,7 +204,7 @@ public class IngressControllerManager {
     }
 
     private void patchIngressDeploymentResources(Deployment d) {
-        if (d.getMetadata().getName().startsWith("router-kas")) {
+        if (getLabelOrDefault(d.getMetadata(), "ingresscontroller.operator.openshift.io/owning-ingresscontroller", "").startsWith("kas")) {
             Map<String, Quantity> limitMap = new HashMap<>();
             Map<String, Quantity> requestMap = new HashMap<>();
             if (limitCpu.isPresent()) {
@@ -235,6 +236,13 @@ public class IngressControllerManager {
                         }
                     });
         }
+    }
+
+    private String getLabelOrDefault(ObjectMeta metadata, String key, String defaultValue) {
+        if (metadata.getLabels() != null && metadata.getLabels().get(key) != null) {
+            return metadata.getLabels().get(key);
+        }
+        return defaultValue;
     }
 
     void resyncIngressControllerDeployments() {
