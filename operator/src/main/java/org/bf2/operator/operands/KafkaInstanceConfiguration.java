@@ -46,6 +46,14 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
 
+    // canary
+    private static final String CANARY_CONTAINER_MEMORY = "64Mi";
+    private static final String CANARY_CONTAINER_CPU = "75m";
+
+    // admin server
+    private static final String ADMIN_SERVER_CONTAINER_MEMORY = "512Mi";
+    private static final String ADMIN_SERVER_CONTAINER_CPU = "500m";
+
     @JsonUnwrapped(prefix = "managedkafka.kafka.")
     protected Kafka kafka = new Kafka();
     @JsonUnwrapped(prefix = "managedkafka.zookeeper.")
@@ -451,12 +459,33 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
+        @JsonProperty("container-memory")
+        protected String containerMemory = ADMIN_SERVER_CONTAINER_MEMORY;
+        @JsonProperty("container-cpu")
+        protected String containerCpu = ADMIN_SERVER_CONTAINER_CPU;
+
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
         }
 
         public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
             this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public String getContainerMemory() {
+            return containerMemory;
+        }
+
+        public void setContainerMemory(String containerMemory) {
+            this.containerMemory = containerMemory;
+        }
+
+        public String getContainerCpu() {
+            return containerCpu;
+        }
+
+        public void setContainerCpu(String containerCpu) {
+            this.containerCpu = containerCpu;
         }
     }
 
@@ -464,12 +493,33 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
+        @JsonProperty("container-memory")
+        protected String containerMemory = CANARY_CONTAINER_MEMORY;
+        @JsonProperty("container-cpu")
+        protected String containerCpu = CANARY_CONTAINER_CPU;
+
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
         }
 
         public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
             this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public String getContainerMemory() {
+            return containerMemory;
+        }
+
+        public void setContainerMemory(String containerMemory) {
+            this.containerMemory = containerMemory;
+        }
+
+        public String getContainerCpu() {
+            return containerCpu;
+        }
+
+        public void setContainerCpu(String containerCpu) {
+            this.containerCpu = containerCpu;
         }
     }
 

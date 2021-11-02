@@ -26,7 +26,7 @@ public class AdminServerTest {
     AdminServer adminServer;
 
     @Test
-    void createAdminServerDeployment() {
+    void createAdminServerDeployment() throws Exception {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withNewMetadata()
                     .withNamespace("test")
@@ -47,5 +47,7 @@ public class AdminServerTest {
         assertNotNull(server.getClient().apps().deployments()
                 .inNamespace(adminServerDeployment.getMetadata().getNamespace())
                 .withName(adminServerDeployment.getMetadata().getName()).get());
+        KafkaClusterTest.diffToExpected(adminServerDeployment, "/expected/adminserver.yml");
+
     }
 }

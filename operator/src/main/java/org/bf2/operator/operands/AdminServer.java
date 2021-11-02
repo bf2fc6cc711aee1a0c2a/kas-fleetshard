@@ -62,11 +62,6 @@ import java.util.Optional;
 @DefaultBean
 public class AdminServer extends AbstractAdminServer {
 
-    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("256Mi");
-    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("250m");
-    private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("512Mi");
-    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("500m");
-
     private static final int HTTP_PORT = 8080;
     private static final int HTTPS_PORT = 8443;
     private static final int MANAGEMENT_PORT = 9990;
@@ -409,11 +404,13 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private ResourceRequirements buildResources() {
+        Quantity mem = new Quantity(config.getAdminserver().getContainerMemory());
+        Quantity cpu = new Quantity(config.getAdminserver().getContainerCpu());
         return new ResourceRequirementsBuilder()
-                .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
-                .addToRequests("cpu", CONTAINER_CPU_REQUEST)
-                .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
-                .addToLimits("cpu", CONTAINER_CPU_LIMIT)
+                .addToRequests("memory", mem)
+                .addToRequests("cpu", cpu)
+                .addToLimits("memory", mem)
+                .addToLimits("cpu", cpu)
                 .build();
     }
 
