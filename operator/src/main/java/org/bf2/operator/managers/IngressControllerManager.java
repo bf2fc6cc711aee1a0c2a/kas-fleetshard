@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
 
@@ -183,7 +184,7 @@ public class IngressControllerManager {
         // this is to patch the IngressController Router deployments to correctly size for resources, should be removed
         // after https://issues.redhat.com/browse/RFE-1475 is resolved.
         this.resourceInformerFactory.create(Deployment.class,
-                this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE),
+                this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),
                 new ResourceEventHandler<Deployment>() {
                     @Override
                     public void onAdd(Deployment deployment) {
@@ -204,7 +205,7 @@ public class IngressControllerManager {
     }
 
     private void patchIngressDeploymentResources(Deployment d) {
-        if (getLabelOrDefault(d.getMetadata(), "ingresscontroller.operator.openshift.io/owning-ingresscontroller", "").startsWith("kas")) {
+        if (getLabelOrDefault(d.getMetadata(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
             Map<String, Quantity> limitMap = new HashMap<>();
             Map<String, Quantity> requestMap = new HashMap<>();
             if (limitCpu.isPresent()) {
