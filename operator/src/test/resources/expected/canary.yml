@@ -95,8 +95,8 @@ spec:
             memory: "64Mi"
             cpu: "75m"
           requests:
-            memory: "32Mi"
-            cpu: "5m"
+            memory: "64Mi"
+            cpu: "75m"
         volumeMounts:
         - mountPath: "/tmp/tls-ca-cert"
           name: "test-mk-tls-ca-cert"

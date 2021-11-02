@@ -48,8 +48,8 @@ import java.util.Optional;
 @DefaultBean
 public class Canary extends AbstractCanary {
 
-    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("32Mi");
-    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("5m");
+    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("64Mi");
+    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("75m");
     private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("64Mi");
     private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("75m");
 
