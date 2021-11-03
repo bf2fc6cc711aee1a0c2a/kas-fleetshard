@@ -130,7 +130,7 @@ public class StrimziManager {
             kafkaIbpVersions = new ArrayList<>(kafkaImagesList.length);
             for (String kafkaImage : kafkaImagesList) {
                 String kafkaVersion = kafkaImage.split("=")[0];
-                String kafkaIbpVersion = this.getKafkaIbpVersion(kafkaVersion);
+                String kafkaIbpVersion = AbstractKafkaCluster.getKafkaIbpVersion(kafkaVersion);
                 kafkaVersions.add(kafkaVersion);
                 kafkaIbpVersions.add(kafkaIbpVersion);
             }
@@ -206,7 +206,8 @@ public class StrimziManager {
      * @param managedKafka ManagedKafka instance
      * @return if a Strimzi version change was requested
      */
-    private boolean hasStrimziChanged(ManagedKafka managedKafka) {
+    public boolean hasStrimziChanged(ManagedKafka managedKafka) {
+        log.infof("requestedStrimziVersion = %s", managedKafka.getSpec().getVersions().getStrimzi());
         return !this.currentStrimziVersion(managedKafka).equals(managedKafka.getSpec().getVersions().getStrimzi());
     }
 
@@ -223,6 +224,7 @@ public class StrimziManager {
         String kafkaStrimziVersion = kafka != null && kafka.getMetadata().getLabels() != null && kafka.getMetadata().getLabels().containsKey(this.versionLabel) ?
                 kafka.getMetadata().getLabels().get(this.versionLabel) :
                 managedKafka.getSpec().getVersions().getStrimzi();
+        log.infof("currentStrimziVersion = %s", kafkaStrimziVersion);
         return kafkaStrimziVersion;
     }
 
@@ -283,13 +285,5 @@ public class StrimziManager {
 
     public String getVersionLabel() {
         return versionLabel;
-    }
-
-    private String getKafkaIbpVersion(String kafkaVersion) {
-        String[] digits = kafkaVersion.split("\\.");
-        if (digits.length != 3) {
-            throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
-        }
-        return String.format("%s.%s", digits[0], digits[1]);
     }
 }

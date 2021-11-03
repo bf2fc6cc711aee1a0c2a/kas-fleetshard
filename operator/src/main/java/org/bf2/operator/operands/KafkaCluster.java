@@ -51,6 +51,7 @@ import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
@@ -120,6 +121,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     protected StrimziManager strimziManager;
+
+    @Inject
+    protected KafkaManager kafkaManager;
 
     @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
@@ -207,7 +211,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
-                        .withVersion(managedKafka.getSpec().getVersions().getKafka())
+                        .withVersion(this.kafkaManager.getKafkaVersion(managedKafka, this))
                         .withConfig(buildKafkaConfig(managedKafka, current))
                         .withReplicas(this.config.getKafka().getReplicas())
                         .withResources(buildKafkaResources(managedKafka))
@@ -483,11 +487,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("auto.create.topics.enable", "false");
         config.put("min.insync.replicas", 2);
         config.put("default.replication.factor", 3);
-        config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
-        config.put("inter.broker.protocol.version",
-                managedKafka.getSpec().getVersions().getKafkaIbp() != null ?
-                managedKafka.getSpec().getVersions().getKafkaIbp() :
-                managedKafka.getSpec().getVersions().getKafka());
+        config.put("log.message.format.version", this.kafkaManager.getKafkaLogMessageFormatVersion(managedKafka));
+        config.put("inter.broker.protocol.version", this.kafkaManager.getKafkaIbpVersion(managedKafka, this));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
         config.put("connections.max.reauth.ms", 299000); // 4m 59s

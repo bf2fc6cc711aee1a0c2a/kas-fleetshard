@@ -84,7 +84,7 @@ public class Canary extends AbstractCanary {
                             .withLabels(buildLabels(canaryName))
                         .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(buildContainers(managedKafka))
+                            .withContainers(buildContainers(managedKafka, current))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
@@ -122,11 +122,11 @@ public class Canary extends AbstractCanary {
         );
     }
 
-    protected List<Container> buildContainers(ManagedKafka managedKafka) {
+    protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
         Container container = new ContainerBuilder()
                 .withName("canary")
                 .withImage(canaryImage)
-                .withEnv(buildEnvVar(managedKafka))
+                .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
                 .withResources(buildResources())
                 .withReadinessProbe(buildReadinessProbe())
@@ -175,12 +175,22 @@ public class Canary extends AbstractCanary {
         return labels;
     }
 
-    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
+    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka, Deployment current) {
         List<EnvVar> envVars = new ArrayList<>(10);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093").build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
-        envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(managedKafka.getSpec().getVersions().getKafka()).build());
+        String kafkaVersion = managedKafka.getSpec().getVersions().getKafka();
+        // takes the current Kafka version if the canary already exists. During Kafka upgrades it doesn't have to change, as any other clients.
+        if (current != null) {
+            Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().stream()
+                    .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
+                    .findFirst();
+            if (kafkaVersionEnvVar.isPresent()) {
+                kafkaVersion = kafkaVersionEnvVar.get().getValue();
+            }
+        }
+        envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(kafkaVersion).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());
         envVars.add(new EnvVarBuilder().withName("TLS_ENABLED").withValue("true").build());
         envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
