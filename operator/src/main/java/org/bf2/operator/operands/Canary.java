@@ -48,11 +48,6 @@ import java.util.Optional;
 @DefaultBean
 public class Canary extends AbstractCanary {
 
-    private static final Quantity CONTAINER_MEMORY_REQUEST = new Quantity("32Mi");
-    private static final Quantity CONTAINER_CPU_REQUEST = new Quantity("5m");
-    private static final Quantity CONTAINER_MEMORY_LIMIT = new Quantity("64Mi");
-    private static final Quantity CONTAINER_CPU_LIMIT = new Quantity("10m");
-
     @ConfigProperty(name = "image.canary")
     String canaryImage;
 
@@ -225,11 +220,13 @@ public class Canary extends AbstractCanary {
     }
 
     private ResourceRequirements buildResources() {
+        Quantity mem = new Quantity(config.getCanary().getContainerMemory());
+        Quantity cpu = new Quantity(config.getCanary().getContainerCpu());
         ResourceRequirements resources = new ResourceRequirementsBuilder()
-                .addToRequests("memory", CONTAINER_MEMORY_REQUEST)
-                .addToRequests("cpu", CONTAINER_CPU_REQUEST)
-                .addToLimits("memory", CONTAINER_MEMORY_LIMIT)
-                .addToLimits("cpu", CONTAINER_CPU_LIMIT)
+                .addToRequests("memory", mem)
+                .addToRequests("cpu", cpu)
+                .addToLimits("memory", mem)
+                .addToLimits("cpu", cpu)
                 .build();
         return resources;
     }
