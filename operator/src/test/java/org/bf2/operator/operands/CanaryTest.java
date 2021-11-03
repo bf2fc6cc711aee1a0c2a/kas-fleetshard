@@ -35,6 +35,9 @@ public class CanaryTest {
                                 .withNewVersions()
                                 .withKafka("2.6.0")
                                 .endVersions()
+                                .withNewEndpoint()
+                                .withBootstrapServerHost("test-mk-kafka-bootstrap")
+                                .endEndpoint()
                                 .build())
                 .build();
 

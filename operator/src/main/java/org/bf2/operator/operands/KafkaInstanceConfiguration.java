@@ -490,6 +490,9 @@ public class KafkaInstanceConfiguration {
     }
 
     public static class Canary {
+        @JsonProperty("probe-external-bootstrap-server-host")
+        protected boolean probeExternalBootstrapServerHost = false;
+
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
@@ -504,6 +507,14 @@ public class KafkaInstanceConfiguration {
 
         public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
             this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public boolean isProbeExternalBootstrapServerHost() {
+            return probeExternalBootstrapServerHost;
+        }
+
+        public void setProbeExternalBootstrapServerHost(boolean probeExternalBootstrapServerHost) {
+            this.probeExternalBootstrapServerHost = probeExternalBootstrapServerHost;
         }
 
         public String getContainerMemory() {

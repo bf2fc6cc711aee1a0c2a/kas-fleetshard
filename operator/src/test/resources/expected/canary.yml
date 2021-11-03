@@ -40,7 +40,7 @@ spec:
       containers:
       - env:
         - name: "KAFKA_BOOTSTRAP_SERVERS"
-          value: "test-mk-kafka-bootstrap:9093"
+          value: "test-mk-kafka-bootstrap:443"
         - name: "RECONCILE_INTERVAL_MS"
           value: "5000"
         - name: "EXPECTED_CLUSTER_SIZE"
