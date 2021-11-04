@@ -44,18 +44,18 @@ public class KafkaManager {
         // in the same reconcile loop Kafka version could have been changed but updating not started yet
         boolean isKafkaUpdating = kafkaCluster.isKafkaUpdating(managedKafka) || this.hasKafkaVersionChanged(managedKafka);
         log.infof("kafkaIbpVersionChanged = %s, isStrimziUpdating = %s, isKafkaUpdating = %s", kafkaIbpVersionChanged, isStrimziUpdating, isKafkaUpdating);
+        String currentKafkaIbpVersion = this.currentKafkaIbpVersion(managedKafka);
         if (kafkaIbpVersionChanged && !isStrimziUpdating && !isKafkaUpdating) {
             String kafkaIbpVersion = managedKafka.getSpec().getVersions().getKafkaIbp();
             // dealing with ManagedKafka instances not having the IBP field specified
             if (kafkaIbpVersion == null) {
                 kafkaIbpVersion = AbstractKafkaCluster.getKafkaIbpVersion(managedKafka.getSpec().getVersions().getKafka());
             }
-            log.infof("Kafka IBP change from %s to %s",
-                    this.currentKafkaIbpVersion(managedKafka), kafkaIbpVersion);
+            log.infof("Kafka IBP change from %s to %s", currentKafkaIbpVersion, kafkaIbpVersion);
             return kafkaIbpVersion;
         } else {
             log.infof("Stay with current Kafka IBP version");
-            return this.currentKafkaIbpVersion(managedKafka);
+            return currentKafkaIbpVersion;
         }
     }
 

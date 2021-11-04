@@ -111,7 +111,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         boolean isKafkaAnnotationUpdating = false;
         String expectedValue = valueSupplier.apply(kafka);
         for (Pod kafkaPod : kafkaPods) {
-            String annotationValueOnPod = kafkaPod.getMetadata().getAnnotations().get(annotation);
+            String annotationValueOnPod = Optional.ofNullable(kafkaPod.getMetadata().getAnnotations())
+                    .map(annotations -> annotations.get(annotation))
+                    .orElse(null);
+            if (annotationValueOnPod == null) {
+                log.errorf("Kafka pod [%s] is missing annotation '%s'", kafkaPod.getMetadata().getName(), annotation);
+                throw new RuntimeException();
+            }
             log.infof("Kafka pod [%s] annotation '%s' = %s [expected value %s]", kafkaPod.getMetadata().getName(), annotation, annotationValueOnPod, expectedValue);
             isKafkaAnnotationUpdating |= !annotationValueOnPod.equals(expectedValue);
             if (isKafkaAnnotationUpdating) {
