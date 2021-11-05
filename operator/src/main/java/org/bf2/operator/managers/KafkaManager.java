@@ -122,7 +122,9 @@ public class KafkaManager {
         // on first time Kafka resource creation, we take the Kafka inter broker protocol version from the ManagedKafka resource spec
         if (kafka != null) {
             Object interBrokerProtocol = kafka.getSpec().getKafka().getConfig().get("inter.broker.protocol.version");
-            kafkaIbpVersion = interBrokerProtocol != null ? interBrokerProtocol.toString() : AbstractKafkaCluster.getKafkaIbpVersion(kafka.getSpec().getKafka().getVersion());
+            kafkaIbpVersion = interBrokerProtocol != null ?
+                    AbstractKafkaCluster.getKafkaIbpVersion(interBrokerProtocol.toString()) :
+                    AbstractKafkaCluster.getKafkaIbpVersion(kafka.getSpec().getKafka().getVersion());
         } else {
             kafkaIbpVersion = managedKafka.getSpec().getVersions().getKafkaIbp();
             // dealing with ManagedKafka instances not having the IBP field specified

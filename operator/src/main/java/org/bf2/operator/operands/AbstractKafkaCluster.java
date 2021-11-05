@@ -375,7 +375,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
      */
     private static String getMajorMinorKafkaVersion(String kafkaVersion) {
         String[] digits = kafkaVersion.split("\\.");
-        if (digits.length != 3) {
+        if (digits.length > 3) {
             throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
         }
         return String.format("%s.%s", digits[0], digits[1]);

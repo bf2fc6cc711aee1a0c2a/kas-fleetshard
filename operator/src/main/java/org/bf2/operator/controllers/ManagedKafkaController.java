@@ -12,6 +12,9 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.KafkaManager;
+import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -48,6 +51,12 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     Instance<IngressControllerManager> ingressControllerManagerInstance;
+
+    @Inject
+    StrimziManager strimziManager;
+
+    @Inject
+    KafkaManager kafkaManager;
 
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
@@ -142,11 +151,22 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            if (!Reason.StrimziUpdating.equals(readiness.getReason())) {
-                status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
-            } else {
-                // just keep the current version
+            // the versions in the status are updated incrementally copying the spec only when each stage ends
+            VersionsBuilder versionsBuilder = status.getVersions() != null ?
+                    new VersionsBuilder(status.getVersions()) : new VersionsBuilder(managedKafka.getSpec().getVersions());
+            if (!Reason.StrimziUpdating.equals(readiness.getReason()) && !this.strimziManager.hasStrimziChanged(managedKafka)) {
+                versionsBuilder.withStrimzi(managedKafka.getSpec().getVersions().getStrimzi());
             }
+            if (!Reason.KafkaUpdating.equals(readiness.getReason()) && !this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+                versionsBuilder.withKafka(managedKafka.getSpec().getVersions().getKafka());
+            }
+            if (!Reason.KafkaIbpUpdating.equals(readiness.getReason()) && !this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
+                String kafkaIbp = managedKafka.getSpec().getVersions().getKafkaIbp() != null ?
+                        managedKafka.getSpec().getVersions().getKafkaIbp() :
+                        AbstractKafkaCluster.getKafkaIbpVersion(managedKafka.getSpec().getVersions().getKafka());
+                versionsBuilder.withKafkaIbp(kafkaIbp);
+            }
+            status.setVersions(versionsBuilder.build());
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
             status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
 
