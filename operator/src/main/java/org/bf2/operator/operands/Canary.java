@@ -183,7 +183,10 @@ public class Canary extends AbstractCanary {
         String kafkaVersion = managedKafka.getSpec().getVersions().getKafka();
         // takes the current Kafka version if the canary already exists. During Kafka upgrades it doesn't have to change, as any other clients.
         if (current != null) {
-            Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv().stream()
+            Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().stream()
+                    .filter(container -> "canary".equals(container.getName()))
+                    .findFirst()
+                    .get().getEnv().stream()
                     .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
                     .findFirst();
             if (kafkaVersionEnvVar.isPresent()) {
