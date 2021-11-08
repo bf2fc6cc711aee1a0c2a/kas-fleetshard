@@ -1,12 +1,18 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.builder.TypedVisitor;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -27,6 +33,7 @@ import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -51,6 +58,10 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
+    protected static final String MEMORY = "memory";
+    protected static final String CPU = "cpu";
+
     /**
      * The label key for the multi-AZ IngressController
      */
@@ -62,6 +73,8 @@ public class IngressControllerManager {
     public static final String TOPOLOGY_KEY = "topology.kubernetes.io/zone";
 
     protected static final String INGRESS_OPERATOR_NAMESPACE = "openshift-ingress-operator";
+
+    protected static final String INGRESS_ROUTER_NAMESPACE = "openshift-ingress";
 
     protected static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
 
@@ -96,6 +109,15 @@ public class IngressControllerManager {
     ResourceInformer<Pod> brokerPodInformer;
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<IngressController> ingressControllerInformer;
+
+    @ConfigProperty(name = "ingresscontroller.limit-cpu")
+    Optional<Quantity> limitCpu;
+    @ConfigProperty(name = "ingresscontroller.limit-memory")
+    Optional<Quantity> limitMemory;
+    @ConfigProperty(name = "ingresscontroller.request-cpu")
+    Optional<Quantity> requestCpu;
+    @ConfigProperty(name = "ingresscontroller.request-memory")
+    Optional<Quantity> requestMemory;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -158,7 +180,63 @@ public class IngressControllerManager {
             }
         });
 
+        // this is to patch the IngressController Router deployments to correctly size for resources, should be removed
+        // after https://issues.redhat.com/browse/RFE-1475 is resolved.
+        this.resourceInformerFactory.create(Deployment.class,
+                this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),
+                new ResourceEventHandler<Deployment>() {
+                    @Override
+                    public void onAdd(Deployment deployment) {
+                        patchIngressDeploymentResources(deployment);
+                    }
+                    @Override
+                    public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
+                        patchIngressDeploymentResources(newDeployment);
+                    }
+                    @Override
+                    public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
+                        // do nothing
+                    }
+        });
+
+        resyncIngressControllerDeployments();
         reconcileIngressControllers();
+    }
+
+    private void patchIngressDeploymentResources(Deployment d) {
+        if (getLabelOrDefault(d.getMetadata(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
+
+            ResourceRequirementsBuilder builder = new ResourceRequirementsBuilder();
+            limitCpu.ifPresent(quantity -> builder.addToLimits(CPU, quantity));
+            limitMemory.ifPresent(quantity -> builder.addToLimits(MEMORY, quantity));
+            requestCpu.ifPresent(quantity -> builder.addToRequests(CPU, quantity));
+            requestMemory.ifPresent(quantity -> builder.addToRequests(MEMORY, quantity));
+
+            if (builder.hasLimits() || builder.hasRequests()) {
+                log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+                openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
+                    .withName(d.getMetadata().getName()).edit(
+                        new TypedVisitor<ContainerBuilder>() {
+                            @Override
+                            public void visit(ContainerBuilder element) {
+                                element.withResources(builder.build());
+                            }
+                        });
+            }
+        }
+    }
+
+    private String getLabelOrDefault(ObjectMeta metadata, String key, String defaultValue) {
+        if (metadata.getLabels() != null && metadata.getLabels().get(key) != null) {
+            return metadata.getLabels().get(key);
+        }
+        return defaultValue;
+    }
+
+    void resyncIngressControllerDeployments() {
+        openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).list().getItems().forEach(d -> {
+            patchIngressDeploymentResources(d);
+        });
     }
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
