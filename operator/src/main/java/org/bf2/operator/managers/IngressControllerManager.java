@@ -10,7 +10,6 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -206,36 +205,24 @@ public class IngressControllerManager {
 
     private void patchIngressDeploymentResources(Deployment d) {
         if (getLabelOrDefault(d.getMetadata(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
-            Map<String, Quantity> limitMap = new HashMap<>();
-            Map<String, Quantity> requestMap = new HashMap<>();
-            if (limitCpu.isPresent()) {
-                limitMap.put(CPU, limitCpu.get());
-            }
-            if (limitMemory.isPresent()) {
-                limitMap.put(MEMORY, limitMemory.get());
-            }
-            if (requestCpu.isPresent()) {
-                limitMap.put(CPU, requestCpu.get());
-            }
-            if (requestMemory.isPresent()) {
-                limitMap.put(MEMORY, requestMemory.get());
-            }
-            ResourceRequirements resources = new ResourceRequirementsBuilder()
-                    .withLimits(limitMap)
-                    .withRequests(requestMap)
-                    .build();
 
-            log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(),
-                    d.getMetadata().getName());
+            ResourceRequirementsBuilder builder = new ResourceRequirementsBuilder();
+            limitCpu.ifPresent(quantity -> builder.addToLimits(CPU, quantity));
+            limitMemory.ifPresent(quantity -> builder.addToLimits(MEMORY, quantity));
+            requestCpu.ifPresent(quantity -> builder.addToRequests(CPU, quantity));
+            requestMemory.ifPresent(quantity -> builder.addToRequests(MEMORY, quantity));
 
-            openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
-                .withName(d.getMetadata().getName()).edit(
-                    new TypedVisitor<ContainerBuilder>() {
-                        @Override
-                        public void visit(ContainerBuilder element) {
-                            element.withResources(resources);
-                        }
-                    });
+            if (builder.hasLimits() || builder.hasRequests()) {
+                log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+                openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
+                    .withName(d.getMetadata().getName()).edit(
+                        new TypedVisitor<ContainerBuilder>() {
+                            @Override
+                            public void visit(ContainerBuilder element) {
+                                element.withResources(builder.build());
+                            }
+                        });
+            }
         }
     }
 
