@@ -87,6 +87,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
+    private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
     // storage related constants
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
@@ -332,7 +333,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // this only comes into picture when there are more number of nodes than the brokers
         PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
                 .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka", "DoNotSchedule"));
+                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka", DO_NOT_SCHEDULE));
 
         if (addAffinity) {
             podTemplateBuilder.withAffinity(affinityBuilder.build());
@@ -385,12 +386,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // each managed kafka is in it's own namespace
         // we need kubernetes 1.22 to address this an empty anti-affinity namespaceselector
 
-        // use "ScheduleAnyway" here due to fact that any previous ZK instances may not have been correctly AZ aware
-        // and StatefulSet can not be moved with across zone with current setup
         ZookeeperClusterTemplateBuilder templateBuilder = new ZookeeperClusterTemplateBuilder()
                 .withPod(new PodTemplateBuilder()
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", "ScheduleAnyway"))
+                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", DO_NOT_SCHEDULE))
                         .build());
 
         if (drainCleanerManager.isDrainCleanerWebhookFound()) {
