@@ -118,7 +118,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 log.errorf("Kafka pod [%s] is missing annotation '%s'", kafkaPod.getMetadata().getName(), annotation);
                 throw new RuntimeException();
             }
-            log.infof("Kafka pod [%s] annotation '%s' = %s [expected value %s]", kafkaPod.getMetadata().getName(), annotation, annotationValueOnPod, expectedValue);
+            log.tracef("Kafka pod [%s] annotation '%s' = %s [expected value %s]", kafkaPod.getMetadata().getName(), annotation, annotationValueOnPod, expectedValue);
             isKafkaAnnotationUpdating |= !annotationValueOnPod.equals(expectedValue);
             if (isKafkaAnnotationUpdating) {
                 break;

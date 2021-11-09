@@ -202,7 +202,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     public Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
-        Kafka kafka = builder
+        KafkaBuilder kafkaBuilder = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -211,7 +211,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
-                        .withVersion(this.kafkaManager.getKafkaVersion(managedKafka, this))
+                        .withVersion(this.kafkaManager.currentKafkaVersion(managedKafka))
                         .withConfig(buildKafkaConfig(managedKafka, current))
                         .withReplicas(this.config.getKafka().getReplicas())
                         .withResources(buildKafkaResources(managedKafka))
@@ -236,14 +236,37 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withExternalLogging(buildZookeeperExternalLogging(managedKafka))
                     .endZookeeper()
                     .withKafkaExporter(buildKafkaExporter(managedKafka))
-                .endSpec()
-                .build();
+                .endSpec();
+
+        Kafka kafka = this.upgrade(managedKafka, kafkaBuilder);
 
         // setting the ManagedKafka as owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly
         OperandUtils.setAsOwner(managedKafka, kafka);
 
         return kafka;
+    }
+
+    /**
+     * Update the Kafka custom resource if any kind of upgrade has to run
+     * If no upgrade has to be done, it just builds and return the current Kafka custom resource
+     *
+     * @param managedKafka ManagedKafka instance
+     * @param kafkaBuilder Kafka builder to update the corresponding Kafka custom resource
+     * @return the updated Kafka custom resource with changes related to upgrade
+     */
+    private Kafka upgrade(ManagedKafka managedKafka, KafkaBuilder kafkaBuilder) {
+        if (this.strimziManager.hasStrimziChanged(managedKafka) || this.strimziManager.isUpgradeInProgress(managedKafka, this, kafkaBuilder)) {
+            log.infof("Strimzi version upgrade ...");
+            this.strimziManager.upgradeStrimziVersion(managedKafka, this, kafkaBuilder);
+        } else if (!this.strimziManager.isUpgradeInProgress(managedKafka, this, kafkaBuilder) && this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+            log.infof("Kafka version upgrade ...");
+            this.kafkaManager.upgradeKafkaVersion(managedKafka, kafkaBuilder);
+        } else if (!this.kafkaManager.isKafkaUpgradeInProgress(managedKafka, this) && this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
+            log.infof("Kafka IBP version upgrade ...");
+            this.kafkaManager.upgradeKafkaIbpVersion(managedKafka, kafkaBuilder);
+        }
+        return kafkaBuilder.build();
     }
 
     private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
@@ -487,8 +510,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("auto.create.topics.enable", "false");
         config.put("min.insync.replicas", 2);
         config.put("default.replication.factor", 3);
-        config.put("log.message.format.version", this.kafkaManager.getKafkaLogMessageFormatVersion(managedKafka));
-        config.put("inter.broker.protocol.version", this.kafkaManager.getKafkaIbpVersion(managedKafka, this));
+        config.put("log.message.format.version", this.kafkaManager.currentKafkaLogMessageFormatVersion(managedKafka));
+        config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
         config.put("connections.max.reauth.ms", 299000); // 4m 59s
@@ -703,8 +726,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, String> buildKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
-        this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
+        //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
+        labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
 
         if (ingressControllerManagerInstance.isResolvable()) {
             labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
@@ -720,7 +744,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (annotations == null) {
             annotations = new HashMap<>();
         }
-        this.strimziManager.togglePauseReconciliation(managedKafka, this, annotations);
+        //this.strimziManager.togglePauseReconciliation(managedKafka, this, annotations);
         log.debugf("Kafka %s/%s annotations: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotations);
         return annotations;
