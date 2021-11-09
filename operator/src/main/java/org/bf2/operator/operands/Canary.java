@@ -210,11 +210,13 @@ public class Canary extends AbstractCanary {
 
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
+        envVars.add(new EnvVarBuilder().withName("TOPIC").withValue(config.getCanary().getTopic()).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC_CONFIG").withValue("retention.ms=600000;segment.bytes=16384").build());
+        envVars.add(new EnvVarBuilder().withName("CLIENT_ID").withValue(config.getCanary().getClientId()).build());
+        envVars.add(new EnvVarBuilder().withName("CONSUMER_GROUP_ID").withValue(config.getCanary().getConsumerGroupId()).build());
         envVars.add(new EnvVarBuilder().withName("PRODUCER_LATENCY_BUCKETS").withValue(producerLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("ENDTOEND_LATENCY_BUCKETS").withValue(endToEndLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("CONNECTION_CHECK_LATENCY_BUCKETS").withValue(connectionCheckLatencyBuckets).build());
-
 
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
         if (canaryServiceAccount.isPresent()) {

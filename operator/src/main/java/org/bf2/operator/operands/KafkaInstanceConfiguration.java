@@ -501,6 +501,14 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("container-cpu")
         protected String containerCpu = CANARY_CONTAINER_CPU;
 
+        protected String topic;
+
+        @JsonProperty("consumer-group-id")
+        protected String consumerGroupId;
+
+        @JsonProperty("client-id")
+        protected String clientId;
+
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
         }
@@ -531,6 +539,30 @@ public class KafkaInstanceConfiguration {
 
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
+        }
+
+        public String getTopic() {
+            return topic;
+        }
+
+        public void setTopic(String topic) {
+            this.topic = topic;
+        }
+
+        public String getConsumerGroupId() {
+            return consumerGroupId;
+        }
+
+        public void setConsumerGroupId(String consumerGroupId) {
+            this.consumerGroupId = consumerGroupId;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public void setClientId(String clientId) {
+            this.clientId = clientId;
         }
     }
 
