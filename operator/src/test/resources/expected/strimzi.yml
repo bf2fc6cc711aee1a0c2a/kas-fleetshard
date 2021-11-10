@@ -114,7 +114,7 @@ spec:
       client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       transaction.state.log.replication.factor: 3
       auto.create.topics.enable: "false"
-      log.message.format.version: "2.6.0"
+      log.message.format.version: "2.6"
       ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
       min.insync.replicas: 2
       offsets.topic.replication.factor: 3
@@ -127,7 +127,7 @@ spec:
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.static.disable-quota-anonymous: "true"
       default.replication.factor: 3
-      inter.broker.protocol.version: "2.6.0"
+      inter.broker.protocol.version: "2.6"
       client.quota.callback.static.produce: "699050"
       leader.imbalance.per.broker.percentage: 0
       connections.max.reauth.ms: 299000
