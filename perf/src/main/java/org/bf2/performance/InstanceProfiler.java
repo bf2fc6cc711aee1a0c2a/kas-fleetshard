@@ -486,9 +486,16 @@ public class InstanceProfiler {
                         .anyMatch(t -> t.getKey().equals(ManagedKafkaProvisioner.KAFKA_BROKER_TAINT_KEY)));
         }
 
+        // note these number seem to change per release - 4.9 reports a different allocatable, than 4.8
         AvailableResources resources = getMinAvailableResources(workerNodes);
         long cpuMillis = resources.cpuMillis;
         long memoryBytes = resources.memoryBytes;
+
+        Properties p = new Properties();
+        try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
+            p.load(is);
+        }
+        KafkaInstanceConfiguration defaults = Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
 
         // when locating with ZK, then reduce the available resources accordingly
         if (collocateBrokerWithZookeeper){
@@ -498,22 +505,34 @@ public class InstanceProfiler {
             long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE)).longValue();
             long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CPU)).movePointRight(3).longValue();
 
-            // reduce it by zk and 2.8GB/1600m for other pods canary/admin/exporter
-            // actual needs ~ 800Mi and 1575m cpu over 3 nodes
-            // note these number seem to change per release - 4.9 reports a different allocatable, than 4.8
-            memoryBytes = resources.memoryBytes -zookeeperBytes - 28*ONE_GB/10;
-            cpuMillis = resources.cpuMillis - zookeeperCpu - 1600;
+            long addtionalPodsCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerCpu())).movePointRight(3).longValue();
+            long addtionalPodsMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerMemory())).longValue();
+
+            addtionalPodsCpu += Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerCpu())).movePointRight(3).longValue();
+            addtionalPodsMemory += Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerMemory())).longValue();
+
+            addtionalPodsCpu += Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerCpu())).movePointRight(3).longValue();
+            addtionalPodsMemory += Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerMemory())).longValue();
+
+            LOGGER.info("Total overhead of additional pods {} memory, {} cpu", addtionalPodsMemory, addtionalPodsCpu);
+
+            // actual needs ~ 800Mi and 1575m cpu over 3 nodes, so subtracting it out of every node provide padding
+            memoryBytes = resources.memoryBytes - zookeeperBytes - addtionalPodsMemory;
+            cpuMillis = resources.cpuMillis - zookeeperCpu - addtionalPodsCpu;
+        } else {
+            // reserve additional cpu to help lessen the fluctuation of resources across openshift versions
+            // and if there are eventually pods that need to be collocated
+            cpuMillis*=.9;
         }
+
+        // reserve additional memory to help lessen the fluctuation of resources across openshift versions
+        // and if there are eventually pods that need to be collocated
+        memoryBytes -= 2*ONE_GB;
+        // cpu is already accounted for above
 
         long maxVmBytes = Math.min(memoryBytes - getVMOverheadForContainer(memoryBytes), MAX_KAFKA_VM_SIZE);
 
         if (!autoSize) {
-            Properties p = new Properties();
-            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
-                p.load(is);
-            }
-            KafkaInstanceConfiguration defaults = Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
-
             long defaultMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerMemory())).longValue();
             long defaultCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerCpu())).movePointRight(3).longValue();
             long defaultMaxVmBytes = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getJvmXms())).longValue();
