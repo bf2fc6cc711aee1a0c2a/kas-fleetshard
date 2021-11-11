@@ -8,17 +8,21 @@ import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.processing.event.EventList;
 import io.javaoperatorsdk.operator.processing.event.internal.CustomResourceEvent;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.events.ResourceEvent;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatusBuilder;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,6 +45,16 @@ public class ManagedKafkaControllerTest {
         Context<ManagedKafka> context = Mockito.mock(Context.class);
         Mockito.when(context.getEvents())
                 .thenReturn(new EventList(Arrays.asList(new CustomResourceEvent(Action.ADDED, mk, null))));
+
+        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
+        Mockito.when(strimziManager.getStrimziVersions())
+                .thenReturn(Collections.singletonList(new
+                                StrimziVersionStatusBuilder()
+                                .withVersion(mk.getSpec().getVersions().getStrimzi())
+                        .withKafkaVersions(mk.getSpec().getVersions().getKafka())
+                        .build()));
+
+        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
         mkController.createOrUpdateResource(mk, context);
         ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
