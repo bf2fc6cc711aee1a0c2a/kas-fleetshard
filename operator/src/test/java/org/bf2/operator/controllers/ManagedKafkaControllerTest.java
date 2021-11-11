@@ -53,6 +53,8 @@ public class ManagedKafkaControllerTest {
                                 .withVersion(mk.getSpec().getVersions().getStrimzi())
                         .withKafkaVersions(mk.getSpec().getVersions().getKafka())
                         .build()));
+        Mockito.when(strimziManager.getVersionLabel())
+                .thenReturn("managedkafka.bf2.org/strimziVersion");
 
         QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
