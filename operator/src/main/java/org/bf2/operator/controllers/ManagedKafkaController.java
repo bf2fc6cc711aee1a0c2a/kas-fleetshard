@@ -146,10 +146,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         }
 
         // a not valid ManagedKafka skips the handling of it, so the status will report an error condition
-        OperandReadiness readiness = this.validity(managedKafka);
-        if (readiness == null) {
-            readiness = kafkaInstance.getReadiness(managedKafka);
-        }
+        OperandReadiness readiness = this.validity(managedKafka).orElse(kafkaInstance.getReadiness(managedKafka));
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
@@ -192,16 +189,16 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * @return if its specification is valid or not
      */
     private boolean isValid(ManagedKafka managedKafka) {
-        return validity(managedKafka) == null;
+        return validity(managedKafka).isEmpty();
     }
 
     /**
      * Run a validity check on the ManagedKafka custom resource
      *
      * @param managedKafka ManagedKafka custom resource to validate
-     * @return readiness indicating an error in the ManagedKafka custom resource, null otherwise
+     * @return readiness indicating an error in the ManagedKafka custom resource, empty Optional otherwise
      */
-    private OperandReadiness validity(ManagedKafka managedKafka) {
+    private Optional<OperandReadiness> validity(ManagedKafka managedKafka) {
         String message = null;
         List<StrimziVersionStatus> versions = this.strimziManager.getStrimziVersions();
         Optional<StrimziVersionStatus> strimziVersion = versions.stream()
@@ -216,9 +213,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
                     !strimziVersion.get().getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
                 message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
-                        managedKafka.getSpec().getVersions().getKafka(), strimziVersion.get().getVersion());
+                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.get().getVersion());
             }
         }
-        return message == null ? null : new OperandReadiness(Status.False, Reason.Error, message);
+        log.error(message);
+        return message == null ? Optional.empty() : Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
     }
 }
