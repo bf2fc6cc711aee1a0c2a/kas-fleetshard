@@ -172,11 +172,11 @@ spec:
           value: "127.0.0.1"
     resources:
       limits:
-        memory: "19Gi"
-        cpu: "4500m"
+        memory: "17.8Gi"
+        cpu: "4800m"
       requests:
-        memory: "19Gi"
-        cpu: "4500m"
+        memory: "17.8Gi"
+        cpu: "4800m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:

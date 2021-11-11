@@ -22,6 +22,7 @@ import org.bf2.test.Environment;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -46,7 +48,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * TODO:
  * - tune test durations
  * - something other than target dir
- * - remove the notion of catchup tolerance
  * - document m5.2xlarge 9 node client cluster expectation
  * - we ran as a one off, but we could perform a test run with clients lagging beyond the page cache to confirm latency
  * - some qualification of network performance
@@ -180,6 +181,8 @@ public class InstanceProfiler {
      */
     final int nominalPartitionCount = numberOfBrokers*3;
     Storage storage = Storage.GP2;
+    // if !autoSize, use the default configuration values
+    private boolean autoSize;
 
     /*
      * primary ouptut state
@@ -493,14 +496,34 @@ public class InstanceProfiler {
             // there's no point in making a trade-off between extra container memory and JVM memory
             // TODO: could choose a memory size where we can fit even multiples of zookeepers
             long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE)).longValue();
-            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CPU)).longValue();
+            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CPU)).movePointRight(3).longValue();
 
-            // reduce it by zk and 4GB/2000 for other pods canary/admin/exporter
-            memoryBytes = resources.memoryBytes -zookeeperBytes - 4*ONE_GB;
-            cpuMillis = resources.cpuMillis - zookeeperCpu - 2000;
+            // reduce it by zk and 2.8GB/1600m for other pods canary/admin/exporter
+            // actual needs ~ 800Mi and 1575m cpu over 3 nodes
+            // note these number seem to change per release - 4.9 reports a different allocatable, than 4.8
+            memoryBytes = resources.memoryBytes -zookeeperBytes - 28*ONE_GB/10;
+            cpuMillis = resources.cpuMillis - zookeeperCpu - 1600;
         }
 
         long maxVmBytes = Math.min(memoryBytes - getVMOverheadForContainer(memoryBytes), MAX_KAFKA_VM_SIZE);
+
+        if (!autoSize) {
+            Properties p = new Properties();
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
+                p.load(is);
+            }
+            KafkaInstanceConfiguration defaults = Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
+
+            long defaultMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerMemory())).longValue();
+            long defaultCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerCpu())).movePointRight(3).longValue();
+            long defaultMaxVmBytes = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getJvmXms())).longValue();
+
+            LOGGER.info("Calculated kafka sizing {} container memory, {} container cpu, and {} vm memory", memoryBytes, cpuMillis, maxVmBytes);
+
+            memoryBytes = defaultMemory;
+            cpuMillis = defaultCpu;
+            maxVmBytes = defaultMaxVmBytes;
+        }
 
         // instead let's just assume a "standard" zookeeper size that will fit on any instance that has 8+ GB of memory
         profilingResult.config = AdopterProfile.buildProfile(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE,

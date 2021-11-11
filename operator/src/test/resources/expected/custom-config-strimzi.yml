@@ -177,10 +177,10 @@ spec:
     resources:
       limits:
         memory: "2Gi"
-        cpu: "4500m"
+        cpu: "4800m"
       requests:
         memory: "2Gi"
-        cpu: "4500m"
+        cpu: "4800m"
     metricsConfig: !<jmxPrometheusExporter>
       type: "jmxPrometheusExporter"
       valueFrom:
