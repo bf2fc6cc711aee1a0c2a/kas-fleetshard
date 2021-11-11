@@ -7,6 +7,13 @@ metadata:
 data:
   jmx-exporter-config: |
     lowercaseOutputName: true
+    #
+    # Note that whitespace is important in the rule pattern - there
+    # needs to be a space after each comma.
+    #
+    # Bad: 'kafka.server<type=(.+),listener=(.+),networkProcessor=(.+)><>(.+):'
+    # Good: 'kafka.server<type=(.+), listener=(.+), networkProcessor=(.+)><>(.+):'
+    #
     rules:
       - labels:
           clientID: $3
@@ -208,6 +215,12 @@ data:
         labels:
           listener: "$1"
           networkProcessor: "$2"
+      - pattern: kafka.network<type=RequestMetrics, name=ErrorsPerSec, request=(.+), error=(.+)><>Count
+        name: kafka_network_request_errors_total
+        type: COUNTER
+        labels:
+          request: "$1"
+          error: "$2"
       - pattern: kafka.server<type=socket-server-metrics><>broker-connection-accept-rate
         name: kafka_server_socket_broker_connection_accept_rate
         type: GAUGE
