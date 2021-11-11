@@ -459,6 +459,9 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
+        @JsonProperty("edge-tls-enabled")
+        protected boolean edgeTlsEnabled = false;
+
         @JsonProperty("container-memory")
         protected String containerMemory = ADMIN_SERVER_CONTAINER_MEMORY;
         @JsonProperty("container-cpu")
@@ -470,6 +473,14 @@ public class KafkaInstanceConfiguration {
 
         public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
             this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public boolean isEdgeTlsEnabled() {
+            return edgeTlsEnabled;
+        }
+
+        public void setEdgeTlsEnabled(boolean edgeTlsEnabled) {
+            this.edgeTlsEnabled = edgeTlsEnabled;
         }
 
         public String getContainerMemory() {
