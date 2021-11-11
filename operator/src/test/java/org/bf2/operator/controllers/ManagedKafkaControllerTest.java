@@ -79,4 +79,46 @@ public class ManagedKafkaControllerTest {
         assertEquals(ManagedKafkaCondition.Reason.Deleted.name(), condition.getReason());
     }
 
+    @Test
+    void testWrongVersions() throws InterruptedException {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setUid(UUID.randomUUID().toString());
+        mk.getMetadata().setGeneration(1l);
+        mk.getMetadata().setResourceVersion("1");
+
+        // create
+        Context<ManagedKafka> context = Mockito.mock(Context.class);
+        Mockito.when(context.getEvents())
+                .thenReturn(new EventList(Arrays.asList(new CustomResourceEvent(Action.ADDED, mk, null))));
+
+        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
+        Mockito.when(strimziManager.getStrimziVersions())
+                .thenReturn(Collections.singletonList(new
+                        StrimziVersionStatusBuilder()
+                        .withVersion("strimzi-cluster-operator.v0.24.0")
+                        .withKafkaVersions(mk.getSpec().getVersions().getKafka())
+                        .build()));
+        Mockito.when(strimziManager.getVersionLabel())
+                .thenReturn("managedkafka.bf2.org/strimziVersion");
+
+        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
+
+        mkController.createOrUpdateResource(mk, context);
+        ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
+        assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());
+        assertEquals("The requested Strimzi version strimzi-cluster-operator.v0.23.0 is not supported", condition.getMessage());
+
+        Mockito.when(strimziManager.getStrimziVersions())
+                .thenReturn(Collections.singletonList(new
+                        StrimziVersionStatusBuilder()
+                        .withVersion(mk.getSpec().getVersions().getStrimzi())
+                        .withKafkaVersions("3.0.0")
+                        .build()));
+
+        mkController.createOrUpdateResource(mk, context);
+        condition = mk.getStatus().getConditions().get(0);
+        assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());
+        assertEquals("The requested Kafka version 2.7.0 is not supported by the Strimzi version strimzi-cluster-operator.v0.23.0", condition.getMessage());
+    }
+
 }
