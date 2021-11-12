@@ -47,6 +47,8 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
     }
 
     public void handleEvent(CustomResource resource) {
-        eventHandler.handleEvent(new DefaultEvent(resource.getMetadata().getUid(), this));
+        if (eventHandler != null) {
+            eventHandler.handleEvent(new DefaultEvent(resource.getMetadata().getUid(), this));
+        }
     }
 }
