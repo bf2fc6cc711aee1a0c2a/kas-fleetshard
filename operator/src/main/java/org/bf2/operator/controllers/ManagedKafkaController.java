@@ -25,6 +25,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.logging.NDC;
@@ -75,8 +76,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
-            log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
-            kafkaInstance.createOrUpdate(managedKafka);
+            if (this.isValid(managedKafka)) {
+                log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                kafkaInstance.createOrUpdate(managedKafka);
+            }
         }
     }
 
@@ -142,7 +145,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions.add(ready);
         }
 
-        OperandReadiness readiness = kafkaInstance.getReadiness(managedKafka);
+        // a not valid ManagedKafka skips the handling of it, so the status will report an error condition
+        OperandReadiness readiness = this.validity(managedKafka).orElse(kafkaInstance.getReadiness(managedKafka));
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
@@ -176,5 +180,43 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 status.setRoutes(routes);
             }
         }
+    }
+
+    /**
+     * Just a wrapper around the ManagedKafka validity check to return a boolean
+     *
+     * @param managedKafka ManagedKafka custom resource to validate
+     * @return if its specification is valid or not
+     */
+    private boolean isValid(ManagedKafka managedKafka) {
+        return validity(managedKafka).isEmpty();
+    }
+
+    /**
+     * Run a validity check on the ManagedKafka custom resource
+     *
+     * @param managedKafka ManagedKafka custom resource to validate
+     * @return readiness indicating an error in the ManagedKafka custom resource, empty Optional otherwise
+     */
+    private Optional<OperandReadiness> validity(ManagedKafka managedKafka) {
+        String message = null;
+        List<StrimziVersionStatus> versions = this.strimziManager.getStrimziVersions();
+        Optional<StrimziVersionStatus> strimziVersion = versions.stream()
+                .filter(svs -> svs.getVersion().equals(managedKafka.getSpec().getVersions().getStrimzi()))
+                .findFirst();
+        if (strimziVersion.isEmpty()) {
+            message = String.format("The requested Strimzi version %s is not supported", managedKafka.getSpec().getVersions().getStrimzi());
+        } else {
+            if (!strimziVersion.get().getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
+                message = String.format("The requested Kafka version %s is not supported by the Strimzi version %s",
+                        managedKafka.getSpec().getVersions().getKafka(), strimziVersion.get().getVersion());
+            } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
+                    !strimziVersion.get().getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
+                message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
+                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.get().getVersion());
+            }
+        }
+        log.error(message);
+        return message == null ? Optional.empty() : Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
     }
 }

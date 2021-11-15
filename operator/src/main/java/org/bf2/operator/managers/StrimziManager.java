@@ -70,6 +70,7 @@ public class StrimziManager {
                                     deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
                             updateStrimziVersion(deployment);
                             updateStatus();
+                            informerManager.resyncManagedKafka();
                         }
                     }
 

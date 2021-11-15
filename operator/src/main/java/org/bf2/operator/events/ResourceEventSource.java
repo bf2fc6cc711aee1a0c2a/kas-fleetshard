@@ -1,9 +1,11 @@
 package org.bf2.operator.events;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.javaoperatorsdk.operator.processing.event.AbstractEventSource;
+import io.javaoperatorsdk.operator.processing.event.DefaultEvent;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -41,6 +43,12 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
                 log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
             }
             eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this, action));
+        }
+    }
+
+    public void handleEvent(CustomResource resource) {
+        if (eventHandler != null) {
+            eventHandler.handleEvent(new DefaultEvent(resource.getMetadata().getUid(), this));
         }
     }
 }
