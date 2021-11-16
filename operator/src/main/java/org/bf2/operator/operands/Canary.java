@@ -15,6 +15,10 @@ import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -47,6 +51,10 @@ import java.util.Optional;
 @ApplicationScoped
 @DefaultBean
 public class Canary extends AbstractCanary {
+
+    private static final int METRICS_PORT = 8080;
+    private static final String METRICS_PORT_NAME = "metrics";
+    private static final IntOrString METRICS_PORT_TARGET = new IntOrString(METRICS_PORT_NAME);
 
     @ConfigProperty(name = "image.canary")
     String canaryImage;
@@ -113,6 +121,32 @@ public class Canary extends AbstractCanary {
         OperandUtils.setAsOwner(managedKafka, deployment);
 
         return deployment;
+    }
+
+    @Override
+    public Service serviceFrom(ManagedKafka managedKafka, Service current) {
+        String canaryName = canaryName(managedKafka);
+
+        ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
+
+        Service service = builder
+                .editOrNewMetadata()
+                    .withNamespace(canaryNamespace(managedKafka))
+                    .withName(canaryName)
+                    .withLabels(buildLabels(canaryName))
+                .endMetadata()
+                .editOrNewSpec()
+                    .withClusterIP(null) // to prevent 422 errors
+                    .withSelector(buildSelectorLabels(canaryName))
+                    .withPorts(buildServicePorts(managedKafka))
+                .endSpec()
+                .build();
+
+        // setting the ManagedKafka has owner of the Canary service resource is needed
+        // by the operator sdk to handle events on the Service resource properly
+        OperandUtils.setAsOwner(managedKafka, service);
+
+        return service;
     }
 
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
@@ -241,7 +275,7 @@ public class Canary extends AbstractCanary {
     }
 
     private List<ContainerPort> buildContainerPorts() {
-        return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
+        return Collections.singletonList(new ContainerPortBuilder().withName(METRICS_PORT_NAME).withContainerPort(METRICS_PORT).build());
     }
 
     private ResourceRequirements buildResources() {
@@ -263,6 +297,15 @@ public class Canary extends AbstractCanary {
                 .withMountPath("/tmp/tls-ca-cert")
                 .build()
         );
+    }
+
+    private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {
+        return Collections.singletonList(new ServicePortBuilder()
+                .withName(METRICS_PORT_NAME)
+                .withProtocol("TCP")
+                .withPort(METRICS_PORT)
+                .withTargetPort(METRICS_PORT_TARGET)
+                .build());
     }
 
     public static String canaryTlsVolumeName(ManagedKafka managedKafka) {

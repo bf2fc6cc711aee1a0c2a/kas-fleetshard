@@ -1,0 +1,23 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: "test-mk-canary"
+  namespace: "test"
+  labels:
+    app: "test-mk-canary"
+    app.kubernetes.io/component: "canary"
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+  ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+spec:
+  ports:
+    - name: "metrics"
+      protocol: "TCP"
+      port: 8080
+      targetPort: "metrics"
+  selector:
+    app: "test-mk-canary"
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"

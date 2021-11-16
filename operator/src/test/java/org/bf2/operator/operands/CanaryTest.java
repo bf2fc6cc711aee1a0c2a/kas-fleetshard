@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -12,6 +13,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -43,5 +46,33 @@ public class CanaryTest {
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
         KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml");
+    }
+
+    @Test
+    void createCanaryService() throws Exception {
+        ManagedKafka mk = new ManagedKafkaBuilder()
+                .withNewMetadata()
+                .withNamespace("test")
+                .withName("test-mk")
+                .endMetadata()
+                .withSpec(
+                        new ManagedKafkaSpecBuilder()
+                                .withNewVersions()
+                                .withKafka("2.6.0")
+                                .endVersions()
+                                .withNewEndpoint()
+                                .withBootstrapServerHost("test-mk-kafka-bootstrap")
+                                .endEndpoint()
+                                .build())
+                .build();
+
+        Service canaryService = canary.serviceFrom(mk, null);
+
+        server.getClient().services().create(canaryService);
+        assertNotNull(server.getClient().services()
+                .inNamespace(canaryService.getMetadata().getNamespace())
+                .withName(canaryService.getMetadata().getName())
+                .get());
+        KafkaClusterTest.diffToExpected(canaryService, "/expected/canary-service.yml");
     }
 }
