@@ -132,7 +132,7 @@ public class Canary extends AbstractCanary {
         Service service = builder
                 .editOrNewMetadata()
                     .withNamespace(canaryNamespace(managedKafka))
-                    .withName(canaryName(managedKafka))
+                    .withName(canaryName)
                     .withLabels(buildLabels(canaryName))
                 .endMetadata()
                 .editOrNewSpec()
