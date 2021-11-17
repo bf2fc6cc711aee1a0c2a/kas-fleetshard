@@ -26,6 +26,8 @@ public class ManagedKafkaCondition {
         Error,
         Rejected,
         StrimziUpdating,
+        KafkaUpdating,
+        KafkaIbpUpdating,
         OrphanedKafkas
     }
 

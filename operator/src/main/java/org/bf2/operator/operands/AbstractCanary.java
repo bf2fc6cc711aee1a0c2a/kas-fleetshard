@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -24,15 +25,25 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
+    public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Deployment current = cachedDeployment(managedKafka);
         Deployment deployment = deploymentFrom(managedKafka, current);
         createOrUpdate(deployment);
+
+        Service currentService = cachedService(managedKafka);
+        Service service = serviceFrom(managedKafka, currentService);
+        createOrUpdate(service);
     }
 
     protected void createOrUpdate(Deployment deployment) {
         OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), deployment);
+    }
+
+    protected void createOrUpdate(Service service) {
+        OperandUtils.createOrUpdate(kubernetesClient.services(), service);
     }
 
     @Override
@@ -62,6 +73,10 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
+    }
+
+    protected Service cachedService(ManagedKafka managedKafka) {
+        return informerManager.getLocalService(canaryNamespace(managedKafka), canaryName(managedKafka));
     }
 
     protected Resource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {

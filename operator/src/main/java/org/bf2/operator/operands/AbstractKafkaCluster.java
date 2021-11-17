@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
@@ -76,10 +78,53 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public boolean isStrimziUpdating(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
+        if (kafka == null) {
+            return false;
+        }
         String pauseReason = kafka.getMetadata().getAnnotations() != null ?
                 kafka.getMetadata().getAnnotations().get(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION) : null;
         return ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase().equals(pauseReason) &&
                 isReconciliationPaused(managedKafka);
+    }
+
+    public boolean isKafkaUpdating(ManagedKafka managedKafka) {
+        return this.isKafkaAnnotationUpdating(managedKafka, "strimzi.io/kafka-version", kafka -> kafka.getSpec().getKafka().getVersion());
+    }
+
+    public boolean isKafkaIbpUpdating(ManagedKafka managedKafka) {
+        return this.isKafkaAnnotationUpdating(managedKafka, "strimzi.io/inter-broker-protocol-version", kafka -> {
+            Object interBrokerProtocol = kafka.getSpec().getKafka().getConfig().get("inter.broker.protocol.version");
+            return interBrokerProtocol != null ? interBrokerProtocol.toString() : AbstractKafkaCluster.getKafkaIbpVersion(kafka.getSpec().getKafka().getVersion());
+        });
+    }
+
+    private boolean isKafkaAnnotationUpdating(ManagedKafka managedKafka, String annotation, Function<Kafka, String> valueSupplier) {
+        Kafka kafka = cachedKafka(managedKafka);
+        if (kafka == null) {
+            return false;
+        }
+        List<Pod> kafkaPods = kubernetesClient.pods()
+                .inNamespace(kafka.getMetadata().getNamespace())
+                .withLabel("strimzi.io/name", kafka.getMetadata().getName() + "-kafka")
+                .list()
+                .getItems();
+        boolean isKafkaAnnotationUpdating = false;
+        String expectedValue = valueSupplier.apply(kafka);
+        for (Pod kafkaPod : kafkaPods) {
+            String annotationValueOnPod = Optional.ofNullable(kafkaPod.getMetadata().getAnnotations())
+                    .map(annotations -> annotations.get(annotation))
+                    .orElse(null);
+            if (annotationValueOnPod == null) {
+                log.errorf("Kafka pod [%s] is missing annotation '%s'", kafkaPod.getMetadata().getName(), annotation);
+                throw new RuntimeException();
+            }
+            log.tracef("Kafka pod [%s] annotation '%s' = %s [expected value %s]", kafkaPod.getMetadata().getName(), annotation, annotationValueOnPod, expectedValue);
+            isKafkaAnnotationUpdating |= !annotationValueOnPod.equals(expectedValue);
+            if (isKafkaAnnotationUpdating) {
+                break;
+            }
+        }
+        return isKafkaAnnotationUpdating;
     }
 
     public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
@@ -102,14 +147,22 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             return new OperandReadiness(Status.False, "Creating".equals(c.getReason()) ? Reason.Installing : Reason.Error, c.getMessage());
         }
 
+        if (isStrimziUpdating(managedKafka)) {
+            return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
+        }
+
+        if (isKafkaUpdating(managedKafka)) {
+            return new OperandReadiness(Status.True, Reason.KafkaUpdating, null);
+        }
+
+        if (isKafkaIbpUpdating(managedKafka)) {
+            return new OperandReadiness(Status.True, Reason.KafkaIbpUpdating, null);
+        }
+
         Optional<Condition> ready = kafkaCondition(kafka, c -> "Ready".equals(c.getType()));
 
         if (ready.filter(c -> "True".equals(c.getStatus())).isPresent()) {
             return new OperandReadiness(Status.True, null, null);
-        }
-
-        if (isStrimziUpdating(managedKafka)) {
-            return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
         }
 
         return new OperandReadiness(Status.False, Reason.Installing, String.format("Kafka %s is not providing status", kafkaClusterName(managedKafka)));
@@ -292,5 +345,39 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withSecretName(SecuritySecretManager.ssoTlsSecretName(managedKafka))
                 .withCertificate("keycloak.crt")
                 .build();
+    }
+
+    /**
+     * Extract the inter broker protocol (IBP) version corresponding to the provided Kafka version
+     *
+     * @param kafkaVersion Kafka version from which to extract the inter broker protocol version
+     * @return inter broker protocol version
+     */
+    public static String getKafkaIbpVersion(String kafkaVersion) {
+        return getMajorMinorKafkaVersion(kafkaVersion);
+    }
+
+    /**
+     * Extract the log message format version corresponding to the provided Kafka version
+     *
+     * @param kafkaVersion Kafka version from which to extract the log message format version
+     * @return log message format version
+     */
+    public static String getKafkaLogMessageFormatVersion(String kafkaVersion) {
+        return getMajorMinorKafkaVersion(kafkaVersion);
+    }
+
+    /**
+     * Extract <Major>.<Minor> version from Kafka version
+     *
+     * @param kafkaVersion Kafka version from which to extract the <Major>.<Minor> version
+     * @return <Major>.<Minor> version
+     */
+    private static String getMajorMinorKafkaVersion(String kafkaVersion) {
+        String[] digits = kafkaVersion.split("\\.");
+        if (digits.length > 3) {
+            throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
+        }
+        return String.format("%s.%s", digits[0], digits[1]);
     }
 }

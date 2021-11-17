@@ -15,6 +15,10 @@ import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -47,6 +51,10 @@ import java.util.Optional;
 @ApplicationScoped
 @DefaultBean
 public class Canary extends AbstractCanary {
+
+    private static final int METRICS_PORT = 8080;
+    private static final String METRICS_PORT_NAME = "metrics";
+    private static final IntOrString METRICS_PORT_TARGET = new IntOrString(METRICS_PORT_NAME);
 
     @ConfigProperty(name = "image.canary")
     String canaryImage;
@@ -88,7 +96,7 @@ public class Canary extends AbstractCanary {
                             .withLabels(buildLabels(canaryName))
                         .endMetadata()
                         .editOrNewSpec()
-                            .withContainers(buildContainers(managedKafka))
+                            .withContainers(buildContainers(managedKafka, current))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
@@ -115,6 +123,32 @@ public class Canary extends AbstractCanary {
         return deployment;
     }
 
+    @Override
+    public Service serviceFrom(ManagedKafka managedKafka, Service current) {
+        String canaryName = canaryName(managedKafka);
+
+        ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
+
+        Service service = builder
+                .editOrNewMetadata()
+                    .withNamespace(canaryNamespace(managedKafka))
+                    .withName(canaryName)
+                    .withLabels(buildLabels(canaryName))
+                .endMetadata()
+                .editOrNewSpec()
+                    .withClusterIP(null) // to prevent 422 errors
+                    .withSelector(buildSelectorLabels(canaryName))
+                    .withPorts(buildServicePorts(managedKafka))
+                .endSpec()
+                .build();
+
+        // setting the ManagedKafka has owner of the Canary service resource is needed
+        // by the operator sdk to handle events on the Service resource properly
+        OperandUtils.setAsOwner(managedKafka, service);
+
+        return service;
+    }
+
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
         return Collections.singletonList(
                 new VolumeBuilder()
@@ -126,11 +160,11 @@ public class Canary extends AbstractCanary {
         );
     }
 
-    protected List<Container> buildContainers(ManagedKafka managedKafka) {
+    protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
         Container container = new ContainerBuilder()
                 .withName("canary")
                 .withImage(canaryImage)
-                .withEnv(buildEnvVar(managedKafka))
+                .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
                 .withResources(buildResources())
                 .withReadinessProbe(buildReadinessProbe())
@@ -179,13 +213,26 @@ public class Canary extends AbstractCanary {
         return labels;
     }
 
-    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
+    private List<EnvVar> buildEnvVar(ManagedKafka managedKafka, Deployment current) {
         List<EnvVar> envVars = new ArrayList<>(10);
         String bootstrap = config.getCanary().isProbeExternalBootstrapServerHost() ? managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443" : managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093";
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(bootstrap).build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
-        envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(managedKafka.getSpec().getVersions().getKafka()).build());
+        String kafkaVersion = managedKafka.getSpec().getVersions().getKafka();
+        // takes the current Kafka version if the canary already exists. During Kafka upgrades it doesn't have to change, as any other clients.
+        if (current != null) {
+            Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().stream()
+                    .filter(container -> "canary".equals(container.getName()))
+                    .findFirst()
+                    .get().getEnv().stream()
+                    .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
+                    .findFirst();
+            if (kafkaVersionEnvVar.isPresent()) {
+                kafkaVersion = kafkaVersionEnvVar.get().getValue();
+            }
+        }
+        envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(kafkaVersion).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());
         envVars.add(new EnvVarBuilder().withName("TLS_ENABLED").withValue("true").build());
         envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
@@ -210,11 +257,13 @@ public class Canary extends AbstractCanary {
 
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
+        envVars.add(new EnvVarBuilder().withName("TOPIC").withValue(config.getCanary().getTopic()).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC_CONFIG").withValue("retention.ms=600000;segment.bytes=16384").build());
+        envVars.add(new EnvVarBuilder().withName("CLIENT_ID").withValue(config.getCanary().getClientId()).build());
+        envVars.add(new EnvVarBuilder().withName("CONSUMER_GROUP_ID").withValue(config.getCanary().getConsumerGroupId()).build());
         envVars.add(new EnvVarBuilder().withName("PRODUCER_LATENCY_BUCKETS").withValue(producerLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("ENDTOEND_LATENCY_BUCKETS").withValue(endToEndLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("CONNECTION_CHECK_LATENCY_BUCKETS").withValue(connectionCheckLatencyBuckets).build());
-
 
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
         if (canaryServiceAccount.isPresent()) {
@@ -226,7 +275,7 @@ public class Canary extends AbstractCanary {
     }
 
     private List<ContainerPort> buildContainerPorts() {
-        return Collections.singletonList(new ContainerPortBuilder().withName("metrics").withContainerPort(8080).build());
+        return Collections.singletonList(new ContainerPortBuilder().withName(METRICS_PORT_NAME).withContainerPort(METRICS_PORT).build());
     }
 
     private ResourceRequirements buildResources() {
@@ -248,6 +297,15 @@ public class Canary extends AbstractCanary {
                 .withMountPath("/tmp/tls-ca-cert")
                 .build()
         );
+    }
+
+    private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {
+        return Collections.singletonList(new ServicePortBuilder()
+                .withName(METRICS_PORT_NAME)
+                .withProtocol("TCP")
+                .withPort(METRICS_PORT)
+                .withTargetPort(METRICS_PORT_TARGET)
+                .build());
     }
 
     public static String canaryTlsVolumeName(ManagedKafka managedKafka) {

@@ -12,6 +12,9 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.KafkaManager;
+import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -22,6 +25,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
+import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
 import org.jboss.logging.Logger;
 import org.jboss.logging.NDC;
@@ -49,6 +53,12 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Inject
     Instance<IngressControllerManager> ingressControllerManagerInstance;
 
+    @Inject
+    StrimziManager strimziManager;
+
+    @Inject
+    KafkaManager kafkaManager;
+
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "The number of delete events")
@@ -66,8 +76,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 kafkaInstance.delete(managedKafka, context);
             }
         } else {
-            log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
-            kafkaInstance.createOrUpdate(managedKafka);
+            if (this.isValid(managedKafka)) {
+                log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                kafkaInstance.createOrUpdate(managedKafka);
+            }
         }
     }
 
@@ -133,7 +145,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             managedKafkaConditions.add(ready);
         }
 
-        OperandReadiness readiness = kafkaInstance.getReadiness(managedKafka);
+        // a not valid ManagedKafka skips the handling of it, so the status will report an error condition
+        OperandReadiness readiness = this.validity(managedKafka).orElse(kafkaInstance.getReadiness(managedKafka));
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
@@ -142,11 +155,22 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
-            if (!Reason.StrimziUpdating.equals(readiness.getReason())) {
-                status.setVersions(new VersionsBuilder(managedKafka.getSpec().getVersions()).build());
-            } else {
-                // just keep the current version
+            // the versions in the status are updated incrementally copying the spec only when each stage ends
+            VersionsBuilder versionsBuilder = status.getVersions() != null ?
+                    new VersionsBuilder(status.getVersions()) : new VersionsBuilder(managedKafka.getSpec().getVersions());
+            if (!Reason.StrimziUpdating.equals(readiness.getReason()) && !this.strimziManager.hasStrimziChanged(managedKafka)) {
+                versionsBuilder.withStrimzi(managedKafka.getSpec().getVersions().getStrimzi());
             }
+            if (!Reason.KafkaUpdating.equals(readiness.getReason()) && !this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+                versionsBuilder.withKafka(managedKafka.getSpec().getVersions().getKafka());
+            }
+            if (!Reason.KafkaIbpUpdating.equals(readiness.getReason()) && !this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
+                String kafkaIbp = managedKafka.getSpec().getVersions().getKafkaIbp() != null ?
+                        managedKafka.getSpec().getVersions().getKafkaIbp() :
+                        AbstractKafkaCluster.getKafkaIbpVersion(managedKafka.getSpec().getVersions().getKafka());
+                versionsBuilder.withKafkaIbp(kafkaIbp);
+            }
+            status.setVersions(versionsBuilder.build());
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
             status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
 
@@ -156,5 +180,43 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 status.setRoutes(routes);
             }
         }
+    }
+
+    /**
+     * Just a wrapper around the ManagedKafka validity check to return a boolean
+     *
+     * @param managedKafka ManagedKafka custom resource to validate
+     * @return if its specification is valid or not
+     */
+    private boolean isValid(ManagedKafka managedKafka) {
+        return validity(managedKafka).isEmpty();
+    }
+
+    /**
+     * Run a validity check on the ManagedKafka custom resource
+     *
+     * @param managedKafka ManagedKafka custom resource to validate
+     * @return readiness indicating an error in the ManagedKafka custom resource, empty Optional otherwise
+     */
+    private Optional<OperandReadiness> validity(ManagedKafka managedKafka) {
+        String message = null;
+        List<StrimziVersionStatus> versions = this.strimziManager.getStrimziVersions();
+        Optional<StrimziVersionStatus> strimziVersion = versions.stream()
+                .filter(svs -> svs.getVersion().equals(managedKafka.getSpec().getVersions().getStrimzi()))
+                .findFirst();
+        if (strimziVersion.isEmpty()) {
+            message = String.format("The requested Strimzi version %s is not supported", managedKafka.getSpec().getVersions().getStrimzi());
+        } else {
+            if (!strimziVersion.get().getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
+                message = String.format("The requested Kafka version %s is not supported by the Strimzi version %s",
+                        managedKafka.getSpec().getVersions().getKafka(), strimziVersion.get().getVersion());
+            } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
+                    !strimziVersion.get().getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
+                message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
+                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.get().getVersion());
+            }
+        }
+        log.error(message);
+        return message == null ? Optional.empty() : Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
     }
 }

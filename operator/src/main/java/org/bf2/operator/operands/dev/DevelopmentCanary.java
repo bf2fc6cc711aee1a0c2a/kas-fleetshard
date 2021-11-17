@@ -2,6 +2,7 @@
 package org.bf2.operator.operands.dev;
 
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.quarkus.arc.properties.IfBuildProperty;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
@@ -19,8 +20,8 @@ public class DevelopmentCanary extends org.bf2.operator.operands.Canary {
 
     /* test */
     @Override
-    protected List<Container> buildContainers(ManagedKafka managedKafka) {
-        var containers = super.buildContainers(managedKafka);
+    protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
+        var containers = super.buildContainers(managedKafka, current);
 
         containers.forEach(container -> {
             container.setImagePullPolicy("Always");

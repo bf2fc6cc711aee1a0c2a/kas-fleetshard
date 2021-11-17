@@ -19,6 +19,8 @@ import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.events.ResourceEventSource;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -141,5 +143,13 @@ public class InformerManager {
                 this.eventSource.onUpdate(k, k);
             });
         }
+    }
+
+    public void resyncManagedKafka() {
+        List<ManagedKafka> managedKafkaList = kubernetesClient.resources(ManagedKafka.class, ManagedKafkaList.class).inAnyNamespace().list().getItems();
+        log.debugf("ManagedKafka instances to be resynced: %d", managedKafkaList.size());
+        managedKafkaList.forEach(mk -> {
+            this.eventSource.handleEvent(mk);
+        });
     }
 }
