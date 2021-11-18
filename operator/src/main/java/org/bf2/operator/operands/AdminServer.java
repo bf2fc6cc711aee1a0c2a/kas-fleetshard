@@ -211,6 +211,9 @@ public class AdminServer extends AbstractAdminServer {
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             targetPort = HTTPS_PORT_TARGET;
             tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
+        } else if (config.getAdminserver().isEdgeTlsEnabled()) {
+            targetPort = HTTP_PORT_TARGET;
+            tlsConfig = new TLSConfigBuilder().withTermination("edge").build();
         } else {
             targetPort = HTTP_PORT_TARGET;
             tlsConfig = null;
