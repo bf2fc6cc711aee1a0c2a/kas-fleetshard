@@ -263,9 +263,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         } else if (!this.strimziManager.isUpgradeInProgress(managedKafka, this, kafkaBuilder) && this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
             log.infof("Kafka version upgrade ...");
             this.kafkaManager.upgradeKafkaVersion(managedKafka, kafkaBuilder);
-        } else if (!this.kafkaManager.isKafkaUpgradeInProgress(managedKafka, this) && this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
-            log.infof("Kafka IBP version upgrade ...");
-            this.kafkaManager.upgradeKafkaIbpVersion(managedKafka, kafkaBuilder);
+        } else if (!this.kafkaManager.isKafkaUpgradeInProgress(managedKafka, this)) {
+            if (this.kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, this)) {
+                log.infof("Kafka version upgrade stability check ...");
+                this.kafkaManager.checkKafkaUpgradeIsStable(managedKafka);
+            } else if (!this.kafkaManager.isKafkaUpgradeStabilityCheckInProgress(managedKafka, this) && this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
+                log.infof("Kafka IBP version upgrade ...");
+                this.kafkaManager.upgradeKafkaIbpVersion(managedKafka, kafkaBuilder);
+            }
         }
         return kafkaBuilder.build();
     }

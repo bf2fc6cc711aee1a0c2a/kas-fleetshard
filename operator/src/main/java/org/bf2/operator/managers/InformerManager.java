@@ -152,4 +152,8 @@ public class InformerManager {
             this.eventSource.handleEvent(mk);
         });
     }
+
+    public void resyncManagedKafka(ManagedKafka managedKafka) {
+        this.eventSource.handleEvent(managedKafka);
+    }
 }

@@ -11,7 +11,7 @@ public class MockProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
         Map<String, String> overrides = Map.ofEntries(
-            entry("quarkus.scheduler.enabled", "false")
+            entry("quarkus.quartz.start-mode", "forced")
         );
         return overrides;
     }

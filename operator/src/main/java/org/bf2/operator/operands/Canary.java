@@ -68,6 +68,9 @@ public class Canary extends AbstractCanary {
     @ConfigProperty(name = "managedkafka.canary.connection-check-latency-buckets")
     String connectionCheckLatencyBuckets;
 
+    @ConfigProperty(name = "managedkafka.canary.status-time-window-ms")
+    Long statusTimeWindowMs;
+
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
 
@@ -271,6 +274,7 @@ public class Canary extends AbstractCanary {
             envVars.add(new EnvVarBuilder().withName("SASL_USER").withValue(canaryServiceAccount.get().getPrincipal()).build());
             envVars.add(new EnvVarBuilder().withName("SASL_PASSWORD").withValue(canaryServiceAccount.get().getPassword()).build());
         }
+        envVars.add(new EnvVarBuilder().withName("STATUS_TIME_WINDOW_MS").withValue(String.valueOf(statusTimeWindowMs)).build());
         return envVars;
     }
 
