@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -91,20 +92,32 @@ public class SyncApiClient {
     }
 
     private static Stream<String> getSortedAvailableStrimziVersions(String endpoint) throws Exception {
-        TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
+        return getSortedAvailableStrimziVersions(() -> {
             try {
                 return Serialization.jsonMapper()
-                        .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
-                        .getStrimzi().size() > 0;
+                        .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(),
+                                ManagedKafkaAgentStatus.class);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        });
+    }
+
+    public static Stream<String> getSortedAvailableStrimziVersions(Supplier<ManagedKafkaAgentStatus> statusSupplier) {
+        TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
+            try {
+                return statusSupplier.get().getStrimzi().size() > 0;
             } catch (Exception e) {
                 return false;
             }
         });
 
+        return sortedStrimziVersion(statusSupplier.get().getStrimzi().stream().map(StrimziVersionStatus::getVersion));
+    }
+
+    public static Stream<String> sortedStrimziVersion(Stream<String> versions) {
         Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+[-0-9]*)$");
-        return Objects.requireNonNull(Serialization.jsonMapper()
-                .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(), ManagedKafkaAgentStatus.class)
-                .getStrimzi().stream().map(StrimziVersionStatus::getVersion).sorted((a, b) -> {
+        return Objects.requireNonNull(versions.sorted((a, b) -> {
                     Matcher aMatcher = pattern.matcher(a);
                     Matcher bMatcher = pattern.matcher(b);
                     aMatcher.matches();

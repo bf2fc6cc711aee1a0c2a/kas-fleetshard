@@ -1,8 +1,6 @@
 package org.bf2.systemtest.framework;
 
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -22,10 +20,8 @@ public class AssertUtils {
 
     public static void assertManagedKafka(ManagedKafka mk) {
         KubeClient kube = KubeClient.getInstance();
-        var kafkacli = kube.client().resources(Kafka.class, KafkaList.class);
 
         assertNotNull(ManagedKafkaResourceType.getOperation().inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
-        assertNotNull(kafkacli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).get());
         assertTrue(kube.client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().size() > 0);
         assertEquals("Running", ManagedKafkaResourceType.getCanaryPod(mk).getStatus().getPhase());
         assertEquals("Running", ManagedKafkaResourceType.getAdminApiPod(mk).getStatus().getPhase());
