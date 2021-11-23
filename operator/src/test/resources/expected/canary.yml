@@ -79,7 +79,7 @@ spec:
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
         - name: "CONNECTION_CHECK_LATENCY_BUCKETS"
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
-        image: "quay.io/mk-ci-cd/strimzi-canary:0.0.9"
+        image: "quay.io/mk-ci-cd/strimzi-canary:0.1.0"
         livenessProbe:
           httpGet:
             path: "/liveness"
