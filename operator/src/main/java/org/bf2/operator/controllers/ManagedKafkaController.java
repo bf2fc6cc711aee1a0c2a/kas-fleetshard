@@ -216,7 +216,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                         managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.get().getVersion());
             }
         }
-        log.error(message);
-        return message == null ? Optional.empty() : Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
+        if (message != null) {
+            log.error(message);
+            return Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
+        }
+        return Optional.empty();
     }
 }
