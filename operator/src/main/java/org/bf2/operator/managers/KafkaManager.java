@@ -213,13 +213,15 @@ public class KafkaManager {
     public String currentKafkaLogMessageFormatVersion(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
         String kafkaLogMessageFormatVersion;
+        String current;
         // on first time Kafka resource creation, we take the Kafka log message format version from the ManagedKafka resource spec
         if (kafka != null) {
             Object logMessageFormat = kafka.getSpec().getKafka().getConfig().get("log.message.format.version");
-            kafkaLogMessageFormatVersion = logMessageFormat != null ? logMessageFormat.toString() : AbstractKafkaCluster.getKafkaLogMessageFormatVersion(kafka.getSpec().getKafka().getVersion());
+            current = logMessageFormat != null ? logMessageFormat.toString() : kafka.getSpec().getKafka().getVersion();
         } else {
-            kafkaLogMessageFormatVersion = AbstractKafkaCluster.getKafkaLogMessageFormatVersion(managedKafka.getSpec().getVersions().getKafka());
+            current = managedKafka.getSpec().getVersions().getKafka();
         }
+        kafkaLogMessageFormatVersion = AbstractKafkaCluster.getKafkaLogMessageFormatVersion(current);
         log.debugf("[%s/%s] currentKafkaLogMessageFormatVersion = %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), kafkaLogMessageFormatVersion);
         return kafkaLogMessageFormatVersion;
