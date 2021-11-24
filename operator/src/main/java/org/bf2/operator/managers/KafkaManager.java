@@ -431,7 +431,7 @@ public class KafkaManager {
      */
     private void addUpgradeTimeStampAnnotation(ManagedKafka managedKafka, String annotation) {
         log.debugf("[%s/%s] Adding Kafka upgrade %s timestamp annotation",
-                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotation);
         managedKafkaClient
                 .inNamespace(managedKafka.getMetadata().getNamespace())
                 .withName(managedKafka.getMetadata().getName())
