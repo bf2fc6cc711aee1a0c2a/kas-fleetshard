@@ -153,6 +153,11 @@
                 <version>${quarkus.platform.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.quarkus</groupId>
+                <artifactId>quarkus-quartz</artifactId>
+                <version>${quarkus.platform.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.strimzi</groupId>
                 <artifactId>api</artifactId>
                 <version>${strimzi.version}</version>

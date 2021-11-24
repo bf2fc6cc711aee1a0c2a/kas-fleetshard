@@ -25,6 +25,7 @@ import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
+import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -127,6 +128,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return isKafkaAnnotationUpdating;
     }
 
+    public boolean isKafkaUpgradeStabilityChecking(ManagedKafka managedKafka) {
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(KafkaManager.KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION);
+        Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(KafkaManager.KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION);
+
+        return kafkaUpgradeStartTimestampAnnotation.isPresent() && kafkaUpgradeEndTimestampAnnotation.isPresent();
+    }
+
     public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
         OperandReadiness readiness = getReadiness(managedKafka);
         return Status.True.equals(readiness.getStatus()) && !Reason.StrimziUpdating.equals(readiness.getReason());
@@ -151,7 +159,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
         }
 
-        if (isKafkaUpdating(managedKafka)) {
+        if (isKafkaUpdating(managedKafka) || isKafkaUpgradeStabilityChecking(managedKafka)) {
             return new OperandReadiness(Status.True, Reason.KafkaUpdating, null);
         }
 

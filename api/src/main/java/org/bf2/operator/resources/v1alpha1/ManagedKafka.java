@@ -94,6 +94,17 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     }
 
     /**
+     * Get a specific annotation value on the current ManagedKafka instance
+     *
+     * @param annotation annotation to look for in the current ManagedKafka instance metadata
+     * @return annotation value or empty if not present
+     */
+    public Optional<String> getAnnotation(String annotation) {
+        return Optional.ofNullable(this.getMetadata().getAnnotations())
+                        .map(annotations -> annotations.get(annotation));
+    }
+
+    /**
      * Effectively a template for creating default {@link ManagedKafka} instances.
      */
     public static ManagedKafka getDefault(String name, String namespace, String bootstrapHostDomain,

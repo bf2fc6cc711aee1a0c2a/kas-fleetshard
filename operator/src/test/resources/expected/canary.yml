@@ -79,6 +79,8 @@ spec:
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
         - name: "CONNECTION_CHECK_LATENCY_BUCKETS"
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
+        - name: "STATUS_TIME_WINDOW_MS"
+          value: "300000"
         image: "quay.io/mk-ci-cd/strimzi-canary:0.1.0"
         livenessProbe:
           httpGet:
