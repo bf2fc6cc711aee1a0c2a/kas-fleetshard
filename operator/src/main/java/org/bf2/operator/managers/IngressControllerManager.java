@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -204,7 +203,7 @@ public class IngressControllerManager {
     }
 
     private void patchIngressDeploymentResources(Deployment d) {
-        if (getLabelOrDefault(d.getMetadata(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
+        if (OperandUtils.getOrDefault(d.getMetadata().getLabels(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
 
             ResourceRequirementsBuilder builder = new ResourceRequirementsBuilder();
             limitCpu.ifPresent(quantity -> builder.addToLimits(CPU, quantity));
@@ -224,13 +223,6 @@ public class IngressControllerManager {
                         });
             }
         }
-    }
-
-    private String getLabelOrDefault(ObjectMeta metadata, String key, String defaultValue) {
-        if (metadata.getLabels() != null && metadata.getLabels().get(key) != null) {
-            return metadata.getLabels().get(key);
-        }
-        return defaultValue;
     }
 
     void resyncIngressControllerDeployments() {

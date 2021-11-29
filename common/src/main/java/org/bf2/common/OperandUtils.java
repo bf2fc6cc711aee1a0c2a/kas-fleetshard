@@ -92,4 +92,11 @@ public class OperandUtils {
                     .withValues(value).build())
                 .endLabelSelector().build();
     }
+
+    public static <T> T getOrDefault(Map<String, T> map, String key, T defaultValue) {
+        if (map == null) {
+            return null;
+        }
+        return map.getOrDefault(key, defaultValue);
+    }
 }

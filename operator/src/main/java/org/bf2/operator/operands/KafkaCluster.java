@@ -647,6 +647,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new Quantity(String.valueOf(bytes));
     }
 
+    public static long unpadBrokerStorage(long value) {
+        return Math.min(value - Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (value * SOFT_PERCENT));
+    }
+
     private Storage buildZooKeeperStorage(Kafka current) {
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
                 .withSize(config.getZookeeper().getVolumeSize())

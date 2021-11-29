@@ -1,5 +1,7 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimStatus;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -10,11 +12,14 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.events.ResourceEventSource;
+import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -37,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
@@ -58,6 +64,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     KafkaManager kafkaManager;
+
+    @Inject
+    InformerManager informerManager;
 
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
@@ -154,7 +163,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         status.setRoutes(List.of());
 
         if (Status.True.equals(readiness.getStatus())) {
-            status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
+            status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity())
+                    .withMaxDataRetentionSize(calculateRetentionSize(managedKafka))
+                    .build());
             // the versions in the status are updated incrementally copying the spec only when each stage ends
             VersionsBuilder versionsBuilder = status.getVersions() != null ?
                     new VersionsBuilder(status.getVersions()) : new VersionsBuilder(managedKafka.getSpec().getVersions());
@@ -180,6 +191,29 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 status.setRoutes(routes);
             }
         }
+    }
+
+    /**
+     * Get the current sum of storage as reported by the pvcs.
+     * This may not match the requested amount ephemerally, or due to rounding
+     */
+    private Quantity calculateRetentionSize(ManagedKafka managedKafka) {
+        long storageInBytes = informerManager.getPvcsInNamespace(managedKafka.getMetadata().getNamespace()).stream().map(pvc -> {
+            if (pvc.getStatus() == null) {
+                return 0L;
+            }
+            PersistentVolumeClaimStatus status = pvc.getStatus();
+            Quantity q = OperandUtils.getOrDefault(status.getCapacity(), "storage", (Quantity)null);
+            if (q == null) {
+                return 0L;
+            }
+            long value = Quantity.getAmountInBytes(q).longValue();
+            return KafkaCluster.unpadBrokerStorage(value);
+        }).collect(Collectors.summingLong(Long::longValue));
+
+        // TODO: this will likely be rounded, it may make sense to
+        // convert to round / convert to a higher unit
+        return Quantity.parse(String.valueOf(storageInBytes));
     }
 
     /**

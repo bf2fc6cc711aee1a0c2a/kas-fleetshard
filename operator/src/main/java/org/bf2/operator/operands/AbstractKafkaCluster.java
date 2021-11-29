@@ -388,4 +388,5 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         }
         return String.format("%s.%s", digits[0], digits[1]);
     }
+
 }

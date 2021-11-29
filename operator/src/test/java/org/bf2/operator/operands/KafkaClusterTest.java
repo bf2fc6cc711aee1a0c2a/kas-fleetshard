@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
@@ -230,6 +231,23 @@ class KafkaClusterTest {
 
         assertNull(kafka.getSpec().getKafka().getTemplate().getPodDisruptionBudget());
         assertNull(kafka.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget());
+    }
+
+    @Test
+    void testStorageCalculations() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("40Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        long bytes = getBrokerStorageBytes(kafka);
+        assertEquals(25053975893L, bytes);
+
+        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(25053975893L)*3);
+    }
+
+    private long getBrokerStorageBytes(Kafka kafka) {
+        JbodStorage storage = (JbodStorage)kafka.getSpec().getKafka().getStorage();
+        PersistentClaimStorage pcs = (PersistentClaimStorage)storage.getVolumes().get(0);
+        Quantity quantity = Quantity.parse(pcs.getSize());
+        return Quantity.getAmountInBytes(quantity).longValue();
     }
 
     @Test
