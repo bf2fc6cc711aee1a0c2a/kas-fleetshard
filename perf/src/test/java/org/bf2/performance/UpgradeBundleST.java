@@ -128,7 +128,7 @@ public class UpgradeBundleST extends TestBase {
         mkResource.waitUntilCondition(
                 m -> ManagedKafkaResourceType.getCondition(m.getStatus(), ManagedKafkaCondition.Type.Ready)
                         .get()
-                        .getReason() == null,
+                        .getReason() == null && endVersion.equals(m.getStatus().getVersions().getStrimzi()),
                 10, TimeUnit.MINUTES);
     }
 }
