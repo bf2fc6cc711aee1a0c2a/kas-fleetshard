@@ -13,6 +13,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.k8s.KubeClient;
 
@@ -58,13 +59,18 @@ public class OlmBasedStrimziOperatorManager {
         }
 
         installCatalogSource();
-        org.bf2.test.TestUtils.waitFor("catalog source ready", 1_000, 120_000, this::isCatalogSourceInstalled);
-        installOperatorGroup();
-        installSubscription();
-        org.bf2.test.TestUtils.waitFor("subscription source ready", 1_000, 120_000, this::isSubscriptionInstalled);
-
-        LOGGER.info("Operator is deployed");
-        return org.bf2.test.TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, this::isOperatorInstalled);
+        return org.bf2.test.TestUtils
+                .asyncWaitFor("catalog source ready", 1_000, 120_000, this::isCatalogSourceInstalled)
+                .thenAccept((v) -> {
+                    installOperatorGroup();
+                    installSubscription();
+                })
+                .thenCompose((v) -> org.bf2.test.TestUtils.asyncWaitFor("subscription source ready", 1_000, 120_000,
+                        this::isSubscriptionInstalled))
+                .thenAccept((v) -> {
+                    LOGGER.info("Operator is deployed");
+                })
+                .thenCompose((v) -> org.bf2.test.TestUtils.asyncWaitFor("Operator ready", 1_000, 120_000, this::isOperatorInstalled));
     }
 
     public CompletableFuture<Void> deleteStrimziOperator() {
@@ -179,7 +185,7 @@ public class OlmBasedStrimziOperatorManager {
     }
 
     public boolean isOperatorInstalled() {
-        return StrimziOperatorManager.isReady(kubeClient, namespace, getCurrentVersion());
+        return !versions.isEmpty() && StrimziOperatorManager.isReady(kubeClient, namespace, getCurrentVersion());
     }
 
     public List<String> getVersions() {
@@ -190,8 +196,7 @@ public class OlmBasedStrimziOperatorManager {
         if (versions.isEmpty()) {
             return null;
         }
-        // assume the last?
-        return versions.get(versions.size() - 1);
+        return SyncApiClient.sortedStrimziVersion(versions.stream()).reduce((a, b) -> b).get();
     }
 
 }

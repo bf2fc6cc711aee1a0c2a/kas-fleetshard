@@ -117,7 +117,7 @@ public class StrimziOperatorManager {
 
     public static boolean isReady(KubeClient kubeClient, String namespace, String version) {
         return kubeClient.client().apps().deployments().inNamespace(namespace).list().getItems().stream()
-                .anyMatch(dep -> dep.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version) && Readiness.isDeploymentReady(dep));
+                .anyMatch(dep -> dep.getMetadata().getName().contains(version) && Readiness.isDeploymentReady(dep));
     }
 
     protected void modifyDeployment(Deployment deployment) {
