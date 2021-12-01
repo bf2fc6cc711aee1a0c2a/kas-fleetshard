@@ -55,10 +55,26 @@ public class SmokeST extends AbstractST {
 
     @AfterAll
     void clean() {
-        CompletableFuture.allOf(
-                KeycloakOperatorManager.uninstallKeycloak(kube),
-                FleetShardOperatorManager.deleteFleetShard(kube),
-                strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
+        var fleetshardFuture = FleetShardOperatorManager.deleteFleetShard(kube);
+        var keycloakFuture = KeycloakOperatorManager.uninstallKeycloak(kube);
+        var strimziFuture = strimziOperatorManager.uninstallStrimziClusterWideResources(kube);
+
+        fleetshardFuture.join();
+
+        checkUnintsall(keycloakFuture, "Keycloak");
+        checkUnintsall(strimziFuture, "Strimzi");
+    }
+
+    private void checkUnintsall(CompletableFuture<Void> keycloakFuture, String name) {
+        if (!keycloakFuture.isDone()) {
+            LOGGER.warn("{} did not finish uninstalling", name);
+            return;
+        }
+        try {
+            keycloakFuture.getNow(null);
+        } catch (Exception e) {
+            LOGGER.error("Error uninstalling", e);
+        }
     }
 
     @SequentialTest

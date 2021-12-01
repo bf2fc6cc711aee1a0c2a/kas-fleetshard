@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+/**
+ * TODO: an option to speed up reconsiliation
+ */
 public class OlmBasedStrimziOperatorManager {
     private static final String OLM_OPERATOR_GROUP_NAME = "strimzi-opgroup";
     private static final String OLM_SUBSCRIPTION_NAME = "strimzi-subscription";

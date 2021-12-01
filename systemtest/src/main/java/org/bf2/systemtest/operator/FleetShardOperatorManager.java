@@ -6,6 +6,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
@@ -115,7 +116,9 @@ public class FleetShardOperatorManager {
         if (!SystemTestEnvironment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting managedkafkas and kas-fleetshard");
             var mkCli = kubeClient.client().resources(ManagedKafka.class);
-            mkCli.inAnyNamespace().list().getItems().forEach(mk -> mkCli.inNamespace(mk.getMetadata().getNamespace()).withName(mk.getMetadata().getName()).delete());
+            mkCli.inAnyNamespace().delete();
+            var mkaCli = kubeClient.client().resources(ManagedKafkaAgent.class);
+            mkaCli.inAnyNamespace().delete();
             installedCrds.forEach(crd -> {
                 String fileName = crd.getFileName().toString();
                 String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
