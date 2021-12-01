@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -54,5 +55,13 @@ public class IngressControllerManagerTest {
 
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         assertEquals(4, ingressControllers.size(), "Expected 4 IngressControllers: one per zone, and one multi-zone");
+
+        // make sure the zone specific has node placements
+        assertTrue(ingressControllers.stream().allMatch(c -> {
+            if (c.getMetadata().getName().equals("kas")) {
+                return true;
+            }
+            return c.getSpec().getNodePlacement() != null;
+        }));
     }
 }
