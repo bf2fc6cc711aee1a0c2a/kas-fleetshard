@@ -139,13 +139,13 @@ public class ManagedKafkaControllerTest {
         Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of());
 
         // there's no pvcs, should be 0
-        assertEquals("0", mkController.calculateRetentionSize(mk).getAmount());
+        assertEquals("0.000", mkController.calculateRetentionSize(mk).getAmount());
 
         PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("123Gi")).endStatus().build();
         Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc));
 
-        // should be the sum in Mi, less the padding
-        assertEquals("226714", mkController.calculateRetentionSize(mk).getAmount());
+        // should be the sum in Gi, less the padding
+        assertEquals("221.400", mkController.calculateRetentionSize(mk).getAmount());
     }
 
 }

@@ -65,6 +65,8 @@ rules:
       # the operator creates ConfigMaps and Secrets for Kafka metrics configuration and TLS and Keycloak certificates
       - configmaps
       - secrets
+      # the operator gets the storage size
+      - persistentvolumeclaims
     verbs:
       - get
       - list

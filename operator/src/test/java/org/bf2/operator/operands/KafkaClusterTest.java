@@ -240,7 +240,7 @@ class KafkaClusterTest {
         long bytes = getBrokerStorageBytes(kafka);
         assertEquals(25053975893L, bytes);
 
-        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(25053975893L)*3);
+        assertEquals((40*1L<<30)-1, KafkaCluster.unpadBrokerStorage(25053975893L)*3);
     }
 
     private long getBrokerStorageBytes(Kafka kafka) {
@@ -326,4 +326,5 @@ class KafkaClusterTest {
         }
         return overrides;
     }
+
 }

@@ -211,10 +211,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             return KafkaCluster.unpadBrokerStorage(value);
         }).collect(Collectors.summingLong(Long::longValue));
 
-        // round to mbs to undo any minor rounding issues
-        long mbs = Math.round(((double)storageInBytes)/(1L<<20));
+        // round to nearest to undo any minor rounding issues
+        double mbs = ((double)storageInBytes)/(1L<<20);
 
-        return Quantity.parse(mbs+"Mi");
+        return Quantity.parse(String.format("%.3f",mbs/1024D)+"Gi");
     }
 
     /**
