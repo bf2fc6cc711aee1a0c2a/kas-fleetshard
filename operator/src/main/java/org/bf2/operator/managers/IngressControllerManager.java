@@ -62,6 +62,9 @@ public class IngressControllerManager {
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
 
+    // TODO: eventually this will need to be a parameter/calculated, for now it's based roughly on the baseline bandwidth vs the expected ingress/egress
+    public static final int NODES_PER_REPLICA = 25;
+
     /**
      * The label key for the multi-AZ IngressController
      */
@@ -155,12 +158,43 @@ public class IngressControllerManager {
         final FilterWatchListDeletable<Node, NodeList> workerNodeFilter = openShiftClient.nodes()
                 .withLabel(WORKER_NODE_LABEL)
                 .withoutLabel(INFRA_NODE_LABEL);
-        nodeInformer = resourceInformerFactory.create(Node.class, workerNodeFilter, null);
+
+        nodeInformer = resourceInformerFactory.create(Node.class, workerNodeFilter, new ResourceEventHandler<HasMetadata>() {
+
+            @Override
+            public void onAdd(HasMetadata obj) {
+                reconcileIngressControllers();
+            }
+
+            @Override
+            public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
+            }
+
+            @Override
+            public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
+                reconcileIngressControllers();
+            }
+        });
 
         FilterWatchListDeletable<Pod, PodList> brokerPodFilter = openShiftClient.pods().inAnyNamespace().withLabels(Map.of(
                 OperandUtils.MANAGED_BY_LABEL, OperandUtils.STRIMZI_OPERATOR_NAME,
                 OperandUtils.K8S_NAME_LABEL, "kafka"));
-        brokerPodInformer = resourceInformerFactory.create(Pod.class, brokerPodFilter, null);
+
+        brokerPodInformer = resourceInformerFactory.create(Pod.class, brokerPodFilter, new ResourceEventHandler<HasMetadata>() {
+
+            @Override
+            public void onAdd(HasMetadata obj) {
+                reconcileIngressControllers();
+            }
+
+            @Override
+            public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
+            }
+
+            @Override
+            public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
+            }
+        });
 
         ingressControllerInformer = resourceInformerFactory.create(IngressController.class, ingressControllers, new ResourceEventHandler<IngressController>() {
 
@@ -289,7 +323,7 @@ public class IngressControllerManager {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
             String domain = defaultDomain.replaceFirst("apps", kasZone);
-            int replicas = numReplicasForZone(zone);
+            int replicas = numReplicasForZone(zone, nodeInformer.getList());
 
             Map<String, String> routeMatchLabel = Map.of("managedkafka.bf2.org/" + kasZone, "true");
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
@@ -301,7 +335,7 @@ public class IngressControllerManager {
 
     private IngressController buildDefaultIngressController(List<String> zones, String defaultDomain) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
-        int replicas = Math.min(3, nodeInformer.getList().size());
+        int replicas = numReplicasForAllZones(nodeInformer.getList());
 
         final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
@@ -342,15 +376,24 @@ public class IngressControllerManager {
         return builder.build();
     }
 
-    private int numReplicasForZone(String zone) {
-        int nodesInZone = Math.toIntExact(nodeInformer.getList().stream()
+    int numReplicasForZone(String zone, List<Node> nodes) {
+        int nodesInZone = Math.toIntExact(nodes.stream()
                 .filter(node -> zone.equals(node.getMetadata().getLabels().get(TOPOLOGY_KEY)))
                 .filter(Objects::nonNull)
                 .count());
 
         // If there are fewer than 3 worker nodes in a zone we should use that number for the
         // replica count, otherwise the IngressController won't be able to get to a healthy state.
-        return Math.min(3, nodesInZone);
+        return Math.min(Math.max(2, 1 + nodesInZone / NODES_PER_REPLICA), nodesInZone);
+    }
+
+    int numReplicasForAllZones(List<Node> nodes) {
+        int zones = Math.max(1, Math.toIntExact(nodes.stream()
+                .map(node -> node.getMetadata().getLabels().get(TOPOLOGY_KEY))
+                .distinct()
+                .count()));
+
+        return Math.min(Math.max(2, 1 + nodes.size() / (zones * NODES_PER_REPLICA)), nodes.size());
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
@@ -368,8 +411,6 @@ public class IngressControllerManager {
     }
 
     private String getZoneForBrokerRoute(Route route) {
-        Stream<Node> nodes = nodeInformer.getList().stream();
-
         String serviceName = route.getSpec().getTo().getName();
         String namespace = route.getMetadata().getNamespace();
         Service svc = informerManager.getLocalService(namespace, serviceName);
@@ -382,7 +423,7 @@ public class IngressControllerManager {
         return pods
                 .findFirst()
                 .map(p -> p.getSpec().getNodeName())
-                .flatMap(nodeName -> nodes.filter(n -> n.getMetadata().getName().equals(nodeName)).findFirst())
+                .map(nodeInformer::getByKey)
                 .map(n -> n.getMetadata().getLabels().get(IngressControllerManager.TOPOLOGY_KEY))
                 .orElse("");
     }
