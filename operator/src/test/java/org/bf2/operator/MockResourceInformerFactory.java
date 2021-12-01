@@ -57,6 +57,7 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
             }
 
         });
+        Mockito.when(mock.getByNamespace(Mockito.anyString())).thenThrow(new AssertionError("not supported by the mock informer"));
         return mock;
     }
 

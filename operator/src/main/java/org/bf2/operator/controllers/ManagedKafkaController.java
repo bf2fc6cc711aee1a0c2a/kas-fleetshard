@@ -197,7 +197,7 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * Get the current sum of storage as reported by the pvcs.
      * This may not match the requested amount ephemerally, or due to rounding
      */
-    private Quantity calculateRetentionSize(ManagedKafka managedKafka) {
+    Quantity calculateRetentionSize(ManagedKafka managedKafka) {
         long storageInBytes = informerManager.getPvcsInNamespace(managedKafka.getMetadata().getNamespace()).stream().map(pvc -> {
             if (pvc.getStatus() == null) {
                 return 0L;
@@ -211,9 +211,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             return KafkaCluster.unpadBrokerStorage(value);
         }).collect(Collectors.summingLong(Long::longValue));
 
-        // TODO: this will likely be rounded, it may make sense to
-        // convert to round / convert to a higher unit
-        return Quantity.parse(String.valueOf(storageInBytes));
+        // round to mbs to undo any minor rounding issues
+        long mbs = Math.round(((double)storageInBytes)/(1L<<20));
+
+        return Quantity.parse(mbs+"Mi");
     }
 
     /**
