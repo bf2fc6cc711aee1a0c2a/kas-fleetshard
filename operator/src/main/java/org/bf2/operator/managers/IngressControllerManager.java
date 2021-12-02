@@ -339,6 +339,18 @@ public class IngressControllerManager {
                 .endEndpointPublishingStrategy()
             .endSpec();
 
+        if (topologyValue != null && !topologyValue.isEmpty()) {
+            builder
+                .editSpec()
+                    .withNewNodePlacement()
+                        .editOrNewNodeSelector()
+                            .addToMatchLabels(TOPOLOGY_KEY, topologyValue)
+                            .addToMatchLabels(WORKER_NODE_LABEL, "")
+                        .endNodeSelector()
+                    .endNodePlacement()
+                .endSpec();
+        }
+
         return builder.build();
     }
 
