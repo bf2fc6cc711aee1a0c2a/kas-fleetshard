@@ -11,6 +11,8 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.Objects;
+
 @ApplicationScoped
 public class ResourceEventSource extends AbstractEventSource implements ResourceEventHandler<HasMetadata> {
 
@@ -26,6 +28,10 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
     @Override
     public void onUpdate(HasMetadata oldResource, HasMetadata newResource) {
         log.debugf("Update event received for %s %s/%s", oldResource.getKind(), oldResource.getMetadata().getNamespace(), oldResource.getMetadata().getName());
+        if (!oldResource.getMetadata().getOwnerReferences().isEmpty() && (newResource.getMetadata().getOwnerReferences().isEmpty() ||
+                !Objects.equals(oldResource.getMetadata().getOwnerReferences().get(0).getUid(), newResource.getMetadata().getOwnerReferences().get(0).getUid()))) {
+            handleEvent(oldResource, Watcher.Action.MODIFIED);
+        }
         handleEvent(newResource, Watcher.Action.MODIFIED);
     }
 
@@ -41,8 +47,9 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
         if (eventHandler != null) {
             if(resource.getMetadata().getOwnerReferences().isEmpty()) {
                 log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+            } else {
+                eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this, action));
             }
-            eventHandler.handleEvent(new ResourceEvent<HasMetadata>(resource, this, action));
         }
     }
 
