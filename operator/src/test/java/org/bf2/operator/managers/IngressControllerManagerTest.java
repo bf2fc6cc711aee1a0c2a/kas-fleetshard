@@ -69,7 +69,7 @@ public class IngressControllerManagerTest {
         assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes));
         assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes));
 
-        nodes = buildNodes(300);
+        nodes = buildNodes(303);
 
         assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes));
         assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes));

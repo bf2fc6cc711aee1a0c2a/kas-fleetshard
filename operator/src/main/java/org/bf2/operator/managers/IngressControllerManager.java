@@ -382,9 +382,12 @@ public class IngressControllerManager {
                 .filter(Objects::nonNull)
                 .count());
 
-        // If there are fewer than 3 worker nodes in a zone we should use that number for the
-        // replica count, otherwise the IngressController won't be able to get to a healthy state.
-        return Math.min(Math.max(2, 1 + nodesInZone / NODES_PER_REPLICA), nodesInZone);
+        /*
+         * we want at least 2 replicas, unless there are fewer nodes
+         * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes
+         * we'll therefore scale up after 2*NODES_PER_REPLICA nodes in the zone
+         */
+        return Math.max(Math.min(2, nodesInZone), (int)Math.ceil((double)nodesInZone / NODES_PER_REPLICA));
     }
 
     int numReplicasForAllZones(List<Node> nodes) {
@@ -393,7 +396,14 @@ public class IngressControllerManager {
                 .distinct()
                 .count()));
 
-        return Math.min(Math.max(2, 1 + nodes.size() / (zones * NODES_PER_REPLICA)), nodes.size());
+        /*
+         * we want at least 2 replicas, unless there are fewer nodes
+         * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes in all zones
+         *
+         * NOTE an implicit assumption here is that there is at most 3 zones.  A greater number of zones
+         * may eventually mean more memory resources, or additional replicas, for the additional connection support
+         */
+        return Math.max(Math.min(2, nodes.size()), (int)Math.ceil((double)nodes.size() / (zones * NODES_PER_REPLICA)));
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
