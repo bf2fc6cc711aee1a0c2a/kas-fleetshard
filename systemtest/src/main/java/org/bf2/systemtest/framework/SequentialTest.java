@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.parallel.Resources.SYSTEM_PROPERTIES;
  */
 @Target(ElementType.METHOD)
 @Retention(RUNTIME)
-@Execution(ExecutionMode.CONCURRENT)
+@Execution(ExecutionMode.SAME_THREAD)
 @Test
 @ResourceLock(value = SYSTEM_PROPERTIES, mode = READ_WRITE)
 public @interface SequentialTest {
