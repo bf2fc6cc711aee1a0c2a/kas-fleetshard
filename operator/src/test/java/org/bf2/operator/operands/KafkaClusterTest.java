@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -36,6 +38,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
@@ -294,6 +297,28 @@ class KafkaClusterTest {
             assertNull(((PersistentClaimStorage)v).getStorageClass());
             assertEquals(buildStorageOverrides(), ((PersistentClaimStorage)v).getOverrides());
         });
+    }
+
+    @Test
+    void storageCalculation() throws InterruptedException {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setUid(UUID.randomUUID().toString());
+        mk.getMetadata().setGeneration(1l);
+        mk.getMetadata().setResourceVersion("1");
+
+        InformerManager informerManager = Mockito.mock(InformerManager.class);
+
+        QuarkusMock.installMockForType(informerManager, InformerManager.class);
+        Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of());
+
+        // there's no pvcs, should be 0
+        assertEquals("0", kafkaCluster.calculateRetentionSize(mk).getAmount());
+
+        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("371Gi")).endStatus().build();
+        Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc, pvc));
+
+        // should be the sum in Gi, less the padding
+        assertEquals("1000", kafkaCluster.calculateRetentionSize(mk).getAmount());
     }
 
     @ParameterizedTest

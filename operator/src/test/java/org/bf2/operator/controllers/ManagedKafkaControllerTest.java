@@ -1,9 +1,6 @@
 package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.Watcher.Action;
@@ -15,7 +12,6 @@ import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.events.ResourceEvent;
-import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -27,7 +23,6 @@ import javax.inject.Inject;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -124,28 +119,6 @@ public class ManagedKafkaControllerTest {
         condition = mk.getStatus().getConditions().get(0);
         assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());
         assertEquals("The requested Kafka version 2.7.0 is not supported by the Strimzi version strimzi-cluster-operator.v0.23.0", condition.getMessage());
-    }
-
-    @Test
-    void storageCalculation() throws InterruptedException {
-        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        mk.getMetadata().setUid(UUID.randomUUID().toString());
-        mk.getMetadata().setGeneration(1l);
-        mk.getMetadata().setResourceVersion("1");
-
-        InformerManager informerManager = Mockito.mock(InformerManager.class);
-
-        QuarkusMock.installMockForType(informerManager, InformerManager.class);
-        Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of());
-
-        // there's no pvcs, should be 0
-        assertEquals("0.000", mkController.calculateRetentionSize(mk).getAmount());
-
-        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("123Gi")).endStatus().build();
-        Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc));
-
-        // should be the sum in Gi, less the padding
-        assertEquals("221.400", mkController.calculateRetentionSize(mk).getAmount());
     }
 
 }

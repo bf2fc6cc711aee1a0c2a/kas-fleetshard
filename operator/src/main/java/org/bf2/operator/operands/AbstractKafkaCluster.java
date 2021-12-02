@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
@@ -387,6 +388,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             throw new IllegalArgumentException(String.format("The Kafka version %s is not a valid one", kafkaVersion));
         }
         return String.format("%s.%s", digits[0], digits[1]);
+    }
+
+    public Quantity calculateRetentionSize(ManagedKafka managedKafka) {
+        return managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
     }
 
 }
