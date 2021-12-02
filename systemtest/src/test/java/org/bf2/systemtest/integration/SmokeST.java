@@ -61,17 +61,17 @@ public class SmokeST extends AbstractST {
 
         fleetshardFuture.join();
 
-        checkUnintsall(keycloakFuture, "Keycloak");
-        checkUnintsall(strimziFuture, "Strimzi");
+        checkUninstall(keycloakFuture, "Keycloak");
+        checkUninstall(strimziFuture, "Strimzi");
     }
 
-    private void checkUnintsall(CompletableFuture<Void> keycloakFuture, String name) {
-        if (!keycloakFuture.isDone()) {
+    private void checkUninstall(CompletableFuture<Void> pendingUninstall, String name) {
+        if (!pendingUninstall.isDone()) {
             LOGGER.warn("{} did not finish uninstalling", name);
             return;
         }
         try {
-            keycloakFuture.getNow(null);
+            pendingUninstall.getNow(null);
         } catch (Exception e) {
             LOGGER.error("Error uninstalling", e);
         }
