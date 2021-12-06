@@ -65,6 +65,12 @@ spec:
               key: "verbosity.log.level"
               name: "canary-config"
               optional: true
+        - name: "GODEBUG"
+          valueFrom:
+            configMapKeyRef:
+              key: "go.debug"
+              name: "canary-config"
+              optional: true
         - name: "TOPIC"
           value: "__redhat_strimzi_canary"
         - name: "TOPIC_CONFIG"
