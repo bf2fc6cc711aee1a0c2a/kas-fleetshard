@@ -57,7 +57,7 @@ spec:
             , \"write\" ] }"
         - name: "KAFKA_ADMIN_OAUTH_ENABLED"
           value: "false"
-        image: "quay.io/mk-ci-cd/kafka-admin-api:0.6.1"
+        image: "quay.io/mk-ci-cd/kafka-admin-api:0.6.1-3"
         livenessProbe:
           httpGet:
             path: "/health/liveness"
