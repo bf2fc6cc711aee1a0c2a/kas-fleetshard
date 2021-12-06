@@ -258,8 +258,18 @@ public class Canary extends AbstractCanary {
                         .endConfigMapKeyRef()
                         .build();
 
+        EnvVarSource goDebug =
+                new EnvVarSourceBuilder()
+                        .editOrNewConfigMapKeyRef()
+                            .withName("canary-config")
+                            .withKey("go.debug")
+                            .withOptional(Boolean.TRUE)
+                        .endConfigMapKeyRef()
+                        .build();
+
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
+        envVars.add(new EnvVarBuilder().withName("GODEBUG").withValueFrom(goDebug).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC").withValue(config.getCanary().getTopic()).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC_CONFIG").withValue("retention.ms=600000;segment.bytes=16384").build());
         envVars.add(new EnvVarBuilder().withName("CLIENT_ID").withValue(config.getCanary().getClientId()).build());
@@ -285,13 +295,12 @@ public class Canary extends AbstractCanary {
     private ResourceRequirements buildResources() {
         Quantity mem = new Quantity(config.getCanary().getContainerMemory());
         Quantity cpu = new Quantity(config.getCanary().getContainerCpu());
-        ResourceRequirements resources = new ResourceRequirementsBuilder()
+        return new ResourceRequirementsBuilder()
                 .addToRequests("memory", mem)
                 .addToRequests("cpu", cpu)
                 .addToLimits("memory", mem)
                 .addToLimits("cpu", cpu)
                 .build();
-        return resources;
     }
 
     private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
