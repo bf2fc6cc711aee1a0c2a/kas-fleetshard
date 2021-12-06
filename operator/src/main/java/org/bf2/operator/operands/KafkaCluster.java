@@ -423,8 +423,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // onePerNode = false - one zk per node per managedkafka
         boolean onePerNode = this.config.getKafka().isOneInstancePerNode();
 
-        // use "ScheduleAnyway" here due to fact that any previous ZK instances may not have been correctly AZ aware
-        // and StatefulSet can not be moved with across zone with current setup
         PodNested<ZookeeperClusterTemplateBuilder> podNestedBuilder = new ZookeeperClusterTemplateBuilder()
                 .withNewPod()
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
