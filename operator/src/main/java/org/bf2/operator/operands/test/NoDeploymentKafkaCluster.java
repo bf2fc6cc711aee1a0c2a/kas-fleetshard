@@ -64,8 +64,7 @@ public class NoDeploymentKafkaCluster extends org.bf2.operator.operands.KafkaClu
                 .delete();
 
         secretManager.delete(managedKafka);
-        configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
-        configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
+        configMapManager.delete(managedKafka, CONFIGMAP_KAFKA_METRICS, CONFIGMAP_ZOOKEEPER_METRICS);
     }
 
     @Override

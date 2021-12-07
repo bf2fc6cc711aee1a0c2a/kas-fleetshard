@@ -26,17 +26,17 @@ spec:
         app.kubernetes.io/component: "adminserver"
     spec:
       affinity:
-       podAffinity:
-         preferredDuringSchedulingIgnoredDuringExecution:
-         - podAffinityTerm:
-             labelSelector:
-               matchExpressions:
-               - key: "strimzi.io/name"
-                 operator: "In"
-                 values:
-                 - "test-mk-zookeeper"
-             topologyKey: "kubernetes.io/hostname"
-           weight: 100    
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                  - "test-mk-zookeeper"
+              topologyKey: "kubernetes.io/hostname"
+            weight: 100
       containers:
       - env:
         - name: "KAFKA_ADMIN_BOOTSTRAP_SERVERS"
@@ -59,22 +59,26 @@ spec:
           value: "false"
         image: "quay.io/mk-ci-cd/kafka-admin-api:0.6.4"
         livenessProbe:
+          failureThreshold: 3
           httpGet:
             path: "/health/liveness"
             port: "management"
           initialDelaySeconds: 15
+          successThreshold: 1
           timeoutSeconds: 5
         name: "admin-server"
         ports:
-          - containerPort: 8080
-            name: "http"
-          - containerPort: 9990
-            name: "management"
+        - containerPort: 8080
+          name: "http"
+        - containerPort: 9990
+          name: "management"
         readinessProbe:
+          failureThreshold: 3
           httpGet:
             path: "/health/liveness"
             port: "management"
           initialDelaySeconds: 15
+          successThreshold: 1
           timeoutSeconds: 5
         resources:
           limits:
@@ -84,10 +88,65 @@ spec:
             memory: "512Mi"
             cpu: "500m"
         volumeMounts:
-          - mountPath: "/opt/kafka-admin-api/custom-config/"
-            name: "test-mk-config-volume"
+        - mountPath: "/opt/kafka-admin-api/custom-config/"
+          name: "config"
+        - mountPath: "/sockets"
+          name: "sockets"
+      - command:
+        - "envoy"
+        - "--config-path"
+        - "/configs/envoy/main.yaml"
+        image: "envoyproxy/envoy:v1.16.1"
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: "/ready"
+            port: "envoy-admin"
+          initialDelaySeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: "envoy-sidecar"
+        ports:
+        - containerPort: 9000
+          name: "envoy-admin"
+          protocol: "TCP"
+        - containerPort: 9001
+          name: "envoy-ingress"
+          protocol: "TCP"
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: "/ready"
+            port: "envoy-admin"
+          initialDelaySeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: "/configs/envoy"
+          name: "config-envoy"
+        - mountPath: "/sockets"
+          name: "sockets"
+        - mountPath: "/secrets/tls"
+          name: "tls"
       volumes:
-        - configMap:
-            name: "test-mk-admin-server"
-            optional: true
-          name: "test-mk-config-volume"
+      - configMap:
+          name: "test-mk-admin-server"
+          optional: true
+        name: "config"
+      - configMap:
+          name: "test-mk-admin-server-envoy"
+        name: "config-envoy"
+      - emptyDir:
+          medium: "Memory"
+        name: "sockets"
+      - name: "tls"
+        secret:
+          secretName: "test-mk-admin-server-envoy-tls-secret"
+ 

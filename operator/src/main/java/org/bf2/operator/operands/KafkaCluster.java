@@ -2,7 +2,6 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelector;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.LabelSelector;
@@ -19,7 +18,6 @@ import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
@@ -55,6 +53,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateFluent.PodNested;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.ConfigMapManager;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -72,13 +71,7 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
-import javax.xml.bind.DatatypeConverter;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -102,6 +95,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final double HARD_PERCENT = 0.95;
     private static final double SOFT_PERCENT = 0.9;
 
+    protected static final String CONFIGMAP_KAFKA_METRICS = "kafka-metrics";
+    protected static final String CONFIGMAP_ZOOKEEPER_METRICS = "zookeeper-metrics";
+    private static final String CONFIGMAP_KAFKA_LOGGING = "kafka-logging";
+    private static final String CONFIGMAP_EXPORTER_LOGGING = "kafka-exporter-logging";
+    private static final String CONFIGMAP_ZOOKEEPER_LOGGING = "zookeeper-logging";
+
     private static final boolean DELETE_CLAIM = true;
     private static final int JBOD_VOLUME_ID = 0;
     private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
@@ -109,7 +108,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
-    private static final String DIGEST = "org.bf2.operator/digest";
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
@@ -136,75 +134,35 @@ public class KafkaCluster extends AbstractKafkaCluster {
     protected KafkaManager kafkaManager;
 
     @Inject
+    protected ConfigMapManager configMapManager;
+
+    @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         secretManager.createOrUpdate(managedKafka);
 
-        ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
-        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
-        createOrUpdate(kafkaMetricsConfigMap);
-
-        ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
-        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
-        createOrUpdate(zooKeeperMetricsConfigMap);
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_KAFKA_METRICS, false);
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_ZOOKEEPER_METRICS, false);
 
         // do not reset the kafka logging configuration during the reconcile cycle
-        ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaLoggingConfigMapName(managedKafka));
-        ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka), null);
-        if (currentKafkaLoggingConfigMap == null || isDigestModified(currentKafkaLoggingConfigMap, kafkaLoggingConfigMap)) {
-            createOrUpdate(kafkaLoggingConfigMap);
-        }
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_KAFKA_LOGGING, true);
 
         // do not reset the exporter logging configuration during the reconcile cycle
-        ConfigMap currentKafkaExporterLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
-        ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
-        if (currentKafkaExporterLoggingConfigMap == null || isDigestModified(currentKafkaExporterLoggingConfigMap, kafkaExporterLoggingConfigMap)) {
-            createOrUpdate(kafkaExporterLoggingConfigMap);
-        }
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_EXPORTER_LOGGING, true);
 
         // do not reset the zookeeper logging configuration during the reconcile cycle
-        ConfigMap currentZookeeperLoggingConfigMap = cachedConfigMap(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
-        ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka), null);
-        if (currentZookeeperLoggingConfigMap == null || isDigestModified(currentZookeeperLoggingConfigMap, zookeeperLoggingConfigMap)) {
-            createOrUpdate(zookeeperLoggingConfigMap);
-        }
-
-        // delete "old" Kafka and ZooKeeper metrics ConfigMaps
-        deleteOldMetricsConfigMaps(managedKafka);
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_ZOOKEEPER_LOGGING, true);
 
         super.createOrUpdate(managedKafka);
-    }
-
-    /**
-     * Delete "old" Kafka and ZooKeeper metrics ConfigMaps
-     * NOTE:
-     * Fleetshard 0.0.1 version was using Kafka and ZooKeeper metrics ConfigMaps without Kafka instance name prefixed.
-     * Going to delete them, because the new ones are created in the new format.
-     *
-     * @param managedKafka
-     */
-    private void deleteOldMetricsConfigMaps(ManagedKafka managedKafka) {
-        if (cachedConfigMap(managedKafka, "kafka-metrics") != null) {
-            configMapResource(managedKafka, "kafka-metrics").delete();
-        }
-        if (cachedConfigMap(managedKafka, "zookeeper-metrics") != null) {
-            configMapResource(managedKafka, "zookeeper-metrics").delete();
-        }
     }
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         super.delete(managedKafka, context);
         secretManager.delete(managedKafka);
-
-        configMapResource(managedKafka, kafkaMetricsConfigMapName(managedKafka)).delete();
-        configMapResource(managedKafka, zookeeperMetricsConfigMapName(managedKafka)).delete();
-    }
-
-    private void createOrUpdate(ConfigMap configMap) {
-        OperandUtils.createOrUpdate(kubernetesClient.configMaps(), configMap);
+        configMapManager.delete(managedKafka, CONFIGMAP_KAFKA_METRICS, CONFIGMAP_ZOOKEEPER_METRICS);
     }
 
     /* test */
@@ -284,47 +242,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return kafkaBuilder.build();
     }
 
-    private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
-        String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
-
-        try (InputStream is = this.getClass().getClassLoader().getResourceAsStream(templateName + ".yaml")) {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            DigestInputStream dis = new DigestInputStream(is, md);
-            ConfigMap template = kubernetesClient.configMaps().load(dis).get();
-            Map<String, String> annotations = new HashMap<>(1);
-            annotations.put(DIGEST, DatatypeConverter.printHexBinary(md.digest()));
-            template.getMetadata().setAnnotations(annotations);
-            return template;
-        } catch (NoSuchAlgorithmException | IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /* test */
-    protected ConfigMap configMapFrom(ManagedKafka managedKafka, String name, ConfigMap current) {
-
-        ConfigMap template = configMapTemplate(managedKafka, name);
-
-        ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
-        ConfigMap configMap = builder
-                .editOrNewMetadata()
-                    .withNamespace(kafkaClusterNamespace(managedKafka))
-                    .withName(name)
-                    .withLabels(OperandUtils.getDefaultLabels())
-                .endMetadata()
-                .withData(template.getData())
-                .build();
-
-        // setting the ManagedKafka has owner of the ConfigMap resource is needed
-        // by the operator sdk to handle events on the ConfigMap resource properly
-        OperandUtils.setAsOwner(managedKafka, configMap);
-
-        return configMap;
-    }
-
     private MetricsConfig buildKafkaMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
-                .withName(kafkaMetricsConfigMapName(managedKafka))
+                .withName(configMapManager.getFullName(managedKafka, CONFIGMAP_KAFKA_METRICS))
                 .withKey("jmx-exporter-config")
                 .build();
 
@@ -335,7 +255,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private MetricsConfig buildZooKeeperMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
-                .withName(zookeeperMetricsConfigMapName(managedKafka))
+                .withName(configMapManager.getFullName(managedKafka, CONFIGMAP_ZOOKEEPER_METRICS))
                 .withKey("jmx-exporter-config")
                 .build();
 
@@ -347,7 +267,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private ExternalLogging buildZookeeperExternalLogging(ManagedKafka managedKafka) {
         return new ExternalLoggingBuilder()
                 .withNewValueFrom()
-                    .withNewConfigMapKeyRef("log4j.properties", zookeeperLoggingConfigMapName(managedKafka), false)
+                    .withNewConfigMapKeyRef("log4j.properties", configMapManager.getFullName(managedKafka, CONFIGMAP_ZOOKEEPER_LOGGING), false)
                 .endValueFrom()
                 .build();
     }
@@ -497,7 +417,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
-        ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        ConfigMap configMap = configMapManager.getCachedConfigMap(managedKafka, CONFIGMAP_EXPORTER_LOGGING);
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
@@ -793,7 +713,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private ExternalLogging buildKafkaExternalLogging(ManagedKafka managedKafka) {
         return new ExternalLoggingBuilder()
                 .withNewValueFrom()
-                    .withNewConfigMapKeyRef("log4j.properties", kafkaLoggingConfigMapName(managedKafka), false)
+                    .withNewConfigMapKeyRef("log4j.properties", configMapManager.getFullName(managedKafka, CONFIGMAP_KAFKA_LOGGING), false)
                 .endValueFrom()
                 .build();
     }
@@ -828,50 +748,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     public boolean isDeleted(ManagedKafka managedKafka) {
         boolean isDeleted = super.isDeleted(managedKafka) &&
                 secretManager.isDeleted(managedKafka) &&
-                cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka)) == null &&
-                cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka)) == null;
+                configMapManager.allDeleted(managedKafka, "kafka-metrics", "zookeeper-metrics");
 
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
-    }
-
-    private ConfigMap cachedConfigMap(ManagedKafka managedKafka, String name) {
-        return informerManager.getLocalConfigMap(kafkaClusterNamespace(managedKafka), name);
-    }
-
-    protected Resource<ConfigMap> configMapResource(ManagedKafka managedKafka, String name) {
-        return kubernetesClient.configMaps()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(name);
-    }
-
-    public static String kafkaMetricsConfigMapName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-kafka-metrics";
-    }
-
-    public static String zookeeperMetricsConfigMapName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-zookeeper-metrics";
-    }
-
-    public static String kafkaLoggingConfigMapName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-kafka-logging";
-    }
-
-    public static String kafkaExporterLoggingConfigMapName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-kafka-exporter-logging";
-    }
-
-    public static String zookeeperLoggingConfigMapName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-zookeeper-logging";
-    }
-
-    private boolean isDigestModified(ConfigMap currentCM, ConfigMap newCM) {
-        if (currentCM == null || newCM == null) {
-            return true;
-        }
-        String currentDigest = currentCM.getMetadata().getAnnotations() == null ? null : currentCM.getMetadata().getAnnotations().get(DIGEST);
-        String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
-        return !Objects.equals(currentDigest, newDigest);
     }
 
     /* test */

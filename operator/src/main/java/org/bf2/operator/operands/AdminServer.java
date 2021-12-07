@@ -34,6 +34,7 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.ConfigMapManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.SecuritySecretManager;
@@ -62,17 +63,34 @@ import java.util.Optional;
 @DefaultBean
 public class AdminServer extends AbstractAdminServer {
 
+    private static final String CONFIGMAP_ENVOY = "admin-server-envoy";
+
+    private static final String VOLUME_CONFIG = "config";
+    private static final String VOLUME_CONFIG_PATH = "/opt/kafka-admin-api/custom-config/";
+
+    private static final String VOLUME_ENVOY_CONFIG = "config-envoy";
+    private static final String VOLUME_ENVOY_CONFIG_PATH = "/configs/envoy";
+
+    private static final String VOLUME_SOCKETS = "sockets";
+    private static final String VOLUME_SOCKETS_PATH = "/sockets";
+
+    private static final String VOLUME_TLS = "tls";
+    private static final String VOLUME_TLS_PATH = "/secrets/tls";
+
     private static final int HTTP_PORT = 8080;
-    private static final int HTTPS_PORT = 8443;
     private static final int MANAGEMENT_PORT = 9990;
+    private static final int ENVOY_ADMIN_PORT = 9000;
+    private static final int ENVOY_INGRESS_PORT = 9001;
 
     private static final String HTTP_PORT_NAME = "http";
-    private static final String HTTPS_PORT_NAME = "https";
     private static final String MANAGEMENT_PORT_NAME = "management";
+    private static final String ENVOY_ADMIN_PORT_NAME = "envoy-admin";
+    private static final String ENVOY_INGRESS_PORT_NAME = "envoy-ingress";
 
     private static final IntOrString HTTP_PORT_TARGET = new IntOrString(HTTP_PORT_NAME);
-    private static final IntOrString HTTPS_PORT_TARGET = new IntOrString(HTTPS_PORT_NAME);
     private static final IntOrString MANAGEMENT_PORT_TARGET = new IntOrString(MANAGEMENT_PORT_NAME);
+    private static final IntOrString ENVOY_ADMIN_PORT_TARGET = new IntOrString(ENVOY_ADMIN_PORT_NAME);
+    private static final IntOrString ENVOY_INGRESS_PORT_TARGET = new IntOrString(ENVOY_INGRESS_PORT_NAME);
 
     @Inject
     Logger log;
@@ -94,6 +112,9 @@ public class AdminServer extends AbstractAdminServer {
     @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
+    @Inject
+    protected ConfigMapManager configMapManager;
+
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
             openShiftClient = kubernetesClient.adapt(OpenShiftClient.class);
@@ -103,6 +124,8 @@ public class AdminServer extends AbstractAdminServer {
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         super.createOrUpdate(managedKafka);
+
+        configMapManager.createOrUpdate(managedKafka, CONFIGMAP_ENVOY, false);
 
         if (openShiftClient != null) {
             Route currentRoute = cachedRoute(managedKafka);
@@ -115,6 +138,7 @@ public class AdminServer extends AbstractAdminServer {
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         super.delete(managedKafka, context);
+        configMapManager.delete(managedKafka, CONFIGMAP_ENVOY);
 
         if (openShiftClient != null) {
             adminRouteResource(managedKafka).delete();
@@ -144,9 +168,9 @@ public class AdminServer extends AbstractAdminServer {
                             .withLabels(buildLabels(adminServerName))
                         .endMetadata()
                         .editOrNewSpec()
+                            .withVolumes(buildVolumes(managedKafka))
                             .withContainers(buildContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                            .withVolumes(buildVolumes(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec();
@@ -174,7 +198,7 @@ public class AdminServer extends AbstractAdminServer {
 
     /* test */
     @Override
-    public Service serviceFrom(ManagedKafka managedKafka, Service current) {
+    public Service adminServerServiceFrom(ManagedKafka managedKafka, Service current) {
         String adminServerName = adminServerName(managedKafka);
 
         ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
@@ -188,7 +212,43 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .withClusterIP(null) // to prevent 422 errors
                     .withSelector(buildSelectorLabels(adminServerName))
-                    .withPorts(buildServicePorts(managedKafka))
+                    .withPorts(buildAdminServerServicePorts())
+                .endSpec()
+                .build();
+
+        // setting the ManagedKafka has owner of the Admin Server service resource is needed
+        // by the operator sdk to handle events on the Service resource properly
+        OperandUtils.setAsOwner(managedKafka, service);
+
+        return service;
+    }
+
+    @Override
+    public Service envoyServiceFrom(ManagedKafka managedKafka, Service current) {
+        String adminServerName = adminServerName(managedKafka);
+
+        ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
+        Map<String, String> annotations;
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            annotations = Collections.emptyMap();
+        } else {
+            annotations = Map.of(
+                    "service.alpha.openshift.io/serving-cert-secret-name",
+                    adminServerEnvoyName(managedKafka) + "-tls-secret");
+        }
+
+        Service service = builder
+                .editOrNewMetadata()
+                    .withNamespace(adminServerNamespace(managedKafka))
+                    .withName(adminServerEnvoyName(managedKafka))
+                    .withLabels(buildLabels(adminServerName))
+                    .withAnnotations(annotations)
+                .endMetadata()
+                .editOrNewSpec()
+                    .withClusterIP(null) // to prevent 422 errors
+                    .withSelector(buildSelectorLabels(adminServerName))
+                    .withPorts(buildEnvoyServicePorts())
                 .endSpec()
                 .build();
 
@@ -201,23 +261,10 @@ public class AdminServer extends AbstractAdminServer {
 
     /* test */
     protected Route routeFrom(ManagedKafka managedKafka, Route current) {
-        String adminServerName = adminServerName(managedKafka);
-
         RouteBuilder builder = current != null ? new RouteBuilder(current) : new RouteBuilder();
 
-        final IntOrString targetPort;
-        final TLSConfig tlsConfig;
-
-        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            targetPort = HTTPS_PORT_TARGET;
-            tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
-        } else if (config.getAdminserver().isEdgeTlsEnabled()) {
-            targetPort = HTTP_PORT_TARGET;
-            tlsConfig = new TLSConfigBuilder().withTermination("edge").build();
-        } else {
-            targetPort = HTTP_PORT_TARGET;
-            tlsConfig = null;
-        }
+        final IntOrString targetPort = ENVOY_INGRESS_PORT_TARGET;
+        final TLSConfig tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
 
         Route route = builder
                 .editOrNewMetadata()
@@ -228,7 +275,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .withNewTo()
                         .withKind("Service")
-                        .withName(adminServerName)
+                        .withName(adminServerEnvoyName(managedKafka))
                     .endTo()
                     .withNewPort()
                         .withTargetPort(targetPort)
@@ -246,49 +293,98 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     protected List<Container> buildContainers(ManagedKafka managedKafka) {
-        Container container = new ContainerBuilder()
+        Probe adminServerLivenessProbe = buildProbe("/health/liveness", MANAGEMENT_PORT_TARGET, 5, 15, 1, 3);
+
+        Container adminServerContainer = new ContainerBuilder()
                 .withName("admin-server")
                 .withImage(adminApiImage)
                 .withEnv(buildEnvVar(managedKafka))
-                .withPorts(buildContainerPorts(managedKafka))
+                .withPorts(buildAdminServerContainerPorts())
                 .withResources(buildResources())
-                .withReadinessProbe(buildProbe())
-                .withLivenessProbe(buildProbe())
-                .withVolumeMounts(buildVolumeMounts(managedKafka))
+                .withReadinessProbe(adminServerLivenessProbe)
+                .withLivenessProbe(adminServerLivenessProbe)
+                .withVolumeMounts(
+                        volumeMount(VOLUME_CONFIG, VOLUME_CONFIG_PATH),
+                        volumeMount(VOLUME_SOCKETS, VOLUME_SOCKETS_PATH))
                 .build();
 
-        return Collections.singletonList(container);
+        Probe envoyReadyProbe = buildProbe("/ready", ENVOY_ADMIN_PORT_TARGET, 1, 10, 1, 10);
+
+        Container envoyContainer = new ContainerBuilder()
+                .withName("envoy-sidecar")
+                .withImage("envoyproxy/envoy:v1.16.1") // TODO: Parameterize envoy image reference
+                .withCommand("envoy", "--config-path", "/configs/envoy/main.yaml")
+                .withPorts(buildEnvoyContainerPorts())
+                .withResources(buildResources()) // FIXME: separate resources for sidecar
+                .withReadinessProbe(envoyReadyProbe)
+                .withLivenessProbe(envoyReadyProbe)
+                .withVolumeMounts(
+                        volumeMount(VOLUME_ENVOY_CONFIG, VOLUME_ENVOY_CONFIG_PATH),
+                        volumeMount(VOLUME_SOCKETS, VOLUME_SOCKETS_PATH),
+                        volumeMount(VOLUME_TLS, VOLUME_TLS_PATH))
+                .build();
+
+        return List.of(adminServerContainer, envoyContainer);
     }
 
-    private Probe buildProbe() {
+    private Probe buildProbe(String path, IntOrString port, int timeout, int initialDelay, int successThreshold, int failureThreshold) {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
-                        .withPath("/health/liveness")
-                        .withPort(MANAGEMENT_PORT_TARGET)
+                        .withPath(path)
+                        .withPort(port)
                         .build()
                 )
-                .withTimeoutSeconds(5)
-                .withInitialDelaySeconds(15)
+                .withTimeoutSeconds(timeout)
+                .withInitialDelaySeconds(initialDelay)
+                .withSuccessThreshold(successThreshold)
+                .withFailureThreshold(failureThreshold)
                 .build();
     }
 
-    private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
-        return Collections.singletonList(new VolumeMountBuilder()
-                    .withName(adminServerConfigVolumeName(managedKafka))
-                    /* Matches location expected by kafka-admin-api container. */
-                    .withMountPath("/opt/kafka-admin-api/custom-config/")
-                .build());
-    }
-
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
-        return Collections.singletonList(new VolumeBuilder()
-                .withName(adminServerConfigVolumeName(managedKafka))
+        Volume configVolume = new VolumeBuilder()
+                .withName(VOLUME_CONFIG)
                 .editOrNewConfigMap()
-                    .withName(adminServerName(managedKafka))
+                    .withName(configMapManager.getFullName(managedKafka, "admin-server"))
                     .withOptional(Boolean.TRUE)
                 .endConfigMap()
-                .build());
+                .build();
+
+        Volume envoyConfigVolume = new VolumeBuilder()
+                .withName(VOLUME_ENVOY_CONFIG)
+                .editOrNewConfigMap()
+                    .withName(configMapManager.getFullName(managedKafka, CONFIGMAP_ENVOY))
+                .endConfigMap()
+                .build();
+
+        Volume socketsVolume = new VolumeBuilder()
+                .withName(VOLUME_SOCKETS)
+                .editOrNewEmptyDir()
+                    .withMedium("Memory")
+                .endEmptyDir()
+                .build();
+
+        String tlsSecretName;
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            tlsSecretName = SecuritySecretManager.kafkaTlsSecretName(managedKafka);
+        } else {
+            tlsSecretName = adminServerEnvoyName(managedKafka) + "-tls-secret";
+        }
+
+        Volume tlsVolume = new VolumeBuilder()
+                .withName(VOLUME_TLS)
+                .editOrNewSecret()
+                    .withSecretName(tlsSecretName)
+                .endSecret()
+                .build();
+
+        return List.of(configVolume, envoyConfigVolume, socketsVolume, tlsVolume);
+    }
+
+    private VolumeMount volumeMount(String name, String mountPath) {
+        return new VolumeMountBuilder().withName(name).withMountPath(mountPath).build();
     }
 
     private Map<String, String> buildSelectorLabels(String adminServerName) {
@@ -320,12 +416,6 @@ public class AdminServer extends AbstractAdminServer {
         addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
         addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
         addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
-
-        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
-            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key");
-            addEnvVar(envVars, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3,TLSv1.2");
-        }
 
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
             ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
@@ -361,21 +451,10 @@ public class AdminServer extends AbstractAdminServer {
                         .build());
     }
 
-    private List<ContainerPort> buildContainerPorts(ManagedKafka managedKafka) {
-        final String apiPortName;
-        final int apiContainerPort;
-
-        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            apiPortName = HTTPS_PORT_NAME;
-            apiContainerPort = HTTPS_PORT;
-        } else {
-            apiPortName = HTTP_PORT_NAME;
-            apiContainerPort = HTTP_PORT;
-        }
-
+    private List<ContainerPort> buildAdminServerContainerPorts() {
         return List.of(new ContainerPortBuilder()
-                           .withName(apiPortName)
-                           .withContainerPort(apiContainerPort)
+                           .withName(HTTP_PORT_NAME)
+                           .withContainerPort(HTTP_PORT)
                            .build(),
                        new ContainerPortBuilder()
                            .withName(MANAGEMENT_PORT_NAME)
@@ -383,26 +462,34 @@ public class AdminServer extends AbstractAdminServer {
                            .build());
     }
 
-    private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {
-        final String apiPortName;
-        final int apiPort;
-        final IntOrString apiTargetPort;
+    private List<ContainerPort> buildEnvoyContainerPorts() {
+        return List.of(new ContainerPortBuilder()
+                            .withName(ENVOY_ADMIN_PORT_NAME)
+                            .withProtocol("TCP")
+                            .withContainerPort(ENVOY_ADMIN_PORT)
+                            .build(),
+                        new ContainerPortBuilder()
+                            .withName(ENVOY_INGRESS_PORT_NAME)
+                            .withProtocol("TCP")
+                            .withContainerPort(ENVOY_INGRESS_PORT)
+                            .build());
+    }
 
-        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            apiPortName = HTTPS_PORT_NAME;
-            apiPort = HTTPS_PORT;
-            apiTargetPort = HTTPS_PORT_TARGET;
-        } else {
-            apiPortName = HTTP_PORT_NAME;
-            apiPort = HTTP_PORT;
-            apiTargetPort = HTTP_PORT_TARGET;
-        }
-
+    private List<ServicePort> buildAdminServerServicePorts() {
         return Collections.singletonList(new ServicePortBuilder()
-                           .withName(apiPortName)
+                           .withName(HTTP_PORT_NAME)
                            .withProtocol("TCP")
-                           .withPort(apiPort)
-                           .withTargetPort(apiTargetPort)
+                           .withPort(HTTP_PORT)
+                           .withTargetPort(HTTP_PORT_TARGET)
+                           .build());
+    }
+
+    private List<ServicePort> buildEnvoyServicePorts() {
+        return Collections.singletonList(new ServicePortBuilder()
+                           .withName(ENVOY_INGRESS_PORT_NAME)
+                           .withProtocol("TCP")
+                           .withPort(ENVOY_INGRESS_PORT)
+                           .withTargetPort(ENVOY_INGRESS_PORT_TARGET)
                            .build());
     }
 
@@ -419,10 +506,13 @@ public class AdminServer extends AbstractAdminServer {
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
+        boolean isDeleted = super.isDeleted(managedKafka) &&
+                configMapManager.allDeleted(managedKafka, CONFIGMAP_ENVOY);
+
         if (openShiftClient != null) {
             isDeleted = isDeleted && cachedRoute(managedKafka) == null;
         }
+
         log.tracef("Admin Server isDeleted = %s", isDeleted);
         return isDeleted;
     }

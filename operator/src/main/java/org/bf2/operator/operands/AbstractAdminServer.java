@@ -29,9 +29,13 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
         createOrUpdate(deployment);
 
-        Service currentService = cachedService(managedKafka);
-        Service service = serviceFrom(managedKafka, currentService);
-        createOrUpdate(service);
+        Service currentAdminServerService = cachedAdminServerService(managedKafka);
+        Service adminServerService = adminServerServiceFrom(managedKafka, currentAdminServerService);
+        createOrUpdate(adminServerService);
+
+        Service currentEnvoyService = cachedEnvoyService(managedKafka);
+        Service envoyService = envoyServiceFrom(managedKafka, currentEnvoyService);
+        createOrUpdate(envoyService);
     }
 
     protected void createOrUpdate(Deployment deployment) {
@@ -46,11 +50,14 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         adminDeploymentResource(managedKafka).delete();
         adminServiceResource(managedKafka).delete();
+        envoyServiceResource(managedKafka).delete();
     }
 
     public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
-    public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
+    public abstract Service adminServerServiceFrom(ManagedKafka managedKafka, Service current);
+
+    public abstract Service envoyServiceFrom(ManagedKafka managedKafka, Service current);
 
     public abstract String uri(ManagedKafka managedKafka);
 
@@ -61,7 +68,10 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
 
     @Override
     public boolean isDeleted(ManagedKafka managedKafka) {
-        boolean isDeleted = cachedDeployment(managedKafka) == null && cachedService(managedKafka) == null;
+        boolean isDeleted = cachedDeployment(managedKafka) == null
+                && cachedAdminServerService(managedKafka) == null
+                && cachedEnvoyService(managedKafka) == null;
+
         log.tracef("Admin Server isDeleted = %s", isDeleted);
         return isDeleted;
     }
@@ -70,6 +80,12 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         return kubernetesClient.services()
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));
+    }
+
+    protected Resource<Service> envoyServiceResource(ManagedKafka managedKafka) {
+        return kubernetesClient.services()
+                .inNamespace(adminServerNamespace(managedKafka))
+                .withName(adminServerEnvoyName(managedKafka));
     }
 
     protected Resource<Deployment> adminDeploymentResource(ManagedKafka managedKafka){
@@ -82,16 +98,20 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
         return informerManager.getLocalDeployment(adminServerNamespace(managedKafka), adminServerName(managedKafka));
     }
 
-    protected Service cachedService(ManagedKafka managedKafka) {
+    protected Service cachedAdminServerService(ManagedKafka managedKafka) {
         return informerManager.getLocalService(adminServerNamespace(managedKafka), adminServerName(managedKafka));
+    }
+
+    protected Service cachedEnvoyService(ManagedKafka managedKafka) {
+        return informerManager.getLocalService(adminServerNamespace(managedKafka), adminServerEnvoyName(managedKafka));
     }
 
     public static String adminServerName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-admin-server";
     }
 
-    public static String adminServerConfigVolumeName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-config-volume";
+    public static String adminServerEnvoyName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-admin-server-envoy";
     }
 
     public static String adminServerNamespace(ManagedKafka managedKafka) {
