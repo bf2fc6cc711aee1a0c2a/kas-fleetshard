@@ -13,6 +13,7 @@ import javax.inject.Inject;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,5 +64,35 @@ public class IngressControllerManagerTest {
             }
             return c.getSpec().getNodePlacement() != null;
         }));
+    }
+
+    @Test
+    public void testIngressControllerReplicaCounts() {
+        List<Node> nodes = buildNodes(9);
+
+        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes));
+        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes));
+
+        nodes = buildNodes(210);
+
+        assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes));
+        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes));
+
+        nodes = buildNodes(303);
+
+        assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes));
+        assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes));
+    }
+
+    private List<Node> buildNodes(int nodeCount) {
+        List<Node> nodes = IntStream.range(0, nodeCount).mapToObj(i ->
+            new NodeBuilder()
+                    .editOrNewMetadata()
+                        .withName("z"+i)
+                        .withLabels(Map.of(IngressControllerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+(i%3)))
+                    .endMetadata()
+                    .build()
+        ).collect(Collectors.toList());
+        return nodes;
     }
 }
