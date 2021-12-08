@@ -11,7 +11,6 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
@@ -46,6 +45,9 @@ public class InformerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
+    @Inject
+    OpenShiftSupport openShiftSupport;
+
     private volatile ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
@@ -55,7 +57,7 @@ public class InformerManager {
 
 
     boolean isOpenShift() {
-        return kubernetesClient.isAdaptable(OpenShiftClient.class);
+        return openShiftSupport.isOpenShift(kubernetesClient);
     }
 
     @PostConstruct
@@ -69,7 +71,7 @@ public class InformerManager {
         secretInformer = resourceInformerFactory.create(Secret.class, filter(kubernetesClient.secrets()), eventSource);
 
         if (isOpenShift()) {
-            routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(kubernetesClient.adapt(OpenShiftClient.class).routes()), eventSource);
+            routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
         }
     }
 
