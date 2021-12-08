@@ -53,6 +53,11 @@ Warnings and errors are always logged and are not affected by the value of `VERB
 The Sarama Apache Kafka client only allows logging to be enabled or disabled (default), without any kind of verbosity level support.
 It is possible to enable it by using the `SARAMA_LOG_ENABLED` environment variable.
 
+Additionally, Go runtime debug variables can be set via the `GODEBUG` environment variable.
+This can be used to log certain actions more verbosely, or can even influence the behaviour of the runtime.
+Usage instructions for this variable can be found [here](https://pkg.go.dev/runtime?utm_source=godoc#hdr-Environment_Variables).
+To configure the value of the `GODEBUG` environment variable, set the `go.debug` field in the "canary-config" ConfigMap below.
+
 If you wish to change the above logging configuration, you should create a ConfigMap named `canary-config` in the namespace of the Kafka instance where the canary is running.
 The ConfigMap should contain the corresponding environment variables in the following way.
 

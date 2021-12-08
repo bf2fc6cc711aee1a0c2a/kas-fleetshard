@@ -129,8 +129,10 @@ public class StrimziOperatorManager {
         deployment.getMetadata().setLabels(labels);
         Container container = deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
         List<EnvVar> env = new ArrayList<>(container.getEnv() == null ? Collections.emptyList() : container.getEnv());
-        EnvVar strimziNS = env.stream().filter(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE")).findFirst().get();
-        env.remove(strimziNS);
+        env.removeIf(envVar -> envVar.getName().equals("STRIMZI_NAMESPACE"));
+        env.removeIf(envVar -> envVar.getName().equals("STRIMZI_FULL_RECONCILIATION_INTERVAL_MS"));
+        // speed up the reconsiliation for testing
+        env.add(new EnvVarBuilder().withName("STRIMZI_FULL_RECONCILIATION_INTERVAL_MS").withValue("15000").build());
         env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
         // allowing a specific Strimzi operator (just one in systemtest) to select the Kafka resources to work on
         env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=" + deploymentName).build());
