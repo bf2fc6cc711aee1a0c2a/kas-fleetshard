@@ -46,7 +46,7 @@ public class ConfigMapManager {
         ConfigMap current = getCachedConfigMap(managedKafka, fullName);
         ConfigMap replacement = configMapFrom(managedKafka, fullName, current);
 
-        if (current == null || !compareDigest || !isDigestModified(current, replacement)) {
+        if (current == null || !compareDigest || isDigestModified(current, replacement)) {
             OperandUtils.createOrUpdate(client.configMaps(), replacement);
         }
     }

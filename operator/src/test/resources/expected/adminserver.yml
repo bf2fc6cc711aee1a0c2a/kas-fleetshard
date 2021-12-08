@@ -43,6 +43,8 @@ spec:
           value: "test-mk-kafka-bootstrap:9095"
         - name: "KAFKA_ADMIN_BROKER_TLS_ENABLED"
           value: "true"
+        - name: "KAFKA_ADMIN_DOMAIN_SOCKET"
+          value: "/sockets/api.socket"
         - name: "KAFKA_ADMIN_BROKER_TRUSTED_CERT"
           valueFrom:
             secretKeyRef:
@@ -57,7 +59,7 @@ spec:
             , \"write\" ] }"
         - name: "KAFKA_ADMIN_OAUTH_ENABLED"
           value: "false"
-        image: "quay.io/mk-ci-cd/kafka-admin-api:0.6.4"
+        image: "quay.io/medgar/kafka-admin-api:latest"
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -68,8 +70,6 @@ spec:
           timeoutSeconds: 5
         name: "admin-server"
         ports:
-        - containerPort: 8080
-          name: "http"
         - containerPort: 9990
           name: "management"
         readinessProbe:
@@ -148,5 +148,4 @@ spec:
         name: "sockets"
       - name: "tls"
         secret:
-          secretName: "test-mk-admin-server-envoy-tls-secret"
- 
+          secretName: "test-mk-admin-server-tls-secret"

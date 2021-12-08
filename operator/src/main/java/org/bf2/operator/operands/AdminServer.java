@@ -77,17 +77,14 @@ public class AdminServer extends AbstractAdminServer {
     private static final String VOLUME_TLS = "tls";
     private static final String VOLUME_TLS_PATH = "/secrets/tls";
 
-    private static final int HTTP_PORT = 8080;
     private static final int MANAGEMENT_PORT = 9990;
     private static final int ENVOY_ADMIN_PORT = 9000;
     private static final int ENVOY_INGRESS_PORT = 9001;
 
-    private static final String HTTP_PORT_NAME = "http";
     private static final String MANAGEMENT_PORT_NAME = "management";
     private static final String ENVOY_ADMIN_PORT_NAME = "envoy-admin";
     private static final String ENVOY_INGRESS_PORT_NAME = "envoy-ingress";
 
-    private static final IntOrString HTTP_PORT_TARGET = new IntOrString(HTTP_PORT_NAME);
     private static final IntOrString MANAGEMENT_PORT_TARGET = new IntOrString(MANAGEMENT_PORT_NAME);
     private static final IntOrString ENVOY_ADMIN_PORT_TARGET = new IntOrString(ENVOY_ADMIN_PORT_NAME);
     private static final IntOrString ENVOY_INGRESS_PORT_TARGET = new IntOrString(ENVOY_INGRESS_PORT_NAME);
@@ -196,35 +193,8 @@ public class AdminServer extends AbstractAdminServer {
         return deployment;
     }
 
-    /* test */
     @Override
-    public Service adminServerServiceFrom(ManagedKafka managedKafka, Service current) {
-        String adminServerName = adminServerName(managedKafka);
-
-        ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
-
-        Service service = builder
-                .editOrNewMetadata()
-                    .withNamespace(adminServerNamespace(managedKafka))
-                    .withName(adminServerName(managedKafka))
-                    .withLabels(buildLabels(adminServerName))
-                .endMetadata()
-                .editOrNewSpec()
-                    .withClusterIP(null) // to prevent 422 errors
-                    .withSelector(buildSelectorLabels(adminServerName))
-                    .withPorts(buildAdminServerServicePorts())
-                .endSpec()
-                .build();
-
-        // setting the ManagedKafka has owner of the Admin Server service resource is needed
-        // by the operator sdk to handle events on the Service resource properly
-        OperandUtils.setAsOwner(managedKafka, service);
-
-        return service;
-    }
-
-    @Override
-    public Service envoyServiceFrom(ManagedKafka managedKafka, Service current) {
+    public Service serviceFrom(ManagedKafka managedKafka, Service current) {
         String adminServerName = adminServerName(managedKafka);
 
         ServiceBuilder builder = current != null ? new ServiceBuilder(current) : new ServiceBuilder();
@@ -235,13 +205,13 @@ public class AdminServer extends AbstractAdminServer {
         } else {
             annotations = Map.of(
                     "service.alpha.openshift.io/serving-cert-secret-name",
-                    adminServerEnvoyName(managedKafka) + "-tls-secret");
+                    adminServerName(managedKafka) + "-tls-secret");
         }
 
         Service service = builder
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
-                    .withName(adminServerEnvoyName(managedKafka))
+                    .withName(adminServerName(managedKafka))
                     .withLabels(buildLabels(adminServerName))
                     .withAnnotations(annotations)
                 .endMetadata()
@@ -275,7 +245,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewSpec()
                     .withNewTo()
                         .withKind("Service")
-                        .withName(adminServerEnvoyName(managedKafka))
+                        .withName(adminServerName(managedKafka))
                     .endTo()
                     .withNewPort()
                         .withTargetPort(targetPort)
@@ -370,7 +340,7 @@ public class AdminServer extends AbstractAdminServer {
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             tlsSecretName = SecuritySecretManager.kafkaTlsSecretName(managedKafka);
         } else {
-            tlsSecretName = adminServerEnvoyName(managedKafka) + "-tls-secret";
+            tlsSecretName = adminServerName(managedKafka) + "-tls-secret";
         }
 
         Volume tlsVolume = new VolumeBuilder()
@@ -414,6 +384,7 @@ public class AdminServer extends AbstractAdminServer {
 
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
+        addEnvVar(envVars, "KAFKA_ADMIN_DOMAIN_SOCKET", "/sockets/api.socket");
         addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
         addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
 
@@ -453,10 +424,6 @@ public class AdminServer extends AbstractAdminServer {
 
     private List<ContainerPort> buildAdminServerContainerPorts() {
         return List.of(new ContainerPortBuilder()
-                           .withName(HTTP_PORT_NAME)
-                           .withContainerPort(HTTP_PORT)
-                           .build(),
-                       new ContainerPortBuilder()
                            .withName(MANAGEMENT_PORT_NAME)
                            .withContainerPort(MANAGEMENT_PORT)
                            .build());
@@ -473,15 +440,6 @@ public class AdminServer extends AbstractAdminServer {
                             .withProtocol("TCP")
                             .withContainerPort(ENVOY_INGRESS_PORT)
                             .build());
-    }
-
-    private List<ServicePort> buildAdminServerServicePorts() {
-        return Collections.singletonList(new ServicePortBuilder()
-                           .withName(HTTP_PORT_NAME)
-                           .withProtocol("TCP")
-                           .withPort(HTTP_PORT)
-                           .withTargetPort(HTTP_PORT_TARGET)
-                           .build());
     }
 
     private List<ServicePort> buildEnvoyServicePorts() {

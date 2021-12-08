@@ -49,9 +49,8 @@ data:
           - lb_endpoints:
             - endpoint:
                 address:
-                  socket_address:
-                    address: 127.0.0.1
-                    port_value: 8080 # Admin API server port
+                  pipe:
+                    path: /sockets/api.socket
 
       # This cluster is used to send request to the rate limiting service.
       - name: limiter
