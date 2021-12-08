@@ -21,11 +21,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @ApplicationScoped
 public class ConfigMapManager {
 
-    private static final String DIGEST = "org.bf2.operator/digest";
+    static final String DIGEST = "org.bf2.operator/digest";
 
     @Inject
     Logger log;
@@ -95,6 +96,7 @@ public class ConfigMapManager {
                     .withNamespace(managedKafka.getMetadata().getNamespace())
                     .withName(name)
                     .withLabels(OperandUtils.getDefaultLabels())
+                    .addToAnnotations(DIGEST, template.getMetadata().getAnnotations().get(DIGEST))
                 .endMetadata()
                 .withData(template.getData())
                 .build();
@@ -110,8 +112,13 @@ public class ConfigMapManager {
         if (currentCM == null || newCM == null) {
             return true;
         }
-        String currentDigest = currentCM.getMetadata().getAnnotations() == null ? null : currentCM.getMetadata().getAnnotations().get(DIGEST);
-        String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
-        return !Objects.equals(currentDigest, newDigest);
+
+        return !Objects.equals(getDigest(currentCM), getDigest(newCM));
+    }
+
+    private String getDigest(ConfigMap configMap) {
+        return Optional.ofNullable(configMap.getMetadata().getAnnotations())
+                .map(annotations -> annotations.get(DIGEST))
+                .orElse(null);
     }
 }
