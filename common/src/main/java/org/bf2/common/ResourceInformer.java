@@ -2,6 +2,7 @@ package org.bf2.common;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 
 import java.util.List;
 
@@ -19,6 +20,10 @@ public class ResourceInformer<T extends HasMetadata> {
 
     public List<T> getList() {
         return informer.getStore().list();
+    }
+
+    public List<T> getByNamespace(String namesapce) {
+        return informer.getIndexer().byIndex(Cache.NAMESPACE_INDEX, namesapce);
     }
 
     public boolean isWatching() {

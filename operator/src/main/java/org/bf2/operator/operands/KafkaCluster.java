@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelector;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.LabelSelector;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaimStatus;
 import io.fabric8.kubernetes.api.model.PodAffinity;
 import io.fabric8.kubernetes.api.model.PodAffinityTerm;
 import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
@@ -85,6 +86,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -672,6 +674,42 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         return new Quantity(String.valueOf(bytes));
+    }
+
+    public static long unpadBrokerStorage(long value) {
+        return Math.min(value - Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (value * SOFT_PERCENT));
+    }
+
+    /**
+     * Get the current sum of storage as reported by the pvcs.
+     * This may not match the requested amount ephemerally, or due to rounding
+     */
+    @Override
+    public Quantity calculateRetentionSize(ManagedKafka managedKafka) {
+        long storageInGbs = informerManager.getPvcsInNamespace(managedKafka.getMetadata().getNamespace()).stream().map(pvc -> {
+            if (pvc.getStatus() == null) {
+                return 0L;
+            }
+            PersistentVolumeClaimStatus status = pvc.getStatus();
+            Quantity q = OperandUtils.getOrDefault(status.getCapacity(), "storage", (Quantity)null);
+            if (q == null) {
+                return 0L;
+            }
+            long value = Quantity.getAmountInBytes(q).longValue();
+            // round down to the nearest GB - the PVC request is automatically rounded up
+            return (long)Math.floor(((double)KafkaCluster.unpadBrokerStorage(value))/(1L<<30));
+        }).collect(Collectors.summingLong(Long::longValue));
+
+        Quantity capacity = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
+
+        // try to correct for the overall rounding
+        if (storageInGbs > 0 && (capacity == null
+                || ("Gi".equals(capacity.getFormat()) && (Quantity.getAmountInBytes(capacity).longValue() / (1L << 30))
+                        % config.getKafka().getReplicas() != 0))) {
+            storageInGbs++;
+        }
+
+        return Quantity.parse(String.format("%sGi",storageInGbs));
     }
 
     private Storage buildZooKeeperStorage(Kafka current) {

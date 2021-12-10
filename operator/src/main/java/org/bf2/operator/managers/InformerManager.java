@@ -3,10 +3,12 @@ package org.bf2.operator.managers;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -54,7 +56,7 @@ public class InformerManager {
     private ResourceInformer<ConfigMap> configMapInformer;
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
-
+    private ResourceInformer<PersistentVolumeClaim> pvcInformer;
 
     boolean isOpenShift() {
         return openShiftSupport.isOpenShift(kubernetesClient);
@@ -69,6 +71,28 @@ public class InformerManager {
         configMapInformer = resourceInformerFactory.create(ConfigMap.class, filter(kubernetesClient.configMaps()), eventSource);
 
         secretInformer = resourceInformerFactory.create(Secret.class, filter(kubernetesClient.secrets()), eventSource);
+
+        // pvcs have an owner reference set to the kafka, not managedkakfa, so we need some lookup logic in the handleEvent
+        pvcInformer = resourceInformerFactory.create(PersistentVolumeClaim.class,
+                kubernetesClient.persistentVolumeClaims().inAnyNamespace().withLabel("app.kubernetes.io/name", "kafka"),
+                new ResourceEventSource() {
+
+                    @Override
+                    protected void handleEvent(HasMetadata resource, Action action) {
+                        if (kafkaInformer != null) {
+                            // TODO: could index by uid, or use namespace
+                            String name =
+                                    OperandUtils.getOrDefault(resource.getMetadata().getLabels(), "strimzi.io/cluster", null);
+                            if (name != null) {
+                                Kafka kafka = kafkaInformer
+                                        .getByKey(Cache.namespaceKeyFunc(resource.getMetadata().getNamespace(), name));
+                                if (kafka != null) {
+                                    handleEvent(kafka, Action.MODIFIED);
+                                }
+                            }
+                        }
+                    }
+                });
 
         if (isOpenShift()) {
             routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
@@ -157,5 +181,9 @@ public class InformerManager {
 
     public void resyncManagedKafka(ManagedKafka managedKafka) {
         this.eventSource.handleEvent(managedKafka);
+    }
+
+    public List<PersistentVolumeClaim> getPvcsInNamespace(String namespace) {
+        return this.pvcInformer.getByNamespace(namespace);
     }
 }

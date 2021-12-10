@@ -154,7 +154,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         status.setRoutes(List.of());
 
         if (Status.True.equals(readiness.getStatus())) {
-            status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity()).build());
+            status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity())
+                    .withMaxDataRetentionSize(kafkaInstance.getKafkaCluster().calculateRetentionSize(managedKafka))
+                    .build());
             // the versions in the status are updated incrementally copying the spec only when each stage ends
             VersionsBuilder versionsBuilder = status.getVersions() != null ?
                     new VersionsBuilder(status.getVersions()) : new VersionsBuilder(managedKafka.getSpec().getVersions());

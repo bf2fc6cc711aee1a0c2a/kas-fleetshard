@@ -15,6 +15,7 @@ import javax.enterprise.context.ApplicationScoped;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Mock
 @ApplicationScoped
@@ -54,6 +55,19 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
                         .filter(i -> Objects.equals(name, i.getMetadata().getName())
                                 && Objects.equals(namespace, i.getMetadata().getNamespace()))
                         .findFirst().orElse(null);
+            }
+
+        });
+        Mockito.when(mock.getByNamespace(Mockito.anyString())).then(new Answer<List<T>>() {
+
+            @Override
+            public List<T> answer(InvocationOnMock invocation) throws Throwable {
+                String namespace = (String)invocation.getArgument(0);
+                return watchListDeletable.list()
+                        .getItems()
+                        .stream()
+                        .filter(i -> Objects.equals(namespace, i.getMetadata().getNamespace()))
+                        .collect(Collectors.toList());
             }
 
         });
