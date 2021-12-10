@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
+import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
@@ -14,6 +16,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
@@ -21,6 +24,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
@@ -44,6 +48,9 @@ public class IngressControllerManagerTest {
 
     @Inject
     OpenShiftClient openShiftClient;
+
+    @KubernetesTestServer
+    KubernetesServer kubernetesServer;
 
     @Test
     public void testIngressControllerCreationWithNoZones() {
@@ -207,5 +214,10 @@ public class IngressControllerManagerTest {
         assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
     }
 
-
+    @AfterEach
+    void cleanup() {
+        // clears the mock server state
+        // won't be needed after quarkus fixes issues with WithKubernetesTestServer
+        kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
+    }
 }
