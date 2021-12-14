@@ -51,6 +51,9 @@ public class ManagedKafkaAgentControllerTest {
         assertNull(dummyInstance.getStatus());
         agentClient.create(dummyInstance);
 
+        InformerManager mockInformerManager = Mockito.mock(InformerManager.class, Mockito.RETURNS_DEEP_STUBS);
+        QuarkusMock.installMockForType(mockInformerManager, InformerManager.class);
+
         // no nodes nor brokers
         mkaController.statusUpdateLoop();
         ManagedKafkaAgent agent = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
@@ -60,7 +63,6 @@ public class ManagedKafkaAgentControllerTest {
         assertEquals(0, agent.getStatus().getNodeInfo().getCurrent());
         assertEquals(0.9375, agent.getStatus().getSizeInfo().getBrokersPerNode(), .001);
 
-        InformerManager mockInformerManager = Mockito.mock(InformerManager.class, Mockito.RETURNS_DEEP_STUBS);
         Mockito.when(mockInformerManager.getKafkaCount()).thenReturn(16);
         Mockito.when(mockInformerManager.getNodeInformer().getList().size()).thenReturn(126);
 
