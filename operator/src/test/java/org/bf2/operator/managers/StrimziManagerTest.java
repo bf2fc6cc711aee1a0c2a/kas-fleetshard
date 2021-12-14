@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -19,6 +20,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.bf2.operator.resources.v1alpha1.VersionsBuilder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,6 +63,11 @@ public class StrimziManagerTest {
         this.strimziManager.clearStrimziVersions();
 
         this.informerManager.createKafkaInformer();
+    }
+
+    @AfterEach
+    public void afterEach() {
+        this.server.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
     }
 
     @Test
