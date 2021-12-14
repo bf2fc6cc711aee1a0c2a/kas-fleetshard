@@ -1,6 +1,5 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -13,12 +12,12 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.ObservabilityManager;
 import org.bf2.operator.managers.StrimziManager;
-import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
-import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
-import org.bf2.operator.resources.v1alpha1.ClusterResizeInfo;
-import org.bf2.operator.resources.v1alpha1.ClusterResizeInfoBuilder;
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
+import org.bf2.operator.resources.v1alpha1.ClusterInfo;
+import org.bf2.operator.resources.v1alpha1.ClusterInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
@@ -27,7 +26,10 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
+import org.bf2.operator.resources.v1alpha1.SizeInfo;
+import org.bf2.operator.resources.v1alpha1.SizeInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -46,6 +48,9 @@ import java.util.List;
 @Controller
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
+    @ConfigProperty(name = "osd.fleet.overhead.nodes")
+    protected int fleetOverheadNodes;
+
     @Inject
     Logger log;
 
@@ -57,6 +62,12 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
 
     @Inject
     StrimziManager strimziManager;
+
+    @Inject
+    InformerManager informerManager;
+
+    @Inject
+    KafkaInstanceConfiguration config;
 
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
@@ -118,45 +129,41 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
         }
 
-        ClusterCapacity total = new ClusterCapacityBuilder()
-                .withConnections(10000)
-                .withDataRetentionSize(Quantity.parse("40Gi"))
-                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
-                .withPartitions(10000)
-                .build();
+        // report cluster capacity
+        // this logic is not very dynamic, relying upon several config values
 
-        ClusterCapacity remaining = new ClusterCapacityBuilder()
-                .withConnections(10000)
-                .withDataRetentionSize(Quantity.parse("40Gi"))
-                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
-                .withPartitions(10000)
-                .build();
+        int replicas = config.getKafka().getReplicas();
+        double brokersPerNode = config.getKafka().getBrokersPerNode();
 
-        ClusterCapacity delta = new ClusterCapacityBuilder()
-                .withConnections(10000)
-                .withDataRetentionSize(Quantity.parse("40Gi"))
-                .withIngressEgressThroughputPerSec(Quantity.parse("40Gi"))
-                .withPartitions(10000)
+        int currentNodeCount = informerManager.getNodeInformer().getList().size();
+
+        double brokerNodes = (replicas*informerManager.getKafkaCount())/brokersPerNode;
+        int ceilBrokerNodes = (int)Math.ceil(brokerNodes);
+
+        double remainingWorkerNodes = currentNodeCount - fleetOverheadNodes - brokerNodes;
+        if (config.getKafka().isOneInstancePerNode()) {
+            remainingWorkerNodes = Math.floor(remainingWorkerNodes);
+        }
+        int remainingBrokers = Math.max(0, (int)Math.floor(remainingWorkerNodes * brokersPerNode));
+
+        ClusterInfo clusterInfo = new ClusterInfoBuilder()
+                .withRemainingBrokers(remainingBrokers)
                 .build();
 
         NodeCounts nodeInfo = new NodeCountsBuilder()
-                .withCeiling(0)
-                .withCurrent(0)
-                .withCurrentWorkLoadMinimum(0)
-                .withFloor(0)
+                .withCurrent(currentNodeCount)
+                .withWorkLoadMinimum(fleetOverheadNodes + ceilBrokerNodes)
                 .build();
 
-        ClusterResizeInfo resize = new ClusterResizeInfoBuilder()
-                .withDelta(delta)
-                .withNodeDelta(3)
+        SizeInfo sizeInfo = new SizeInfoBuilder()
+                .withBrokersPerNode(brokersPerNode)
                 .build();
 
         return new ManagedKafkaAgentStatusBuilder()
                 .withConditions(status == null ? Arrays.asList(readyCondition) : status.getConditions())
-                .withTotal(total)
-                .withRemaining(remaining)
+                .withClusterInfo(clusterInfo)
                 .withNodeInfo(nodeInfo)
-                .withResizeInfo(resize)
+                .withSizeInfo(sizeInfo)
                 .withUpdatedTimestamp(ConditionUtils.iso8601Now())
                 .withStrimzi(strimziVersions)
                 .build();

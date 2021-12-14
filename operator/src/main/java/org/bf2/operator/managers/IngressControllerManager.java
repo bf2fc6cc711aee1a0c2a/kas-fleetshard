@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -77,10 +76,6 @@ public class IngressControllerManager {
     protected static final String INGRESS_OPERATOR_NAMESPACE = "openshift-ingress-operator";
 
     protected static final String INGRESS_ROUTER_NAMESPACE = "openshift-ingress";
-
-    protected static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
-
-    protected static final String WORKER_NODE_LABEL = "node-role.kubernetes.io/worker";
 
     /**
      * Domain part prefixed to domain reported on IngressController status. The CNAME DNS records
@@ -154,30 +149,11 @@ public class IngressControllerManager {
         NonNamespaceOperation<IngressController, IngressControllerList, Resource<IngressController>> ingressControllers =
                 openShiftClient.operator().ingressControllers().inNamespace(INGRESS_OPERATOR_NAMESPACE);
 
-        final FilterWatchListDeletable<Node, NodeList> workerNodeFilter = openShiftClient.nodes()
-                .withLabel(WORKER_NODE_LABEL)
-                .withoutLabel(INFRA_NODE_LABEL);
-
-        nodeInformer = resourceInformerFactory.create(Node.class, workerNodeFilter, new ResourceEventHandler<HasMetadata>() {
-
-            @Override
-            public void onAdd(HasMetadata obj) {
-                reconcileIngressControllers();
-            }
-
-            @Override
-            public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
-            }
-
-            @Override
-            public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
-                reconcileIngressControllers();
-            }
-        });
-
         FilterWatchListDeletable<Pod, PodList> brokerPodFilter = openShiftClient.pods().inAnyNamespace().withLabels(Map.of(
                 OperandUtils.MANAGED_BY_LABEL, OperandUtils.STRIMZI_OPERATOR_NAME,
                 OperandUtils.K8S_NAME_LABEL, "kafka"));
+
+        this.nodeInformer = informerManager.getNodeInformer();
 
         brokerPodInformer = resourceInformerFactory.create(Pod.class, brokerPodFilter, new ResourceEventHandler<HasMetadata>() {
 
@@ -234,6 +210,25 @@ public class IngressControllerManager {
 
         resyncIngressControllerDeployments();
         reconcileIngressControllers();
+
+        // after everything is successful, add the node handler - there's no great way to remove handlers
+        // if something goes wrong
+        nodeInformer.addResourceEventHandler(new ResourceEventHandler<HasMetadata>() {
+
+            @Override
+            public void onAdd(HasMetadata obj) {
+                reconcileIngressControllers();
+            }
+
+            @Override
+            public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
+            }
+
+            @Override
+            public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
+                reconcileIngressControllers();
+            }
+        });
     }
 
     private void patchIngressDeploymentResources(Deployment d) {
@@ -371,7 +366,7 @@ public class IngressControllerManager {
                     .withNewNodePlacement()
                         .editOrNewNodeSelector()
                             .addToMatchLabels(TOPOLOGY_KEY, topologyValue)
-                            .addToMatchLabels(WORKER_NODE_LABEL, "")
+                            .addToMatchLabels(InformerManager.WORKER_NODE_LABEL, "")
                         .endNodeSelector()
                     .endNodePlacement()
                 .endSpec();

@@ -4,26 +4,8 @@ import io.sundr.builder.annotations.Buildable;
 
 @Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 public class NodeCounts {
-    private int ceiling;
-    private int floor;
     private int current;
-    private int currentWorkLoadMinimum;
-
-    public int getCeiling() {
-        return ceiling;
-    }
-
-    public void setCeiling(int ceiling) {
-        this.ceiling = ceiling;
-    }
-
-    public int getFloor() {
-        return floor;
-    }
-
-    public void setFloor(int floor) {
-        this.floor = floor;
-    }
+    private int workLoadMinimum;
 
     public int getCurrent() {
         return current;
@@ -33,11 +15,12 @@ public class NodeCounts {
         this.current = current;
     }
 
-    public int getCurrentWorkLoadMinimum() {
-        return currentWorkLoadMinimum;
+    public int getWorkLoadMinimum() {
+        return workLoadMinimum;
     }
 
-    public void setCurrentWorkLoadMinimum(int currentWorkLoadMinimum) {
-        this.currentWorkLoadMinimum = currentWorkLoadMinimum;
+    public void setWorkLoadMinimum(int workLoadMinimum) {
+        this.workLoadMinimum = workLoadMinimum;
     }
+
 }

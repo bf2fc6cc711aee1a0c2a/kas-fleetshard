@@ -11,13 +11,11 @@ public class ManagedKafkaAgentStatus {
 
     private List<ManagedKafkaCondition> conditions;
 
-    private ClusterCapacity total;
-
-    private ClusterCapacity remaining;
+    private ClusterInfo clusterInfo;
 
     private NodeCounts nodeInfo;
 
-    private ClusterResizeInfo resizeInfo;
+    private SizeInfo sizeInfo;
 
     private String updatedTimestamp;
 
@@ -31,20 +29,12 @@ public class ManagedKafkaAgentStatus {
         this.conditions = conditions;
     }
 
-    public ClusterCapacity getTotal() {
-        return total;
+    public ClusterInfo getClusterInfo() {
+        return clusterInfo;
     }
 
-    public void setTotal(ClusterCapacity totalCapacity) {
-        this.total = totalCapacity;
-    }
-
-    public ClusterCapacity getRemaining() {
-        return remaining;
-    }
-
-    public void setRemaining(ClusterCapacity remainingCapacity) {
-        this.remaining = remainingCapacity;
+    public void setClusterInfo(ClusterInfo clusterInfo) {
+        this.clusterInfo = clusterInfo;
     }
 
     public NodeCounts getNodeInfo() {
@@ -55,12 +45,12 @@ public class ManagedKafkaAgentStatus {
         this.nodeInfo = requiredNodeSizes;
     }
 
-    public ClusterResizeInfo getResizeInfo() {
-        return resizeInfo;
+    public SizeInfo getSizeInfo() {
+        return sizeInfo;
     }
 
-    public void setResizeInfo(ClusterResizeInfo resizeInfo) {
-        this.resizeInfo = resizeInfo;
+    public void setSizeInfo(SizeInfo sizeInfo) {
+        this.sizeInfo = sizeInfo;
     }
 
     public String getUpdatedTimestamp() {

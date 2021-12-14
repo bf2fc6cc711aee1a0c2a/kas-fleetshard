@@ -8,12 +8,15 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
+import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
@@ -60,6 +63,9 @@ class KafkaClusterTest {
 
     @Inject
     IngressControllerManager ingressControllerManager;
+
+    @KubernetesTestServer
+    KubernetesServer kubernetesServer;
 
     @BeforeEach
     void beforeEach() {
@@ -350,6 +356,13 @@ class KafkaClusterTest {
                     .build());
         }
         return overrides;
+    }
+
+    @BeforeEach
+    void cleanup() {
+        // clears the mock server state
+        // won't be needed after quarkus fixes issues with WithKubernetesTestServer
+        kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
     }
 
 }

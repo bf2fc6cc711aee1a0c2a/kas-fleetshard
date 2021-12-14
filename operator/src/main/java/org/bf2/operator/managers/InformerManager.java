@@ -3,6 +3,8 @@ package org.bf2.operator.managers;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
@@ -35,6 +37,10 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class InformerManager {
 
+    public static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
+
+    public static final String WORKER_NODE_LABEL = "node-role.kubernetes.io/worker";
+
     @Inject
     Logger log;
 
@@ -57,6 +63,7 @@ public class InformerManager {
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
     private ResourceInformer<PersistentVolumeClaim> pvcInformer;
+    private ResourceInformer<Node> nodeInformer;
 
     boolean isOpenShift() {
         return openShiftSupport.isOpenShift(kubernetesClient);
@@ -97,6 +104,12 @@ public class InformerManager {
         if (isOpenShift()) {
             routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
         }
+
+        final FilterWatchListDeletable<Node, NodeList> workerNodeFilter = kubernetesClient.nodes()
+                .withLabel(WORKER_NODE_LABEL)
+                .withoutLabel(INFRA_NODE_LABEL);
+
+        nodeInformer = resourceInformerFactory.create(Node.class, workerNodeFilter, null);
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
@@ -185,5 +198,16 @@ public class InformerManager {
 
     public List<PersistentVolumeClaim> getPvcsInNamespace(String namespace) {
         return this.pvcInformer.getByNamespace(namespace);
+    }
+
+    public ResourceInformer<Node> getNodeInformer() {
+        return nodeInformer;
+    }
+
+    public int getKafkaCount() {
+        if (kafkaInformer == null) {
+            return 0;
+        }
+        return kafkaInformer.getList().size();
     }
 }
