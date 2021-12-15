@@ -5,7 +5,7 @@
     <parent>
         <artifactId>kas-fleetshard</artifactId>
         <groupId>org.bf2</groupId>
-        <version>0.17.2-SNAPSHOT</version>
+        <version>0.17.2</version>
     </parent>
     <artifactId>kas-fleetshard-perf</artifactId>
 
@@ -63,17 +63,17 @@
         <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>kas-fleetshard-operator</artifactId>
-            <version>0.17.2-SNAPSHOT</version>
+            <version>0.17.2</version>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>test</artifactId>
-            <version>0.17.2-SNAPSHOT</version>
+            <version>0.17.2</version>
         </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>systemtest</artifactId>
-            <version>0.17.2-SNAPSHOT</version>
+            <version>0.17.2</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
