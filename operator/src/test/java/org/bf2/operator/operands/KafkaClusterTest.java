@@ -8,7 +8,6 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
@@ -61,24 +60,22 @@ class KafkaClusterTest {
     @Inject
     InformerManager informerManager;
 
-    @Inject
-    IngressControllerManager ingressControllerManager;
-
     @KubernetesTestServer
     KubernetesServer kubernetesServer;
 
     @BeforeEach
     void beforeEach() {
-        // clears the mock server state
-        // won't be needed after quarkus fixes issues with WithKubernetesTestServer
-        kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
         informerManager.createKafkaInformer();
 
-        // Make label set more stable
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-multi-zone", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone0", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone1", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone2", "true");
+        IngressControllerManager controllerManager = Mockito.mock(IngressControllerManager.class);
+
+        Mockito.when(controllerManager.getRouteMatchLabels()).thenReturn(Map.of(
+                "managedkafka.bf2.org/kas-multi-zone", "true",
+                "managedkafka.bf2.org/kas-zone0", "true",
+                "managedkafka.bf2.org/kas-zone1", "true",
+                "managedkafka.bf2.org/kas-zone2", "true"));
+
+        QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
     }
 
     @Test

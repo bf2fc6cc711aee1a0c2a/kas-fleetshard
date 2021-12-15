@@ -219,5 +219,6 @@ public class IngressControllerManagerTest {
         // clears the mock server state
         // won't be needed after quarkus fixes issues with WithKubernetesTestServer
         kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
+        ingressControllerManager.getRouteMatchLabels().clear();
     }
 }
