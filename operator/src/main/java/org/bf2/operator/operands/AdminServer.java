@@ -74,6 +74,10 @@ public class AdminServer extends AbstractAdminServer {
     private static final IntOrString HTTPS_PORT_TARGET = new IntOrString(HTTPS_PORT_NAME);
     private static final IntOrString MANAGEMENT_PORT_TARGET = new IntOrString(MANAGEMENT_PORT_NAME);
 
+    static final String RATE_LIMIT_ANNOTATION = "haproxy.router.openshift.io/rate-limit-connections";
+    static final String RATE_LIMIT_ANNOTATION_CONCURRENT_TCP = RATE_LIMIT_ANNOTATION + ".concurrent-tcp";
+    static final String RATE_LIMIT_ANNOTATION_TCP_RATE = RATE_LIMIT_ANNOTATION + ".rate-tcp";
+
     @Inject
     Logger log;
 
@@ -228,6 +232,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
                     .withLabels(buildRouteLabels())
+                    .withAnnotations(buildRouteAnnotations(config))
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewTo()
@@ -336,6 +341,25 @@ public class AdminServer extends AbstractAdminServer {
             labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
         }
         return labels;
+    }
+
+    Map<String, String> buildRouteAnnotations(KafkaInstanceConfiguration config) {
+        Map<String, String> annotations;
+
+        if (config.getAdminserver().isRateLimitEnabled()) {
+            String concurrentTcp = String.valueOf(config.getAdminserver().getRateLimitConcurrentTcp());
+            // TCP limit expressed in terms of a 3s window
+            int rateTcp = 3 * config.getAdminserver().getRateLimitRequestsPerSec();
+
+            annotations = Map.ofEntries(
+                    Map.entry(RATE_LIMIT_ANNOTATION, "true"),
+                    Map.entry(RATE_LIMIT_ANNOTATION_CONCURRENT_TCP, concurrentTcp),
+                    Map.entry(RATE_LIMIT_ANNOTATION_TCP_RATE, String.valueOf(rateTcp)));
+        } else {
+            annotations = Collections.emptyMap();
+        }
+
+        return annotations;
     }
 
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
