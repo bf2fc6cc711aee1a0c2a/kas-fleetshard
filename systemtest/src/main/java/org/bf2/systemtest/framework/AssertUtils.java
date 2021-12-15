@@ -48,9 +48,9 @@ public class AssertUtils {
     public static void assertManagedKafkaAgentStatus(ManagedKafkaAgentStatus agentStatus) {
         String yml = Serialization.asYaml(agentStatus);
         assertEquals(1, agentStatus.getConditions().size(), yml);
-        assertNotNull(agentStatus.getTotal(), yml);
-        assertNotNull(agentStatus.getRemaining(), yml);
-        assertNotNull(agentStatus.getResizeInfo(), yml);
+        assertNotNull(agentStatus.getClusterInfo(), yml);
+        assertNotNull(agentStatus.getNodeInfo(), yml);
+        assertNotNull(agentStatus.getSizeInfo(), yml);
         assertNotNull(agentStatus.getNodeInfo(), yml);
     }
 

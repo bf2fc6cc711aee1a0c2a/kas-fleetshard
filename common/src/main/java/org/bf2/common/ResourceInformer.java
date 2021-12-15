@@ -1,6 +1,7 @@
 package org.bf2.common;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 
@@ -28,6 +29,10 @@ public class ResourceInformer<T extends HasMetadata> {
 
     public boolean isWatching() {
         return informer.isWatching();
+    }
+
+    public void addResourceEventHandler(ResourceEventHandler<HasMetadata> handler) {
+        this.informer.addEventHandler((ResourceEventHandler<T>) handler);
     }
 
 }

@@ -69,7 +69,7 @@ public class IngressControllerManagerTest {
             Node node = new NodeBuilder()
                     .editOrNewMetadata()
                         .withName("z"+i)
-                        .withLabels(Map.of(IngressControllerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+i))
+                        .withLabels(Map.of(InformerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+i))
                     .endMetadata()
                     .build();
             openShiftClient.nodes().create(node);
@@ -107,12 +107,12 @@ public class IngressControllerManagerTest {
         assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes));
     }
 
-    private List<Node> buildNodes(int nodeCount) {
+    public static List<Node> buildNodes(int nodeCount) {
         List<Node> nodes = IntStream.range(0, nodeCount).mapToObj(i ->
             new NodeBuilder()
                     .editOrNewMetadata()
                         .withName("z"+i)
-                        .withLabels(Map.of(IngressControllerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+(i%3)))
+                        .withLabels(Map.of(InformerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+(i%3)))
                     .endMetadata()
                     .build()
         ).collect(Collectors.toList());
@@ -172,7 +172,7 @@ public class IngressControllerManagerTest {
                 .editOrNewMetadata()
                 .withName("zone" + "-" + suffix)
                 .withLabels(Map.of(IngressControllerManager.TOPOLOGY_KEY, "zone" + "-" + suffix,
-                        IngressControllerManager.WORKER_NODE_LABEL, "true"))
+                        InformerManager.WORKER_NODE_LABEL, "true"))
                 .endMetadata()
                 .build();
 

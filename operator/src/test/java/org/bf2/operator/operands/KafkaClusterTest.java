@@ -361,4 +361,11 @@ class KafkaClusterTest {
         return overrides;
     }
 
+    @BeforeEach
+    void cleanup() {
+        // clears the mock server state
+        // won't be needed after quarkus fixes issues with WithKubernetesTestServer
+        kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
+    }
+
 }

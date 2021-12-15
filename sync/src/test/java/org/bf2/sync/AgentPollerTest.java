@@ -5,7 +5,7 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
-import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
+import org.bf2.operator.resources.v1alpha1.ClusterInfoBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
@@ -51,7 +51,7 @@ public class AgentPollerTest {
 
         ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
         local.setStatus(new ManagedKafkaAgentStatusBuilder()
-                .withRemaining(new ClusterCapacityBuilder().withConnections(1000).build()).build());
+                .withClusterInfo(new ClusterInfoBuilder().withRemainingBrokers(9).build()).build());
         client.replaceStatus(local);
 
         assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
@@ -64,7 +64,7 @@ public class AgentPollerTest {
         local = lookup.getLocalManagedKafkaAgent();
 
         assertEquals("abc", local.getSpec().getObservability().getAccessToken());
-        assertEquals(1000, local.getStatus().getRemaining().getConnections());
+        assertEquals(9, local.getStatus().getClusterInfo().getRemainingBrokers());
     }
 
 }

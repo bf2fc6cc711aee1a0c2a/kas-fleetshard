@@ -32,6 +32,7 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_CONTAINER_CPU = "3000m";
     private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
     private static final String KAFKA_JVM_XMS = "3G";
+    private static final double BROKERS_PER_NODE = 3/3.2; // 4.8 Openshift 3 brokers / cluster
 
     // zookeeper
     private static final int ZOOKEEPER_NODES = 3;
@@ -108,6 +109,8 @@ public class KafkaInstanceConfiguration {
         protected boolean oneInstancePerNode = false;
         @JsonProperty("maximum-session-lifetime-default")
         protected long maximumSessionLifetimeDefault;
+        @JsonProperty("brokers-per-node")
+        protected double brokersPerNode = BROKERS_PER_NODE;
 
         public int getReplicas() {
             return replicas;
@@ -248,6 +251,14 @@ public class KafkaInstanceConfiguration {
 
         public void setMaximumSessionLifetimeDefault(long maximumSessionLifetimeDefault) {
             this.maximumSessionLifetimeDefault = maximumSessionLifetimeDefault;
+        }
+
+        public double getBrokersPerNode() {
+            return brokersPerNode;
+        }
+
+        public void setBrokersPerNode(double brokersPerNode) {
+            this.brokersPerNode = brokersPerNode;
         }
     }
 
