@@ -61,9 +61,6 @@ class KafkaClusterTest {
     @Inject
     InformerManager informerManager;
 
-    @Inject
-    IngressControllerManager ingressControllerManager;
-
     @KubernetesTestServer
     KubernetesServer kubernetesServer;
 
@@ -74,11 +71,15 @@ class KafkaClusterTest {
         kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
         informerManager.createKafkaInformer();
 
-        // Make label set more stable
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-multi-zone", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone0", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone1", "true");
-        ingressControllerManager.addToRouteMatchLabels("managedkafka.bf2.org/kas-zone2", "true");
+        IngressControllerManager controllerManager = Mockito.mock(IngressControllerManager.class);
+
+        Mockito.when(controllerManager.getRouteMatchLabels()).thenReturn(Map.of(
+                "managedkafka.bf2.org/kas-multi-zone", "true",
+                "managedkafka.bf2.org/kas-zone0", "true",
+                "managedkafka.bf2.org/kas-zone1", "true",
+                "managedkafka.bf2.org/kas-zone2", "true"));
+
+        QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
     }
 
     @Test
