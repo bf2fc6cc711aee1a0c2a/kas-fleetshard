@@ -77,8 +77,8 @@
         <dep.plugin.install.version>2.5.2</dep.plugin.install.version>
         <dep.plugin.deploy.version>2.8.2</dep.plugin.deploy.version>
 
-        <!-- CVE-2021-44228 Log4Shell & CVE-2021-4104-->
-        <log4j.version>2.16.0</log4j.version>
+        <!-- CVE-2021-44228 Log4Shell, CVE-2021-4104 & CVE-2021-45105-->
+        <log4j.version>2.17.0</log4j.version>
     </properties>
 
     <modules>
