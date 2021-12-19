@@ -149,6 +149,16 @@ public class IngressControllerManager {
                 .collect(Collectors.toList());
     }
 
+    public String getClusterDomain() {
+        return ingressControllerInformer.getList()
+                .stream()
+                .filter(ic -> "default".equals(ic.getMetadata().getName()))
+                .map(ic -> ic.getStatus().getDomain())
+                .findFirst()
+                .orElse("apps.testing.domain.tld")
+                .replaceFirst("apps.", "");
+    }
+
     @PostConstruct
     protected void onStart() {
         NonNamespaceOperation<IngressController, IngressControllerList, Resource<IngressController>> ingressControllers =
@@ -272,11 +282,7 @@ public class IngressControllerManager {
             return;
         }
 
-        String defaultDomain = ingressControllerInformer.getList().stream()
-                .filter(ic -> "default".equals(ic.getMetadata().getName()))
-                .map(ic -> ic.getStatus().getDomain())
-                .findFirst()
-                .orElse("apps.testing.domain.tld");
+        String defaultDomain = getClusterDomain();
 
 
         List<String> zones = nodeInformer.getList().stream()
@@ -310,11 +316,11 @@ public class IngressControllerManager {
         });
     }
 
-    private List<IngressController> ingressControllersFrom(Map<String, IngressController> ingressControllers, String defaultDomain) {
+    private List<IngressController> ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain) {
         return ingressControllers.entrySet().stream().map(e -> {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
-            String domain = defaultDomain.replaceFirst("apps", kasZone);
+            String domain = kasZone + "." + clusterDomain;
             int replicas = numReplicasForZone(zone, nodeInformer.getList());
 
             Map<String, String> routeMatchLabel = Map.of("managedkafka.bf2.org/" + kasZone, "true");
@@ -325,7 +331,7 @@ public class IngressControllerManager {
         }).collect(Collectors.toList());
     }
 
-    private IngressController buildDefaultIngressController(List<String> zones, String defaultDomain) {
+    private IngressController buildDefaultIngressController(List<String> zones, String clusterDomain) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
         int replicas = numReplicasForAllZones(nodeInformer.getList());
 
@@ -333,7 +339,7 @@ public class IngressControllerManager {
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
         routeMatchLabels.putAll(routeMatchLabel);
 
-        return buildIngressController("kas", defaultDomain.replaceFirst("apps", "kas"), existing, replicas, routeSelector, null);
+        return buildIngressController("kas", "kas." + clusterDomain, existing, replicas, routeSelector, null);
     }
 
     private IngressController buildIngressController(String name, String domain,
