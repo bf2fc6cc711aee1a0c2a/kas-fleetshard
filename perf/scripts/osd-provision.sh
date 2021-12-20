@@ -25,6 +25,7 @@ function usage() {
     Option
         --set-storageclass                          change storageclass to unencrypted esb
         --install-addon ADDON_ID                    install selected addon id
+        --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
@@ -37,7 +38,7 @@ function usage() {
         --token TOKEN                               cloud redhat ocm token
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
-        --aws-accout-id ID                          id of aws account
+        --aws-account-id ID                          id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
         --flavor FLAVOR                             aws flavor (i.e. m5.xlarge)
@@ -55,9 +56,9 @@ function usage() {
             ./osd-provision.sh --get kubeconfig --name test-cluster --output kafka-config
 
         Install cluster:
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-accout-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
 
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-accout-id 4545454545454 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
 
         Delete cluster
             ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --name test-cluster
@@ -72,6 +73,15 @@ function usage() {
 
         Install addon
             ./scripts/osd-provision.sh --install-addon managed-kafka --name cluster-name
+
+        Remove addon
+            ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
+        Extend expiration date (for example 3 more days)
+            ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
+        Hibernate cluster
+            ./scripts/osd-provision.sh --hibernate --name cluster-name
+        Resume cluster
+            ./scripts/osd-provision.sh --resume --name cluster-name
     "
 }
 
@@ -93,8 +103,22 @@ while [[ $# -gt 0 ]]; do
         OPERATION="create"
         shift # past argument
         ;;
+    --hibernate)
+        OPERATION="hibernate"
+        shift # past argument
+        ;;
+    --resume)
+        OPERATION="resume"
+        shift # past argument
+        ;;
     --install-addon)
         OPERATION="install-addon"
+        ADDON_ID="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --remove-addon)
+        OPERATION="remove-addon"
         ADDON_ID="$2"
         shift # past argument
         shift # past value
@@ -147,7 +171,7 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    --aws-accout-id)
+    --aws-account-id)
         AWS_ACCOUNT_ID="$2"
         shift # past argument
         shift # past value
