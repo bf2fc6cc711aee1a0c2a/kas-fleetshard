@@ -76,10 +76,13 @@ function usage() {
 
         Remove addon
             ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
+        
         Extend expiration date (for example 3 more days)
             ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
+        
         Hibernate cluster
             ./scripts/osd-provision.sh --hibernate --name cluster-name
+        
         Resume cluster
             ./scripts/osd-provision.sh --resume --name cluster-name
     "
@@ -256,7 +259,7 @@ function print_vars() {
 
 function set_default() {
     if [[ "${VERSION}" == "" ]]; then
-        VERSION=$($OCM list versions | tail -1)
+        VERSION=$($OCM list versions --default)
     fi
 }
 
@@ -400,6 +403,16 @@ function install_addon() {
     $OCM post "/api/clusters_mgmt/v1/clusters/${id}/addons" --body "${REPO_ROOT}/addon-${name}.json"
 }
 
+function remove_addon() {
+    name="${1}"
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    id=$(get_cluster_id $CLUSTER_NAME)
+    build_addon_template "$name"
+    $OCM delete "/api/clusters_mgmt/v1/clusters/${id}/addons/${name}"
+}
+
 function generate_kubeconfig() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
@@ -494,9 +507,33 @@ if [[ "${OPERATION}" == "scale-count" ]]; then
     exit
 fi
 
+if [[ "${OPERATION}" == "hibernate" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+          CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Hibernate cluster ${CLUSTER_NAME}"
+    $OCM hibernate cluster "$(get_cluster_id $CLUSTER_NAME)"
+    exit
+fi
+
+if [[ "${OPERATION}" == "resume" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+          CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Resume cluster ${CLUSTER_NAME}"
+    $OCM resume cluster "$(get_cluster_id $CLUSTER_NAME)"
+    exit
+fi
+
 if [[ "${OPERATION}" == "install-addon" ]]; then
     echo "Installing addon ${ADDON_ID}"
     install_addon "$ADDON_ID"
+    exit
+fi
+
+if [[ "${OPERATION}" == "remove-addon" ]]; then
+    echo "Removing addon ${ADDON_ID}"
+    remove_addon "$ADDON_ID"
     exit
 fi
 
