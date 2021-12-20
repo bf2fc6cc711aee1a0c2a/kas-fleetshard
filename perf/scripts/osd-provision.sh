@@ -38,7 +38,7 @@ function usage() {
         --token TOKEN                               cloud redhat ocm token
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
-        --aws-account-id ID                          id of aws account
+        --aws-account-id ID                         id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
         --flavor FLAVOR                             aws flavor (i.e. m5.xlarge)
