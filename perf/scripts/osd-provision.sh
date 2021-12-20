@@ -25,7 +25,6 @@ function usage() {
     Option
         --set-storageclass                          change storageclass to unencrypted esb
         --install-addon ADDON_ID                    install selected addon id
-        --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
@@ -34,10 +33,11 @@ function usage() {
         --o|output  FILE                            output for kubeconfig
         --create                                    create cluster
         --delete                                    delete cluster
-        --cloud-token-file FILE                     cloud redhat com token in file
+        --cloud-token-file FILE                     cloud redhat ocm token in file
+        --token TOKEN                               cloud redhat ocm token
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
-        --aws-account-id ID                         id of aws account
+        --aws-accout-id ID                          id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
         --flavor FLAVOR                             aws flavor (i.e. m5.xlarge)
@@ -55,9 +55,9 @@ function usage() {
             ./osd-provision.sh --get kubeconfig --name test-cluster --output kafka-config
 
         Install cluster:
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-accout-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
 
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
+            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-accout-id 4545454545454 --wait
 
         Delete cluster
             ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --name test-cluster
@@ -72,18 +72,6 @@ function usage() {
 
         Install addon
             ./scripts/osd-provision.sh --install-addon managed-kafka --name cluster-name
-
-        Remove addon
-            ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
-
-        Extend expiration date (for example 3 more days)
-            ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
-
-        Hibernate cluster
-            ./scripts/osd-provision.sh --hibernate --name cluster-name
-
-        Resume cluster
-            ./scripts/osd-provision.sh --resume --name cluster-name
     "
 }
 
@@ -105,22 +93,8 @@ while [[ $# -gt 0 ]]; do
         OPERATION="create"
         shift # past argument
         ;;
-    --hibernate)
-        OPERATION="hibernate"
-        shift # past argument
-        ;;
-    --resume)
-        OPERATION="resume"
-        shift # past argument
-        ;;
     --install-addon)
         OPERATION="install-addon"
-        ADDON_ID="$2"
-        shift # past argument
-        shift # past value
-        ;;
-    --remove-addon)
-        OPERATION="remove-addon"
         ADDON_ID="$2"
         shift # past argument
         shift # past value
@@ -154,6 +128,11 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         ;;
     --cloud-token-file)
+        TOKEN_FILE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --token)
         TOKEN="$2"
         shift # past argument
         shift # past value
@@ -168,7 +147,7 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    --aws-account-id)
+    --aws-accout-id)
         AWS_ACCOUNT_ID="$2"
         shift # past argument
         shift # past value
@@ -235,6 +214,9 @@ function print_vars() {
     echo "OPERATION: ${OPERATION}"
     echo "OUTPUT: ${OUTPUT}"
     echo "CLUSTER_JSON: ${CLUSTER_JSON}"
+    if [[ -z "${TOKEN}" ]]; then 
+        TOKEN=$(cat ${TOKEN_FILE})
+    fi
     echo "TOKEN: ${TOKEN}"
     echo "AWS_CSV_PATH: ${AWS_CSV_PATH}"
     echo "AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}"
@@ -250,12 +232,12 @@ function print_vars() {
 
 function set_default() {
     if [[ "${VERSION}" == "" ]]; then
-        VERSION=$($OCM list versions --default)
+        VERSION=$($OCM list versions | tail -1)
     fi
 }
 
 function download_ocm() {
-    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.54"
+    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.60"
     if [[ "$OSTYPE" == "linux"* ]]; then
         url="${url}/ocm-linux-amd64"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -282,11 +264,14 @@ function wait_for_cluster_install() {
     echo "Waiting for cluster creation"
     READY="false"
     while [ $READY == "false" ]; do
-        current=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $8}')
-        ver=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $4}')
+        current=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $8}')
+        ver=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $4}')
         echo "Status of cluster ${CLUSTER_NAME} is ${current} and version ${ver}"
         if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
             echo "Cluster state is error, stopping script"
+            echo "Getting ocm cluster logs"
+            touch "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
+            $OCM get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)/logs/install" | tee "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
             exit 1
         fi
         if [[ $current == "ready" ]] && [[ $ver == "NONE" ]]; then
@@ -295,10 +280,11 @@ function wait_for_cluster_install() {
         if [[ $current == "ready" ]] && ([[ $ver != "NONE" ]] || [ $READY_COUNTER -eq 10 ]); then
             READY="true"
             cred=$(get_credentials)
-            echo "To connect to cluster use this command"
+            echo "To connect to cluster use this command:"
             echo "oc login -u $(echo $cred | jq .user | sed -e s/\"//g) -p $(echo $cred | jq .password | sed -e s/\"//g) $(get_api_url)"
+        else
+            sleep 120
         fi
-        sleep 120
     done
 }
 
@@ -353,7 +339,7 @@ function build_ingress_controller_template() {
 
 function get_cluster_id() {
     name="${1}"
-    id=$($OCM list clusters | $GREP "${name}" | cut -d' ' -f1)
+    id=$($OCM list clusters | $GREP "\s${name}\s" | cut -d' ' -f1)
     echo "${id}"
 }
 
@@ -376,7 +362,7 @@ function get_api_url() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
-    api=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $3}')
+    api=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $3}')
     echo $api
 }
 
@@ -388,16 +374,6 @@ function install_addon() {
     id=$(get_cluster_id $CLUSTER_NAME)
     build_addon_template "$name"
     $OCM post "/api/clusters_mgmt/v1/clusters/${id}/addons" --body "${REPO_ROOT}/addon-${name}.json"
-}
-
-function remove_addon() {
-    name="${1}"
-    if [[ ${CLUSTER_NAME} == "" ]]; then
-        CLUSTER_NAME=$(get_cluster_name_from_config)
-    fi
-    id=$(get_cluster_id $CLUSTER_NAME)
-    build_addon_template "$name"
-    $OCM delete "/api/clusters_mgmt/v1/clusters/${id}/addons/${name}"
 }
 
 function generate_kubeconfig() {
@@ -432,7 +408,7 @@ fi
 
 $OCM whoami 2>/dev/null >/dev/null
 if [ $? -gt 0 ]; then
-    $OCM login --url=https://api.stage.openshift.com/ --token=$(cat "${TOKEN}")
+    $OCM login --url=https://api.stage.openshift.com/ --token="${TOKEN}"
     $OCM whoami
 fi
 
@@ -494,33 +470,9 @@ if [[ "${OPERATION}" == "scale-count" ]]; then
     exit
 fi
 
-if [[ "${OPERATION}" == "hibernate" ]]; then
-    if [[ ${CLUSTER_NAME} == "" ]]; then
-          CLUSTER_NAME=$(get_cluster_name_from_config)
-    fi
-    echo "Hibernate cluster ${CLUSTER_NAME}"
-    $OCM hibernate cluster "$(get_cluster_id $CLUSTER_NAME)"
-    exit
-fi
-
-if [[ "${OPERATION}" == "resume" ]]; then
-    if [[ ${CLUSTER_NAME} == "" ]]; then
-          CLUSTER_NAME=$(get_cluster_name_from_config)
-    fi
-    echo "Resume cluster ${CLUSTER_NAME}"
-    $OCM resume cluster "$(get_cluster_id $CLUSTER_NAME)"
-    exit
-fi
-
 if [[ "${OPERATION}" == "install-addon" ]]; then
     echo "Installing addon ${ADDON_ID}"
     install_addon "$ADDON_ID"
-    exit
-fi
-
-if [[ "${OPERATION}" == "remove-addon" ]]; then
-    echo "Removing addon ${ADDON_ID}"
-    remove_addon "$ADDON_ID"
     exit
 fi
 
@@ -541,11 +493,18 @@ if [[ "${OPERATION}" == "create" ]]; then
         build_config_json
     fi
 
-    $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"
+    RESPONSE=`$OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1`
     if [[ $? -ne 0 ]]; then
-        echo "Something went wrong when creating the cluster. Exit!!!!"
-        exit 1
+        ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
+        if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
+            echo "Something went wrong when creating the cluster. Exit!!!!"
+            echo $RESPONSE | jq .
+            exit 1
+        else
+            echo "'${CLUSTER_NAME}' cluster already exists"
+        fi
     fi
+    echo $RESPONSE | jq .
     if [[ "${WAIT}" == "true" ]]; then
         wait_for_cluster_install
     fi
