@@ -3,7 +3,7 @@ package org.bf2.operator.operands;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.javaoperatorsdk.operator.api.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
@@ -48,7 +48,15 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        canaryDeploymentResource(managedKafka).delete();
+        RollableScalableResource<Deployment> deploymentResource = canaryDeploymentResource(managedKafka);
+        try {
+            deploymentResource.scale(0, true);
+            log.infof("Scaled down canary deployment: %s", managedKafka.getMetadata().getName());
+        } catch (Exception e) {
+            log.warnf("Ignored exception whilst scaling down canary deployment: %s", managedKafka.getMetadata().getName(), e);
+        } finally {
+            deploymentResource.delete();
+        }
     }
 
     @Override
@@ -79,7 +87,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
         return informerManager.getLocalService(canaryNamespace(managedKafka), canaryName(managedKafka));
     }
 
-    protected Resource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {
+    protected RollableScalableResource<Deployment> canaryDeploymentResource(ManagedKafka managedKafka) {
         return kubernetesClient.apps()
                 .deployments()
                 .inNamespace(canaryNamespace(managedKafka))
