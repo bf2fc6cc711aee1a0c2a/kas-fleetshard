@@ -32,7 +32,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     @Inject
     ImagePullSecretManager imagePullSecretManager;
 
-    final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
+    private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
     @PostConstruct
     void init() {
@@ -78,7 +78,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
             // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
         }
-        List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).collect(Collectors.toList());
+        List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 
         // default to the first reason, with can come from the kafka by the order of the operands
         Reason reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
