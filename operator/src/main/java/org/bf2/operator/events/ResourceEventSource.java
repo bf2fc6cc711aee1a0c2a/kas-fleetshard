@@ -9,15 +9,13 @@ import io.javaoperatorsdk.operator.processing.event.DefaultEvent;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 
 import java.util.Objects;
 
 @ApplicationScoped
 public class ResourceEventSource extends AbstractEventSource implements ResourceEventHandler<HasMetadata> {
 
-    @Inject
-    Logger log;
+    private static Logger log = Logger.getLogger(ResourceEventSource.class);
 
     @Override
     public void onAdd(HasMetadata resource) {
