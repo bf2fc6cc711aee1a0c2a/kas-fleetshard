@@ -2,6 +2,7 @@
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 MULTI_AZ="true"
+ALLOW_EXISTING_CLUSTERS="false"
 REPO_ROOT="${DIR}/../"
 SED=sed
 GREP=grep
@@ -48,6 +49,7 @@ function usage() {
         --version                                   version of OSD cluster (default latest released)
         --aws-access-key AWS_ACCESS_KEY             aws credentials access key
         --aws-secret-access-key AWS_SECRET_ACCESS_KEY  aws credentials secret access key
+        --allow-existing-clusters                   allow to use an already provisioned cluster for debugging purposes
 
         [USAGE]
         Get info:
@@ -221,6 +223,10 @@ while [[ $# -gt 0 ]]; do
         ;;
     --wait)
         WAIT="true"
+        shift # past argument
+        ;;
+    --allow-existing-clusters)
+        ALLOW_EXISTING_CLUSTERS="true"
         shift # past argument
         ;;
     -h | --help) # unknown option
@@ -555,18 +561,27 @@ if [[ "${OPERATION}" == "create" ]]; then
         build_config_json
     fi
 
-    RESPONSE=`$OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1`
-    if [[ $? -ne 0 ]]; then
-        ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
-        if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
+    if [[ "${ALLOW_EXISTING_CLUSTERS}" == "false" ]]; then
+        $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"
+        if [[ $? -ne 0 ]]; then
             echo "Something went wrong when creating the cluster. Exit!!!!"
-            echo $RESPONSE | jq .
             exit 1
-        else
-            echo "'${CLUSTER_NAME}' cluster already exists"
         fi
+    else
+        RESPONSE=`$OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1`
+        if [[ $? -ne 0 ]]; then
+            ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
+            if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
+                echo "Something went wrong when creating the cluster. Exit!!!!"
+                echo $RESPONSE | jq .
+                exit 1
+            else
+                echo "'${CLUSTER_NAME}' cluster already exists"
+            fi
+        fi
+        echo $RESPONSE | jq .
     fi
-    echo $RESPONSE | jq .
+    
     if [[ "${WAIT}" == "true" ]]; then
         wait_for_cluster_install
     fi
