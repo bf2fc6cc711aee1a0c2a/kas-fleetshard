@@ -10,8 +10,9 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -31,7 +32,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     @Inject
     ImagePullSecretManager imagePullSecretManager;
 
-    final List<Operand<ManagedKafka>> operands = new ArrayList<>();
+    private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
     @PostConstruct
     void init() {
@@ -49,7 +50,9 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         imagePullSecretManager.deleteSecrets(managedKafka);
 
-        operands.forEach(o -> o.delete(managedKafka, context));
+        // The deletion order is significant. The canary is deleted before the cluster so that the
+        // collection of metrics from a de-provision cluster is avoided.
+        operands.descendingIterator().forEachRemaining(o -> o.delete(managedKafka, context));
     }
 
     @Override
@@ -75,7 +78,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
             // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
         }
-        List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).collect(Collectors.toList());
+        List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 
         // default to the first reason, with can come from the kafka by the order of the operands
         Reason reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
