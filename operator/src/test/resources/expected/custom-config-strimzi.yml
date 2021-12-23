@@ -227,8 +227,8 @@ spec:
       class: "gp2"
       deleteClaim: true
     jvmOptions:
-      "-Xmx": "2G"
-      "-Xms": "2G"
+      "-Xmx": "1G"
+      "-Xms": "1G"
       "-XX":
         ExitOnOutOfMemoryError: "true"
         zkfoo: "zkbar"
@@ -271,5 +271,5 @@ spec:
         memory: "256Mi"
         cpu: "1000m"
       requests:
-        memory: "128Mi"
+        memory: "256Mi"
         cpu: "500m"

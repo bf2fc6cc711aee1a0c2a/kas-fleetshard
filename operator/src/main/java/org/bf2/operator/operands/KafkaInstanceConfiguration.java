@@ -38,10 +38,10 @@ public class KafkaInstanceConfiguration {
     private static final String ZOOKEEPER_VOLUME_SIZE = "10Gi";
     private static final String ZOOKEEPER_CONTAINER_MEMORY = "4Gi";
     private static final String ZOOKEEPER_CONTAINER_CPU = "1000m";
-    private static final String ZOOKEEPER_JVM_XMS = "2G";
+    private static final String ZOOKEEPER_JVM_XMS = "1G";
 
     // exporter
-    private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = "128Mi";
+    private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = "500m";
     private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
     private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
