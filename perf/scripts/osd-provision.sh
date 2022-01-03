@@ -5,11 +5,9 @@ MULTI_AZ="true"
 ALLOW_EXISTING_CLUSTER="false"
 REPO_ROOT="${DIR}/../"
 SED=sed
-GREP=grep
 DATE=date
 if [[ "$OSTYPE" == "darwin"* ]]; then
     SED=gsed
-    GREP=ggrep
     DATE=gdate
 fi
 
@@ -297,8 +295,8 @@ function wait_for_cluster_install() {
     echo "Waiting for cluster creation"
     READY="false"
     while [ $READY == "false" ]; do
-        current=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $8}')
-        ver=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $4}')
+        current=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $8}')
+        ver=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $4}')
         echo "Status of cluster ${CLUSTER_NAME} is ${current} and version ${ver}"
         if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
             echo "Cluster state is error, stopping script"
@@ -373,7 +371,7 @@ function build_ingress_controller_template() {
 
 function get_cluster_id() {
     name="${1}"
-    id=$($OCM list clusters | $GREP "\s${name}\s" | cut -d' ' -f1)
+    id=$($OCM list cluster --parameter search="name = '${name}'" --no-headers | cut -d' ' -f1)
     echo "${id}"
 }
 
@@ -396,7 +394,7 @@ function get_api_url() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
-    api=$($OCM list clusters | $GREP "\s${CLUSTER_NAME}\s" | awk '{print $3}')
+    api=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $3}')
     echo $api
 }
 
