@@ -246,6 +246,7 @@ function print_vars() {
     echo "OUTPUT: ${OUTPUT}"
     echo "CLUSTER_JSON: ${CLUSTER_JSON}"
     if [[ -z "${TOKEN}" ]]; then 
+        echo "Using '${TOKEN_FILE}' token file"
         TOKEN=$(cat ${TOKEN_FILE})
     fi
     echo "TOKEN: ${TOKEN}"
@@ -566,7 +567,7 @@ if [[ "${OPERATION}" == "create" ]]; then
             exit 1
         fi
     else
-        RESPONSE=`$OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1`
+        RESPONSE=$($OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1)
         if [[ $? -ne 0 ]]; then
             ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
             if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
