@@ -2,13 +2,12 @@
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 MULTI_AZ="true"
+ALLOW_EXISTING_CLUSTER="false"
 REPO_ROOT="${DIR}/../"
 SED=sed
-GREP=grep
 DATE=date
 if [[ "$OSTYPE" == "darwin"* ]]; then
     SED=gsed
-    GREP=ggrep
     DATE=gdate
 fi
 
@@ -34,7 +33,8 @@ function usage() {
         --o|output  FILE                            output for kubeconfig
         --create                                    create cluster
         --delete                                    delete cluster
-        --cloud-token-file FILE                     cloud redhat com token in file
+        --cloud-token-file FILE                     cloud redhat ocm token in file
+        --token TOKEN                               cloud redhat ocm token
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
         --aws-account-id ID                         id of aws account
@@ -47,6 +47,7 @@ function usage() {
         --version                                   version of OSD cluster (default latest released)
         --aws-access-key AWS_ACCESS_KEY             aws credentials access key
         --aws-secret-access-key AWS_SECRET_ACCESS_KEY  aws credentials secret access key
+        --allow-existing-cluster                    allow to use an already provisioned cluster for debugging purposes
 
         [USAGE]
         Get info:
@@ -75,13 +76,13 @@ function usage() {
 
         Remove addon
             ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
-
+        
         Extend expiration date (for example 3 more days)
             ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
-
+        
         Hibernate cluster
             ./scripts/osd-provision.sh --hibernate --name cluster-name
-
+        
         Resume cluster
             ./scripts/osd-provision.sh --resume --name cluster-name
     "
@@ -154,6 +155,11 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         ;;
     --cloud-token-file)
+        TOKEN_FILE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --token)
         TOKEN="$2"
         shift # past argument
         shift # past value
@@ -217,6 +223,10 @@ while [[ $# -gt 0 ]]; do
         WAIT="true"
         shift # past argument
         ;;
+    --allow-existing-cluster)
+        ALLOW_EXISTING_CLUSTER="true"
+        shift # past argument
+        ;;
     -h | --help) # unknown option
         usage
         exit
@@ -235,6 +245,10 @@ function print_vars() {
     echo "OPERATION: ${OPERATION}"
     echo "OUTPUT: ${OUTPUT}"
     echo "CLUSTER_JSON: ${CLUSTER_JSON}"
+    if [[ -z "${TOKEN}" ]]; then 
+        echo "Using '${TOKEN_FILE}' token file"
+        TOKEN=$(cat ${TOKEN_FILE})
+    fi
     echo "TOKEN: ${TOKEN}"
     echo "AWS_CSV_PATH: ${AWS_CSV_PATH}"
     echo "AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}"
@@ -255,7 +269,7 @@ function set_default() {
 }
 
 function download_ocm() {
-    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.54"
+    url="https://github.com/openshift-online/ocm-cli/releases/download/v0.1.60"
     if [[ "$OSTYPE" == "linux"* ]]; then
         url="${url}/ocm-linux-amd64"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -282,11 +296,15 @@ function wait_for_cluster_install() {
     echo "Waiting for cluster creation"
     READY="false"
     while [ $READY == "false" ]; do
-        current=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $8}')
-        ver=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $4}')
+        current=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $8}')
+        ver=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $4}')
         echo "Status of cluster ${CLUSTER_NAME} is ${current} and version ${ver}"
         if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
             echo "Cluster state is error, stopping script"
+            echo "Getting ocm cluster logs"
+            mkdir -p ${RESULT_DIR}
+            touch "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
+            $OCM get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)/logs/install" | tee "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
             exit 1
         fi
         if [[ $current == "ready" ]] && [[ $ver == "NONE" ]]; then
@@ -295,10 +313,11 @@ function wait_for_cluster_install() {
         if [[ $current == "ready" ]] && ([[ $ver != "NONE" ]] || [ $READY_COUNTER -eq 10 ]); then
             READY="true"
             cred=$(get_credentials)
-            echo "To connect to cluster use this command"
+            echo "To connect to cluster use this command:"
             echo "oc login -u $(echo $cred | jq .user | sed -e s/\"//g) -p $(echo $cred | jq .password | sed -e s/\"//g) $(get_api_url)"
+        else
+            sleep 120
         fi
-        sleep 120
     done
 }
 
@@ -353,7 +372,7 @@ function build_ingress_controller_template() {
 
 function get_cluster_id() {
     name="${1}"
-    id=$($OCM list clusters | $GREP "${name}" | cut -d' ' -f1)
+    id=$($OCM list cluster --parameter search="name = '${name}'" --no-headers | cut -d' ' -f1)
     echo "${id}"
 }
 
@@ -376,7 +395,7 @@ function get_api_url() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
-    api=$($OCM list clusters | $GREP "${CLUSTER_NAME}" | awk '{print $3}')
+    api=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $3}')
     echo $api
 }
 
@@ -432,7 +451,7 @@ fi
 
 $OCM whoami 2>/dev/null >/dev/null
 if [ $? -gt 0 ]; then
-    $OCM login --url=https://api.stage.openshift.com/ --token=$(cat "${TOKEN}")
+    $OCM login --url=https://api.stage.openshift.com/ --token="${TOKEN}"
     $OCM whoami
 fi
 
@@ -541,11 +560,27 @@ if [[ "${OPERATION}" == "create" ]]; then
         build_config_json
     fi
 
-    $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"
-    if [[ $? -ne 0 ]]; then
-        echo "Something went wrong when creating the cluster. Exit!!!!"
-        exit 1
+    if [[ "${ALLOW_EXISTING_CLUSTER}" == "false" ]]; then
+        $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"
+        if [[ $? -ne 0 ]]; then
+            echo "Something went wrong when creating the cluster. Exit!!!!"
+            exit 1
+        fi
+    else
+        RESPONSE=$($OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1)
+        if [[ $? -ne 0 ]]; then
+            ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
+            if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
+                echo "Something went wrong when creating the cluster. Exit!!!!"
+                echo $RESPONSE | jq .
+                exit 1
+            else
+                echo "'${CLUSTER_NAME}' cluster already exists"
+            fi
+        fi
+        echo $RESPONSE | jq .
     fi
+    
     if [[ "${WAIT}" == "true" ]]; then
         wait_for_cluster_install
     fi
