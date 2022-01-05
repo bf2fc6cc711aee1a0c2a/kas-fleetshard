@@ -216,14 +216,14 @@ public class ManagedKafkaProvisioner {
         }
 
         // installs the Strimzi Operator using the OLM bundle
-        strimziManager.deployStrimziOperator();
+        CompletableFuture<Void> strimziFuture = strimziManager.deployStrimziOperator();
 
         cluster.connectNamespaceToMonitoringStack(StrimziOperatorManager.OPERATOR_NS);
 
         // installs a cluster wide fleetshard operator
         // not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         CompletableFuture<Void> future = FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
-        future.get(120_000, TimeUnit.SECONDS);
+        CompletableFuture.allOf(future, strimziFuture).get(2, TimeUnit.MINUTES);
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
         cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
     }
