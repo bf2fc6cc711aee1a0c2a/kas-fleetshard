@@ -282,7 +282,7 @@ public class AdminServer extends AbstractAdminServer {
 
         Container envoyContainer = new ContainerBuilder()
                 .withName("envoy-sidecar")
-                .withImage("envoyproxy/envoy:v1.16.1") // TODO: Parameterize envoy image reference
+                .withImage("envoyproxy/envoy:v1.20.1") // TODO: Parameterize envoy image reference
                 .withCommand("envoy", "--config-path", "/configs/envoy/main.yaml")
                 .withPorts(buildEnvoyContainerPorts())
                 .withResources(buildResources()) // FIXME: separate resources for sidecar

@@ -52,24 +52,7 @@ data:
                   pipe:
                     path: /sockets/api.socket
 
-      # This cluster is used to send request to the rate limiting service.
-      - name: limiter
-        connect_timeout: 1s
-        type: STRICT_DNS
-        lb_policy: ROUND_ROBIN
-        http2_protocol_options: {}
-        load_assignment:
-          cluster_name: limiter
-          endpoints:
-          - lb_endpoints:
-            - endpoint:
-                address:
-                  socket_address:
-                    address: limitador.app-sre-rate-limiting.svc
-                    port_value: 8081
-
       listeners:
-
       # This listener is used to accept /metrics and /ready requests.
       # Everything else will be rejected.
       - name: admin
@@ -131,6 +114,41 @@ data:
                   "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
                   path: /dev/stdout
               stat_prefix: ingress
+              http_filters:
+              # This is mandatory in order to have the HTTP routes above.
+              - name: envoy.filters.http.local_ratelimit
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+                  stat_prefix: http_local_rate_limiter
+                  token_bucket:
+                    max_tokens: 50
+                    tokens_per_fill: 50
+                    fill_interval: 1s
+                  filter_enabled:
+                    runtime_key: local_rate_limit_enabled
+                    default_value:
+                      numerator: 100
+                      denominator: HUNDRED
+                  filter_enforced:
+                    runtime_key: local_rate_limit_enforced
+                    default_value:
+                      numerator: 100
+                      denominator: HUNDRED
+                  response_headers_to_add:
+                    - append: false
+                      header:
+                        key: x-local-rate-limit
+                        value: 'true'
+                  local_rate_limit_per_downstream_connection: false
+                  descriptors:
+                  - entries:
+                    - key: header_match
+                      value: unauthenticated
+                    token_bucket:
+                      max_tokens: 5
+                      tokens_per_fill: 5
+                      fill_interval: "10s"
+              - name: envoy.filters.http.router
               route_config:
                 name: backend
                 virtual_hosts:
@@ -138,36 +156,18 @@ data:
                   domains:
                   - "*"
                   routes:
-
                   # Apply rate limit to all admin API serverendpoints
-                  - name: kafka-adminserver-routes
-                    match:
+                  - match:
                       prefix: /
                     route:
                       cluster: backend
                       rate_limits:
-                      - actions:
-                        - generic_key:
-                            descriptor_key: path
-                            descriptor_value: kafka_adminserver
-
-              http_filters:
-              # This is needed to enable the rate limiter:
-              - name: envoy.filters.http.ratelimit
-                typed_config:
-                  "@type": type.googleapis.com/envoy.extensions.filters.http.ratelimit.v3.RateLimit
-                  domain: development:kafka_adminserver # This changes by environment
-                  failure_mode_deny: false
-                  timeout: 0.05s
-                  rate_limit_service:
-                    grpc_service:
-                      envoy_grpc:
-                        cluster_name: limiter
-                    transport_api_version: V3
-
-              # This is mandatory in order to have the HTTP routes above.
-              - name: envoy.filters.http.router
-
+                      - actions: # any actions in here
+                        - header_value_match:
+                            descriptor_value: unauthenticated
+                            expect_match: false
+                            headers:
+                            - name: "Authorization"
               # We need this in order to generate JSON responses according to
               # our API guidelines, otherwise Envoy will generate plain text
               # responses.
