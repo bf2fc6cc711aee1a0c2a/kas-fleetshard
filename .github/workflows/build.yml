@@ -35,4 +35,4 @@ jobs:
           ${{ runner.os }}-maven-
     - run: git fetch origin main --depth 100
     - name: Build and run Unit tests
-      run: mvn install --file pom.xml --no-transfer-progress -Dno-format
+      run: mvn install --file pom.xml --no-transfer-progress -Dno-format -Ddiff.argument=refs/remotes/origin/main...

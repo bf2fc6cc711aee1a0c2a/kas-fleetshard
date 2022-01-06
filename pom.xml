@@ -73,6 +73,7 @@
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
         <diff-coverage-plugin.version>0.2.1</diff-coverage-plugin.version>
+        <diff.argument>main...</diff.argument>
 
         <!-- Override version for maven-install-plugin because there is a bug in
              3.0.0-M1 preventing installing of modules with packaging of feature
@@ -290,97 +291,6 @@
                     </execution>
                 </executions>
             </plugin>
-                <!-- take a diff of the changes compared to main.  if we fully diff to main
-                     but are not merged/rebased, then missing commits influence the difference analysis -->
-                <plugin>
-                    <artifactId>exec-maven-plugin</artifactId>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <executions>
-                        <execution>
-                            <id>diff</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>exec</goal>
-                            </goals>
-                            <configuration>
-                                <executable>git</executable>
-                                <arguments>
-                                    <argument>diff</argument>
-                                    <argument>refs/remotes/origin/main...</argument>
-                                </arguments>
-                                <outputFile>target/main.diff</outputFile>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <!-- exclude non production classes -->
-                        <exclude>**/operands/dev/**</exclude>
-                        <exclude>**/operands/test/**</exclude>
-                        <exclude>**/operator/mock/**</exclude>
-                        <!-- exclude entry points -->
-                        <exclude>**/KasFleetShardOperator.class</exclude>
-                        <exclude>**/Main.class</exclude>
-                    </excludes>
-                 </configuration>
-                <executions>
-                    <execution>
-                        <id>default-report</id>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>jacoco-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <!-- overall coverage rules, this just checks there is some test per package -->
-                            <rules>
-                                <rule>
-                                    <element>PACKAGE</element>
-                                    <limits>
-                                        <limit>
-                                            <counter>LINE</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.01</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>com.github.surpsg</groupId>
-                <artifactId>diff-coverage-maven-plugin</artifactId>
-                <version>${diff-coverage-plugin.version}</version>
-                <configuration>
-                    <diffSource>
-                        <file>target/main.diff</file>
-                    </diffSource>
-                    
-                    <violations> 
-                        <failOnViolation>true</failOnViolation>
-    
-                        <!-- Sets min coverage rule for: instructions, lines, branches -->
-                        <minCoverage>0.5</minCoverage>                        
-                    </violations>    
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>diffCoverage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -542,6 +452,114 @@
                 <!-- we don't want to deploy to a maven repository -->
                 <maven.deploy.skip>true</maven.deploy.skip>
             </properties>
+        </profile>
+        <profile>
+            <id>coverage</id>
+            <activation>
+                <activeByDefault/>
+                <property>
+                    <name>basepom.check.skip-coverage</name>
+                    <value>!true</value>
+                </property>
+            </activation>
+			<build>
+				<plugins>
+					<!-- take a diff of the changes compared to main. if we fully diff to 
+						main but are not merged/rebased, then missing commits influence the difference 
+						analysis -->
+					<plugin>
+						<artifactId>exec-maven-plugin</artifactId>
+						<groupId>org.codehaus.mojo</groupId>
+						<version>3.0.0</version>
+						<executions>
+							<execution>
+								<id>diff</id>
+								<phase>package</phase>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+								<configuration>
+									<executable>git</executable>
+									<arguments>
+										<argument>diff</argument>
+										<argument>${diff.argument}</argument>
+									</arguments>
+									<outputFile>target/main.diff</outputFile>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<configuration>
+							<excludes>
+								<!-- exclude non production classes -->
+								<exclude>**/operands/dev/**</exclude>
+								<exclude>**/operands/test/**</exclude>
+								<exclude>**/operator/mock/**</exclude>
+								<!-- exclude entry points -->
+								<exclude>**/KasFleetShardOperator.class</exclude>
+								<exclude>**/Main.class</exclude>
+							</excludes>
+						</configuration>
+						<executions>
+							<execution>
+								<id>default-report</id>
+								<goals>
+									<goal>report</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>jacoco-check</id>
+								<goals>
+									<goal>check</goal>
+								</goals>
+								<configuration>
+									<!-- overall coverage rules, this just checks there is some test per 
+										package -->
+									<rules>
+										<rule>
+											<element>PACKAGE</element>
+											<limits>
+												<limit>
+													<counter>LINE</counter>
+													<value>COVEREDRATIO</value>
+													<minimum>0.01</minimum>
+												</limit>
+											</limits>
+										</rule>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>com.github.surpsg</groupId>
+						<artifactId>diff-coverage-maven-plugin</artifactId>
+						<version>${diff-coverage-plugin.version}</version>
+						<configuration>
+							<diffSource>
+								<file>target/main.diff</file>
+							</diffSource>
+		
+							<violations>
+								<failOnViolation>true</failOnViolation>
+		
+								<!-- Sets min coverage rule for: instructions, lines, branches -->
+								<minCoverage>0.5</minCoverage>
+							</violations>
+						</configuration>
+						<executions>
+							<execution>
+								<goals>
+									<goal>diffCoverage</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
         </profile>
     </profiles>
 </project>
