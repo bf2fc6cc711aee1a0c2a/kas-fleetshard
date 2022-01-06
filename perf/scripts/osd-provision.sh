@@ -76,13 +76,13 @@ function usage() {
 
         Remove addon
             ./scripts/osd-provision.sh --remove-addon managed-kafka --name cluster-name
-        
+
         Extend expiration date (for example 3 more days)
             ./scripts/osd-provision.sh --extend-expiration 3 --name cluster-name
-        
+
         Hibernate cluster
             ./scripts/osd-provision.sh --hibernate --name cluster-name
-        
+
         Resume cluster
             ./scripts/osd-provision.sh --resume --name cluster-name
     "
@@ -245,7 +245,7 @@ function print_vars() {
     echo "OPERATION: ${OPERATION}"
     echo "OUTPUT: ${OUTPUT}"
     echo "CLUSTER_JSON: ${CLUSTER_JSON}"
-    if [[ -z "${TOKEN}" ]]; then 
+    if [[ -z "${TOKEN}" ]] && ! [[ -z "${TOKEN_FILE}" ]]; then
         echo "Using '${TOKEN_FILE}' token file"
         TOKEN=$(cat ${TOKEN_FILE})
     fi
@@ -580,7 +580,7 @@ if [[ "${OPERATION}" == "create" ]]; then
         fi
         echo $RESPONSE | jq .
     fi
-    
+
     if [[ "${WAIT}" == "true" ]]; then
         wait_for_cluster_install
     fi
