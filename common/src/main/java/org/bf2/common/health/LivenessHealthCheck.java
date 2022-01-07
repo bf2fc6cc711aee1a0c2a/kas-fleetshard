@@ -1,4 +1,4 @@
-package org.bf2.sync.health;
+package org.bf2.common.health;
 
 import org.bf2.common.ResourceInformerFactory;
 import org.eclipse.microprofile.health.HealthCheck;
@@ -17,6 +17,7 @@ public class LivenessHealthCheck implements HealthCheck {
 
     @Override
     public HealthCheckResponse call() {
+
         // Temporary disabling health check based on Informers watching due to a fabric8 bug fixed in 5.8.0 version
         // https://github.com/fabric8io/kubernetes-client/pull/3485
         /*
@@ -25,6 +26,6 @@ public class LivenessHealthCheck implements HealthCheck {
         }
         return HealthCheckResponse.down("Informers are not watching");
         */
-        return HealthCheckResponse.up("Synchronizer up and running");
+        return HealthCheckResponse.up("Operator up and running");
     }
 }
