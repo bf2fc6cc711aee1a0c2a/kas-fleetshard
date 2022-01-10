@@ -467,6 +467,9 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("container-cpu")
         protected String containerCpu = ADMIN_SERVER_CONTAINER_CPU;
 
+        @JsonProperty("num-partitions-max")
+        protected int numPartitionsMax = 1000;
+
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
         }
@@ -497,6 +500,14 @@ public class KafkaInstanceConfiguration {
 
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
+        }
+
+        public int getNumPartitionsMax() {
+            return numPartitionsMax;
+        }
+
+        public void setNumPartitionsMax(int numPartitionsMax) {
+            this.numPartitionsMax = numPartitionsMax;
         }
     }
 
