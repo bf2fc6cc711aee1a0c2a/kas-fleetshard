@@ -41,7 +41,7 @@ jobs:
 
       - name: Run test
         run: |
-          mvn verify -P systemtest -pl systemtest -am --no-transfer-progress -Dbasepom.check.skip-coverage=true
+          mvn verify -P systemtest -pl systemtest -am --no-transfer-progress
 
       - name: Archive results
         uses: actions/upload-artifact@v2

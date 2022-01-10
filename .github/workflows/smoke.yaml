@@ -47,7 +47,7 @@ jobs:
 
       - name: Run smoke test
         run: |
-          mvn verify -P systemtest -pl systemtest -Dgroups=smoke -am --no-transfer-progress -Dbasepom.check.skip-coverage=true
+          mvn verify -P systemtest -pl systemtest -Dgroups=smoke -am --no-transfer-progress
 
       - name: Archive results
         uses: actions/upload-artifact@v2
