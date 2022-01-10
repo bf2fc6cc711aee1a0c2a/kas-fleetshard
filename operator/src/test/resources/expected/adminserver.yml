@@ -55,6 +55,8 @@ spec:
             , \"alter_configs\", \"create\", \"delete\", \"describe\", \"describe_configs\"\
             , \"read\", \"write\" ], \"transactional_id\": [ \"all\", \"describe\"\
             , \"write\" ] }"
+        - name: "KAFKA_ADMIN_NUM_PARTITIONS_MAX"
+          value: "1000"
         - name: "KAFKA_ADMIN_OAUTH_ENABLED"
           value: "false"
         image: "quay.io/mk-ci-cd/kafka-admin-api:0.6.4"
