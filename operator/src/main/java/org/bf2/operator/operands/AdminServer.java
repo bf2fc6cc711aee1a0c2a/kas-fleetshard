@@ -89,6 +89,9 @@ public class AdminServer extends AbstractAdminServer {
     protected ImagePullSecretManager imagePullSecretManager;
 
     @Inject
+    protected SecuritySecretManager securitySecretManager;
+
+    @Inject
     protected KafkaInstanceConfiguration config;
 
     @Inject
@@ -141,6 +144,7 @@ public class AdminServer extends AbstractAdminServer {
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
+                            .withAnnotations(buildAnnotations(managedKafka))
                             .withLabels(buildLabels(adminServerName))
                         .endMetadata()
                         .editOrNewSpec()
@@ -301,6 +305,27 @@ public class AdminServer extends AbstractAdminServer {
         Map<String, String> labels = buildSelectorLabels(adminServerName);
         labels.put("app.kubernetes.io/component", "adminserver");
         return labels;
+    }
+
+    private Map<String, String> buildAnnotations(ManagedKafka managedKafka) {
+        List<String> dependsOnSecrets = new ArrayList<>();
+
+        dependsOnSecrets.add(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka));
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            dependsOnSecrets.add(SecuritySecretManager.kafkaTlsSecretName(managedKafka));
+        }
+
+        if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
+            ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
+
+            if (oauth.getTlsTrustedCertificate() != null) {
+                dependsOnSecrets.add(SecuritySecretManager.ssoTlsSecretName(managedKafka));
+            }
+        }
+
+        return Map.of(SecuritySecretManager.ANNOTATION_SECRET_DEP_DIGEST,
+                securitySecretManager.digestSecretsVersions(managedKafka, dependsOnSecrets));
     }
 
     private Map<String, String> buildRouteLabels() {
