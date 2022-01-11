@@ -36,6 +36,11 @@ public class AdopterProfile {
         config.getZookeeper().setContainerCpu(zookeeperCpu);
         config.getZookeeper().setContainerMemory(zookeeperContainerMemory);
         config.getZookeeper().setJvmXms(zookeeperJavaMemory);
+        openListenersAndAccess(config);
+        return config;
+    }
+
+    public static void openListenersAndAccess(KafkaInstanceConfiguration config) {
         config.getKafka().getAcl().setAllowedListeners("TLS-9093,SRE-9096"); // by-pass canary acl
         config.getKafka().getAcl().setGlobal("default=true;permission=allow;topic=*;operations=all \n"
                 + "default=true;permission=allow;group=*;operations=all \n"
@@ -43,7 +48,6 @@ public class AdopterProfile {
                 + "default=true;permission=allow;cluster=*;operations=describe \n"
                 + "permission=allow;cluster=*;operations=idempotent_write \n"
                 + "permission=deny;cluster=*;operations-except=alter,describe,idempotent_write");
-        return config;
     }
 }
 

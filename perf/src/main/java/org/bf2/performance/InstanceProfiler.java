@@ -26,8 +26,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -182,7 +185,7 @@ public class InstanceProfiler {
     final int nominalPartitionCount = numberOfBrokers*3;
     Storage storage = Storage.GP2;
     // if !autoSize, use the default configuration values
-    private boolean autoSize;
+    private boolean autoSize = true;
 
     /*
      * primary ouptut state
@@ -475,9 +478,8 @@ public class InstanceProfiler {
         }
     }
 
-    /**
-     * @return the expected throughput for a single producer/consumer
-     */
+    int density = 1;
+
     protected void sizeInstance() throws Exception {
         Stream<Node> workerNodes = kafkaCluster.getWorkerNodes().stream();
         if (!collocateBrokerWithZookeeper){
@@ -502,35 +504,51 @@ public class InstanceProfiler {
             // earlier code making a guess at the page cache size has been removed - until we can more reliably detect it's effect
             // there's no point in making a trade-off between extra container memory and JVM memory
             // TODO: could choose a memory size where we can fit even multiples of zookeepers
-            long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE)).longValue();
-            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CPU)).movePointRight(3).longValue();
+            long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(defaults.getZookeeper().getContainerMemory())).longValue();
+            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getZookeeper().getContainerCpu())).movePointRight(3).longValue();
 
-            long addtionalPodsCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerCpu())).movePointRight(3).longValue();
-            long addtionalPodsMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerMemory())).longValue();
+            List<Long> additionalPodCpu = new ArrayList<>();
+            List<Long> additionalPodMemory = new ArrayList<>();
 
-            addtionalPodsCpu += Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerCpu())).movePointRight(3).longValue();
-            addtionalPodsMemory += Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerMemory())).longValue();
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerMemory())).longValue());
 
-            addtionalPodsCpu += Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerCpu())).movePointRight(3).longValue();
-            addtionalPodsMemory += Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerMemory())).longValue();
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerMemory())).longValue());
 
-            LOGGER.info("Total overhead of additional pods {} memory, {} cpu", addtionalPodsMemory, addtionalPodsCpu);
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerMemory())).longValue());
 
-            // actual needs ~ 800Mi and 1575m cpu over 3 nodes, so subtracting it out of every node provide padding
-            memoryBytes = resources.memoryBytes - zookeeperBytes - addtionalPodsMemory;
-            cpuMillis = resources.cpuMillis - zookeeperCpu - addtionalPodsCpu;
-        } else {
-            // reserve additional cpu to help lessen the fluctuation of resources across openshift versions
-            // and if there are eventually pods that need to be collocated
-            cpuMillis*=.9;
+            LOGGER.info("Total overhead of additional pods {} memory, {} cpu",
+                    additionalPodMemory.stream().collect(Collectors.summingLong(Long::valueOf)),
+                    additionalPodCpu.stream().collect(Collectors.summingLong(Long::valueOf)));
+
+            // actual needs ~ 800Mi and 1575m cpu over 3 nodes, but worst case is over two. amountNeeded will
+            // estimate that in a more targeted way - but still simplified
+            memoryBytes = resources.memoryBytes - density*(zookeeperBytes + amountNeeded(additionalPodMemory));
+            cpuMillis = resources.cpuMillis - density*(zookeeperCpu + amountNeeded(additionalPodCpu));
         }
 
         // reserve additional memory to help lessen the fluctuation of resources across openshift versions
-        // and if there are eventually pods that need to be collocated
-        memoryBytes -= 2*ONE_GB;
-        // cpu is already accounted for above
+        // and if there are eventually pods that need to be collocated, and we don't want to adjust the resources downward
+        if (density == 1) {
+            memoryBytes -= 2*ONE_GB;
+            cpuMillis -= 500;
+        } else {
+            // we can assume a much tighter resource utilization for density 2 - it can fluctuate between releases
+            // or may require adjustments as other pods are added or pod resource adjustments are made
+            memoryBytes -= 1*ONE_GB;
+            cpuMillis -= 200;
+        }
+
+        memoryBytes = memoryBytes/density;
+        cpuMillis = cpuMillis/density;
 
         long maxVmBytes = Math.min(memoryBytes - getVMOverheadForContainer(memoryBytes), MAX_KAFKA_VM_SIZE);
+
+        if (density > 1) {
+            maxVmBytes -= 1*ONE_GB;
+        }
 
         if (!autoSize) {
             long defaultMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerMemory())).longValue();
@@ -544,10 +562,13 @@ public class InstanceProfiler {
             maxVmBytes = defaultMaxVmBytes;
         }
 
-        // instead let's just assume a "standard" zookeeper size that will fit on any instance that has 8+ GB of memory
-        profilingResult.config = AdopterProfile.buildProfile(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE,
-                AdopterProfile.STANDARD_ZOOKEEPER_VM_SIZE, AdopterProfile.STANDARD_ZOOKEEPER_CPU,
-                String.valueOf(memoryBytes), String.valueOf(maxVmBytes), cpuMillis + "m", this.numberOfBrokers);
+        AdopterProfile.openListenersAndAccess(defaults);
+        defaults.getKafka().setReplicas(numberOfBrokers);
+        defaults.getKafka().setContainerCpu(cpuMillis+"m");
+        defaults.getKafka().setJvmXms(String.valueOf(maxVmBytes));
+        defaults.getKafka().setContainerMemory(String.valueOf(memoryBytes));
+
+        profilingResult.config = defaults;
 
         profilingResult.config.getKafka().setColocateWithZookeeper(collocateBrokerWithZookeeper);
 
@@ -559,7 +580,7 @@ public class InstanceProfiler {
 
         // once we make the determination, create the instance
         profilingResult.capacity = kafkaProvisioner.defaultCapacity(40_000_000); // not used as quota is turned off
-        profilingResult.capacity.setMaxDataRetentionSize(Quantity.parse("600Gi"));
+        profilingResult.capacity.setMaxDataRetentionSize(Quantity.parse("1000Gi"));
 
         Kafka kafka = profilingResult.config.getKafka();
         LOGGER.info("Running with kafka sizing {} container memory, {} container cpu, and {} vm memory", kafka.getContainerMemory(), kafka.getContainerCpu(), kafka.getJvmXms());
@@ -571,6 +592,21 @@ public class InstanceProfiler {
         // to constrain resources like m5.xlarge (fully dedicated)
         //profilingResult.config.getKafka().setContainerMemory("12453740544");
         //profilingResult.config.getKafka().setContainerCpu("2500m");
+    }
+
+    /**
+     * Computes the amount needed assuming that the values will be spread across two nodes
+     * @param additionalPodCpu
+     */
+    private long amountNeeded(List<Long> resources) {
+        Stream<Long> sorted = resources.stream().sorted(Comparator.reverseOrder());
+        long sum = resources.stream().collect(Collectors.summingLong(Long::valueOf));
+        Iterator<Long> iter = sorted.iterator();
+        long running = iter.next();
+        while (running < sum/2) {
+            running += iter.next();
+        }
+        return running;
     }
 
     /**
@@ -601,7 +637,7 @@ public class InstanceProfiler {
     private void determineConnsumersPerConsumerGroup() throws Exception {
         // this is not expected to vary with the number of brokers are every consumer in the consumer group uses a single
         // broker for coordination
-        List<Integer> samples = Arrays.asList(100, 250, 500, 1000);
+        List<Integer> samples = Arrays.asList(100, 250, 500);
         for (int sample : samples) {
             LOGGER.info("Running latency test for {} consumers", sample);
             profilingResult.consumers.put(sample, determineLatency(workload -> {
@@ -613,7 +649,7 @@ public class InstanceProfiler {
     }
 
     private void determineConsumerGroups() throws Exception {
-        List<Integer> samples = Arrays.asList(10, 25, 45, 60);
+        List<Integer> samples = Arrays.asList(10, 25);
         int multiplier = numberOfBrokers/3;
         for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
             LOGGER.info("Running latency test for {} consumer groups", sample);
@@ -625,7 +661,7 @@ public class InstanceProfiler {
     }
 
     private void determineProducers() throws Exception {
-        List<Integer> samples = Arrays.asList(100, 250, 500, 1000);
+        List<Integer> samples = Arrays.asList(100, 250, 500);
         int multiplier = numberOfBrokers/3;
         for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
             LOGGER.info("Running latency test for {} producers", sample);
