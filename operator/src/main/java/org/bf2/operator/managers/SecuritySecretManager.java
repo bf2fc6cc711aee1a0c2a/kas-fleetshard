@@ -134,8 +134,8 @@ public class SecuritySecretManager {
             .filter(Objects::nonNull)
             .map(Secret::getMetadata)
             .forEach(secretMetadata -> {
-                secretsDigest.update(secretMetadata.getUid().getBytes());
-                secretsDigest.update(secretMetadata.getResourceVersion().getBytes());
+                secretsDigest.update(secretMetadata.getUid().getBytes(StandardCharsets.UTF_8));
+                secretsDigest.update(secretMetadata.getResourceVersion().getBytes(StandardCharsets.UTF_8));
             });
 
         return String.format("%040x", new BigInteger(1, secretsDigest.digest()));
