@@ -11,6 +11,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import javax.inject.Inject;
 
@@ -26,8 +28,12 @@ public class CanaryTest {
     @Inject
     Canary canary;
 
-    @Test
-    void createCanaryDeployment() throws Exception {
+    @ParameterizedTest(name = "createCanaryDeployment: {0}")
+    @CsvSource({
+            "shouldHaveNoDiffByDefault, test-mk-kafka-bootstrap, '[]'",
+            "shouldNotHaveInitContainersIfDevCluster, bootstrap.kas.testing.domain.tld, '[{\"op\":\"remove\",\"path\":\"/spec/template/spec/initContainers\"},{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/env/0/value\",\"value\":\"bootstrap.kas.testing.domain.tld:443\"}]'",
+    })
+    void createCanaryDeployment(String name, String bootstrapServerHost, String expectedDiff) throws Exception {
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withNewMetadata()
                     .withNamespace("test")
@@ -39,13 +45,13 @@ public class CanaryTest {
                                 .withKafka("2.6.0")
                                 .endVersions()
                                 .withNewEndpoint()
-                                .withBootstrapServerHost("test-mk-kafka-bootstrap")
+                                .withBootstrapServerHost(bootstrapServerHost)
                                 .endEndpoint()
                                 .build())
                 .build();
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
-        KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml");
+        KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml", expectedDiff);
     }
 
     @Test

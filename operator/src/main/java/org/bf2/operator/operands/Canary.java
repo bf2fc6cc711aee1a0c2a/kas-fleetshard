@@ -29,12 +29,14 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;
+import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
@@ -59,6 +61,9 @@ public class Canary extends AbstractCanary {
     @ConfigProperty(name = "image.canary")
     String canaryImage;
 
+    @ConfigProperty(name = "image.canary-init")
+    String canaryInitImage;
+
     @ConfigProperty(name = "managedkafka.canary.producer-latency-buckets")
     String producerLatencyBuckets;
 
@@ -71,8 +76,17 @@ public class Canary extends AbstractCanary {
     @ConfigProperty(name = "managedkafka.canary.status-time-window-ms")
     Long statusTimeWindowMs;
 
+    @ConfigProperty(name = "managedkafka.canary.init-timeout-seconds")
+    String initTimeoutSeconds;
+
+    @ConfigProperty(name = "managedkafka.canary.init-enabled")
+    Boolean initEnabled;
+
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
+
+    @Inject
+    protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Inject
     protected KafkaInstanceConfiguration config;
@@ -99,6 +113,7 @@ public class Canary extends AbstractCanary {
                             .withLabels(buildLabels(canaryName))
                         .endMetadata()
                         .editOrNewSpec()
+                            .withInitContainers()
                             .withContainers(buildContainers(managedKafka, current))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
@@ -106,12 +121,23 @@ public class Canary extends AbstractCanary {
                     .endTemplate()
                 .endSpec();
 
-        if(this.config.getCanary().isColocateWithZookeeper()) {
+        if (this.config.getCanary().isColocateWithZookeeper()) {
             builder
                 .editOrNewSpec()
                     .editOrNewTemplate()
                         .editOrNewSpec()
                         .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
+                        .endSpec()
+                    .endTemplate()
+                .endSpec();
+        }
+
+        if (initEnabled && !hasClusterSpecificBootstrapDomain(managedKafka)) {
+            builder
+                .editOrNewSpec()
+                    .editOrNewTemplate()
+                        .editOrNewSpec()
+                            .withInitContainers(buildInitContainer(managedKafka, current))
                         .endSpec()
                     .endTemplate()
                 .endSpec();
@@ -161,6 +187,22 @@ public class Canary extends AbstractCanary {
                         .endSecret()
                         .build()
         );
+    }
+
+    protected Container buildInitContainer(ManagedKafka managedKafka, Deployment current) {
+        return new ContainerBuilder()
+                .withName("init")
+                .withImage(canaryInitImage)
+                .withEnv(buildInitEnvVar(managedKafka))
+                .withResources(buildResources())
+                .withCommand("/opt/strimzi-canary-tool/canary-dns-init.sh")
+                .build();
+    }
+
+    protected boolean hasClusterSpecificBootstrapDomain(ManagedKafka managedKafka) {
+        return ingressControllerManagerInstance.isResolvable() &&
+                managedKafka.getSpec().getEndpoint().getBootstrapServerHost()
+                    .endsWith(ingressControllerManagerInstance.get().getClusterDomain());
     }
 
     protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
@@ -216,9 +258,21 @@ public class Canary extends AbstractCanary {
         return labels;
     }
 
+    private String getBootstrapURL(ManagedKafka managedKafka) {
+        return config.getCanary().isProbeExternalBootstrapServerHost()
+                ? managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443"
+                : managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093";
+    }
+
+    private List<EnvVar> buildInitEnvVar(ManagedKafka managedKafka) {
+        return List.of(
+                new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(getBootstrapURL(managedKafka)).build(),
+                new EnvVarBuilder().withName("INIT_TIMEOUT_SECONDS").withValue(String.valueOf(initTimeoutSeconds)).build());
+    }
+
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka, Deployment current) {
         List<EnvVar> envVars = new ArrayList<>(10);
-        String bootstrap = config.getCanary().isProbeExternalBootstrapServerHost() ? managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443" : managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093";
+        String bootstrap = getBootstrapURL(managedKafka);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(bootstrap).build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
         envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
