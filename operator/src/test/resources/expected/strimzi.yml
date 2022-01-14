@@ -179,6 +179,9 @@ spec:
       "-Xms": "6442450944"
       "-XX":
         ExitOnOutOfMemoryError: "true"
+      javaSystemProperties:
+        - name: com.sun.management.jmxremote.port
+          value: "9999"
     resources:
       limits:
         memory: "19Gi"

@@ -183,6 +183,9 @@ spec:
         ExitOnOutOfMemoryError: "true"
         foo: "bar"
         foo2: "bar2"
+      javaSystemProperties:
+        - name: com.sun.management.jmxremote.port
+          value: "9999"
     resources:
       limits:
         memory: "2Gi"
