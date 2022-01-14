@@ -65,6 +65,18 @@ data:
         name: kafka_server_$1_$4
         pattern: 'kafka.server<type=(.+), listener=(.+), networkProcessor=(.+)><>(.+)'
         type: GAUGE
+      - labels:
+          clientId: $3
+          brokerHost: $4
+          brokerPort: $5
+        name: kafka_server_$1_$2
+        pattern: 'kafka.server<type=(.+), name=(.+), clientId=(.+), brokerHost=(.+), brokerPort=(.+)><>(.+)'
+        type: GAUGE
+      - labels:
+          clientId: $3
+        name: kafka_server_$1_$2
+        pattern: 'kafka.server<type=(.+), name=(.+), clientId=(.+)><>(.+)'
+        type: GAUGE
       - name: kafka_controller_kafkacontroller_offline_partitions_count
         pattern: >-
           kafka.controller<type=KafkaController,
