@@ -34,7 +34,11 @@ public class AdminServerTest {
                 .endMetadata()
                 .withSpec(
                         new ManagedKafkaSpecBuilder()
-                                .withNewEndpoint().endEndpoint()
+                                .withNewCapacity()
+                                    .withMaxPartitions(1000)
+                                .endCapacity()
+                                .withNewEndpoint()
+                                .endEndpoint()
                                 .withNewVersions()
                                 .withKafka("2.6.0")
                                 .endVersions()
