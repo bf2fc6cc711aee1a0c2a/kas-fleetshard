@@ -2,6 +2,7 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
@@ -289,7 +290,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withPort(9093)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
-                                .withAuth(plainOverOauthAuthenticationListener)
+                                .withAuth(plainOverOauthAuthenticationListener).withNetworkPolicyPeers(new io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder()
+                                    .withNewPodSelector().addToMatchLabels("app", AbstractCanary.canaryName(managedKafka))
+                                    .endPodSelector().build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("external")
@@ -304,7 +307,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withPort(9095)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
-                                .withAuth(oauthAuthenticationListener)
+                                .withAuth(oauthAuthenticationListener).withNetworkPolicyPeers(new io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder()
+                                    .withNewPodSelector().addToMatchLabels("app", AbstractAdminServer.adminServerName(managedKafka))
+                                    .endPodSelector().build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("sre")
