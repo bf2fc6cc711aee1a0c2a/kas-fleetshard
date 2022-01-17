@@ -268,11 +268,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections())/this.config.getKafka().getReplicas();
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas();
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec())/this.config.getKafka().getReplicas();
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas();
 
-        GenericKafkaListenerConfigurationBuilder listenerConfigBuilder =  new GenericKafkaListenerConfigurationBuilder()
+        GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
                         .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
                         .withAnnotations(Map.of("haproxy.router.openshift.io/balance", "leastconn"))
@@ -290,9 +290,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withPort(9093)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
-                                .withAuth(plainOverOauthAuthenticationListener).withNetworkPolicyPeers(new io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder()
-                                    .withNewPodSelector().addToMatchLabels("app", AbstractCanary.canaryName(managedKafka))
-                                    .endPodSelector().build())
+                                .withAuth(plainOverOauthAuthenticationListener)
+                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                        .withNewPodSelector()
+                                        .addToMatchLabels("app", AbstractCanary.canaryName(managedKafka))
+                                        .endPodSelector()
+                                        .build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("external")
@@ -307,9 +310,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withPort(9095)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(true)
-                                .withAuth(oauthAuthenticationListener).withNetworkPolicyPeers(new io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder()
-                                    .withNewPodSelector().addToMatchLabels("app", AbstractAdminServer.adminServerName(managedKafka))
-                                    .endPodSelector().build())
+                                .withAuth(oauthAuthenticationListener)
+                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                        .withNewPodSelector()
+                                        .addToMatchLabels("app", AbstractAdminServer.adminServerName(managedKafka))
+                                        .endPodSelector().build())
                                 .build(),
                         new GenericKafkaListenerBuilder()
                                 .withName("sre")

@@ -44,6 +44,10 @@ spec:
         tokenEndpointUri: "https://tokenEndpointURI"
         enableOauthBearer: true
         type: "oauth"
+      networkPolicyPeers:
+        - podSelector:
+            matchLabels:
+              app: "test-mk-canary"
     - name: "external"
       port: 9094
       type: "ingress"
@@ -104,6 +108,10 @@ spec:
           certificate: "keycloak.crt"
         enableOauthBearer: true
         type: "oauth"
+      networkPolicyPeers:
+        - podSelector:
+            matchLabels:
+              app: "test-mk-admin-server"
     - name: "sre"
       port: 9096
       type: "internal"
