@@ -11,13 +11,20 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class SecuritySecretManager {
+
+    public static final String ANNOTATION_SECRET_DEP_DIGEST = "managedkafka.bf2.org/secret-dependency-digest";
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -113,6 +120,37 @@ public class SecuritySecretManager {
         }
     }
 
+    public String digestSecretsVersions(ManagedKafka managedKafka, List<String> secretNames) {
+        final MessageDigest secretsDigest;
+
+        try {
+            secretsDigest = MessageDigest.getInstance("SHA-1");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+
+        secretNames.stream()
+            .map(name -> cachedOrRemoteSecret(managedKafka, name))
+            .filter(Objects::nonNull)
+            .map(Secret::getMetadata)
+            .forEach(secretMetadata -> {
+                secretsDigest.update(secretMetadata.getUid().getBytes(StandardCharsets.UTF_8));
+                secretsDigest.update(secretMetadata.getResourceVersion().getBytes(StandardCharsets.UTF_8));
+            });
+
+        return String.format("%040x", new BigInteger(1, secretsDigest.digest()));
+    }
+
+    private Secret cachedOrRemoteSecret(ManagedKafka managedKafka, String name) {
+        Secret secret = cachedSecret(managedKafka, name);
+
+        if (secret == null) {
+            secret = secretResource(managedKafka, name).get();
+        }
+
+        return secret;
+    }
+
     private Secret cachedSecret(ManagedKafka managedKafka, String name) {
         return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
     }
@@ -180,5 +218,4 @@ public class SecuritySecretManager {
     private static String encode(String value) {
         return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
-
 }

@@ -24,6 +24,8 @@ spec:
         app.kubernetes.io/managed-by: "kas-fleetshard-operator"
         app: "test-mk-admin-server"
         app.kubernetes.io/component: "adminserver"
+      annotations:
+        managedkafka.bf2.org/secret-dependency-digest: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
     spec:
       affinity:
        podAffinity:
