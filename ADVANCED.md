@@ -161,3 +161,12 @@ It is possible to query Kafka's JMX mbeans from within the kafka pods using the 
 ```bash
 ./bin/kafka-run-class.sh kafka.tools.JmxTool --jmx-url service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi --object-name kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec
 ```
+
+## Overriding Kafka/Zookeeper metrics
+
+The kafka/zookeeper metrics configurations (stored in the `<kafka-cluster-name>-kafka-metrics` and `kafka-cluster-name>-zookeeper-metrics` configmaps respectively) can be overridden by editing
+the resource.  The operator won't overwrite the changes until the digest of the master configurations (provided by fleetshard) changes and so does not match the `org.bf2.operator/digest`
+annotation on the target configmap.
+
+Note that after overridding the metric configuration it is currently necessary to roll the kafka or zookeeper pods to have the changes picked up.
+
