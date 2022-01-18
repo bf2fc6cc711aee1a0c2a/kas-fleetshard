@@ -40,6 +40,8 @@ import io.strimzi.api.kafka.model.KafkaSpec;
 import io.strimzi.api.kafka.model.MetricsConfig;
 import io.strimzi.api.kafka.model.Rack;
 import io.strimzi.api.kafka.model.RackBuilder;
+import io.strimzi.api.kafka.model.SystemProperty;
+import io.strimzi.api.kafka.model.SystemPropertyBuilder;
 import io.strimzi.api.kafka.model.ZookeeperClusterSpec;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
@@ -467,7 +469,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withXms(this.config.getKafka().getJvmXms())
                 .withXmx(this.config.getKafka().getJvmXms())
                 .withXx(this.config.getKafka().getJvmXxMap())
+                .withJavaSystemProperties(buildJavaSystemProperties())
                 .build();
+    }
+
+    private List<SystemProperty> buildJavaSystemProperties() {
+        return List.of(
+                new SystemPropertyBuilder().withName("com.sun.management.jmxremote.port").withValue("9999").build(),
+                new SystemPropertyBuilder().withName("com.sun.management.jmxremote.host").withValue("127.0.0.1").build(),
+                new SystemPropertyBuilder().withName("java.rmi.server.hostname").withValue("127.0.0.1").build());
     }
 
     private JvmOptions buildZooKeeperJvmOptions(ManagedKafka managedKafka) {

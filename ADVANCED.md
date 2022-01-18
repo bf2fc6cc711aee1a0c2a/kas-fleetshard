@@ -153,3 +153,11 @@ A sample configmap looks as below, make necessary edits as required
 ```
 
 supported log levels: [debug, info, warn, error, fatal]
+
+## Querying Kafka JMX Mbeans
+
+It is possible to query Kafka's JMX mbeans from within the kafka pods using the JmxTool utility.
+
+```bash
+./bin/kafka-run-class.sh kafka.tools.JmxTool --jmx-url service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi --object-name kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec
+```
