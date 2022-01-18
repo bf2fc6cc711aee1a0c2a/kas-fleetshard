@@ -467,6 +467,15 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("container-cpu")
         protected String containerCpu = ADMIN_SERVER_CONTAINER_CPU;
 
+        @JsonProperty("rate-limit-enabled")
+        protected boolean rateLimitEnabled = true;
+
+        @JsonProperty("rate-limit-concurrent-tcp")
+        protected int rateLimitConcurrentTcp = 20;
+
+        @JsonProperty("rate-limit-requests-per-sec")
+        protected int rateLimitRequestsPerSec = 40;
+
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
         }
@@ -497,6 +506,30 @@ public class KafkaInstanceConfiguration {
 
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
+        }
+
+        public boolean isRateLimitEnabled() {
+            return rateLimitEnabled;
+        }
+
+        public void setRateLimitEnabled(boolean rateLimitEnabled) {
+            this.rateLimitEnabled = rateLimitEnabled;
+        }
+
+        public int getRateLimitConcurrentTcp() {
+            return rateLimitConcurrentTcp;
+        }
+
+        public void setRateLimitConcurrentTcp(int rateLimitConcurrentTcp) {
+            this.rateLimitConcurrentTcp = rateLimitConcurrentTcp;
+        }
+
+        public int getRateLimitRequestsPerSec() {
+            return rateLimitRequestsPerSec;
+        }
+
+        public void setRateLimitRequestsPerSec(int rateLimitRequestsPerSec) {
+            this.rateLimitRequestsPerSec = rateLimitRequestsPerSec;
         }
     }
 
