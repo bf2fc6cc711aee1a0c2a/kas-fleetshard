@@ -14,8 +14,7 @@ import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListeners;
-import io.strimzi.api.kafka.model.listener.arraylistener.ArrayOrObjectKafkaListenersBuilder;
+import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBootstrapBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfigurationBroker;
@@ -40,6 +39,7 @@ import org.jboss.logging.Logger;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -223,7 +223,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.createOrUpdate(kafka);
     }
 
-    protected ArrayOrObjectKafkaListeners buildListeners(ManagedKafka managedKafka) {
+    protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka) {
 
         KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
         KafkaListenerAuthentication oauthAuthenticationListener = null;
@@ -282,8 +282,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withMaxConnections(totalMaxConnections)
                 .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
 
-        return new ArrayOrObjectKafkaListenersBuilder()
-                .withGenericKafkaListeners(
+        return Arrays.asList(
                         new GenericKafkaListenerBuilder()
                                 .withName("tls")
                                 .withPort(9093)
@@ -312,7 +311,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(false)
                                 .build()
-                ).build();
+                );
     }
 
     protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka) {
