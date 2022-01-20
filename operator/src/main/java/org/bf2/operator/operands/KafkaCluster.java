@@ -145,55 +145,26 @@ public class KafkaCluster extends AbstractKafkaCluster {
         secretManager.createOrUpdate(managedKafka);
 
         ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
-        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka), currentKafkaMetricsConfigMap);
-        createOrUpdate(kafkaMetricsConfigMap);
+        ConfigMap kafkaMetricsConfigMap = configMapFrom(managedKafka, kafkaMetricsConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentKafkaMetricsConfigMap, kafkaMetricsConfigMap);
 
         ConfigMap currentZooKeeperMetricsConfigMap = cachedConfigMap(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
-        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka), currentZooKeeperMetricsConfigMap);
-        createOrUpdate(zooKeeperMetricsConfigMap);
+        ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentZooKeeperMetricsConfigMap, zooKeeperMetricsConfigMap);
 
-        // do not reset the kafka logging configuration during the reconcile cycle
         ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaLoggingConfigMapName(managedKafka));
-        ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka), null);
-        if (currentKafkaLoggingConfigMap == null || isDigestModified(currentKafkaLoggingConfigMap, kafkaLoggingConfigMap)) {
-            createOrUpdate(kafkaLoggingConfigMap);
-        }
+        ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentKafkaLoggingConfigMap, kafkaLoggingConfigMap);
 
-        // do not reset the exporter logging configuration during the reconcile cycle
         ConfigMap currentKafkaExporterLoggingConfigMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
-        ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka), null);
-        if (currentKafkaExporterLoggingConfigMap == null || isDigestModified(currentKafkaExporterLoggingConfigMap, kafkaExporterLoggingConfigMap)) {
-            createOrUpdate(kafkaExporterLoggingConfigMap);
-        }
+        ConfigMap kafkaExporterLoggingConfigMap = configMapFrom(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentKafkaExporterLoggingConfigMap, kafkaExporterLoggingConfigMap);
 
-        // do not reset the zookeeper logging configuration during the reconcile cycle
         ConfigMap currentZookeeperLoggingConfigMap = cachedConfigMap(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
-        ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka), null);
-        if (currentZookeeperLoggingConfigMap == null || isDigestModified(currentZookeeperLoggingConfigMap, zookeeperLoggingConfigMap)) {
-            createOrUpdate(zookeeperLoggingConfigMap);
-        }
-
-        // delete "old" Kafka and ZooKeeper metrics ConfigMaps
-        deleteOldMetricsConfigMaps(managedKafka);
+        ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentZookeeperLoggingConfigMap, zookeeperLoggingConfigMap);
 
         super.createOrUpdate(managedKafka);
-    }
-
-    /**
-     * Delete "old" Kafka and ZooKeeper metrics ConfigMaps
-     * NOTE:
-     * Fleetshard 0.0.1 version was using Kafka and ZooKeeper metrics ConfigMaps without Kafka instance name prefixed.
-     * Going to delete them, because the new ones are created in the new format.
-     *
-     * @param managedKafka
-     */
-    private void deleteOldMetricsConfigMaps(ManagedKafka managedKafka) {
-        if (cachedConfigMap(managedKafka, "kafka-metrics") != null) {
-            configMapResource(managedKafka, "kafka-metrics").delete();
-        }
-        if (cachedConfigMap(managedKafka, "zookeeper-metrics") != null) {
-            configMapResource(managedKafka, "zookeeper-metrics").delete();
-        }
     }
 
     @Override
@@ -303,11 +274,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     /* test */
-    protected ConfigMap configMapFrom(ManagedKafka managedKafka, String name, ConfigMap current) {
+    protected ConfigMap configMapFrom(ManagedKafka managedKafka, String name) {
 
         ConfigMap template = configMapTemplate(managedKafka, name);
 
-        ConfigMapBuilder builder = current != null ? new ConfigMapBuilder(current) : new ConfigMapBuilder(template);
+        ConfigMapBuilder builder = new ConfigMapBuilder(template);
         ConfigMap configMap = builder
                 .editOrNewMetadata()
                     .withNamespace(kafkaClusterNamespace(managedKafka))
@@ -873,6 +844,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String zookeeperLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-zookeeper-logging";
+    }
+
+    /**
+     * Allow local modifications to the configmap to remain until such time a new release provides a new configmap
+     * (which will have a differing digest).
+     */
+    private void createOrUpdateIfNecessary(ConfigMap currentCM, ConfigMap newCM) {
+        if (currentCM == null || isDigestModified(currentCM, newCM)) {
+            createOrUpdate(newCM);
+        }
     }
 
     private boolean isDigestModified(ConfigMap currentCM, ConfigMap newCM) {
