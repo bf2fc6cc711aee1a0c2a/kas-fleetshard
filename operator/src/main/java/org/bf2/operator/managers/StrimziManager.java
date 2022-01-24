@@ -2,7 +2,9 @@ package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.quarkus.runtime.Startup;
@@ -28,7 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -60,30 +64,32 @@ public class StrimziManager {
 
     @PostConstruct
     protected void onStart() {
+        // update the initial deployments as a single operation
+        FilterWatchListDeletable<Deployment, DeploymentList> deployments = this.kubernetesClient.apps().deployments().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka"));
+        for (Deployment deployment : deployments.list().getItems()) {
+            if (isStrimziDeployment(deployment)) {
+                log.debugf("Adding Deployment %s/%s", deployment.getMetadata().getNamespace(),
+                        deployment.getMetadata().getName());
+                updateStrimziVersion(deployment);
+            }
+        }
+        updateStatus();
         this.resourceInformerFactory.create(Deployment.class,
-                this.kubernetesClient.apps().deployments().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                deployments,
                 new ResourceEventHandler<Deployment>() {
                     @Override
                     public void onAdd(Deployment deployment) {
                         if (isStrimziDeployment(deployment)) {
-                            log.debugf("Add event received for Deployment %s/%s",
+                            log.debugf("Add/update event received for Deployment %s/%s",
                                     deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
                             updateStrimziVersion(deployment);
                             updateStatus();
-                            informerManager.resyncManagedKafka();
                         }
                     }
 
                     @Override
                     public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
-                        if (isStrimziDeployment(newDeployment)) {
-                            log.debugf("Update event received for Deployment %s/%s",
-                                    newDeployment.getMetadata().getNamespace(), newDeployment.getMetadata().getName());
-                            if (Readiness.isDeploymentReady(newDeployment) ^ Readiness.isDeploymentReady(oldDeployment)) {
-                                updateStrimziVersion(newDeployment);
-                                updateStatus();
-                            }
-                        }
+                        onAdd(newDeployment);
                     }
 
                     @Override
@@ -96,23 +102,36 @@ public class StrimziManager {
                         }
                     }
 
-                    private void updateStatus() {
-                        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
-                        if (resource != null && resource.getStatus() != null) {
-                            log.debugf("Updating Strimzi versions %s", getStrimziVersions());
-                            resource.getStatus().setStrimzi(getStrimziVersions());
-                            agentClient.replaceStatus(resource);
-                        }
-                        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
-                        if (!getStrimziVersions().isEmpty()) {
-                            informerManager.createKafkaInformer();
-                        }
-                    }
-
-                    private boolean isStrimziDeployment(Deployment deployment) {
-                        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
-                    }
                 });
+    }
+
+    private boolean isStrimziDeployment(Deployment deployment) {
+        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
+    }
+
+    private void updateStatus() {
+        List<StrimziVersionStatus> versions = getStrimziVersions();
+        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
+        if (!versions.isEmpty()) {
+            informerManager.createKafkaInformer();
+        }
+
+        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
+        if (resource != null && resource.getStatus() != null) {
+            List<StrimziVersionStatus> existing = resource.getStatus().getStrimzi();
+            if (!versions.equals(existing)) {
+                log.debugf("Updating Strimzi versions %s", versions);
+                resource.getStatus().setStrimzi(versions);
+                agentClient.replaceStatus(resource);
+                if (existing == null || !toVersionKeySet(versions).equals(toVersionKeySet(existing))) {
+                    informerManager.resyncManagedKafka();
+                }
+            }
+        }
+    }
+
+    private Set<String> toVersionKeySet(List<StrimziVersionStatus> versions) {
+        return versions.stream().map(StrimziVersionStatus::getVersion).collect(Collectors.toSet());
     }
 
     /* test */ public void updateStrimziVersion(Deployment deployment) {
