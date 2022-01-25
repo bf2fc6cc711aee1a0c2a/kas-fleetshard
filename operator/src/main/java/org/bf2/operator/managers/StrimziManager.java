@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class StrimziManager {
 
+    public static final String STRIMZI_CLUSTER_OPERATOR = "strimzi-cluster-operator";
     public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
     public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
 
@@ -110,7 +111,7 @@ public class StrimziManager {
                     }
 
                     private boolean isStrimziDeployment(Deployment deployment) {
-                        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
+                        return deployment.getMetadata().getName().startsWith(STRIMZI_CLUSTER_OPERATOR);
                     }
                 });
     }

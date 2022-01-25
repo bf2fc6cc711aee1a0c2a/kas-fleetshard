@@ -3,6 +3,7 @@ package org.bf2.operator.managers;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.ResourceInformerFactory;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -11,8 +12,9 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Startup
@@ -23,7 +25,11 @@ public class ImageManager {
     public static final String CANARY_INIT = "canary_init";
     public static final String ADMIN_API = "admin_api";
 
-    private Map<String, Map<String, String>> otherImages = new ConcurrentHashMap<>();
+    public static final String IMAGES_YAML = "images.yaml";
+
+    private static Properties EMPTY = new Properties();
+
+    private Map<String, Properties> otherImages = new ConcurrentHashMap<>();
 
     @ConfigProperty(name = "image.admin-api")
     String adminApiImage;
@@ -48,19 +54,35 @@ public class ImageManager {
         this.resourceInformerFactory.create(ConfigMap.class,
                 this.kubernetesClient.configMaps()
                         .inAnyNamespace()
-                        // TODO: we can use whatever label we want here correct?
-                        .withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                        .withLabel("app", "strimzi"),
                 new ResourceEventHandler<ConfigMap>() {
                     @Override
                     public void onAdd(ConfigMap obj) {
-                        otherImages.put(obj.getMetadata().getName(), obj.getData());
-                        informerManager.resyncManagedKafka();
+                        String name = obj.getMetadata().getName();
+                        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
+                            String data = obj.getData().get(IMAGES_YAML);
+                            boolean resync = false;
+                            if (data == null) {
+                                otherImages.remove(name);
+                                resync = true;
+                            } else {
+                                Properties p = Serialization.unmarshal(data, Properties.class);
+                                Properties old = otherImages.put(name, p);
+                                resync = !Objects.equals(p, old);
+                            }
+                            if (resync) {
+                                informerManager.resyncManagedKafka();
+                            }
+                        }
                     }
 
                     @Override
                     public void onDelete(ConfigMap obj, boolean deletedFinalStateUnknown) {
-                        otherImages.remove(obj.getMetadata().getName());
-                        informerManager.resyncManagedKafka();
+                        String name = obj.getMetadata().getName();
+                        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
+                            otherImages.remove(name);
+                            informerManager.resyncManagedKafka();
+                        }
                     }
 
                     @Override
@@ -71,20 +93,20 @@ public class ImageManager {
 
     }
 
-    private Map<String, String> getImagesForVersion(String strimzi) {
-        return otherImages.getOrDefault(strimzi == null ? "" : strimzi, Collections.emptyMap());
+    private Properties getImagesForVersion(String strimzi) {
+        return otherImages.getOrDefault(strimzi == null ? "" : strimzi, EMPTY);
     }
 
     public String getCanaryImage(String strimzi) {
-        return getImagesForVersion(strimzi).getOrDefault(CANARY, canaryImage);
+        return getImagesForVersion(strimzi).getProperty(CANARY, canaryImage);
     }
 
     public String getCanaryInitImage(String strimzi) {
-        return getImagesForVersion(strimzi).getOrDefault(CANARY_INIT, canaryInitImage);
+        return getImagesForVersion(strimzi).getProperty(CANARY_INIT, canaryInitImage);
     }
 
     public String getAdminApiImage(String strimzi) {
-        return getImagesForVersion(strimzi).getOrDefault(ADMIN_API, adminApiImage);
+        return getImagesForVersion(strimzi).getProperty(ADMIN_API, adminApiImage);
     }
 
 }
