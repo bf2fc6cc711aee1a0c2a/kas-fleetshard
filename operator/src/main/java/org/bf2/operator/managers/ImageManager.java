@@ -52,42 +52,21 @@ public class ImageManager {
     @PostConstruct
     protected void onStart() {
         this.resourceInformerFactory.create(ConfigMap.class,
-                this.kubernetesClient.configMaps()
-                        .inAnyNamespace()
-                        .withLabel("app", "strimzi"),
+                this.kubernetesClient.configMaps().inAnyNamespace().withLabel("app", "strimzi"),
                 new ResourceEventHandler<ConfigMap>() {
                     @Override
                     public void onAdd(ConfigMap obj) {
-                        String name = obj.getMetadata().getName();
-                        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
-                            String data = obj.getData().get(IMAGES_YAML);
-                            boolean resync = false;
-                            if (data == null) {
-                                otherImages.remove(name);
-                                resync = true;
-                            } else {
-                                Properties p = Serialization.unmarshal(data, Properties.class);
-                                Properties old = otherImages.put(name, p);
-                                resync = !Objects.equals(p, old);
-                            }
-                            if (resync) {
-                                informerManager.resyncManagedKafka();
-                            }
-                        }
+                        updateImages(obj);
                     }
 
                     @Override
                     public void onDelete(ConfigMap obj, boolean deletedFinalStateUnknown) {
-                        String name = obj.getMetadata().getName();
-                        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
-                            otherImages.remove(name);
-                            informerManager.resyncManagedKafka();
-                        }
+                        removeImages(obj);
                     }
 
                     @Override
                     public void onUpdate(ConfigMap oldObj, ConfigMap newObj) {
-                        onAdd(newObj);
+                        updateImages(newObj);
                     }
                 });
 
@@ -107,6 +86,37 @@ public class ImageManager {
 
     public String getAdminApiImage(String strimzi) {
         return getImagesForVersion(strimzi).getProperty(ADMIN_API, adminApiImage);
+    }
+
+    void updateImages(ConfigMap obj) {
+        String name = obj.getMetadata().getName();
+        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
+            String data = obj.getData().get(IMAGES_YAML);
+            boolean resync = false;
+            if (data == null) {
+                otherImages.remove(name);
+                resync = true;
+            } else {
+                Properties p = Serialization.unmarshal(data, Properties.class);
+                Properties old = otherImages.put(name, p);
+                resync = !Objects.equals(p, old);
+            }
+            if (resync) {
+                informerManager.resyncManagedKafka();
+            }
+        }
+    }
+
+    void removeImages(ConfigMap obj) {
+        String name = obj.getMetadata().getName();
+        if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
+            otherImages.remove(name);
+            informerManager.resyncManagedKafka();
+        }
+    }
+
+    void resetImages() {
+        this.otherImages.clear();
     }
 
 }
