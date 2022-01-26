@@ -20,31 +20,34 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @TestProfile(MockProfile.class)
 @QuarkusTest
-public class ImageManagerTest {
+public class OperandOverrideManagerTest {
 
     @Inject
     KubernetesClient client;
 
     @Inject
-    ImageManager imageManager;
+    OperandOverrideManager overrideManager;
 
     @AfterEach
     public void cleanup() {
-        imageManager.resetImages();
+        overrideManager.resetOverrides();
     }
 
     @Test
     void testImageOverride() {
         String versionString = "strimzi-cluster-operator-0.26-1";
-        String defaultVersion = imageManager.getAdminApiImage(versionString);
+        String defaultVersion = overrideManager.getCanaryImage(versionString);
 
-        imageManager.updateImages(new ConfigMapBuilder().withNewMetadata()
+        overrideManager.updateOverrides(new ConfigMapBuilder().withNewMetadata()
                 .withName(versionString)
                 .endMetadata()
-                .withData(Collections.singletonMap(ImageManager.IMAGES_YAML, "canary: something"))
+                .withData(Collections.singletonMap(OperandOverrideManager.OPERANDS_YAML,
+                          "canary: \n"
+                        + "  image: something\n"
+                        + "  notused: value\n"))
                 .build());
 
-        String override = imageManager.getCanaryImage(versionString);
+        String override = overrideManager.getCanaryImage(versionString);
 
         assertEquals("something", override);
         assertNotEquals(defaultVersion, override);

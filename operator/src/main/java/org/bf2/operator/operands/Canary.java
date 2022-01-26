@@ -28,9 +28,9 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.managers.ImageManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
@@ -87,7 +87,7 @@ public class Canary extends AbstractCanary {
     protected KafkaInstanceConfiguration config;
 
     @Inject
-    protected ImageManager imageManager;
+    protected OperandOverrideManager overrideManager;
 
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
@@ -190,7 +190,7 @@ public class Canary extends AbstractCanary {
     protected Container buildInitContainer(ManagedKafka managedKafka, Deployment current) {
         return new ContainerBuilder()
                 .withName("init")
-                .withImage(imageManager.getCanaryInitImage(managedKafka.getSpec().getVersions().getStrimzi()))
+                .withImage(overrideManager.getCanaryInitImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildInitEnvVar(managedKafka))
                 .withResources(buildResources())
                 .withCommand("/opt/strimzi-canary-tool/canary-dns-init.sh")
@@ -206,7 +206,7 @@ public class Canary extends AbstractCanary {
     protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
         Container container = new ContainerBuilder()
                 .withName("canary")
-                .withImage(imageManager.getCanaryImage(managedKafka.getSpec().getVersions().getStrimzi()))
+                .withImage(overrideManager.getCanaryImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
                 .withResources(buildResources())

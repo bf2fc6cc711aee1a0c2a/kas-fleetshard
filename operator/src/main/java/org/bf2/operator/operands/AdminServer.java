@@ -34,9 +34,9 @@ import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.managers.ImageManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
@@ -100,7 +100,7 @@ public class AdminServer extends AbstractAdminServer {
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Inject
-    protected ImageManager imageManager;
+    protected OperandOverrideManager overrideManager;
 
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
@@ -258,7 +258,7 @@ public class AdminServer extends AbstractAdminServer {
     protected List<Container> buildContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
-                .withImage(imageManager.getAdminApiImage(managedKafka.getSpec().getVersions().getStrimzi()))
+                .withImage(overrideManager.getAdminServerImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka))
                 .withPorts(buildContainerPorts(managedKafka))
                 .withResources(buildResources())
