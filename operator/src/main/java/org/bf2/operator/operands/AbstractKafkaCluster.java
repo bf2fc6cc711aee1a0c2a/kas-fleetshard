@@ -31,7 +31,6 @@ import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -41,6 +40,7 @@ import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -84,10 +84,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (kafka == null) {
             return false;
         }
-        String pauseReason = kafka.getMetadata().getAnnotations() != null ?
-                kafka.getMetadata().getAnnotations().get(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION) : null;
-        return ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase().equals(pauseReason) &&
-                isReconciliationPaused(managedKafka);
+        Map<String, String> annotations = kafka.getMetadata().getAnnotations() != null ? kafka.getMetadata().getAnnotations() : Collections.emptyMap();
+        return StrimziManager.isPauseReasonStrimziUpdate(annotations) && isReconciliationPaused(managedKafka);
     }
 
     public boolean isKafkaUpdating(ManagedKafka managedKafka) {

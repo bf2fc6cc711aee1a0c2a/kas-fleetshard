@@ -155,7 +155,7 @@ public class StrimziManagerTest {
         Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
         kafkaClient.create(kafka);
         // Kafka reconcile not paused and current label version as the ManagedKafka one
-        assertFalse(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), mk.getSpec().getVersions().getStrimzi());
 
         // ManagedKafka and Kafka updated their status information
@@ -168,8 +168,13 @@ public class StrimziManagerTest {
 
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
         // Kafka reconcile paused but label is still the current version
-        assertTrue(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), mk.getStatus().getVersions().getStrimzi());
+
+        // nothing should change after an intermediate reconcile
+        kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
 
         // Kafka moves to be paused
         kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build()).build());
@@ -177,7 +182,8 @@ public class StrimziManagerTest {
 
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
         // Kafka reconcile not paused and Kafka label updated to requested Strimzi version
-        assertFalse(kafka.getMetadata().getAnnotations().containsKey("strimzi.io/pause-reconciliation"));
+        assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
+        assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 
