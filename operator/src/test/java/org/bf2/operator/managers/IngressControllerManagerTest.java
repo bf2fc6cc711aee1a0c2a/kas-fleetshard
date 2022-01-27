@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
@@ -216,9 +215,6 @@ public class IngressControllerManagerTest {
 
     @AfterEach
     void cleanup() {
-        // clears the mock server state
-        // won't be needed after quarkus fixes issues with WithKubernetesTestServer
-        kubernetesServer.getMockServer().setDispatcher(new KubernetesCrudDispatcher());
         ingressControllerManager.getRouteMatchLabels().clear();
     }
 }
