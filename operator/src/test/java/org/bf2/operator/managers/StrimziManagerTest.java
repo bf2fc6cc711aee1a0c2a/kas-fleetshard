@@ -183,7 +183,8 @@ public class StrimziManagerTest {
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
         // Kafka reconcile not paused and Kafka label updated to requested Strimzi version
         assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
-        assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
+        // the pause reason should stay until strimzi updates to ready
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 

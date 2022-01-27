@@ -171,13 +171,16 @@ public class StrimziManager {
                 this.currentStrimziVersion(managedKafka), managedKafka.getSpec().getVersions().getStrimzi());
         // Kafka cluster is running and ready --> pause reconcile or at the end of upgrade remove pause reason annotation
         if (kafkaCluster.isReadyNotUpdating(managedKafka)) {
-            pauseReconcile(managedKafka, annotations);
-            annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+            if (!isPauseReasonStrimziUpdate(annotations)) {
+                pauseReconcile(managedKafka, annotations);
+                annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+            } else if (!"true".equals(annotations.get(STRIMZI_PAUSE_RECONCILE_ANNOTATION))) {
+                annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
+            } // else we don't know why we're paused
         // Kafka cluster reconcile is paused because of Strimzi updating --> apply version from spec to handover and unpause to restart reconcile
         } else if (kafkaCluster.isReconciliationPaused(managedKafka) && isPauseReasonStrimziUpdate(annotations)) {
             labels.put(this.versionLabel, managedKafka.getSpec().getVersions().getStrimzi());
             unpauseReconcile(managedKafka, annotations);
-            annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
         }
 
         kafkaBuilder
