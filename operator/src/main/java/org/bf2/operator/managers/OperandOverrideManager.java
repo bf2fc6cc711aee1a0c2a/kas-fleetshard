@@ -26,6 +26,14 @@ public class OperandOverrideManager {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OperandOverride {
         public String image;
+
+        public String getImage() {
+            return image;
+        }
+
+        public void setImage(String image) {
+            this.image = image;
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -86,16 +94,20 @@ public class OperandOverrideManager {
                 });
     }
 
+    private OperandOverrides getOverrides(String strimzi) {
+        return overrides.getOrDefault(strimzi == null ? "" : strimzi, EMPTY);
+    }
+
     public String getCanaryImage(String strimzi) {
-        return Optional.ofNullable(overrides.getOrDefault(strimzi, EMPTY).canary.image).orElse(canaryImage);
+        return Optional.ofNullable(getOverrides(strimzi).canary.image).orElse(canaryImage);
     }
 
     public String getCanaryInitImage(String strimzi) {
-        return Optional.ofNullable(overrides.getOrDefault(strimzi, EMPTY).canaryInit.image).orElse(canaryInitImage);
+        return Optional.ofNullable(getOverrides(strimzi).canaryInit.image).orElse(canaryInitImage);
     }
 
     public String getAdminServerImage(String strimzi) {
-        return Optional.ofNullable(overrides.getOrDefault(strimzi, EMPTY).adminServer.image).orElse(adminApiImage);
+        return Optional.ofNullable(getOverrides(strimzi).adminServer.image).orElse(adminApiImage);
     }
 
     void updateOverrides(ConfigMap obj) {
