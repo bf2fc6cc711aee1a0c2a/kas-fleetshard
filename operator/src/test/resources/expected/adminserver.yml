@@ -89,9 +89,9 @@ spec:
             cpu: "500m"
         volumeMounts:
           - mountPath: "/opt/kafka-admin-api/custom-config/"
-            name: "test-mk-config-volume"
+            name: "custom-config"
       volumes:
         - configMap:
             name: "test-mk-admin-server"
             optional: true
-          name: "test-mk-config-volume"
+          name: "custom-config"

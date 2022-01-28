@@ -78,6 +78,10 @@ public class AdminServer extends AbstractAdminServer {
     static final String RATE_LIMIT_ANNOTATION_CONCURRENT_TCP = RATE_LIMIT_ANNOTATION + ".concurrent-tcp";
     static final String RATE_LIMIT_ANNOTATION_TCP_RATE = RATE_LIMIT_ANNOTATION + ".rate-tcp";
 
+    static final String CUSTOM_CONFIG_VOLUME_NAME = "custom-config";
+    static final String TLS_CONFIG_VOLUME_NAME = "tls-config";
+    static final String TLS_CONFIG_MOUNT_PATH = "/opt/kafka-admin-api/tls-config/";
+
     @Inject
     Logger log;
 
@@ -283,21 +287,46 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
-        return Collections.singletonList(new VolumeMountBuilder()
-                    .withName(adminServerConfigVolumeName(managedKafka))
-                    /* Matches location expected by kafka-admin-api container. */
-                    .withMountPath("/opt/kafka-admin-api/custom-config/")
+        List<VolumeMount> volumeMounts = new ArrayList<>();
+
+        volumeMounts.add(new VolumeMountBuilder()
+                .withName(CUSTOM_CONFIG_VOLUME_NAME)
+                /* Matches location expected by kafka-admin-api container. */
+                .withMountPath("/opt/kafka-admin-api/custom-config/")
+            .build());
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            volumeMounts.add(new VolumeMountBuilder()
+                    .withName(TLS_CONFIG_VOLUME_NAME)
+                    .withMountPath(TLS_CONFIG_MOUNT_PATH)
+                    .withReadOnly(Boolean.TRUE)
                 .build());
+        }
+
+        return volumeMounts;
     }
 
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
-        return Collections.singletonList(new VolumeBuilder()
-                .withName(adminServerConfigVolumeName(managedKafka))
+        List<Volume> volumes = new ArrayList<>();
+
+        volumes.add(new VolumeBuilder()
+                .withName(CUSTOM_CONFIG_VOLUME_NAME)
                 .editOrNewConfigMap()
                     .withName(adminServerName(managedKafka))
                     .withOptional(Boolean.TRUE)
                 .endConfigMap()
                 .build());
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            volumes.add(new VolumeBuilder()
+                    .withName(TLS_CONFIG_VOLUME_NAME)
+                    .editOrNewSecret()
+                        .withSecretName(SecuritySecretManager.kafkaTlsSecretName(managedKafka))
+                    .endSecret()
+                    .build());
+        }
+
+        return volumes;
     }
 
     private Map<String, String> buildSelectorLabels(String adminServerName) {
@@ -376,8 +405,8 @@ public class AdminServer extends AbstractAdminServer {
         }
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_CERT", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.crt");
-            addEnvVarSecret(envVars, "KAFKA_ADMIN_TLS_KEY", SecuritySecretManager.kafkaTlsSecretName(managedKafka), "tls.key");
+            addEnvVar(envVars, "KAFKA_ADMIN_TLS_CERT", TLS_CONFIG_MOUNT_PATH + "tls.crt");
+            addEnvVar(envVars, "KAFKA_ADMIN_TLS_KEY", TLS_CONFIG_MOUNT_PATH + "tls.key");
             addEnvVar(envVars, "KAFKA_ADMIN_TLS_VERSION", "TLSv1.3,TLSv1.2");
         }
 
