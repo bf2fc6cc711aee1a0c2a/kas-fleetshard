@@ -44,13 +44,19 @@ public class OperandOverrideManagerTest {
                 .withData(Collections.singletonMap(OperandOverrideManager.OPERANDS_YAML,
                           "canary: \n"
                         + "  image: something\n"
-                        + "  notused: value\n"))
+                        + "  notused: value\n"
+                        + "  init: \n"
+                        + "    image: somethingelse\n"))
                 .build());
 
         String override = overrideManager.getCanaryImage(versionString);
 
         assertEquals("something", override);
         assertNotEquals(defaultVersion, override);
+
+        String initOverride = overrideManager.getCanaryInitImage(versionString);
+
+        assertEquals("somethingelse", initOverride);
     }
 
 }

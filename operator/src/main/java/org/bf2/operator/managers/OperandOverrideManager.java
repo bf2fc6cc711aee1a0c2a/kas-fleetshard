@@ -37,10 +37,13 @@ public class OperandOverrideManager {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Canary extends OperandOverride {
+        public OperandOverride init = new OperandOverride();
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OperandOverrides {
-        public OperandOverride canary = new OperandOverride();
-        @JsonProperty(value = "canary-init")
-        public OperandOverride canaryInit = new OperandOverride();
+        public Canary canary = new Canary();
         @JsonProperty(value = "admin-server")
         public OperandOverride adminServer = new OperandOverride();
     }
@@ -103,7 +106,7 @@ public class OperandOverrideManager {
     }
 
     public String getCanaryInitImage(String strimzi) {
-        return Optional.ofNullable(getOverrides(strimzi).canaryInit.image).orElse(canaryInitImage);
+        return Optional.ofNullable(getOverrides(strimzi).canary.init.image).orElse(canaryInitImage);
     }
 
     public String getAdminServerImage(String strimzi) {
