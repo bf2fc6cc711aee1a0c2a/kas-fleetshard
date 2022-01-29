@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -145,8 +146,17 @@ public class StrimziBundleManager {
                     log.warnf("InstallPlan reference missing in Subscription %s/%s",
                             subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 }
+            } else if (!Objects.equals(subscription.getStatus().getCurrentCSV(), subscription.getStatus().getInstalledCSV())) {
+                if (this.strimziManager.getPendingVersions().isEmpty()) {
+                    List<String> strimziVersions = getStrimziVersions(subscription);
+
+                    if (strimziVersions != null && !strimziVersions.isEmpty()) {
+                        this.strimziManager.setPendingVersions(strimziVersions);
+                    }
+                }
             } else {
-                // not waiting for approval, nothing to do
+                // approved and current == installed
+                this.strimziManager.clearPendingVersions();
             }
         } else {
             // it should never happen
@@ -154,11 +164,7 @@ public class StrimziBundleManager {
     }
 
     private boolean approveInstallation(Subscription subscription) {
-        PackageManifest packageManifest = this.packageManifestClient.inNamespace(subscription.getMetadata().getNamespace())
-                .withName(subscription.getSpec().getName())
-                .get();
-
-        List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
+        List<String> strimziVersions = getStrimziVersions(subscription);
 
         if (strimziVersions == null || strimziVersions.isEmpty()) {
             return false;
@@ -182,6 +188,7 @@ public class StrimziBundleManager {
 
             // the Strimzi versions available in the bundle cover all the Kafka instances running
             if (coveredKafkas == kafkas.size()) {
+                this.strimziManager.setPendingVersions(strimziVersions);
                 this.clearMetrics();
                 log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 return true;
@@ -200,6 +207,15 @@ public class StrimziBundleManager {
                 return false;
             }
         }
+    }
+
+    private List<String> getStrimziVersions(Subscription subscription) {
+        PackageManifest packageManifest = this.packageManifestClient.inNamespace(subscription.getMetadata().getNamespace())
+                .withName(subscription.getSpec().getName())
+                .get();
+
+        List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
+        return strimziVersions;
     }
 
     private List<String> strimziVersionsFromPackageManifest(PackageManifest packageManifest) {

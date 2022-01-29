@@ -26,11 +26,13 @@ import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.clients.KafkaResourceClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
@@ -65,6 +67,11 @@ public class StrimziBundleManagerTest {
         this.openShiftClient.apiextensions().v1().customResourceDefinitions().delete();
         this.packageManifestClient.inAnyNamespace().delete();
         this.kafkaClient.delete();
+    }
+
+    @AfterEach
+    public void afterEach() {
+        strimziManager.clearPendingVersions();
     }
 
     @Test
@@ -150,6 +157,9 @@ public class StrimziBundleManagerTest {
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved after Kafka updated to a newer Strimzi version and not orphan anymore
         this.checkInstallPlan(subscription, true);
+
+        // check that the strimzi manager was notified of pending versions
+        assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getPendingVersions());
     }
 
     @Test

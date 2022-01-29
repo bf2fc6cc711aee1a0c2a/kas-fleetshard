@@ -87,6 +87,49 @@ public class StrimziManagerTest {
     }
 
     @Test
+    public void testInstalledStrimziOperatorsWithPendingVersions() {
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", true, true);
+
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertEquals(2, strimziVersions.size());
+
+        // we will, or have approved these next versions
+        this.strimziManager.setPendingVersions(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"));
+
+        // v1 should drop out
+        strimziVersions = this.strimziManager.getStrimziVersions();
+        assertEquals(1, strimziVersions.size());
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
+
+        // the old versions go away
+        uninstallStrimziOperator("strimzi-cluster-operator.v1", "ns-1");
+        uninstallStrimziOperator("strimzi-cluster-operator.v2", "ns-2");
+
+        // v2 should stay, but won't be ready until installed
+        strimziVersions = this.strimziManager.getStrimziVersions();
+        assertEquals(1, strimziVersions.size());
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", false));
+
+        // install the next state
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", true, true);
+        installStrimziOperator("strimzi-cluster-operator.v3", "ns-2", "2.7.0=kafka-2.7.0", true, true);
+
+        // before and after the bundle manager clears the pending versions, we should see the next state
+        strimziVersions = this.strimziManager.getStrimziVersions();
+        assertEquals(2, strimziVersions.size());
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v3", true));
+
+        this.strimziManager.clearPendingVersions();
+
+        strimziVersions = this.strimziManager.getStrimziVersions();
+        assertEquals(2, strimziVersions.size());
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v3", true));
+    }
+
+    @Test
     public void testInstalledStrimziOperatorsKafkaVersions() {
         installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
         installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0\n2.8.0=kafka-2.8.0", true, true);

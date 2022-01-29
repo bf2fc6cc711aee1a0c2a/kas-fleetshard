@@ -202,20 +202,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      */
     private Optional<OperandReadiness> validity(ManagedKafka managedKafka) {
         String message = null;
-        List<StrimziVersionStatus> versions = this.strimziManager.getStrimziVersions();
-        Optional<StrimziVersionStatus> strimziVersion = versions.stream()
-                .filter(svs -> svs.getVersion().equals(managedKafka.getSpec().getVersions().getStrimzi()))
-                .findFirst();
-        if (strimziVersion.isEmpty()) {
+        StrimziVersionStatus strimziVersion = this.strimziManager.getStrimziVersion(managedKafka.getSpec().getVersions().getStrimzi());
+        if (strimziVersion == null) {
             message = String.format("The requested Strimzi version %s is not supported", managedKafka.getSpec().getVersions().getStrimzi());
         } else {
-            if (!strimziVersion.get().getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
+            if (!strimziVersion.getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
                 message = String.format("The requested Kafka version %s is not supported by the Strimzi version %s",
-                        managedKafka.getSpec().getVersions().getKafka(), strimziVersion.get().getVersion());
+                        managedKafka.getSpec().getVersions().getKafka(), strimziVersion.getVersion());
             } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
-                    !strimziVersion.get().getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
+                    !strimziVersion.getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
                 message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
-                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.get().getVersion());
+                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.getVersion());
             }
         }
         if (message != null) {

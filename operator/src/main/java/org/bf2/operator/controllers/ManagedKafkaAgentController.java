@@ -108,6 +108,7 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
         }
 
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        log.debugf("Strimzi versions %s", strimziVersions);
 
         // consider the fleetshard operator ready when observability is running and a Strimzi bundle is installed (aka at least one available version)
         Status statusValue = this.observabilityManager.isObservabilityRunning() && !strimziVersions.isEmpty() ?

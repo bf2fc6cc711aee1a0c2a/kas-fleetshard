@@ -26,7 +26,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +43,9 @@ public class StrimziManager {
 
     public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
     public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
+
+    // concurrent hash maps don't like null values, so we'll use this instead
+    private static final StrimziVersionStatus NULL_STATUS = new StrimziVersionStatus();
 
     @Inject
     Logger log;
@@ -57,6 +63,7 @@ public class StrimziManager {
     ResourceInformerFactory resourceInformerFactory;
 
     private Map<String, StrimziVersionStatus> strimziVersions = new ConcurrentHashMap<>();
+    private Map<String, StrimziVersionStatus> pendingVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
@@ -110,7 +117,7 @@ public class StrimziManager {
     }
 
     private void updateStatus() {
-        List<StrimziVersionStatus> versions = getStrimziVersions();
+        List<StrimziVersionStatus> versions = new ArrayList<>(this.strimziVersions.values());
         // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
         if (!versions.isEmpty()) {
             informerManager.createKafkaInformer();
@@ -167,7 +174,17 @@ public class StrimziManager {
     }
 
     /* test */ public void deleteStrimziVersion(Deployment deployment) {
-        this.strimziVersions.remove(deployment.getMetadata().getName());
+        StrimziVersionStatus removed = this.strimziVersions.remove(deployment.getMetadata().getName());
+        if (removed != null) {
+            // if we will resurrect the version, then just move the info into pending.
+            // this approach does leave open a small window for the fso to be restarted after the
+            // original deployment goes away, but before the next one is deployed.
+            //
+            // the only guard against that involves a lot more refinement of this logic
+            // including extracting the status info from the csv in the bundle manager
+            this.pendingVersions.computeIfPresent(deployment.getMetadata().getName(),
+                    (k, s) -> new StrimziVersionStatusBuilder(removed).withReady(false).build());
+        }
     }
 
     /**
@@ -299,11 +316,41 @@ public class StrimziManager {
     }
 
     /**
-     * @return list of installed Strimzi versions with related readiness status
+     * @param strimziVersion the strimzi version
+     * @return the corresponding status, which may be from a version that will be removed
+     */
+    public StrimziVersionStatus getStrimziVersion(String strimziVersion) {
+        StrimziVersionStatus result = this.strimziVersions.get(strimziVersion);
+        if (result == null) {
+            result = this.pendingVersions.get(strimziVersion);
+            if (result == NULL_STATUS) {
+                result = null;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @return list of installed Strimzi versions with related readiness status. it will not
+     * include versions that may be removed
      */
     public List<StrimziVersionStatus> getStrimziVersions() {
-        log.debugf("Strimzi versions %s", this.strimziVersions.values());
-        return new ArrayList<>(this.strimziVersions.values());
+        Map<String, StrimziVersionStatus> nextVersions = new HashMap<>(pendingVersions);
+        Map<String, StrimziVersionStatus> result = this.strimziVersions;
+        // if there are pending versions, then merge the lists by keeping only the valid next
+        if (!nextVersions.isEmpty()) {
+            result = nextVersions;
+            for (Iterator<Map.Entry<String, StrimziVersionStatus>> iter = result.entrySet().iterator(); iter.hasNext();) {
+                Map.Entry<String, StrimziVersionStatus> entry = iter.next();
+                StrimziVersionStatus live = this.strimziVersions.get(entry.getKey());
+                if (live != null) {
+                    entry.setValue(live);
+                } else if (entry.getValue() == NULL_STATUS) {
+                    iter.remove();
+                }
+            }
+        }
+        return new ArrayList<>(result.values());
     }
 
     /* test */ public void clearStrimziVersions() {
@@ -312,5 +359,24 @@ public class StrimziManager {
 
     public String getVersionLabel() {
         return versionLabel;
+    }
+
+    public void clearPendingVersions() {
+        this.pendingVersions.clear();
+    }
+
+    public Collection<String> getPendingVersions() {
+        return new ArrayList<>(pendingVersions.keySet());
+    }
+
+    public void setPendingVersions(List<String> pendingVersions) {
+        for (String version : pendingVersions) {
+            StrimziVersionStatus existing = strimziVersions.get(version);
+            if (existing != null) {
+                this.pendingVersions.put(version, new StrimziVersionStatusBuilder(existing).withReady(false).build());
+            } else {
+                this.pendingVersions.put(version, NULL_STATUS);
+            }
+        }
     }
 }
