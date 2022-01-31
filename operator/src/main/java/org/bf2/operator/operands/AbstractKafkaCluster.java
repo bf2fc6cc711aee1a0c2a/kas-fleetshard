@@ -156,6 +156,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         }
 
         if (isStrimziUpdating(managedKafka)) {
+            // the status here is actually unknown
             return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
         }
 
@@ -171,6 +172,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         if (ready.filter(c -> "True".equals(c.getStatus())).isPresent()) {
             return new OperandReadiness(Status.True, null, null);
+        }
+
+        if (isReconciliationPaused(managedKafka)) {
+            // strimzi may in the future report the status even when paused, but for now we don't know
+            return new OperandReadiness(Status.Unknown, Reason.Paused, String.format("Kafka %s is paused for an unknown reason", kafkaClusterName(managedKafka)));
         }
 
         return new OperandReadiness(Status.False, Reason.Installing, String.format("Kafka %s is not providing status", kafkaClusterName(managedKafka)));
