@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
@@ -71,7 +72,7 @@ public class StrimziBundleManagerTest {
 
     @AfterEach
     public void afterEach() {
-        strimziManager.clearPendingVersions();
+        strimziManager.clearStrimziPendingInstallationVersions();
     }
 
     @Test
@@ -118,6 +119,38 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
+    public void testDelayUpdateInstallation() throws InterruptedException {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+
+        Duration existing = this.strimziBundleManager.getApprovalDelay();
+        this.strimziBundleManager.setApprovalDelay(Duration.ofSeconds(1));
+        try {
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved as first installation with no Kafka CRDs installed
+            this.checkInstallPlan(subscription, true);
+
+            this.createKafkaCRDs();
+
+            subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                    "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved not yet approved
+            this.checkInstallPlan(subscription, false);
+            // the strimzi manager is notified that v2/v3 are pending
+            assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getStrimziPendingInstallationVersions());
+
+            Thread.sleep(1500);
+
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved as update of Strimzi bundle with Kafka CRDs already existing
+            this.checkInstallPlan(subscription, true);
+        } finally {
+            this.strimziBundleManager.setApprovalDelay(existing);
+        }
+    }
+
+    @Test
     public void testNotApprovedInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
@@ -159,7 +192,7 @@ public class StrimziBundleManagerTest {
         this.checkInstallPlan(subscription, true);
 
         // check that the strimzi manager was notified of pending versions
-        assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getPendingVersions());
+        assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getStrimziPendingInstallationVersions());
     }
 
     @Test

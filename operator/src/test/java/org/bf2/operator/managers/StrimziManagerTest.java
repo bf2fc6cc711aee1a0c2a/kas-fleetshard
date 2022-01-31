@@ -95,7 +95,7 @@ public class StrimziManagerTest {
         assertEquals(2, strimziVersions.size());
 
         // we will, or have approved these next versions
-        this.strimziManager.setPendingVersions(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"));
+        this.strimziManager.setStrimziPendingInstallationVersions(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"));
 
         // v1 should drop out
         strimziVersions = this.strimziManager.getStrimziVersions();
@@ -121,7 +121,7 @@ public class StrimziManagerTest {
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v3", true));
 
-        this.strimziManager.clearPendingVersions();
+        this.strimziManager.clearStrimziPendingInstallationVersions();
 
         strimziVersions = this.strimziManager.getStrimziVersions();
         assertEquals(2, strimziVersions.size());

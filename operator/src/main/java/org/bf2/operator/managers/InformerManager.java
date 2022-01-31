@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
@@ -21,7 +22,7 @@ import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -172,9 +173,17 @@ public class InformerManager {
     }
 
     public void resyncManagedKafka() {
-        List<ManagedKafka> managedKafkaList = kubernetesClient.resources(ManagedKafka.class, ManagedKafkaList.class).inAnyNamespace().list().getItems();
-        log.debugf("ManagedKafka instances to be resynced: %d", managedKafkaList.size());
-        managedKafkaList.forEach(mk -> {
+        resyncResource(ManagedKafka.class);
+    }
+
+    public void resyncManagedKafkaAgent() {
+        resyncResource(ManagedKafkaAgent.class);
+    }
+
+    protected <T extends CustomResource<?, ?>> void resyncResource(Class<T> resourceType) {
+        List<T> list = kubernetesClient.resources(resourceType).inAnyNamespace().list().getItems();
+        log.debugf("%s instances to be resynced: %d", resourceType.getSimpleName(), list.size());
+        list.forEach(mk -> {
             this.eventSource.handleEvent(mk);
         });
     }
