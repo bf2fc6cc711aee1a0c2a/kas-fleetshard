@@ -22,7 +22,6 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,12 +46,11 @@ public class ManagedKafkaControllerTest {
                 .thenReturn(new EventList(Arrays.asList(new CustomResourceEvent(Action.ADDED, mk, null))));
 
         StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
-        Mockito.when(strimziManager.getStrimziVersions())
-                .thenReturn(Collections.singletonList(new
-                                StrimziVersionStatusBuilder()
+        Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
+                .thenReturn(new StrimziVersionStatusBuilder()
                                 .withVersion(mk.getSpec().getVersions().getStrimzi())
                         .withKafkaVersions(mk.getSpec().getVersions().getKafka())
-                        .build()));
+                        .build());
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn("managedkafka.bf2.org/strimziVersion");
 
@@ -92,12 +90,6 @@ public class ManagedKafkaControllerTest {
                 .thenReturn(new EventList(Arrays.asList(new CustomResourceEvent(Action.ADDED, mk, null))));
 
         StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
-        Mockito.when(strimziManager.getStrimziVersions())
-                .thenReturn(Collections.singletonList(new
-                        StrimziVersionStatusBuilder()
-                        .withVersion("strimzi-cluster-operator.v0.24.0")
-                        .withKafkaVersions(mk.getSpec().getVersions().getKafka())
-                        .build()));
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn("managedkafka.bf2.org/strimziVersion");
 
@@ -108,12 +100,11 @@ public class ManagedKafkaControllerTest {
         assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());
         assertEquals("The requested Strimzi version strimzi-cluster-operator.v0.23.0 is not supported", condition.getMessage());
 
-        Mockito.when(strimziManager.getStrimziVersions())
-                .thenReturn(Collections.singletonList(new
-                        StrimziVersionStatusBuilder()
+        Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
+                .thenReturn(new StrimziVersionStatusBuilder()
                         .withVersion(mk.getSpec().getVersions().getStrimzi())
                         .withKafkaVersions("3.0.0")
-                        .build()));
+                        .build());
 
         mkController.createOrUpdateResource(mk, context);
         condition = mk.getStatus().getConditions().get(0);

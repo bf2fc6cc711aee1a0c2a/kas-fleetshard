@@ -2,7 +2,9 @@ package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.quarkus.runtime.Startup;
@@ -24,11 +26,17 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -37,6 +45,9 @@ public class StrimziManager {
     public static final String STRIMZI_CLUSTER_OPERATOR = "strimzi-cluster-operator";
     public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
     public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
+
+    // concurrent hash maps don't like null values, so we'll use this instead
+    private static final StrimziVersionStatus EMPTY_STATUS = new StrimziVersionStatus();
 
     @Inject
     Logger log;
@@ -54,6 +65,7 @@ public class StrimziManager {
     ResourceInformerFactory resourceInformerFactory;
 
     private Map<String, StrimziVersionStatus> strimziVersions = new ConcurrentHashMap<>();
+    private volatile ConcurrentHashMap<String, StrimziVersionStatus> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
@@ -61,30 +73,32 @@ public class StrimziManager {
 
     @PostConstruct
     protected void onStart() {
+        // update the initial deployments as a single operation
+        FilterWatchListDeletable<Deployment, DeploymentList> deployments = this.kubernetesClient.apps().deployments().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka"));
+        for (Deployment deployment : deployments.list().getItems()) {
+            if (isStrimziDeployment(deployment)) {
+                log.debugf("Adding Deployment %s/%s", deployment.getMetadata().getNamespace(),
+                        deployment.getMetadata().getName());
+                updateStrimziVersion(deployment);
+            }
+        }
+        updateStatus();
         this.resourceInformerFactory.create(Deployment.class,
-                this.kubernetesClient.apps().deployments().inAnyNamespace().withLabels(Map.of("app.kubernetes.io/part-of", "managed-kafka")),
+                deployments,
                 new ResourceEventHandler<Deployment>() {
                     @Override
                     public void onAdd(Deployment deployment) {
                         if (isStrimziDeployment(deployment)) {
-                            log.debugf("Add event received for Deployment %s/%s",
+                            log.debugf("Add/update event received for Deployment %s/%s",
                                     deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
                             updateStrimziVersion(deployment);
                             updateStatus();
-                            informerManager.resyncManagedKafka();
                         }
                     }
 
                     @Override
                     public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
-                        if (isStrimziDeployment(newDeployment)) {
-                            log.debugf("Update event received for Deployment %s/%s",
-                                    newDeployment.getMetadata().getNamespace(), newDeployment.getMetadata().getName());
-                            if (Readiness.isDeploymentReady(newDeployment) ^ Readiness.isDeploymentReady(oldDeployment)) {
-                                updateStrimziVersion(newDeployment);
-                                updateStatus();
-                            }
-                        }
+                        onAdd(newDeployment);
                     }
 
                     @Override
@@ -96,24 +110,39 @@ public class StrimziManager {
                             updateStatus();
                         }
                     }
-
-                    private void updateStatus() {
-                        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
-                        if (resource != null && resource.getStatus() != null) {
-                            log.debugf("Updating Strimzi versions %s", getStrimziVersions());
-                            resource.getStatus().setStrimzi(getStrimziVersions());
-                            agentClient.replaceStatus(resource);
-                        }
-                        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
-                        if (!getStrimziVersions().isEmpty()) {
-                            informerManager.createKafkaInformer();
-                        }
-                    }
-
-                    private boolean isStrimziDeployment(Deployment deployment) {
-                        return deployment.getMetadata().getName().startsWith(STRIMZI_CLUSTER_OPERATOR);
-                    }
                 });
+    }
+
+    private boolean isStrimziDeployment(Deployment deployment) {
+        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
+    }
+
+    private void updateStatus() {
+        List<StrimziVersionStatus> versions = new ArrayList<>(this.strimziVersions.values());
+        // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
+        if (!versions.isEmpty()) {
+            informerManager.createKafkaInformer();
+        }
+
+        ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);
+        if (resource != null && resource.getStatus() != null) {
+            List<StrimziVersionStatus> existing = resource.getStatus().getStrimzi();
+            if (!versions.equals(existing)) {
+                log.debugf("Updating Strimzi versions %s", versions);
+                resource.getStatus().setStrimzi(versions);
+                agentClient.replaceStatus(resource);
+                // version changes should sync the managed kafkas
+                if (existing == null || !toVersionKeySet(versions).equals(toVersionKeySet(existing))) {
+                    informerManager.resyncManagedKafka();
+                }
+            }
+        }
+    }
+
+    private Set<String> toVersionKeySet(List<StrimziVersionStatus> versions) {
+        Set<String> keys = versions.stream().map(StrimziVersionStatus::getVersion).collect(Collectors.toCollection(HashSet::new));
+        keys.addAll(strimziPendingInstallationVersions.keySet());
+        return keys;
     }
 
     /* test */ public void updateStrimziVersion(Deployment deployment) {
@@ -149,7 +178,17 @@ public class StrimziManager {
     }
 
     /* test */ public void deleteStrimziVersion(Deployment deployment) {
-        this.strimziVersions.remove(deployment.getMetadata().getName());
+        StrimziVersionStatus removed = this.strimziVersions.remove(deployment.getMetadata().getName());
+        if (removed != null) {
+            // if we will resurrect the version, then just move the info into pending.
+            // this approach does leave open a small window for the fso to be restarted after the
+            // original deployment goes away, but before the next one is deployed.
+            //
+            // the only guard against that involves a lot more refinement of this logic
+            // including extracting the status info from the csv in the bundle manager
+            this.strimziPendingInstallationVersions.computeIfPresent(deployment.getMetadata().getName(),
+                    (k, s) -> new StrimziVersionStatusBuilder(removed).withReady(false).build());
+        }
     }
 
     /**
@@ -270,11 +309,42 @@ public class StrimziManager {
     }
 
     /**
-     * @return list of installed Strimzi versions with related readiness status
+     * @param strimziVersion the strimzi version
+     * @return the corresponding status, which may be from a version that will be removed
+     */
+    public StrimziVersionStatus getStrimziVersion(String strimziVersion) {
+        StrimziVersionStatus result = this.strimziVersions.get(strimziVersion);
+        if (result == null) {
+            result = this.strimziPendingInstallationVersions.get(strimziVersion);
+            if (result == EMPTY_STATUS) {
+                result = null;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * @return list of installed Strimzi versions with related readiness status. it will not
+     * include versions that may be removed or non-common versions that are pending installation.
+     * Common versions are those found in both an old and a new CSV.
      */
     public List<StrimziVersionStatus> getStrimziVersions() {
-        log.debugf("Strimzi versions %s", this.strimziVersions.values());
-        return new ArrayList<>(this.strimziVersions.values());
+        Map<String, StrimziVersionStatus> nextVersions = new HashMap<>(strimziPendingInstallationVersions);
+        Map<String, StrimziVersionStatus> result = this.strimziVersions;
+        // if there are pending versions, then merge the lists by keeping only the valid next
+        if (!nextVersions.isEmpty()) {
+            result = nextVersions;
+            for (Iterator<Map.Entry<String, StrimziVersionStatus>> iter = result.entrySet().iterator(); iter.hasNext();) {
+                Map.Entry<String, StrimziVersionStatus> entry = iter.next();
+                StrimziVersionStatus live = this.strimziVersions.get(entry.getKey());
+                if (live != null) {
+                    entry.setValue(live);
+                } else if (entry.getValue() == EMPTY_STATUS) {
+                    iter.remove();
+                }
+            }
+        }
+        return new ArrayList<>(result.values());
     }
 
     /* test */ public void clearStrimziVersions() {
@@ -283,5 +353,42 @@ public class StrimziManager {
 
     public String getVersionLabel() {
         return versionLabel;
+    }
+
+    public void clearStrimziPendingInstallationVersions() {
+        if (this.strimziPendingInstallationVersions.isEmpty()) {
+            return;
+        }
+        log.infof("Clearing pending strimzi versions");
+        this.strimziPendingInstallationVersions = new ConcurrentHashMap<>();
+        informerManager.resyncManagedKafkaAgent();
+    }
+
+    public Collection<String> getStrimziPendingInstallationVersions() {
+        return new ArrayList<>(strimziPendingInstallationVersions.keySet());
+    }
+
+    /**
+     * Notify the strimzi manager of pending versions.
+     * @param pendingVersions
+     * @return true if the pending state has changed
+     */
+    public boolean setStrimziPendingInstallationVersions(List<String> pendingVersions) {
+        if (!Collections.disjoint(strimziPendingInstallationVersions.keySet(), pendingVersions)) {
+            return false;
+        }
+        log.infof("Notified of pending strimzi versions {}", pendingVersions);
+        ConcurrentHashMap<String, StrimziVersionStatus> next = new ConcurrentHashMap<>();
+        for (String version : pendingVersions) {
+            StrimziVersionStatus existing = strimziVersions.get(version);
+            if (existing != null) {
+                next.put(version, new StrimziVersionStatusBuilder(existing).withReady(false).build());
+            } else {
+                next.put(version, EMPTY_STATUS);
+            }
+        }
+        this.strimziPendingInstallationVersions = next;
+        informerManager.resyncManagedKafkaAgent();
+        return true;
     }
 }
