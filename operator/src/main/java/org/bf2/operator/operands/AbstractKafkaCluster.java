@@ -84,7 +84,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (kafka == null) {
             return false;
         }
-        Map<String, String> annotations = kafka.getMetadata().getAnnotations() != null ? kafka.getMetadata().getAnnotations() : Collections.emptyMap();
+        Map<String, String> annotations = Objects.requireNonNullElse(kafka.getMetadata().getAnnotations(), Collections.emptyMap());
         return StrimziManager.isPauseReasonStrimziUpdate(annotations) && isReconciliationPaused(managedKafka);
     }
 
