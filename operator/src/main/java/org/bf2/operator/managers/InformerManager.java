@@ -183,8 +183,8 @@ public class InformerManager {
     protected <T extends CustomResource<?, ?>> void resyncResource(Class<T> resourceType) {
         List<T> list = kubernetesClient.resources(resourceType).inAnyNamespace().list().getItems();
         log.debugf("%s instances to be resynced: %d", resourceType.getSimpleName(), list.size());
-        list.forEach(mk -> {
-            this.eventSource.handleEvent(mk);
+        list.forEach(resource -> {
+            this.eventSource.handleEvent(resource);
         });
     }
 
