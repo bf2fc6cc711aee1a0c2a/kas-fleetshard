@@ -172,16 +172,21 @@ public class StrimziManager {
                 this.currentStrimziVersion(managedKafka), managedKafka.getSpec().getVersions().getStrimzi());
         // Kafka cluster is running and ready --> pause reconcile or at the end of upgrade remove pause reason annotation
         if (kafkaCluster.isReadyNotUpdating(managedKafka)) {
-            if (!isPauseReasonStrimziUpdate(annotations)) {
+            if (!isPauseReasonStrimziUpdate(annotations)) { // if already paused for another reason, we'll override to proceed with the upgrade
                 pauseReconcile(managedKafka, annotations);
                 annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
-            } else {
+            } else if (!"true".equals(annotations.get(STRIMZI_PAUSE_RECONCILE_ANNOTATION))) {
                 annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
-            }
+            } // else don't remove the pause reason - strimzi has not reconciled yet
         // Kafka cluster reconcile is paused because of Strimzi updating --> apply version from spec to handover and unpause to restart reconcile
-        } else if (kafkaCluster.isReconciliationPaused(managedKafka) && isPauseReasonStrimziUpdate(annotations)) {
-            labels.put(this.versionLabel, managedKafka.getSpec().getVersions().getStrimzi());
-            unpauseReconcile(managedKafka, annotations);
+        } else if (kafkaCluster.isReconciliationPaused(managedKafka)) {
+            if (isPauseReasonStrimziUpdate(annotations)) {
+                labels.put(this.versionLabel, managedKafka.getSpec().getVersions().getStrimzi());
+                unpauseReconcile(managedKafka, annotations);
+            } else if (annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION) == null) {
+                // defensively assume we're updating
+                annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+            } // else we don't know why we're paused
         }
 
         kafkaBuilder
@@ -221,23 +226,6 @@ public class StrimziManager {
     }
 
     /**
-     * Returns if a Strimzi version upgrade is in progress
-     *
-     * @param managedKafka ManagedKafka instance
-     * @param kafkaCluster Kafka cluster operand
-     * @param kafkaBuilder KafkaBuilder instance related to the Kafka custom resource
-     * @return if a Strimzi version upgrade is in progress
-     */
-    public boolean isUpgradeInProgress(ManagedKafka managedKafka, AbstractKafkaCluster kafkaCluster, KafkaBuilder kafkaBuilder) {
-        Map<String, String> annotations = kafkaBuilder
-                .buildMetadata()
-                .getAnnotations();
-        // there is an actual Strimzi upgrade going on or it's ended but the pause reason annotation has to be removed
-        return kafkaCluster.isStrimziUpdating(managedKafka) ||
-                (kafkaCluster.isReadyNotUpdating(managedKafka) && this.isPauseReasonStrimziUpdate(annotations));
-    }
-
-    /**
      * Pause reconcile of the Kafka custom resource corresponding to the ManagedKafka one
      * by adding the pause-reconciliation annotation on the provided annotations list
      *
@@ -271,9 +259,10 @@ public class StrimziManager {
      * @param annotations Kafka custom resource annotations from which checking the pause reason
      * @return if pausing is due to Strimzi updating
      */
-    private boolean isPauseReasonStrimziUpdate(Map<String, String> annotations) {
-        return annotations.containsKey(STRIMZI_PAUSE_REASON_ANNOTATION) &&
-                annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION).equals(ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+    public static boolean isPauseReasonStrimziUpdate(Map<String, String> annotations) {
+        return ManagedKafkaCondition.Reason.StrimziUpdating.name()
+                .toLowerCase()
+                .equals(annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION));
     }
 
     private Kafka cachedKafka(ManagedKafka managedKafka) {

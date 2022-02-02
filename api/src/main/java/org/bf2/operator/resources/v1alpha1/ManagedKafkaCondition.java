@@ -28,7 +28,8 @@ public class ManagedKafkaCondition {
         StrimziUpdating,
         KafkaUpdating,
         KafkaIbpUpdating,
-        OrphanedKafkas
+        OrphanedKafkas,
+        Paused
     }
 
     public enum Status {
