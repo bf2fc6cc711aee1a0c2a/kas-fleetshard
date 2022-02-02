@@ -36,6 +36,7 @@ import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
@@ -81,9 +82,6 @@ public class AdminServer extends AbstractAdminServer {
     @Inject
     Logger log;
 
-    @ConfigProperty(name = "image.admin-api")
-    String adminApiImage;
-
     @ConfigProperty(name = "adminserver.cors.allowlist")
     Optional<String> corsAllowList;
 
@@ -100,6 +98,9 @@ public class AdminServer extends AbstractAdminServer {
 
     @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
+
+    @Inject
+    protected OperandOverrideManager overrideManager;
 
     void onStart(@Observes StartupEvent ev) {
         if (kubernetesClient.isAdaptable(OpenShiftClient.class)) {
@@ -257,7 +258,7 @@ public class AdminServer extends AbstractAdminServer {
     protected List<Container> buildContainers(ManagedKafka managedKafka) {
         Container container = new ContainerBuilder()
                 .withName("admin-server")
-                .withImage(adminApiImage)
+                .withImage(overrideManager.getAdminServerImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka))
                 .withPorts(buildContainerPorts(managedKafka))
                 .withResources(buildResources())
