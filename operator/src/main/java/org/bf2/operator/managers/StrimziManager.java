@@ -336,7 +336,8 @@ public class StrimziManager {
 
     /**
      * @return list of installed Strimzi versions with related readiness status. it will not
-     * include versions that may be removed
+     * include versions that may be removed or non-common versions that are pending installation.
+     * Common versions are those found in both an old and a new CSV.
      */
     public List<StrimziVersionStatus> getStrimziVersions() {
         Map<String, StrimziVersionStatus> nextVersions = new HashMap<>(strimziPendingInstallationVersions);
