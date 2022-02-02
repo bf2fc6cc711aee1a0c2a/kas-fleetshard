@@ -239,10 +239,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
      * @return the updated Kafka custom resource with changes related to upgrade
      */
     private Kafka upgrade(ManagedKafka managedKafka, KafkaBuilder kafkaBuilder) {
-        if (this.strimziManager.hasStrimziChanged(managedKafka) || this.strimziManager.isUpgradeInProgress(managedKafka, this, kafkaBuilder)) {
+        if (this.strimziManager.hasStrimziChanged(managedKafka)
+                || StrimziManager.isPauseReasonStrimziUpdate(kafkaBuilder.buildMetadata().getAnnotations())) {
             log.infof("Strimzi version upgrade ...");
             this.strimziManager.upgradeStrimziVersion(managedKafka, this, kafkaBuilder);
-        } else if (!this.strimziManager.isUpgradeInProgress(managedKafka, this, kafkaBuilder) && this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+        } else if (this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
             log.infof("Kafka version upgrade ...");
             this.kafkaManager.upgradeKafkaVersion(managedKafka, kafkaBuilder);
         } else if (!this.kafkaManager.isKafkaUpgradeInProgress(managedKafka, this)) {

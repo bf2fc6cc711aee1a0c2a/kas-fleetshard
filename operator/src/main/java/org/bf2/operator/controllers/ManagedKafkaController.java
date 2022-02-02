@@ -16,6 +16,7 @@ import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
@@ -41,6 +42,9 @@ import java.util.Optional;
 @Controller
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
+    // 1 for bootstrap URL + 1 for Admin API server
+    private static final int NUM_NON_BROKER_ROUTES = 2;
+
     @Inject
     Logger log;
 
@@ -49,6 +53,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     KafkaInstance kafkaInstance;
+
+    @Inject
+    protected KafkaInstanceConfiguration config;
 
     @Inject
     Instance<IngressControllerManager> ingressControllerManagerInstance;
@@ -153,6 +160,18 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         // routes should always be set on the CR status, even if it's just an empty list
         status.setRoutes(List.of());
 
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
+            List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
+
+            // expect route for each broker + 1 for bootstrap URL + 1 for Admin API server
+            int expectedNumRoutes = this.config.getKafka().getReplicas() + NUM_NON_BROKER_ROUTES;
+            if (routes.size() >= expectedNumRoutes && routes.stream().noneMatch(r -> "".equals(r.getRouter()))) {
+                status.setRoutes(routes);
+            }
+        }
+
         if (Status.True.equals(readiness.getStatus())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity())
                     .withMaxDataRetentionSize(kafkaInstance.getKafkaCluster().calculateRetentionSize(managedKafka))
@@ -175,12 +194,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             status.setVersions(versionsBuilder.build());
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
             status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
-
-            if (ingressControllerManagerInstance.isResolvable()) {
-                IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
-                List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
-                status.setRoutes(routes);
-            }
         }
     }
 

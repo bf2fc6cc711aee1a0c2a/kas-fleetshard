@@ -18,6 +18,7 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
@@ -27,7 +28,10 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -356,6 +360,27 @@ class KafkaClusterTest {
                     .build());
         }
         return overrides;
+    }
+
+    @Test
+    void pausedUnknownStatus() throws InterruptedException {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+
+        InformerManager informer = Mockito.mock(InformerManager.class);
+        Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
+                .editMetadata().withAnnotations(Map.of(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION, "custom")).endMetadata()
+                .withNewStatus()
+                .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
+                .endStatus().build();
+
+        Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(kafka);
+        QuarkusMock.installMockForType(informer, InformerManager.class);
+
+        OperandReadiness readiness = this.kafkaCluster.getReadiness(mk);
+        assertEquals(Status.Unknown, readiness.getStatus());
+        assertEquals(Reason.Paused, readiness.getReason());
+        assertEquals("Kafka mk-1 is paused for an unknown reason", readiness.getMessage());
     }
 
 }

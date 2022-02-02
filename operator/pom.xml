@@ -13,6 +13,7 @@
     <properties>
         <!-- skipping until strimzi adds missing crd-annotations and test jars -->
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
+        <basepom.test.memory>512m</basepom.test.memory>
     </properties>
 
     <dependencies>

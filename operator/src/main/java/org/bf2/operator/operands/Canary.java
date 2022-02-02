@@ -30,6 +30,7 @@ import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
@@ -58,12 +59,6 @@ public class Canary extends AbstractCanary {
     private static final String METRICS_PORT_NAME = "metrics";
     private static final IntOrString METRICS_PORT_TARGET = new IntOrString(METRICS_PORT_NAME);
 
-    @ConfigProperty(name = "image.canary")
-    String canaryImage;
-
-    @ConfigProperty(name = "image.canary-init")
-    String canaryInitImage;
-
     @ConfigProperty(name = "managedkafka.canary.producer-latency-buckets")
     String producerLatencyBuckets;
 
@@ -90,6 +85,9 @@ public class Canary extends AbstractCanary {
 
     @Inject
     protected KafkaInstanceConfiguration config;
+
+    @Inject
+    protected OperandOverrideManager overrideManager;
 
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
@@ -192,7 +190,7 @@ public class Canary extends AbstractCanary {
     protected Container buildInitContainer(ManagedKafka managedKafka, Deployment current) {
         return new ContainerBuilder()
                 .withName("init")
-                .withImage(canaryInitImage)
+                .withImage(overrideManager.getCanaryInitImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildInitEnvVar(managedKafka))
                 .withResources(buildResources())
                 .withCommand("/opt/strimzi-canary-tool/canary-dns-init.sh")
@@ -208,7 +206,7 @@ public class Canary extends AbstractCanary {
     protected List<Container> buildContainers(ManagedKafka managedKafka, Deployment current) {
         Container container = new ContainerBuilder()
                 .withName("canary")
-                .withImage(canaryImage)
+                .withImage(overrideManager.getCanaryImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
                 .withResources(buildResources())
