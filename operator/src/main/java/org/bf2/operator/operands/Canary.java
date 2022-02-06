@@ -33,7 +33,6 @@ import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -330,11 +329,10 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("ENDTOEND_LATENCY_BUCKETS").withValue(endToEndLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("CONNECTION_CHECK_LATENCY_BUCKETS").withValue(connectionCheckLatencyBuckets).build());
 
-        Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
-        if (canaryServiceAccount.isPresent()) {
+        if (SecuritySecretManager.isCanaryServiceAccountPresent(managedKafka)){
             envVars.add(new EnvVarBuilder().withName("SASL_MECHANISM").withValue("PLAIN").build());
-            envVars.add(new EnvVarBuilder().withName("SASL_USER").withValue(canaryServiceAccount.get().getPrincipal()).build());
-            envVars.add(new EnvVarBuilder().withName("SASL_PASSWORD").withValue(canaryServiceAccount.get().getPassword()).build());
+            addEnvVarFromSecret(envVars, "SASL_USER",SecuritySecretManager.canarySaslSecretName(managedKafka) , SecuritySecretManager.SASL_PRINCIPAL);
+            addEnvVarFromSecret(envVars, "SASL_PASSWORD",SecuritySecretManager.canarySaslSecretName(managedKafka) , SecuritySecretManager.SASL_PASSWORD);
         }
         envVars.add(new EnvVarBuilder().withName("STATUS_TIME_WINDOW_MS").withValue(String.valueOf(statusTimeWindowMs)).build());
         return envVars;
@@ -370,6 +368,15 @@ public class Canary extends AbstractCanary {
                 .withProtocol("TCP")
                 .withPort(METRICS_PORT)
                 .withTargetPort(METRICS_PORT_TARGET)
+                .build());
+    }
+
+    private void addEnvVarFromSecret(List<EnvVar> envVars, String envName, String secretName, String secretEntry) {
+        envVars.add(new EnvVarBuilder()
+                .withName(envName)
+                .withNewValueFrom()
+                .withNewSecretKeyRef(secretEntry, secretName, false)
+                .endValueFrom()
                 .build());
     }
 

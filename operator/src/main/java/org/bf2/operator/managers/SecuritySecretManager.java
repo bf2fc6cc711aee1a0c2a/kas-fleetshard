@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.KafkaResources;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -25,6 +26,8 @@ import java.util.stream.Collectors;
 public class SecuritySecretManager {
 
     public static final String ANNOTATION_SECRET_DEP_DIGEST = "managedkafka.bf2.org/secret-dependency-digest";
+    public static final String SASL_PRINCIPAL ="sasl.principal";
+    public static final String SASL_PASSWORD ="sasl.password";
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -38,6 +41,10 @@ public class SecuritySecretManager {
 
     public static boolean isKafkaExternalCertificateEnabled(ManagedKafka managedKafka) {
         return managedKafka.getSpec().getEndpoint().getTls() != null;
+    }
+
+    public static boolean isCanaryServiceAccountPresent(ManagedKafka managedKafka){
+        return managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).isPresent();
     }
 
     public static String kafkaTlsSecretName(ManagedKafka managedKafka) {
@@ -58,6 +65,10 @@ public class SecuritySecretManager {
 
     public static String strimziClusterCaCertSecret(ManagedKafka managedKafka) {
         return KafkaResources.clusterCaCertificateSecretName(managedKafka.getMetadata().getName());
+    }
+
+    public static String canarySaslSecretName(ManagedKafka managedKafka){
+        return managedKafka.getMetadata().getName() + "-canary-sasl-secret";
     }
 
     public boolean isDeleted(ManagedKafka managedKafka) {
@@ -105,6 +116,15 @@ public class SecuritySecretManager {
                 secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
             }
         }
+        Secret currentCanarySaslSecret = cachedSecret(managedKafka, canarySaslSecretName(managedKafka));
+        if(isCanaryServiceAccountPresent(managedKafka)){
+            Secret canarySaslSecret = canarySaslSecretFrom(managedKafka, currentCanarySaslSecret);
+            createOrUpdate(canarySaslSecret);
+        } else {
+            if (currentCanarySaslSecret != null){
+                secretResource(managedKafka,canarySaslSecretName(managedKafka)).delete();
+            }
+        }
     }
 
     public void delete(ManagedKafka managedKafka) {
@@ -118,6 +138,15 @@ public class SecuritySecretManager {
                 secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
             }
         }
+    }
+
+    private static Secret canarySaslSecretFrom(ManagedKafka managedKafka, Secret current){
+        return buildSecretFrom(canarySaslSecretName(managedKafka),
+                "Opaque",
+                managedKafka,
+                current,
+                Map.of(SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
+                        SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword()));
     }
 
     public String digestSecretsVersions(ManagedKafka managedKafka, List<String> secretNames) {
