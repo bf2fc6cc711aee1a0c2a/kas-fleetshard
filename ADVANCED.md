@@ -47,6 +47,38 @@ The canary tool, deployed by the fleetshard operator, provides logging at two di
 * canary application itself
 * Sarama Apache Kafka client, used by the canary to interact with the Apache Kafka cluster
 
+There are two ways to increase logging level, a dynamic method that applies only the newest canary version and 
+static method that requires the canary to be restarted.  Both methods are described next.
+
+### Control of logging verbosity at runtime from config provided by configmap
+
+Versions of the canary provided by container images greater than `quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833` support dynamic control of canary and sarama logging level.
+That is changes are applied at runtime, without the need to restart the canary.
+
+If you wish to change the logging configuration, you should create a ConfigMap named `canary-config` in the namespace of the Kafka instance where the canary is running.
+The ConfigMap must contain key `canary-config.json` containing a stringified JSON object providing the keys `verbosityLogLevel` and/or `saramaLogEnabled`.
+Kubernetes  configmap filesystem projection takes about 1 minute and the canary itself looks for changes every 30 seconds.
+You may need to wait this long for the changes to be applied.
+
+* For `verbosityLogLevel` the *integer* values allowed are `0` (INFO), `1` (DEBUG) and `2` (TRACE).  If not provided the system defaults to `0`.
+* For `saramaLogEnabled` the *boolean* values allowed are `false` or `true`.  If not provided the system defaults to `false`.
+
+The following example command enables both canary logging at trace and sarama logging.
+
+```bash
+kubectl create configmap -n my-kafka-cluster-namespace canary-config \
+                          --from-file=canary-config.json='{saramaLogEnabled: true, verbosityLogLevel: 2}'
+```
+
+To revert logging back to default, simply delete the configmap.
+
+```bash
+kubectl delete configmap -n my-kafka-cluster-namespace canary-config
+```
+
+
+### Control of logging verbosity from environment variables provided by configmap (Deprecated)
+
 The canary application has a verbosity logging level configuration using the `VERBOSITY_LOG_LEVEL` environment variable that defaults to `0` (INFO); other allowed values are `1` (DEBUG) and `2` (TRACE).
 Warnings and errors are always logged and are not affected by the value of `VERBOSITY_LOG_LEVEL`.
 
