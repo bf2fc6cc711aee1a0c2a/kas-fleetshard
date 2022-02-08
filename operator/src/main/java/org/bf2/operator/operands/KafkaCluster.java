@@ -102,9 +102,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
     // storage related constants
-    private static final int STORAGE_CHECK_INTERVAL = 30;
-    private static final int STORAGE_SAFETY_FACTOR = 2;
-    private static final Quantity MIN_STORAGE_MARGIN = new Quantity("1Gi");
+    private static final int STORAGE_CHECK_INTERVAL = Integer.parseInt(System.getenv().getOrDefault("STORAGE_CHECK_INTERVAL_ENV", "30"));
+    private static final int STORAGE_SAFETY_FACTOR = Integer.parseInt(System.getenv().getOrDefault("STORAGE_SAFETY_FACTOR_ENV", "2"));
+    private static final Quantity MIN_STORAGE_MARGIN = new Quantity(System.getenv().getOrDefault("MIN_STORAGE_MARGIN_ENV", "10Gi"));
 
     private static final boolean DELETE_CLAIM = true;
     private static final int JBOD_VOLUME_ID = 0;

@@ -177,7 +177,7 @@ spec:
       volumes:
       - !<persistent-claim>
         type: "persistent-claim"
-        size: "17211326464"
+        size: "26875002880"
         class: "gp2"
         id: 0
         deleteClaim: true

@@ -124,7 +124,7 @@ class KafkaClusterTest {
             Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
 
             // should change to a larger size
-            diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28675058306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"29748800130\"}]");
+            diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28675058306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39412476546\"}]");
         } finally {
             kafkaCluster.setKafkaConfiguration(config);
         }
@@ -251,9 +251,9 @@ class KafkaClusterTest {
         ManagedKafka mk = exampleManagedKafka("40Gi");
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
         long bytes = getBrokerStorageBytes(kafka);
-        assertEquals(15432242477L, bytes);
+        assertEquals(25095918893L, bytes);
 
-        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, 15432242477L)*3);
+        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, 25095918893L)*3);
     }
 
     private long getBrokerStorageBytes(Kafka kafka) {
@@ -324,7 +324,7 @@ class KafkaClusterTest {
         // there's no pvcs, should be 0
         assertEquals("0", kafkaCluster.calculateRetentionSize(mk).getAmount());
 
-        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("335Gi")).endStatus().build();
+        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("344Gi")).endStatus().build();
         Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc, pvc));
 
         // should be the sum in Gi, less the padding
