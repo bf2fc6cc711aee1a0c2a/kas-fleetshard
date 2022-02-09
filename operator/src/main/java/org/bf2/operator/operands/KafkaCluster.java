@@ -113,7 +113,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
 
-    // storage related constants
     @ConfigProperty(name = "managedkafka.storage.check-interval")
     int storageCheckInterval;
 
