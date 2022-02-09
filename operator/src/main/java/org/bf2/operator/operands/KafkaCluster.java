@@ -69,6 +69,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -100,13 +101,9 @@ import java.util.stream.Collectors;
 public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
-    // storage related constants
-    private static final double HARD_PERCENT = 0.95;
-    private static final double SOFT_PERCENT = 0.9;
 
     private static final boolean DELETE_CLAIM = true;
     private static final int JBOD_VOLUME_ID = 0;
-    private static final Quantity MIN_STORAGE_MARGIN = new Quantity("10Gi");
 
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
@@ -115,6 +112,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
+
+    @ConfigProperty(name = "managedkafka.storage.check-interval")
+    int storageCheckInterval;
+
+    @ConfigProperty(name = "managedkafka.storage.safety-factor")
+    int storageSafetyFactor;
+
+    @ConfigProperty(name = "managedkafka.storage.min-margin")
+    Quantity storageMinMargin;
 
     @Inject
     Logger log;
@@ -562,19 +568,19 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
-        Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long throughputBytes = (long)(Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).doubleValue() / this.config.getKafka().getReplicas());
+        long throughputBytes = getBrokerThroughputBytes(managedKafka);
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.fetch", String.valueOf(throughputBytes));
 
-        // Start throttling when disk is above 90%. Full stop at 95%.
+        // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
-        double dataRetentionBytes = Quantity.getAmountInBytes(maxDataRetentionSize).doubleValue();
-        config.put("client.quota.callback.static.storage.soft", String.valueOf((long)(SOFT_PERCENT * dataRetentionBytes)));
-        config.put("client.quota.callback.static.storage.hard", String.valueOf((long)(HARD_PERCENT * dataRetentionBytes)));
+        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(storageMinMargin).longValue();
+        long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka);
+        config.put("client.quota.callback.static.storage.soft", String.valueOf(softStorageLimit));
+        config.put("client.quota.callback.static.storage.hard", String.valueOf(hardStorageLimit));
 
-        // Check storage every 30 seconds
-        config.put("client.quota.callback.static.storage.check-interval", "30");
+        // Check storage every storageCheckInterval seconds
+        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(storageCheckInterval));
 
         // Configure the quota plugin so that the canary is not subjected to the quota checks.
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
@@ -622,22 +628,34 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     /**
+     * Get ingress/egress throughput B/s per broker given the IngressEgressThroughputPerSec limit
+     */
+    private long getBrokerThroughputBytes(ManagedKafka managedKafka) {
+        Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
+        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).longValue();
+
+        return bytes / this.config.getKafka().getReplicas();
+    }
+
+    /**
+     * Get extra storage padding given the effective IngressEgressThroughput limit and storageMinMargin
+     */
+    private long getStoragePadding(ManagedKafka managedKafka) {
+        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getBrokerThroughputBytes(managedKafka) * storageCheckInterval * storageSafetyFactor;
+    }
+
+    /**
      * Get the effective volume size considering extra padding and the existing size
      */
     private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka, Kafka current) {
         Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
-        long bytes;
-        if (maxDataRetentionSize == null) {
-            bytes = Quantity.getAmountInBytes(new Quantity(this.config.getKafka().getVolumeSize())).longValue();
-        } else {
-            bytes = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
-        }
+        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(maxDataRetentionSize, new Quantity(this.config.getKafka().getVolumeSize()))).longValue();
 
         // this is per broker
         bytes /= this.config.getKafka().getReplicas();
 
         // pad to give a margin before soft/hard limits kick in
-        bytes = Math.max(bytes + Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (bytes / SOFT_PERCENT));
+        bytes += getStoragePadding(managedKafka);
 
         // strimzi won't allow the size to be reduced so scrape the size if possible
         if (current != null) {
@@ -659,8 +677,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new Quantity(String.valueOf(bytes));
     }
 
-    public static long unpadBrokerStorage(long value) {
-        return Math.min(value - Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue(), (long) (value * SOFT_PERCENT));
+    public long unpadBrokerStorage(ManagedKafka managedKafka, long value) {
+        return value - getStoragePadding(managedKafka);
     }
 
     /**
@@ -680,7 +698,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
             long value = Quantity.getAmountInBytes(q).longValue();
             // round down to the nearest GB - the PVC request is automatically rounded up
-            return (long)Math.floor(((double)KafkaCluster.unpadBrokerStorage(value))/(1L<<30));
+            return (long)Math.floor(((double)unpadBrokerStorage(managedKafka, value))/(1L<<30));
         }).collect(Collectors.summingLong(Long::longValue));
 
         Quantity capacity = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();

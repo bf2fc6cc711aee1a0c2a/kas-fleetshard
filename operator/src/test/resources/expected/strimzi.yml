@@ -128,10 +128,10 @@ spec:
       offsets.topic.replication.factor: 3
       quota.window.size.seconds: "2"
       transaction.state.log.min.isr: 2
-      client.quota.callback.static.storage.soft: "28991029248"
+      client.quota.callback.static.storage.soft: "21474836480"
       quota.window.num: "30"
       client.quota.callback.static.fetch: "699050"
-      client.quota.callback.static.storage.hard: "30601641984"
+      client.quota.callback.static.storage.hard: "21516779480"
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 3
@@ -158,7 +158,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.014: priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls
       strimzi.authorization.custom-authorizer.acl.015: priority=1;permission=allow;principal=userid-123;topic=*;operations=all
       strimzi.authorization.custom-authorizer.acl.016: priority=1;permission=allow;principal=userid-123;group=*;operations=all
-      strimzi.authorization.custom-authorizer.acl.017: priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all  
+      strimzi.authorization.custom-authorizer.acl.017: priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all
       strimzi.authorization.custom-authorizer.acl.018: priority=1;permission=allow;principal=canary-123;cluster=*;operations=describe;apis=list_partition_reassignments
       strimzi.authorization.custom-authorizer.acl.019: priority=1;permission=allow;principal=canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments
       strimzi.authorization.custom-authorizer.acl.020: priority=0;permission=allow;principal=canary-123;topic=__redhat_strimzi_canary;operations=create,describe,read,write,alter,alter_configs
@@ -175,7 +175,7 @@ spec:
       volumes:
       - !<persistent-claim>
         type: "persistent-claim"
-        size: "32212254720"
+        size: "32254197720"
         class: "gp2"
         id: 0
         deleteClaim: true
@@ -220,16 +220,16 @@ spec:
           - labelSelector:
                matchExpressions:
                - key: "strimzi.io/name"
-                 operator: "In"               
+                 operator: "In"
                  values:
                  - "test-mk-kafka"
             maxSkew: 1
             topologyKey: topology.kubernetes.io/zone
             whenUnsatisfiable: DoNotSchedule
         tolerations:
-          - effect: "NoExecute"       
+          - effect: "NoExecute"
             key: "org.bf2.operator/kafka-broker"
-            operator: "Exists"                   
+            operator: "Exists"
   zookeeper:
     replicas: 3
     storage: !<persistent-claim>
@@ -273,7 +273,7 @@ spec:
               - "test-mk-zookeeper"
           maxSkew: 1
           topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "DoNotSchedule"            
+          whenUnsatisfiable: "DoNotSchedule"
   kafkaExporter:
     resources:
       limits:
