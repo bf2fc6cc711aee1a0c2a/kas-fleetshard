@@ -134,12 +134,12 @@ spec:
         - mountPath: "/tmp/tls-ca-cert"
           name: "test-mk-tls-ca-cert"
         - mountPath: "/opt/etc"
-          name: "canary-config-volume"
+          name: "config-volume"
       volumes:
       - name: "test-mk-tls-ca-cert"
         secret:
           secretName: "test-mk-cluster-ca-cert"
-      - name: "canary-config-volume"
+      - name: "config-volume"
         configMap:
           name: "canary-config"
           optional: true

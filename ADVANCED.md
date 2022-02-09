@@ -57,7 +57,7 @@ That is changes are applied at runtime, without the need to restart the canary.
 
 If you wish to change the logging configuration, you should create a ConfigMap named `canary-config` in the namespace of the Kafka instance where the canary is running.
 The ConfigMap must contain key `canary-config.json` containing a stringified JSON object providing the keys `verbosityLogLevel` and/or `saramaLogEnabled`.
-Kubernetes  configmap filesystem projection takes about 1 minute and the canary itself looks for changes every 30 seconds.
+Kubernetes configmap filesystem projection takes about 1 minute, and the canary itself looks for changes every 30 seconds.
 You may need to wait this long for the changes to be applied.
 
 * For `verbosityLogLevel` the *integer* values allowed are `0` (INFO), `1` (DEBUG) and `2` (TRACE).  If not provided the system defaults to `0`.
@@ -67,10 +67,10 @@ The following example command enables both canary logging at trace and sarama lo
 
 ```bash
 kubectl create configmap -n my-kafka-cluster-namespace canary-config \
-                          --from-file=canary-config.json='{saramaLogEnabled: true, verbosityLogLevel: 2}'
+                          --from-literal=canary-config.json='{"saramaLogEnabled": true, "verbosityLogLevel": 2}'
 ```
 
-To revert logging back to default, simply delete the configmap.
+To revert logging back to default, simply delete the configmap. You may need to wait again for the changes to be applied.
 
 ```bash
 kubectl delete configmap -n my-kafka-cluster-namespace canary-config

@@ -60,7 +60,7 @@ public class Canary extends AbstractCanary {
     private static final String METRICS_PORT_NAME = "metrics";
     private static final IntOrString METRICS_PORT_TARGET = new IntOrString(METRICS_PORT_NAME);
     private static final String CANARY_CONFIG_CONFIGMAP_NAME = "canary-config";
-    private static final String CANARY_CONFIG_VOLUME_NAME = "canary-config-volume";
+    private static final String CANARY_CONFIG_VOLUME_NAME = "config-volume";
     private static final Path CANARY_DYNAMIC_CONFIG_JSON = Path.of("/opt/etc", "canary-config.json");
 
     @ConfigProperty(name = "managedkafka.canary.producer-latency-buckets")
@@ -185,7 +185,7 @@ public class Canary extends AbstractCanary {
                 new VolumeBuilder()
                         .withName(canaryTlsVolumeName(managedKafka))
                         .editOrNewSecret()
-                            .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
+                        .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
                         .endSecret()
                         .build(),
                 new VolumeBuilder()
