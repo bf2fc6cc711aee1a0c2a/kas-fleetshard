@@ -1,6 +1,5 @@
 package org.bf2.performance;
 
-import io.fabric8.kubernetes.api.model.Quantity;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 
 import java.nio.file.Path;
@@ -25,14 +24,7 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     private static final String KAFKA_COLLECT_LOG_ENV = "KAFKA_COLLECT_LOG";
     private static final String STRIMZI_COLLECT_LOG_ENV = "STRIMZI_COLLECT_LOG";
     private static final String MAX_KAFKA_INSTANCES_ENV = "MAX_KAFKA_INSTANCES";
-    private static final String NUM_INGRESS_CONTROLLERS_ENV = "NUM_INGRESS_CONTROLLERS";
     private static final String PROVIDED_KAFKA_CLUSTERS_FILE_ENV = "PROVIDED_KAFKA_CLUSTERS_FILE";
-    private static final String CONSUMER_PER_SUBSCRIPTION_ENV = "CONSUMER_PER_SUBSCRIPTION";
-    private static final String TARGET_RATE_ENV = "TARGET_RATE";
-    private static final String WORKERS_PER_INSTANCE_ENV = "WORKERS_PER_INSTANCE";
-    private static final String TOPICS_PER_KAFKA_ENV = "TOPICS_PER_KAFKA";
-    private static final String PRODUCERS_PER_TOPIC_ENV = "PRODUCERS_PER_TOPIC";
-    private static final String PAYLOAD_FILE_SIZE_ENV = "PAYLOAD_FILE_SIZE";
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
 
@@ -51,15 +43,8 @@ public class PerformanceEnvironment extends SystemTestEnvironment {
     public static final boolean KAFKA_COLLECT_LOG = getOrDefault(KAFKA_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
     public static final boolean STRIMZI_COLLECT_LOG = getOrDefault(STRIMZI_COLLECT_LOG_ENV, Boolean::parseBoolean, false);
     public static final int MAX_KAFKA_INSTANCES = getOrDefault(MAX_KAFKA_INSTANCES_ENV, Integer::parseInt, Integer.MAX_VALUE);
-    public static final int NUM_INGRESS_CONTROLLERS = getOrDefault(NUM_INGRESS_CONTROLLERS_ENV, Integer::parseInt, 1);
     public static final Path PROVIDED_KAFKA_CLUSTERS_FILE = getOrDefault(PROVIDED_KAFKA_CLUSTERS_FILE_ENV, Paths::get, Paths.get(Constants.SUITE_ROOT, "provided_clusters.yaml"));
-    public static final int CONSUMER_PER_SUBSCRIPTION = getOrDefault(CONSUMER_PER_SUBSCRIPTION_ENV, Integer::parseInt, 1);
-    public static final int TARGET_RATE = getOrDefault(TARGET_RATE_ENV, Integer::parseInt, 2000);
-    public static final int WORKERS_PER_INSTANCE = getOrDefault(WORKERS_PER_INSTANCE_ENV, Integer::parseInt, 2);
-    public static final int TOPICS_PER_KAFKA = getOrDefault(TOPICS_PER_KAFKA_ENV, Integer::parseInt, 1);
-    public static final int PRODUCERS_PER_TOPIC = getOrDefault(PRODUCERS_PER_TOPIC_ENV, Integer::parseInt, 1);
-    public static final Quantity PAYLOAD_FILE_SIZE = Quantity.parse(getOrDefault(PAYLOAD_FILE_SIZE_ENV, "1Ki"));
-    public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, "2.7.0");
+    public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, null);
     public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, null);
 
     public static void logEnvironment() {
