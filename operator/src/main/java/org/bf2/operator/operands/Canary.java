@@ -40,6 +40,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -58,6 +59,9 @@ public class Canary extends AbstractCanary {
     private static final int METRICS_PORT = 8080;
     private static final String METRICS_PORT_NAME = "metrics";
     private static final IntOrString METRICS_PORT_TARGET = new IntOrString(METRICS_PORT_NAME);
+    private static final String CANARY_CONFIG_CONFIGMAP_NAME = "canary-config";
+    private static final String CANARY_CONFIG_VOLUME_NAME = "config-volume";
+    private static final Path CANARY_DYNAMIC_CONFIG_JSON = Path.of("/opt/etc", "canary-config.json");
 
     @ConfigProperty(name = "managedkafka.canary.producer-latency-buckets")
     String producerLatencyBuckets;
@@ -177,12 +181,19 @@ public class Canary extends AbstractCanary {
     }
 
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
-        return Collections.singletonList(
+        return List.of(
                 new VolumeBuilder()
                         .withName(canaryTlsVolumeName(managedKafka))
                         .editOrNewSecret()
-                            .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
+                        .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
                         .endSecret()
+                        .build(),
+                new VolumeBuilder()
+                        .withName(CANARY_CONFIG_VOLUME_NAME)
+                        .editOrNewConfigMap()
+                        .withName(CANARY_CONFIG_CONFIGMAP_NAME)
+                        .withOptional(true)
+                        .endConfigMap()
                         .build()
         );
     }
@@ -292,10 +303,11 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("TLS_ENABLED").withValue("true").build());
         envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
 
+        // Deprecated
         EnvVarSource saramaLogEnabled =
                 new EnvVarSourceBuilder()
                         .editOrNewConfigMapKeyRef()
-                            .withName("canary-config")
+                            .withName(CANARY_CONFIG_CONFIGMAP_NAME)
                             .withKey("sarama.log.enabled")
                             .withOptional(Boolean.TRUE)
                         .endConfigMapKeyRef()
@@ -304,7 +316,7 @@ public class Canary extends AbstractCanary {
         EnvVarSource verbosityLogLevel =
                 new EnvVarSourceBuilder()
                         .editOrNewConfigMapKeyRef()
-                            .withName("canary-config")
+                            .withName(CANARY_CONFIG_CONFIGMAP_NAME)
                             .withKey("verbosity.log.level")
                             .withOptional(Boolean.TRUE)
                         .endConfigMapKeyRef()
@@ -313,7 +325,7 @@ public class Canary extends AbstractCanary {
         EnvVarSource goDebug =
                 new EnvVarSourceBuilder()
                         .editOrNewConfigMapKeyRef()
-                            .withName("canary-config")
+                            .withName(CANARY_CONFIG_CONFIGMAP_NAME)
                             .withKey("go.debug")
                             .withOptional(Boolean.TRUE)
                         .endConfigMapKeyRef()
@@ -329,6 +341,7 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("PRODUCER_LATENCY_BUCKETS").withValue(producerLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("ENDTOEND_LATENCY_BUCKETS").withValue(endToEndLatencyBuckets).build());
         envVars.add(new EnvVarBuilder().withName("CONNECTION_CHECK_LATENCY_BUCKETS").withValue(connectionCheckLatencyBuckets).build());
+        envVars.add(new EnvVarBuilder().withName("DYNAMIC_CONFIG_FILE").withValue(CANARY_DYNAMIC_CONFIG_JSON.toString()).build());
 
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
         if (canaryServiceAccount.isPresent()) {
@@ -356,10 +369,18 @@ public class Canary extends AbstractCanary {
     }
 
     private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
-        return Collections.singletonList(
+        Path parent = CANARY_DYNAMIC_CONFIG_JSON.getParent();
+        if (parent == null) {
+            throw new IllegalStateException(String.format("%s has unacceptable parent path", CANARY_DYNAMIC_CONFIG_JSON));
+        }
+        return List.of(
                 new VolumeMountBuilder()
                 .withName(canaryTlsVolumeName(managedKafka))
                 .withMountPath("/tmp/tls-ca-cert")
+                .build(),
+                new VolumeMountBuilder()
+                        .withName(CANARY_CONFIG_VOLUME_NAME)
+                        .withMountPath(parent.toString())
                 .build()
         );
     }

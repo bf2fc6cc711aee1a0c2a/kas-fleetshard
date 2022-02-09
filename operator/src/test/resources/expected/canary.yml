@@ -102,6 +102,8 @@ spec:
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
         - name: "CONNECTION_CHECK_LATENCY_BUCKETS"
           value: "100,200,300,400,500,600,700,800,900,1000,1100,1200"
+        - name: "DYNAMIC_CONFIG_FILE"
+          value: "/opt/etc/canary-config.json"
         - name: "STATUS_TIME_WINDOW_MS"
           value: "300000"
         image: "quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833"
@@ -131,7 +133,13 @@ spec:
         volumeMounts:
         - mountPath: "/tmp/tls-ca-cert"
           name: "test-mk-tls-ca-cert"
+        - mountPath: "/opt/etc"
+          name: "config-volume"
       volumes:
       - name: "test-mk-tls-ca-cert"
         secret:
           secretName: "test-mk-cluster-ca-cert"
+      - name: "config-volume"
+        configMap:
+          name: "canary-config"
+          optional: true
