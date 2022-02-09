@@ -69,6 +69,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -101,11 +102,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
-    // storage related constants
-    private static final int STORAGE_CHECK_INTERVAL = Integer.parseInt(System.getenv().getOrDefault("STORAGE_CHECK_INTERVAL_ENV", "30"));
-    private static final int STORAGE_SAFETY_FACTOR = Integer.parseInt(System.getenv().getOrDefault("STORAGE_SAFETY_FACTOR_ENV", "2"));
-    private static final Quantity MIN_STORAGE_MARGIN = new Quantity(System.getenv().getOrDefault("MIN_STORAGE_MARGIN_ENV", "10Gi"));
-
     private static final boolean DELETE_CLAIM = true;
     private static final int JBOD_VOLUME_ID = 0;
 
@@ -116,6 +112,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
+
+    // storage related constants
+    @ConfigProperty(name = "managedkafka.storage.check-interval")
+    int storageCheckInterval;
+
+    @ConfigProperty(name = "managedkafka.storage.safety-factor")
+    int storageSafetyFactor;
+
+    @ConfigProperty(name = "managedkafka.storage.min-margin")
+    Quantity storageMinMargin;
 
     @Inject
     Logger log;
@@ -567,15 +573,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
         config.put("client.quota.callback.static.fetch", String.valueOf(throughputBytes));
 
-        // Start throttling when disk is above requested size. Full stop when only MIN_STORAGE_MARGIN is free.
+        // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
-        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue();
+        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(storageMinMargin).longValue();
         long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka);
         config.put("client.quota.callback.static.storage.soft", String.valueOf(softStorageLimit));
         config.put("client.quota.callback.static.storage.hard", String.valueOf(hardStorageLimit));
 
-        // Check storage every STORAGE_CHECK_INTERVAL seconds
-        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(STORAGE_CHECK_INTERVAL));
+        // Check storage every storageCheckInterval seconds
+        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(storageCheckInterval));
 
         // Anonymous users bypass the quota.  We do this so the Canary is not subjected to the quota checks.
         config.put("client.quota.callback.static.disable-quota-anonymous", Boolean.TRUE.toString());
@@ -632,10 +638,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     /**
-     * Get extra storage padding given the effective IngressEgressThroughput limit and MIN_STORAGE_MARGIN
+     * Get extra storage padding given the effective IngressEgressThroughput limit and storageMinMargin
      */
     private long getStoragePadding(ManagedKafka managedKafka) {
-        return Quantity.getAmountInBytes(MIN_STORAGE_MARGIN).longValue() + getBrokerThroughputBytes(managedKafka) * STORAGE_CHECK_INTERVAL * STORAGE_SAFETY_FACTOR;
+        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getBrokerThroughputBytes(managedKafka) * storageCheckInterval * storageSafetyFactor;
     }
 
     /**
