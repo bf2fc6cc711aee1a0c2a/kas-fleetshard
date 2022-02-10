@@ -289,18 +289,6 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         return Arrays.asList(
                         new GenericKafkaListenerBuilder()
-                                .withName("tls")
-                                .withPort(9093)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(true)
-                                .withAuth(plainOverOauthAuthenticationListener)
-                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
-                                        .withNewPodSelector()
-                                        .addToMatchLabels("app", AbstractCanary.canaryName(managedKafka))
-                                        .endPodSelector()
-                                        .build())
-                                .build(),
-                        new GenericKafkaListenerBuilder()
                                 .withName("external")
                                 .withPort(9094)
                                 .withType(externalListenerType)
