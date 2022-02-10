@@ -144,6 +144,9 @@ spec:
       create.topic.policy.class.name: io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy
       strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
       strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
+      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.duration: PT300S
+      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.apis: PRODUCE,FETCH
+      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
       strimzi.authorization.custom-authorizer.acl.001: default=true;permission=allow;topic=*;operations=describe,describe_configs
       strimzi.authorization.custom-authorizer.acl.002: default=true;permission=allow;group=*;operations=describe
       strimzi.authorization.custom-authorizer.acl.003: default=true;permission=allow;cluster=*;operations=describe
