@@ -755,12 +755,27 @@ public class KafkaCluster extends AbstractKafkaCluster {
         final String configPrefix = aclConfig.getConfigPrefix();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
         final String resourceOperationsKey = configPrefix + "resource-operations";
-        final String aclKeyTemplate = configPrefix + "acl.%03d";
-        final String aclLoggingKeyTemplate = configPrefix + "acl.logging.%03d";
+        final String aclKeyPrefix = configPrefix + "acl";
+        final String aclLoggingKeyPrefix = aclKeyPrefix + ".logging";
+        final String aclKeyTemplate = aclKeyPrefix + ".%03d";
+        final String aclLoggingKeyTemplate = aclLoggingKeyPrefix + ".%03d";
 
         // Deprecated option: Remove when canary, must-gather, and SRE are configured via ManagedKafka CR
         if (aclConfig.allowedListeners != null) {
             config.put(allowedListenersKey, aclConfig.allowedListeners);
+        }
+
+        if (aclConfig.getLoggingSuppressionWindow() != null) {
+            String key = aclLoggingKeyPrefix + ".suppressionWindow";
+            if (aclConfig.getLoggingSuppressionWindow().getDuration() != null) {
+                config.put(key + ".duration", aclConfig.getLoggingSuppressionWindow().getDuration());
+            }
+            if (aclConfig.getLoggingSuppressionWindow().getApis() != null) {
+                config.put(key + ".apis", aclConfig.getLoggingSuppressionWindow().getApis());
+            }
+            if (aclConfig.getLoggingSuppressionWindow().getEventCount() != null) {
+                config.put(key + ".eventCount", aclConfig.getLoggingSuppressionWindow().getEventCount());
+            }
         }
 
         addAcl(aclConfig.getGlobal(), "", aclKeyTemplate, aclCount, config);

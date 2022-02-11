@@ -268,6 +268,44 @@ public class KafkaInstanceConfiguration {
         protected String allowedListeners = null;
         @JsonProperty("logging")
         protected String logging = null;
+        @JsonUnwrapped(prefix = "logging.suppression-window.")
+        protected LoggingSuppressionWindow loggingSuppressionWindow = new LoggingSuppressionWindow();
+
+        public static class LoggingSuppressionWindow {
+
+            @JsonProperty("duration")
+            private String duration = null;
+
+            @JsonProperty("eventCount")
+            private Integer eventCount = null;
+
+            @JsonProperty("apis")
+            private String apis = null;
+
+            public String getDuration() {
+                return duration;
+            }
+
+            public void setDuration(String duration) {
+                this.duration = duration;
+            }
+
+            public Integer getEventCount() {
+                return eventCount;
+            }
+
+            public void setEventCount(Integer eventCount) {
+                this.eventCount = eventCount;
+            }
+
+            public String getApis() {
+                return apis;
+            }
+
+            public void setApis(String apis) {
+                this.apis = apis;
+            }
+        }
 
         public String getFinalVersion() {
             return finalVersion;
@@ -331,6 +369,14 @@ public class KafkaInstanceConfiguration {
 
         public void setLogging(String level) {
             this.logging = level;
+        }
+
+        public LoggingSuppressionWindow getLoggingSuppressionWindow() {
+            return loggingSuppressionWindow;
+        }
+
+        public void setLoggingSuppressionWindow(LoggingSuppressionWindow loggingSuppressionWindow) {
+            this.loggingSuppressionWindow = loggingSuppressionWindow;
         }
     }
 
