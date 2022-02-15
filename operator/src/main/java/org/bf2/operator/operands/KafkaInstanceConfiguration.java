@@ -32,6 +32,7 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_CONTAINER_CPU = "3000m";
     private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
     private static final String KAFKA_JVM_XMS = "3G";
+    private static final int MESSAGE_MAX_BYTES = 1048576;
 
     // zookeeper
     private static final int ZOOKEEPER_NODES = 3;
@@ -108,6 +109,8 @@ public class KafkaInstanceConfiguration {
         protected boolean oneInstancePerNode = false;
         @JsonProperty("maximum-session-lifetime-default")
         protected long maximumSessionLifetimeDefault;
+        @JsonProperty("message-max-bytes")
+        protected int messageMaxBytes = MESSAGE_MAX_BYTES;
 
         public int getReplicas() {
             return replicas;
@@ -248,6 +251,14 @@ public class KafkaInstanceConfiguration {
 
         public void setMaximumSessionLifetimeDefault(long maximumSessionLifetimeDefault) {
             this.maximumSessionLifetimeDefault = maximumSessionLifetimeDefault;
+        }
+
+        public int getMessageMaxBytes() {
+            return messageMaxBytes;
+        }
+
+        public void setMessageMaxBytes(int maxMessageBytes) {
+            this.messageMaxBytes = maxMessageBytes;
         }
     }
 

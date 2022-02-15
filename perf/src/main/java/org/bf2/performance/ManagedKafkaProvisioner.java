@@ -187,9 +187,9 @@ public class ManagedKafkaProvisioner {
         if (PerformanceEnvironment.KAFKA_COLLECT_LOG) {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
-        cluster.createNamespace(Constants.KAFKA_NAMESPACE, nsAnnotations, Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
         FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient()).get(2, TimeUnit.MINUTES);
+        cluster.createNamespace(Constants.KAFKA_NAMESPACE, nsAnnotations, Map.of());
 
         List<Node> workers = cluster.getWorkerNodes();
 

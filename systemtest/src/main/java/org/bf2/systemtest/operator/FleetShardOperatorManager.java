@@ -1,6 +1,8 @@
 package org.bf2.systemtest.operator;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.dsl.base.PatchContext;
+import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
@@ -127,6 +129,20 @@ public class FleetShardOperatorManager {
             });
             LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
+
+            // remove finalizers if needed...
+            mkCli.inAnyNamespace()
+                    .list()
+                    .getItems()
+                    .forEach(i -> mkCli.inNamespace(i.getMetadata().getNamespace())
+                            .withName(i.getMetadata().getName())
+                            .patch(PatchContext.of(PatchType.JSON_MERGE), "{\"metadata\":{\"finalizers\":null}}"));
+            mkaCli.inAnyNamespace()
+                    .list()
+                    .getItems()
+                    .forEach(i -> mkaCli.inNamespace(i.getMetadata().getNamespace())
+                            .withName(i.getMetadata().getName())
+                            .patch(PatchContext.of(PatchType.JSON_MERGE), "{\"metadata\":{\"finalizers\":null}}"));
 
             var rbac = kubeClient.client().rbac();
             List<String> clusterRoles = new ArrayList<>();
