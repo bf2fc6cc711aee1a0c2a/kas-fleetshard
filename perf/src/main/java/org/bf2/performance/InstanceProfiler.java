@@ -434,8 +434,7 @@ public class InstanceProfiler {
     }
 
     protected LatencyResult determineLatency(Profile profile, Consumer<Workload> setupModifier, BiConsumer<Profile, TestResult> resultConsumer) throws Exception {
-        // find best-case latency at a "low throughput"
-        int pub = Math.min(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
+        int pub = nominalPartitionCount;
         OMBWorkload load = createBasicWorkload(lowThroughput, pub, profile);
         load.warmupDurationMinutes = 2;
         load.testDurationMinutes = 4;
@@ -486,7 +485,7 @@ public class InstanceProfiler {
      * see https://www.confluent.io/blog/kafka-fastest-messaging-system/#throughput-test
      */
     protected void determineThroughput(Profile profile) throws Exception {
-        int pub = Math.min(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
+        int pub = Math.max(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
 
         // start by over producing to get a better guess at producer rate
         // this should also use up burst credits... there's no great way of accounting for this

@@ -32,7 +32,7 @@ public class KafkaInstanceConfiguration {
     private static final String KAFKA_CONTAINER_CPU = "3000m";
     private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
     private static final String KAFKA_JVM_XMS = "3G";
-    private static final int MESSAGE_MAX_BYTES = 1048576;
+    private static final int MESSAGE_MAX_BYTES = 1048588;
 
     // zookeeper
     private static final int ZOOKEEPER_NODES = 3;

@@ -1,6 +1,7 @@
 package org.bf2.systemtest.operator;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.openshift.api.model.Route;
@@ -121,15 +122,9 @@ public class FleetShardOperatorManager {
             mkCli.inAnyNamespace().delete();
             var mkaCli = kubeClient.client().resources(ManagedKafkaAgent.class);
             mkaCli.inAnyNamespace().delete();
-            installedCrds.forEach(crd -> {
-                String fileName = crd.getFileName().toString();
-                String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
-                LOGGER.info("Delete CRD {}", crdName);
-                kubeClient.client().apiextensions().v1().customResourceDefinitions().withName(crdName).delete();
-            });
-            LOGGER.info("Crds deleted");
             kubeClient.client().namespaces().withName(OPERATOR_NS).withGracePeriod(60_000).delete();
 
+            try {
             // remove finalizers if needed...
             mkCli.inAnyNamespace()
                     .list()
@@ -143,6 +138,17 @@ public class FleetShardOperatorManager {
                     .forEach(i -> mkaCli.inNamespace(i.getMetadata().getNamespace())
                             .withName(i.getMetadata().getName())
                             .patch(PatchContext.of(PatchType.JSON_MERGE), "{\"metadata\":{\"finalizers\":null}}"));
+            } catch (KubernetesClientException e) {
+                //crds already uninstalled
+            }
+
+            installedCrds.forEach(crd -> {
+                String fileName = crd.getFileName().toString();
+                String crdName = fileName.substring(0, fileName.length() - CRD_FILE_SUFFIX.length());
+                LOGGER.info("Delete CRD {}", crdName);
+                kubeClient.client().apiextensions().v1().customResourceDefinitions().withName(crdName).delete();
+            });
+            LOGGER.info("Crds deleted");
 
             var rbac = kubeClient.client().rbac();
             List<String> clusterRoles = new ArrayList<>();
