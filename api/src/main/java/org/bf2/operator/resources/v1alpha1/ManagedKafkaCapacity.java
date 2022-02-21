@@ -18,12 +18,36 @@ import lombok.ToString;
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
 public class ManagedKafkaCapacity {
 
+    private Quantity ingressPerSec;
+    private Quantity egressPerSec;
     private Quantity ingressEgressThroughputPerSec;
     private Integer totalMaxConnections;
     private Quantity maxDataRetentionSize;
     private Integer maxPartitions;
     private String maxDataRetentionPeriod;
     private Integer maxConnectionAttemptsPerSec;
+
+    public Quantity getEgressPerSec() {
+        if (egressPerSec == null) {
+            return ingressEgressThroughputPerSec;
+        }
+        return egressPerSec;
+    }
+
+    public Quantity getIngressPerSec() {
+        if (ingressPerSec == null) {
+            return ingressEgressThroughputPerSec;
+        }
+        return ingressPerSec;
+    }
+
+    public void setEgressPerSec(Quantity egressPerSec) {
+        this.egressPerSec = egressPerSec;
+    }
+
+    public void setIngressPerSec(Quantity ingressPerSec) {
+        this.ingressPerSec = ingressPerSec;
+    }
 
     public Quantity getIngressEgressThroughputPerSec() {
         return ingressEgressThroughputPerSec;

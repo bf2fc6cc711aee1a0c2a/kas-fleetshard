@@ -89,6 +89,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -568,9 +570,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
-        long throughputBytes = getBrokerThroughputBytes(managedKafka);
-        config.put("client.quota.callback.static.produce", String.valueOf(throughputBytes));
-        config.put("client.quota.callback.static.fetch", String.valueOf(throughputBytes));
+        config.put("client.quota.callback.static.produce", String.valueOf(getIngressBytes(managedKafka)));
+        config.put("client.quota.callback.static.fetch", String.valueOf(getEgressBytes(managedKafka)));
 
         // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
@@ -628,31 +629,35 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     /**
-     * Get ingress/egress throughput B/s per broker given the IngressEgressThroughputPerSec limit
+     * Get per broker value
      */
-    private long getBrokerThroughputBytes(ManagedKafka managedKafka) {
-        Quantity ingressEgressThroughputPerSec = managedKafka.getSpec().getCapacity().getIngressEgressThroughputPerSec();
-        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(ingressEgressThroughputPerSec, new Quantity(this.config.getKafka().getIngressThroughputPerSec()))).longValue();
+    private long getPerBrokerBytes(ManagedKafka managedKafka, Function<ManagedKafka, Quantity> capacityValue, Supplier<String> defaultValue) {
+        Quantity quantity = capacityValue.apply(managedKafka);
+        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(quantity, new Quantity(defaultValue.get()))).longValue();
 
         return bytes / this.config.getKafka().getReplicas();
+    }
+
+    private long getIngressBytes(ManagedKafka managedKafka) {
+        return getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getIngressPerSec(), () -> config.getKafka().getIngressPerSec());
+    }
+
+    private long getEgressBytes(ManagedKafka managedKafka) {
+        return getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getEgressPerSec(), () -> config.getKafka().getEgressPerSec());
     }
 
     /**
      * Get extra storage padding given the effective IngressEgressThroughput limit and storageMinMargin
      */
     private long getStoragePadding(ManagedKafka managedKafka) {
-        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getBrokerThroughputBytes(managedKafka) * storageCheckInterval * storageSafetyFactor;
+        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getIngressBytes(managedKafka) * storageCheckInterval * storageSafetyFactor;
     }
 
     /**
      * Get the effective volume size considering extra padding and the existing size
      */
     private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka, Kafka current) {
-        Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
-        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(maxDataRetentionSize, new Quantity(this.config.getKafka().getVolumeSize()))).longValue();
-
-        // this is per broker
-        bytes /= this.config.getKafka().getReplicas();
+        long bytes = getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.config.getKafka().getVolumeSize());
 
         // pad to give a margin before soft/hard limits kick in
         bytes += getStoragePadding(managedKafka);
