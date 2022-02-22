@@ -22,7 +22,8 @@ public class KafkaInstanceConfiguration {
     // cluster level
     private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
     private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
-    private static final String DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC = "30Mi";
+    private static final String DEFAULT_INGRESS_PER_SEC = "30Mi";
+    private static final String DEFAULT_EGRESS_PER_SEC = "30Mi";
     private static final String JVM_OPTIONS_XX = "ExitOnOutOfMemoryError true";
 
     // broker
@@ -79,10 +80,10 @@ public class KafkaInstanceConfiguration {
         protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
         @JsonProperty("max-connections")
         protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
-        @JsonProperty("ingress-throughput-per-sec")
-        protected String ingressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
-        @JsonProperty("egress-throughput-per-sec")
-        protected String egressThroughputPerSec = DEFAULT_INGRESS_EGRESS_THROUGHPUT_PER_SEC;
+        @JsonProperty("ingress-per-sec")
+        protected String ingressPerSec = DEFAULT_INGRESS_PER_SEC;
+        @JsonProperty("egress-per-sec")
+        protected String egressPerSec = DEFAULT_EGRESS_PER_SEC;
         @JsonProperty("replicas")
         protected int replicas = KAFKA_BROKERS;
         @JsonProperty("storage-class")
@@ -184,20 +185,20 @@ public class KafkaInstanceConfiguration {
             this.maxConnections = maxConnections;
         }
 
-        public String getIngressThroughputPerSec() {
-            return ingressThroughputPerSec;
+        public String getIngressPerSec() {
+            return ingressPerSec;
         }
 
-        public void setIngressThroughputPerSec(String ingressThroughputPerSec) {
-            this.ingressThroughputPerSec = ingressThroughputPerSec;
+        public void setIngressPerSec(String ingressPerSec) {
+            this.ingressPerSec = ingressPerSec;
         }
 
-        public String getEgressThroughputPerSec() {
-            return egressThroughputPerSec;
+        public String getEgressPerSec() {
+            return egressPerSec;
         }
 
-        public void setEgressThroughputPerSec(String egressThroughputPerSec) {
-            this.egressThroughputPerSec = egressThroughputPerSec;
+        public void setEgressPerSec(String egressPerSec) {
+            this.egressPerSec = egressPerSec;
         }
 
         public boolean isEnableQuota() {
