@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.client.utils.Serialization;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -66,7 +65,7 @@ public class KafkaInstanceConfiguration {
     protected Canary canary = new Canary();
 
     public Map<String, String> toMap(boolean includeAll) {
-        ObjectMapper mapper = Serialization.jsonMapper();
+        ObjectMapper mapper = new ObjectMapper();
         if (!includeAll) {
             mapper = mapper.copy().setSerializationInclusion(Include.NON_NULL);
         }

@@ -255,9 +255,9 @@ public class InstanceProfiler {
         kafkaProvisioner = ManagedKafkaProvisioner.create(kafkaCluster);
 
         kafkaProvisioner.setup();
-        omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
+        omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG));
 
-        omb.install(kafkaProvisioner.getTlsConfig());
+        //omb.install(kafkaProvisioner.getTlsConfig());
 
         // TODO: if there is an existing result, make sure it's the same test setup
 
