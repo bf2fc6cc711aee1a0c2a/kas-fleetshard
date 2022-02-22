@@ -47,6 +47,8 @@ public class ManagedKafkaUtils {
                     .withNewCapacity()
                     .withMaxDataRetentionSize(Quantity.parse(size))
                     .withIngressEgressThroughputPerSec(Quantity.parse("2Mi"))
+                    .withIngressPerSec(Quantity.parse("2Mi"))
+                    .withEgressPerSec(Quantity.parse("4Mi"))
                     .endCapacity()
                     .withNewVersions()
                         .withKafka("2.6.0")
