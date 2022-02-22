@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
@@ -22,14 +23,19 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.performance.framework.KubeClusterResource;
 import org.bf2.performance.framework.TestMetadataCapture;
+import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.systemtest.framework.SecurityUtils.TlsConfig;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -69,14 +75,18 @@ public class ManagedKafkaProvisioner {
     private OlmBasedStrimziOperatorManager strimziManager;
     private SharedIndexInformer<Deployment> informer;
 
+    private List<String> strimziVersions;
+
+    private Resource<ManagedKafkaAgent> agentResource;
+
     static String determineDomain(KubeClusterResource cluster) throws IOException {
         var client = cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers();
-        String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR).withName("default").get().getStatus().getDomain();
+        String defaultDomain = client.inNamespace(Constants.OPENSHIFT_INGRESS_OPERATOR)
+                .withName("default")
+                .get()
+                .getStatus()
+                .getDomain();
         return defaultDomain.replace("apps", "kas"); // use the sharded domain
-    }
-
-    static void deleteIngressController(KubeClusterResource cluster) {
-        cluster.kubeClient().client().adapt(OpenShiftClient.class).operator().ingressControllers().withName("sharded-nlb").delete();
     }
 
     /**
@@ -88,11 +98,14 @@ public class ManagedKafkaProvisioner {
     }
 
     static ConfigMap toConfigMap(KafkaInstanceConfiguration profile) throws IOException {
-        Map<String,String> propertyMap = profile.toMap(false);
+        Map<String, String> propertyMap = profile.toMap(false);
 
         ConfigMap override =
-                new ConfigMapBuilder().withNewMetadata().withName(KAS_FLEETSHARD_CONFIG).endMetadata()
-                        .withData(propertyMap).build();
+                new ConfigMapBuilder().withNewMetadata()
+                        .withName(KAS_FLEETSHARD_CONFIG)
+                        .endMetadata()
+                        .withData(propertyMap)
+                        .build();
         return override;
     }
 
@@ -108,7 +121,8 @@ public class ManagedKafkaProvisioner {
 
     ManagedKafkaProvisioner(KubeClusterResource cluster) {
         this.cluster = cluster;
-        this.strimziManager = new OlmBasedStrimziOperatorManager(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
+        this.strimziManager =
+                new OlmBasedStrimziOperatorManager(cluster.kubeClient(), StrimziOperatorManager.OPERATOR_NS);
     }
 
     /**
@@ -116,7 +130,7 @@ public class ManagedKafkaProvisioner {
      */
     public void setup() throws Exception {
         this.domain = determineDomain(cluster);
-        File tls = new File("target", domain +"-tls.json");
+        File tls = new File("target", domain + "-tls.json");
         if (tls.exists()) {
             try (FileInputStream fis = new FileInputStream(tls)) {
                 this.tlsConfig = Serialization.unmarshal(fis, SecurityUtils.TlsConfig.class);
@@ -128,10 +142,20 @@ public class ManagedKafkaProvisioner {
             }
         }
         try {
-            this.clusters.addAll(cluster.kubeClient().client().customResources(ManagedKafka.class).inNamespace(Constants.KAFKA_NAMESPACE).list().getItems());
+            this.clusters.addAll(cluster.kubeClient()
+                    .client()
+                    .resources(ManagedKafka.class)
+                    .inNamespace(Constants.KAFKA_NAMESPACE)
+                    .list()
+                    .getItems());
         } catch (KubernetesClientException e) {
 
         }
+        agentResource = this.cluster.kubeClient()
+                .client()
+                .resources(ManagedKafkaAgent.class)
+                .inNamespace(FleetShardOperatorManager.OPERATOR_NS)
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME);
     }
 
     public TlsConfig getTlsConfig() {
@@ -142,7 +166,6 @@ public class ManagedKafkaProvisioner {
      * One-time teardown of provisioner. This should be called only once per test class.
      */
     public void teardown() throws Exception {
-        deleteIngressController(cluster);
         if (informer != null) {
             informer.stop();
         }
@@ -164,16 +187,17 @@ public class ManagedKafkaProvisioner {
         if (PerformanceEnvironment.KAFKA_COLLECT_LOG) {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
-        cluster.createNamespace(Constants.KAFKA_NAMESPACE, nsAnnotations, Map.of());
         cluster.waitForDeleteNamespace(StrimziOperatorManager.OPERATOR_NS);
-        cluster.waitForDeleteNamespace(FleetShardOperatorManager.OPERATOR_NS);
+        FleetShardOperatorManager.deleteFleetShard(cluster.kubeClient()).get(2, TimeUnit.MINUTES);
+        cluster.createNamespace(Constants.KAFKA_NAMESPACE, nsAnnotations, Map.of());
 
         List<Node> workers = cluster.getWorkerNodes();
 
         boolean smallNodes = workers.stream().anyMatch(n -> TestUtils.getMaxAvailableResources(n).cpuMillis < 3000);
 
         if (smallNodes) {
-            MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deployments = cluster.kubeClient().client().apps().deployments();
+            MixedOperation<Deployment, DeploymentList, RollableScalableResource<Deployment>> deployments =
+                    cluster.kubeClient().client().apps().deployments();
             this.informer = deployments.inAnyNamespace().inform(new ResourceEventHandler<Deployment>() {
 
                 @Override
@@ -195,7 +219,8 @@ public class ManagedKafkaProvisioner {
 
                     // patch any deployment that requests a lot of cpu, and make sure it's on the perf infra
                     deployments.inNamespace(obj.getMetadata().getNamespace())
-                            .withName(obj.getMetadata().getName()).edit(
+                            .withName(obj.getMetadata().getName())
+                            .edit(
                                     new TypedVisitor<ResourceRequirementsBuilder>() {
                                         @Override
                                         public void visit(ResourceRequirementsBuilder element) {
@@ -206,7 +231,8 @@ public class ManagedKafkaProvisioner {
                                             if (cpu == null && element.getLimits() != null) {
                                                 cpu = element.getLimits().get("cpu");
                                             }
-                                            if (cpu != null && Quantity.getAmountInBytes(cpu).compareTo(BigDecimal.valueOf(1)) > 0) {
+                                            if (cpu != null && Quantity.getAmountInBytes(cpu)
+                                                    .compareTo(BigDecimal.valueOf(1)) > 0) {
                                                 element.addToRequests("cpu", Quantity.parse("1"));
                                             }
                                         }
@@ -224,8 +250,30 @@ public class ManagedKafkaProvisioner {
         // not looking at the returned futures - it's assumed that we'll eventually wait on the managed kafka deployment
         CompletableFuture<Void> future = FleetShardOperatorManager.deployFleetShardOperator(cluster.kubeClient());
         CompletableFuture.allOf(future, strimziFuture).get(2, TimeUnit.MINUTES);
+
+        var agentResource = this.cluster.kubeClient()
+                .client()
+                .resource(new ManagedKafkaAgentBuilder().withNewMetadata()
+                        .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                        .withNamespace(FleetShardOperatorManager.OPERATOR_NS)
+                        .endMetadata()
+                        .withSpec(new ManagedKafkaAgentSpecBuilder()
+                                .withNewObservability()
+                                .withAccessToken("")
+                                .withChannel("")
+                                .withRepository("")
+                                .withTag("")
+                                .endObservability()
+                                .build())
+                        .build());
+        agentResource.createOrReplace();
+
         //FleetShardOperatorManager.deployFleetShardSync(cluster.kubeClient());
         cluster.connectNamespaceToMonitoringStack(FleetShardOperatorManager.OPERATOR_NS);
+
+        strimziVersions =
+                SyncApiClient.getSortedAvailableStrimziVersions(() -> agentResource.fromServer().get().getStatus())
+                        .collect(Collectors.toList());
     }
 
     /**
@@ -234,22 +282,31 @@ public class ManagedKafkaProvisioner {
      * Deploy a Kafka cluster using this provisioner.
      * @param profile
      */
-    public ManagedKafkaDeployment deployCluster(String name, ManagedKafkaCapacity managedKafkaCapacity, KafkaInstanceConfiguration profile) throws Exception {
+    public ManagedKafkaDeployment deployCluster(String name, ManagedKafkaCapacity managedKafkaCapacity,
+            KafkaInstanceConfiguration profile) throws Exception {
         // set and validate the strimzi version
         String strimziVersion = PerformanceEnvironment.STRIMZI_VERSION;
         if (strimziVersion == null) {
-            strimziVersion = strimziManager.getCurrentVersion();
+            strimziVersion = strimziVersions.get(strimziVersions.size() - 1);
+        }
+        String kafkaVersion = PerformanceEnvironment.KAFKA_VERSION;
+        if (kafkaVersion == null) {
+            kafkaVersion = getKafkaVersion(strimziVersion);
         }
         List<String> versions = strimziManager.getVersions();
         if (!versions.contains(strimziVersion)) {
-            throw new IllegalStateException(String.format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
+            throw new IllegalStateException(String
+                    .format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
         applyProfile(profile);
 
         String namespace = Constants.KAFKA_NAMESPACE;
 
         ManagedKafka managedKafka = new ManagedKafkaBuilder()
-                .withNewMetadata().withName(name).withNamespace(namespace).endMetadata()
+                .withNewMetadata()
+                .withName(name)
+                .withNamespace(namespace)
+                .endMetadata()
                 .withSpec(new ManagedKafkaSpecBuilder().withCapacity(managedKafkaCapacity)
                         .withNewEndpoint()
                         .withBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", name, namespace, domain))
@@ -259,7 +316,7 @@ public class ManagedKafkaProvisioner {
                         .endTls()
                         .endEndpoint()
                         .withNewVersions()
-                        .withKafka(PerformanceEnvironment.KAFKA_VERSION)
+                        .withKafka(kafkaVersion)
                         .withStrimzi(strimziVersion)
                         .endVersions()
                         .build())
@@ -272,6 +329,17 @@ public class ManagedKafkaProvisioner {
         ManagedKafkaDeployment kafkaDeployment = deployCluster(namespace, managedKafka);
         kafkaDeployment.start();
         return kafkaDeployment;
+    }
+
+    private String getKafkaVersion(String strimziVersion) {
+        return agentResource.get()
+                .getStatus()
+                .getStrimzi()
+                .stream()
+                .filter(v -> strimziVersion.equals(v.getVersion()))
+                .findFirst()
+                .map(v -> v.getKafkaVersions().get(v.getKafkaVersions().size() - 1))
+                .orElseThrow(() -> new IllegalStateException("Could not find kafka version for " + strimziVersion));
     }
 
     /**
@@ -292,7 +360,8 @@ public class ManagedKafkaProvisioner {
             client.withName(k.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
         }
         for (ManagedKafka k : kafkas) {
-            org.bf2.test.TestUtils.waitFor("await delete deployment", 1_000, 600_000, () -> client.withName(k.getMetadata().getName()).get() == null);
+            org.bf2.test.TestUtils.waitFor("await delete deployment", 1_000, 600_000,
+                    () -> client.withName(k.getMetadata().getName()).get() == null);
         }
         clusters.clear();
     }
@@ -300,15 +369,17 @@ public class ManagedKafkaProvisioner {
     public void removeTaintsOnNodes() {
         List<Node> workers = cluster.getWorkerNodes();
 
-        workers.stream().forEach(n ->
-            cluster.kubeClient().client().nodes().withName(n.getMetadata().getName())
-            .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
-            new NodeBuilder()
-            .editOrNewSpec()
-            .removeMatchingFromTaints(t -> t.getKey().equals(KAFKA_BROKER_TAINT_KEY))
-            .endSpec()
-            .build())
-        );
+        workers.stream()
+                .forEach(n -> cluster.kubeClient()
+                        .client()
+                        .nodes()
+                        .withName(n.getMetadata().getName())
+                        .patch(PatchContext.of(PatchType.STRATEGIC_MERGE),
+                                new NodeBuilder()
+                                        .editOrNewSpec()
+                                        .removeMatchingFromTaints(t -> t.getKey().equals(KAFKA_BROKER_TAINT_KEY))
+                                        .endSpec()
+                                        .build()));
     }
 
     /**
@@ -336,12 +407,14 @@ public class ManagedKafkaProvisioner {
         List<Node> workers = cluster.getWorkerNodes();
 
         // divide the nodes by their zones, then sort them by their cpu availability then mark however brokers needed for the taint
-        validateClusterForBrokers(profile.getKafka().getReplicas(), profile.getKafka().isColocateWithZookeeper(), workers.stream());
+        validateClusterForBrokers(profile.getKafka().getReplicas(), profile.getKafka().isColocateWithZookeeper(),
+                workers.stream());
 
         // convert the profile into simple configmap values
         ConfigMap override = toConfigMap(profile);
 
-        var configMapClient = cluster.kubeClient().client().configMaps().inNamespace(FleetShardOperatorManager.OPERATOR_NS);
+        var configMapClient =
+                cluster.kubeClient().client().configMaps().inNamespace(FleetShardOperatorManager.OPERATOR_NS);
         configMapClient.createOrReplace(override);
 
         // restart the operator deployment
@@ -400,11 +473,15 @@ public class ManagedKafkaProvisioner {
 
         // set kafka and zookeeper metrics
         if (PerformanceEnvironment.ENABLE_METRICS) {
-            ConfigMap kafkaMetrics = configMapClient.load(ManagedKafkaProvisioner.class.getClassLoader().getResource("kafka-metrics.yaml")).get();
+            ConfigMap kafkaMetrics = configMapClient
+                    .load(ManagedKafkaProvisioner.class.getClassLoader().getResource("kafka-metrics.yaml"))
+                    .get();
             kafkaMetrics.getMetadata().setName(managedKafka.getMetadata().getName() + "-kafka-metrics");
             configMapClient.createOrReplace(kafkaMetrics);
 
-            ConfigMap zookeeperMetrics = configMapClient.load(ManagedKafkaProvisioner.class.getClassLoader().getResource("zookeeper-metrics.yaml")).get();
+            ConfigMap zookeeperMetrics = configMapClient
+                    .load(ManagedKafkaProvisioner.class.getClassLoader().getResource("zookeeper-metrics.yaml"))
+                    .get();
             zookeeperMetrics.getMetadata().setName(managedKafka.getMetadata().getName() + "-zookeeper-metrics");
             configMapClient.createOrReplace(zookeeperMetrics);
         }
@@ -414,7 +491,11 @@ public class ManagedKafkaProvisioner {
 
         managedKafka = managedKakfaClient.inNamespace(namespace).createOrReplace(managedKafka);
 
-        var kafkaClient = cluster.kubeClient().client().resources(Kafka.class).inNamespace(namespace).withName(managedKafka.getMetadata().getName());
+        var kafkaClient = cluster.kubeClient()
+                .client()
+                .resources(Kafka.class)
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName());
 
         org.bf2.test.TestUtils.waitFor("kafka resource", 1_000, 300_000, () -> kafkaClient.get() != null);
 

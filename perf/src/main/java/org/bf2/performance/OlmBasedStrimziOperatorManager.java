@@ -13,7 +13,6 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.k8s.KubeClient;
 
@@ -31,7 +30,10 @@ public class OlmBasedStrimziOperatorManager {
     private static final String OLM_OPERATOR_GROUP_NAME = "strimzi-opgroup";
     private static final String OLM_SUBSCRIPTION_NAME = "strimzi-subscription";
     private static final String CATALOG_SOURCE_NAME = "strimzi-catalog";
-    private static final String CATALOG_SOURCE_IMAGE = "quay.io/mk-ci-cd/kas-strimzi-bundle:index";
+    //private static final String CHANNEL = "stable";
+    //private static final String CATALOG_SOURCE_IMAGE = "quay.io/mk-ci-cd/kas-strimzi-bundle:index";
+    private static final String CHANNEL = "alpha";
+    private static final String CATALOG_SOURCE_IMAGE = "quay.io/osd-addons/rhosak-index@sha256:64bd7053de80d4743539a360285d2742e75bf2336d9249330a140a635bbd2be2";
 
     private static final Logger LOGGER = LogManager.getLogger(OlmBasedStrimziOperatorManager.class);
     public static final String OPERATOR_NAME = "strimzi-operator";
@@ -129,7 +131,7 @@ public class OlmBasedStrimziOperatorManager {
                     .withNamespace(namespace)
                 .endMetadata()
                 .withNewSpec()
-                    .withChannel("stable")
+                    .withChannel(CHANNEL)
                     .withInstallPlanApproval("Automatic")
                     .withName("kas-strimzi-bundle")
                     .withSource(CATALOG_SOURCE_NAME)
@@ -188,18 +190,11 @@ public class OlmBasedStrimziOperatorManager {
     }
 
     public boolean isOperatorInstalled() {
-        return !versions.isEmpty() && StrimziOperatorManager.isReady(kubeClient, namespace, getCurrentVersion());
+        return !versions.isEmpty() && versions.stream().allMatch(v -> StrimziOperatorManager.isReady(kubeClient, namespace, v));
     }
 
     public List<String> getVersions() {
         return versions;
-    }
-
-    public String getCurrentVersion() {
-        if (versions.isEmpty()) {
-            return null;
-        }
-        return SyncApiClient.sortedStrimziVersion(versions.stream()).reduce((a, b) -> b).get();
     }
 
 }

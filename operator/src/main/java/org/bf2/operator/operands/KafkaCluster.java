@@ -554,6 +554,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
+        config.put("message.max.bytes", this.config.getKafka().getMessageMaxBytes());
+
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {
             addQuotaConfig(managedKafka, current, config);

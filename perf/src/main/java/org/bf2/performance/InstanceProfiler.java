@@ -22,14 +22,20 @@ import org.bf2.test.Environment;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -46,7 +52,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * TODO:
  * - tune test durations
  * - something other than target dir
- * - remove the notion of catchup tolerance
  * - document m5.2xlarge 9 node client cluster expectation
  * - we ran as a one off, but we could perform a test run with clients lagging beyond the page cache to confirm latency
  * - some qualification of network performance
@@ -87,7 +92,12 @@ public class InstanceProfiler {
         // and https://docs.confluent.io/cloud/current/client-apps/optimizing/throughput.html#optimizing-for-throughput
         THROUGHPUT("acks=1\nbatch.size=200000\nlinger.ms=100\n",
                 "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n"),
+
+        LARGE_MESSAGE("acks=1\nbatch.size=0\nmax.request.size=11534336\n",
+                "auto.offset.reset=earliest\nenable.auto.commit=false\nmax.partition.fetch.bytes=11534336\nfetch.max.bytes=11534336\n",
+                "min.insync.replicas=2\ncompression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\nmax.message.bytes=11534336\n",
+                10*(int)ONE_MB, "src/test/resources/payload/payload-10MB.data");
 
         final String producerConfig;
         final String consumerConfig;
@@ -111,10 +121,24 @@ public class InstanceProfiler {
 
     @SuppressFBWarnings
     public static class ThroughputResult {
-        public double averageMaxProducerMBs;
-        public double averageMaxConsumerMBs;
-        public double medianMaxProducerMBs;
-        public double medianMaxConsumerMBs;
+        public double averageProducerMBs;
+        public double averageConsumerMBs;
+        public double medianProducerMBs;
+        public double medianConsumerMBs;
+    }
+
+    @JsonInclude(content = JsonInclude.Include.NON_NULL)
+    @SuppressFBWarnings
+    public static class ErrorResult {
+        public String message;
+        public ThroughputResult throughput;
+    }
+
+    @JsonInclude(content = JsonInclude.Include.NON_NULL)
+    @SuppressFBWarnings
+    public static class MaxMessageResult {
+        public long messageBytes;
+        public LatencyResult latency;
     }
 
     @JsonInclude(content = JsonInclude.Include.NON_NULL)
@@ -124,7 +148,17 @@ public class InstanceProfiler {
         public Double medianEndToEndLatency99pct;
         public Double aggregatedPublishLatency50pct;
         public Double aggregatedPublishLatency99pct;
-        public String error;
+        public ErrorResult error;
+        public Double maxConnectionCount;
+        public Double targetIngressMBs;
+        public Double targetEgressMBs;
+    }
+
+    @JsonInclude(content = JsonInclude.Include.NON_NULL)
+    @SuppressFBWarnings
+    public static class StreamingUnitResult {
+        public ThroughputResult throughputResult;
+        public LatencyResult latency;
     }
 
     // TODO will need to hold all of the instance state as well to ensure we're continuing the same test
@@ -147,14 +181,18 @@ public class InstanceProfiler {
 
         public LatencyResult baselineLatency;
 
+        public StreamingUnitResult streamingUnit;
+
         public TreeMap<Integer, LatencyResult> partitionResults = new TreeMap<>();
 
         public Map<Profile, ThroughputResult> throughputResults = new HashMap<>();
 
         // connections
-        public TreeMap<Integer, LatencyResult> consumers = new TreeMap<>();
-        public TreeMap<Integer, LatencyResult> consumerGroups = new TreeMap<>();
+        //public TreeMap<Integer, LatencyResult> consumers = new TreeMap<>();
+        //public TreeMap<Integer, LatencyResult> consumerGroups = new TreeMap<>();
         public TreeMap<Integer, LatencyResult> producers = new TreeMap<>();
+
+        public MaxMessageResult maxMessage;
     }
 
     private static final Logger LOGGER = LogManager.getLogger(InstanceProfiler.class);
@@ -164,13 +202,23 @@ public class InstanceProfiler {
     static final long MAX_KAFKA_VM_SIZE = ONE_GB*6; // https://docs.confluent.io/platform/current/kafka/deployment.html#memory
     static final long MIN_BROKER_VM_SIZE = ONE_GB/2;
 
+    // streaming unit definition - to be externalized
+    static int MAX_CONNECTIONS = 2000;
+    static int INGRESS=50;
+    static int EGRESS_MULTIPLE=2;
+    static int GIGS = 1000;
+
     /*
      * Input test state that may eventually be externalized
      */
     final boolean collocateBrokerWithZookeeper = true;
     final double lowThroughput = 30*ONE_MB;
     final int replicationFactor = 3;
-    final int numberOfBrokers = 3; // could also be inferred from the kafka cluster
+    final int numberOfBrokers = 3;
+    Storage storage = Storage.GP2;
+    // if !autoSize, use the default configuration values
+    private boolean autoSize = true;
+
     /* see https://www.confluent.io/blog/kafka-fastest-messaging-system/#test-setup where they chose 100
      *
      * and from https://www.confluent.io/blog/configure-kafka-to-minimize-latency/
@@ -179,10 +227,9 @@ public class InstanceProfiler {
      * However for baselining higher partitions are not necessary or counterproductive, so we'll start with numberOfBrokers*3
      */
     final int nominalPartitionCount = numberOfBrokers*3;
-    Storage storage = Storage.GP2;
 
     /*
-     * primary ouptut state
+     * primary output state
      */
     ProfilingResult profilingResult = new ProfilingResult();
 
@@ -326,8 +373,9 @@ public class InstanceProfiler {
         }
 
         if (profilingResult.completedStep == Step.LATENCY) {
-            determineThroughput(Profile.LATENCY_NO_BATCHING);
+            //determineThroughput(Profile.LATENCY_NO_BATCHING);
             determineThroughput(Profile.THROUGHPUT);
+            streamingUnitTest();
             writeResults(Step.THROUGHPUT);
         }
 
@@ -342,12 +390,10 @@ public class InstanceProfiler {
         }
 
         if (profilingResult.completedStep == Step.PRODUCERS) {
-            determineConnsumersPerConsumerGroup();
+            maxMessageSize(); // lazily sticking this in with the defunct tests
+            //determineConsumersPerConsumerGroup();
             // this should be more of a bandwidth than a connection test
-            determineConsumerGroups();
-
-            // TODO use the maxConsumerGroups * consumers/partitions + maxProducer connections
-            // to validate a single max connections
+            //determineConsumerGroups();
 
             writeResults(Step.CONSUMERS);
         }
@@ -376,7 +422,7 @@ public class InstanceProfiler {
             kafkaProvisioner.removeClusters(true);
             kd = kafkaProvisioner.deployCluster(name, profilingResult.capacity, profilingResult.config);
         } else {
-            // validate config / capacity
+            // TODO validate config / capacity
             kd = new ManagedKafkaDeployment(mk, kafkaCluster);
             kd.start();
         }
@@ -384,14 +430,18 @@ public class InstanceProfiler {
     }
 
     protected LatencyResult determineLatency(Consumer<Workload> setupModifier) throws Exception {
-        Profile profile = Profile.LATENCY;
-        // find best-case latency at a "low throughput"
-        int pub = Math.min(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
+        return determineLatency(Profile.LATENCY, setupModifier, null);
+    }
+
+    protected LatencyResult determineLatency(Profile profile, Consumer<Workload> setupModifier, BiConsumer<Profile, TestResult> resultConsumer) throws Exception {
+        int pub = nominalPartitionCount;
         OMBWorkload load = createBasicWorkload(lowThroughput, pub, profile);
         load.warmupDurationMinutes = 2;
         load.testDurationMinutes = 4;
         setupModifier.accept(load);
         LatencyResult result = new LatencyResult();
+        result.targetIngressMBs = load.producerRate * load.messageSize / (double)ONE_MB;
+        result.targetEgressMBs = result.targetIngressMBs * load.subscriptionsPerTopic;
 
         try {
             OMBWorkloadResult loadResult = doTestRun(load.name, load, profile);
@@ -400,7 +450,9 @@ public class InstanceProfiler {
             double avgPublishThrougput = avgPublishRate*profile.messageSize;
 
             if (!isThroughputAcceptable(load, loadTestResult)) {
-                throw new IllegalStateException("latency result not acceptable due to throughput");
+                result.error = new ErrorResult();
+                result.error.message = "latency result may not acceptable due to throughput inconsistency";
+                result.error.throughput = toThroughputResult(profile, loadTestResult);
             }
             result.aggregatedEndToEndLatency50pct = loadTestResult.aggregatedEndToEndLatency50pct;
             // the 99% tile can be very noisy, we'll use the median instead of the aggregated value.  This will
@@ -408,6 +460,11 @@ public class InstanceProfiler {
             result.medianEndToEndLatency99pct = TestUtils.getMedian(loadTestResult.endToEndLatency99pct);
             result.aggregatedPublishLatency50pct = loadTestResult.aggregatedPublishLatency50pct;
             result.aggregatedPublishLatency99pct = loadTestResult.aggregatedPublishLatency99pct;
+            result.maxConnectionCount = loadTestResult.connectionCount.stream().max(Double::compareTo).get();
+
+            if (resultConsumer != null) {
+                resultConsumer.accept(profile, loadTestResult);
+            }
 
             // TODO validate low throttle / queue / consumer latency
             // TODO a warning if samples are too far off the median
@@ -416,7 +473,8 @@ public class InstanceProfiler {
                     pub, load.partitionsPerTopic, avgPublishThrougput / ONE_MB, loadTestResult.aggregatedEndToEndLatency50pct, result.medianEndToEndLatency99pct,
                     loadTestResult.aggregatedEndToEndLatency99pct));
         } catch (Exception e) {
-            result.error = e.getMessage();
+            result.error = new ErrorResult();
+            result.error.message = e.getMessage();
             LOGGER.info(String.format("not accepting %s as there were errors during the test", load.name), e);
         }
         return result;
@@ -427,7 +485,7 @@ public class InstanceProfiler {
      * see https://www.confluent.io/blog/kafka-fastest-messaging-system/#throughput-test
      */
     protected void determineThroughput(Profile profile) throws Exception {
-        int pub = Math.min(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
+        int pub = Math.max(nominalPartitionCount, 2*profilingResult.ombWorkerNodes);
 
         // start by over producing to get a better guess at producer rate
         // this should also use up burst credits... there's no great way of accounting for this
@@ -436,18 +494,7 @@ public class InstanceProfiler {
         load.testDurationMinutes = 4;
 
         OMBWorkloadResult loadResult = doTestRun(String.format("throughput-%s-0", profile), load, profile);
-        TestResult loadTestResult = loadResult.getTestResult();
-
-        double avgPublishRate = TestUtils.getAvg(loadTestResult.publishRate);
-        double avgConsumeRate = TestUtils.getAvg(loadTestResult.consumeRate);
-        double medianPublishRate = TestUtils.getMedian(loadTestResult.publishRate);
-        double medianConsumeRate = TestUtils.getMedian(loadTestResult.consumeRate);
-
-        ThroughputResult throughputResult = new ThroughputResult();
-        throughputResult.averageMaxProducerMBs = avgPublishRate*profile.messageSize / ONE_MB;
-        throughputResult.averageMaxConsumerMBs = avgConsumeRate*profile.messageSize / ONE_MB;
-        throughputResult.medianMaxProducerMBs = medianPublishRate*profile.messageSize / ONE_MB;
-        throughputResult.medianMaxConsumerMBs = medianConsumeRate*profile.messageSize / ONE_MB;
+        ThroughputResult throughputResult = toThroughputResult(profile, loadResult.getTestResult());
 
         // TODO could include some text output about the average, median, stddev, etc.
 
@@ -458,6 +505,31 @@ public class InstanceProfiler {
         // could run again for confirmation - or take multiple samples
         // there could also be a notion of a sustained accounting for latency
         // or a burst looking over a shorter window - which could be from the test ouptut
+    }
+
+    private ThroughputResult toThroughputResult(Profile profile, TestResult loadTestResult) {
+        double avgPublishRate = TestUtils.getAvg(loadTestResult.publishRate);
+        double avgConsumeRate = TestUtils.getAvg(loadTestResult.consumeRate);
+        double medianPublishRate = TestUtils.getMedian(loadTestResult.publishRate);
+        double medianConsumeRate = TestUtils.getMedian(loadTestResult.consumeRate);
+
+        ThroughputResult throughputResult = new ThroughputResult();
+        throughputResult.averageProducerMBs = avgPublishRate*profile.messageSize / ONE_MB;
+        throughputResult.averageConsumerMBs = avgConsumeRate*profile.messageSize / ONE_MB;
+        throughputResult.medianProducerMBs = medianPublishRate*profile.messageSize / ONE_MB;
+        throughputResult.medianConsumerMBs = medianConsumeRate*profile.messageSize / ONE_MB;
+        return throughputResult;
+    }
+
+    protected void streamingUnitTest() throws Exception {
+        profilingResult.streamingUnit = new StreamingUnitResult();
+        profilingResult.streamingUnit.latency = determineLatency(Profile.LATENCY, workload -> {
+            workload.producerRate = (int) (INGRESS*(numberOfBrokers/3*ONE_MB) / workload.messageSize);
+            workload.subscriptionsPerTopic = EGRESS_MULTIPLE;
+            workload.name = "streaming-unit";
+            workload.warmupDurationMinutes = 2;
+            workload.testDurationMinutes = 10;
+        }, (profile, result) -> {profilingResult.streamingUnit.throughputResult = toThroughputResult(profile, result);});
     }
 
     private void writeResults(Step step) throws IOException {
@@ -472,9 +544,8 @@ public class InstanceProfiler {
         }
     }
 
-    /**
-     * @return the expected throughput for a single producer/consumer
-     */
+    int density = 1;
+
     protected void sizeInstance() throws Exception {
         Stream<Node> workerNodes = kafkaCluster.getWorkerNodes().stream();
         if (!collocateBrokerWithZookeeper){
@@ -483,41 +554,103 @@ public class InstanceProfiler {
                         .anyMatch(t -> t.getKey().equals(ManagedKafkaProvisioner.KAFKA_BROKER_TAINT_KEY)));
         }
 
+        // note these number seem to change per release - 4.9 reports a different allocatable, than 4.8
         AvailableResources resources = getMinAvailableResources(workerNodes);
         long cpuMillis = resources.cpuMillis;
         long memoryBytes = resources.memoryBytes;
+
+        Properties p = new Properties();
+        try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
+            p.load(is);
+        }
+        KafkaInstanceConfiguration defaults = Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
 
         // when locating with ZK, then reduce the available resources accordingly
         if (collocateBrokerWithZookeeper){
             // earlier code making a guess at the page cache size has been removed - until we can more reliably detect it's effect
             // there's no point in making a trade-off between extra container memory and JVM memory
             // TODO: could choose a memory size where we can fit even multiples of zookeepers
-            long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE)).longValue();
-            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(AdopterProfile.STANDARD_ZOOKEEPER_CPU)).longValue();
+            long zookeeperBytes = Quantity.getAmountInBytes(Quantity.parse(defaults.getZookeeper().getContainerMemory())).longValue();
+            long zookeeperCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getZookeeper().getContainerCpu())).movePointRight(3).longValue();
 
-            // reduce it by zk and 4GB/2000 for other pods canary/admin/exporter
-            memoryBytes = resources.memoryBytes -zookeeperBytes - 4*ONE_GB;
-            cpuMillis = resources.cpuMillis - zookeeperCpu - 2000;
+            List<Long> additionalPodCpu = new ArrayList<>();
+            List<Long> additionalPodMemory = new ArrayList<>();
+
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getCanary().getContainerMemory())).longValue());
+
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getAdminserver().getContainerMemory())).longValue());
+
+            additionalPodCpu.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerCpu())).movePointRight(3).longValue());
+            additionalPodMemory.add(Quantity.getAmountInBytes(Quantity.parse(defaults.getExporter().getContainerMemory())).longValue());
+
+            LOGGER.info("Total overhead of additional pods {} memory, {} cpu",
+                    additionalPodMemory.stream().collect(Collectors.summingLong(Long::valueOf)),
+                    additionalPodCpu.stream().collect(Collectors.summingLong(Long::valueOf)));
+
+            // actual needs ~ 800Mi and 1575m cpu over 3 nodes, but worst case is over two. amountNeeded will
+            // estimate that in a more targeted way - but still simplified
+            memoryBytes = resources.memoryBytes - density*(zookeeperBytes + amountNeeded(additionalPodMemory));
+            cpuMillis = resources.cpuMillis - density*(zookeeperCpu + amountNeeded(additionalPodCpu));
         }
+
+        // reserve additional memory to help lessen the fluctuation of resources across openshift versions
+        // and if there are eventually pods that need to be collocated, and we don't want to adjust the resources downward
+        if (density == 1) {
+            memoryBytes -= 2*ONE_GB;
+            cpuMillis -= 500;
+        } else {
+            // we can assume a much tighter resource utilization for density 2 - it can fluctuate between releases
+            // or may require adjustments as other pods are added or pod resource adjustments are made
+            memoryBytes -= 1*ONE_GB;
+            cpuMillis -= 200;
+        }
+
+        memoryBytes = memoryBytes/density;
+        cpuMillis = cpuMillis/density;
 
         long maxVmBytes = Math.min(memoryBytes - getVMOverheadForContainer(memoryBytes), MAX_KAFKA_VM_SIZE);
 
-        // instead let's just assume a "standard" zookeeper size that will fit on any instance that has 8+ GB of memory
-        profilingResult.config = AdopterProfile.buildProfile(AdopterProfile.STANDARD_ZOOKEEPER_CONTAINER_SIZE,
-                AdopterProfile.STANDARD_ZOOKEEPER_VM_SIZE, AdopterProfile.STANDARD_ZOOKEEPER_CPU,
-                String.valueOf(memoryBytes), String.valueOf(maxVmBytes), cpuMillis + "m", this.numberOfBrokers);
+        if (density > 1) {
+            maxVmBytes -= 1*ONE_GB;
+        }
+
+        if (!autoSize) {
+            long defaultMemory = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerMemory())).longValue();
+            long defaultCpu = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getContainerCpu())).movePointRight(3).longValue();
+            long defaultMaxVmBytes = Quantity.getAmountInBytes(Quantity.parse(defaults.getKafka().getJvmXms())).longValue();
+
+            LOGGER.info("Calculated kafka sizing {} container memory, {} container cpu, and {} vm memory", memoryBytes, cpuMillis, maxVmBytes);
+
+            memoryBytes = defaultMemory;
+            cpuMillis = defaultCpu;
+            maxVmBytes = defaultMaxVmBytes;
+        }
+
+        KafkaInstanceConfiguration toUse = new KafkaInstanceConfiguration();
+        toUse.getKafka().setEnableQuota(false);
+        AdopterProfile.openListenersAndAccess(toUse);
+        toUse.getKafka().setReplicas(numberOfBrokers);
+        toUse.getKafka().setContainerCpu(cpuMillis+"m");
+        toUse.getKafka().setJvmXms(String.valueOf(maxVmBytes));
+        toUse.getKafka().setContainerMemory(String.valueOf(memoryBytes));
+
+        profilingResult.config = toUse;
 
         profilingResult.config.getKafka().setColocateWithZookeeper(collocateBrokerWithZookeeper);
 
         profilingResult.config.getKafka().setMaxConnections(Integer.MAX_VALUE);
         profilingResult.config.getKafka().setConnectionAttemptsPerSec(Integer.MAX_VALUE);
 
+        profilingResult.config.getKafka().setMessageMaxBytes(11534336);
+
         profilingResult.config.getKafka().setStorageClass(storage.name().toLowerCase());
         profilingResult.config.getZookeeper().setVolumeSize(storage.zookeeperSize);
 
         // once we make the determination, create the instance
         profilingResult.capacity = kafkaProvisioner.defaultCapacity(40_000_000); // not used as quota is turned off
-        profilingResult.capacity.setMaxDataRetentionSize(Quantity.parse("600Gi"));
+        profilingResult.capacity.setMaxDataRetentionSize(Quantity.parse((GIGS * numberOfBrokers/3) + "Gi"));
 
         Kafka kafka = profilingResult.config.getKafka();
         LOGGER.info("Running with kafka sizing {} container memory, {} container cpu, and {} vm memory", kafka.getContainerMemory(), kafka.getContainerCpu(), kafka.getJvmXms());
@@ -532,6 +665,21 @@ public class InstanceProfiler {
     }
 
     /**
+     * Computes the amount needed assuming that the values will be spread across two nodes
+     * @param additionalPodCpu
+     */
+    private long amountNeeded(List<Long> resources) {
+        Stream<Long> sorted = resources.stream().sorted(Comparator.reverseOrder());
+        long sum = resources.stream().collect(Collectors.summingLong(Long::valueOf));
+        Iterator<Long> iter = sorted.iterator();
+        long running = iter.next();
+        while (running < sum/2) {
+            running += iter.next();
+        }
+        return running;
+    }
+
+    /**
      * see basic testing on https://cwiki.apache.org/confluence/display/KAFKA/KIP-578%3A+Add+configuration+to+limit+number+of+partitions
      * within some assumed high / low bounds and a wider tolerance on acceptable result, we iterate to find the likely number of partitions
      * beyond which performance degrades to an unacceptable amount.
@@ -541,13 +689,15 @@ public class InstanceProfiler {
      *   for a fixed number of consumers -- were they scaling the consumers as well?
      */
     protected void determinePartitions() throws Exception {
-        List<Integer> samples = Arrays.asList(100, 250, 500, 1000);
+        List<Integer> samples = Arrays.asList(100, 750, 1500, 2000);
+        int maxClients = MAX_CONNECTIONS*(numberOfBrokers/3)/(numberOfBrokers+1);
         int multiplier = numberOfBrokers/3;
         for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
             try {
                 LOGGER.info("Running latency test for {} partitions", sample);
                 profilingResult.partitionResults.put(sample, determineLatency(workload -> {
                     workload.partitionsPerTopic = sample;
+                    workload.consumerPerSubscription = Math.min(sample, maxClients);
                     workload.name = "latency-partitions-" + sample;
                 }));
             } catch (IllegalStateException e) {
@@ -556,10 +706,10 @@ public class InstanceProfiler {
         }
     }
 
-    private void determineConnsumersPerConsumerGroup() throws Exception {
+    /*private void determineConsumersPerConsumerGroup() throws Exception {
         // this is not expected to vary with the number of brokers are every consumer in the consumer group uses a single
         // broker for coordination
-        List<Integer> samples = Arrays.asList(100, 250, 500, 1000);
+        List<Integer> samples = Arrays.asList(100, 250, 500);
         for (int sample : samples) {
             LOGGER.info("Running latency test for {} consumers", sample);
             profilingResult.consumers.put(sample, determineLatency(workload -> {
@@ -568,10 +718,20 @@ public class InstanceProfiler {
                 workload.name = "latency-consumers-" + sample;
             }));
         }
+    }*/
+
+    private void maxMessageSize() throws Exception {
+        LOGGER.info("Running latency test for max message size");
+        LatencyResult result = determineLatency(Profile.LARGE_MESSAGE, workload -> {
+            workload.name = "latency-max-messagesize";
+        }, null);
+        this.profilingResult.maxMessage = new MaxMessageResult();
+        this.profilingResult.maxMessage.latency = result;
+        this.profilingResult.maxMessage.messageBytes = Profile.LARGE_MESSAGE.messageSize;
     }
 
-    private void determineConsumerGroups() throws Exception {
-        List<Integer> samples = Arrays.asList(10, 25, 45, 60);
+    /*private void determineConsumerGroups() throws Exception {
+        List<Integer> samples = Arrays.asList(10, 25);
         int multiplier = numberOfBrokers/3;
         for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
             LOGGER.info("Running latency test for {} consumer groups", sample);
@@ -580,12 +740,12 @@ public class InstanceProfiler {
                 workload.name = "latency-consumergroups-" + sample;
             }));
         }
-    }
+    }*/
 
     private void determineProducers() throws Exception {
-        List<Integer> samples = Arrays.asList(100, 250, 500, 1000);
-        int multiplier = numberOfBrokers/3;
-        for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
+        int maxClients = MAX_CONNECTIONS*(numberOfBrokers/3)/(numberOfBrokers+1);
+        List<Integer> samples = Arrays.asList(2*(maxClients/5), maxClients, (maxClients*3)/2);
+        for (int sample : samples) {
             LOGGER.info("Running latency test for {} producers", sample);
             profilingResult.producers.put(sample, determineLatency(workload -> {
                 workload.producersPerTopic = sample;
@@ -631,7 +791,6 @@ public class InstanceProfiler {
      * The relatively fixed number seems to provide for greater throughput.
      */
     protected OMBWorkload createBasicWorkload(double targetThroughput, int pubSub, Profile profile) {
-        LOGGER.info("Creating workload of {} throughput for {} pub/sub", String.format("%,.2f", targetThroughput), pubSub);
         OMBWorkload ombWorkload = new OMBWorkload()
                 .setName("workload")
                 .setTopics(1)
@@ -654,6 +813,8 @@ public class InstanceProfiler {
 
     protected OMBWorkloadResult doTestRun(String name, OMBWorkload ombWorkload, Profile profile)
             throws Exception {
+        LOGGER.info("Creating workload {}", ombWorkload);
+
         //alternative: use a small, or even smallest number, of workers that will be needed
         //for lower producer tests this means relatively fewer consumers
         //e.g. noOfWorkers = 2 * Math.max(1, pubSub / 6);
