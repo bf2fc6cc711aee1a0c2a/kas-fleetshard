@@ -29,6 +29,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -170,6 +171,13 @@ public class InformerManager {
                 this.eventSource.onUpdate(k, k);
             });
         }
+    }
+
+    public List<Kafka> getKafkas() {
+        if (kafkaInformer != null) {
+            return kafkaInformer.getList();
+        }
+        return Collections.emptyList();
     }
 
     public void resyncManagedKafka() {

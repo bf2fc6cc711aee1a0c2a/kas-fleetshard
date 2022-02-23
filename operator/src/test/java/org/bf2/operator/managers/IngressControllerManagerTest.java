@@ -14,6 +14,7 @@ import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
@@ -25,12 +26,15 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -54,6 +58,8 @@ public class IngressControllerManagerTest {
 
     @Test
     public void testIngressControllerCreationWithNoZones() {
+        QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
+
         ingressControllerManager.reconcileIngressControllers();
 
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
@@ -93,18 +99,19 @@ public class IngressControllerManagerTest {
     public void testIngressControllerReplicaCounts() {
         List<Node> nodes = buildNodes(9);
 
-        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes));
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes));
+        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000));
+        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(), new LongSummaryStatistics(), 0));
 
         nodes = buildNodes(210);
 
-        assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes));
-        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes));
+        assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes, 160000));
+        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0));
+        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(), new LongSummaryStatistics(), 480000));
 
-        nodes = buildNodes(303);
+        nodes = buildNodes(310);
 
-        assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes));
-        assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes));
+        assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
+        assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 2000000000L), new LongSummaryStatistics(1, 0, 30000000, 4000000000L), 0));
     }
 
     private List<Node> buildNodes(int nodeCount) {
@@ -214,6 +221,7 @@ public class IngressControllerManagerTest {
         assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
     }
 
+    @BeforeEach
     @AfterEach
     void cleanup() {
         // clears the mock server state

@@ -26,10 +26,15 @@ import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaClusterSpec;
+import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
+import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -39,18 +44,29 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Controls the resources and number of ingress replicas used by a managed kafka
+ * <br>
+ * An alternative strategy could be to look at the resource requests on the ManagedKafkas
+ * - or the actual Kafkas, but that doesn't work well with performance testing that disables
+ * or sets values artificially high.
+ */
 @Startup
 @ApplicationScoped
 //excluding during smoke tests (when kafka=dev is set) running on Kubernetes
@@ -112,6 +128,8 @@ public class IngressControllerManager {
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<IngressController> ingressControllerInformer;
 
+    //TODO: may need to differentiate between default and per az resources
+
     @ConfigProperty(name = "ingresscontroller.limit-cpu")
     Optional<Quantity> limitCpu;
     @ConfigProperty(name = "ingresscontroller.limit-memory")
@@ -120,6 +138,19 @@ public class IngressControllerManager {
     Optional<Quantity> requestCpu;
     @ConfigProperty(name = "ingresscontroller.request-memory")
     Optional<Quantity> requestMemory;
+
+    @ConfigProperty(name = "ingresscontroller.default-replica-count")
+    Optional<Integer> defaultReplicaCount;
+    @ConfigProperty(name = "ingresscontroller.az-replica-count")
+    Optional<Integer> azReplicaCount;
+
+    @ConfigProperty(name = "ingresscontroller.max-ingress-throughput")
+    Quantity maxIngressThroughput;
+    @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
+    Quantity maxIngressConnections;
+
+    @Inject
+    KafkaInstanceConfiguration config;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -284,7 +315,6 @@ public class IngressControllerManager {
 
         String defaultDomain = getClusterDomain();
 
-
         List<String> zones = nodeInformer.getList().stream()
                 .filter(node -> node != null && node.getMetadata().getLabels() != null)
                 .map(node -> node.getMetadata().getLabels().get(TOPOLOGY_KEY))
@@ -295,8 +325,26 @@ public class IngressControllerManager {
         Map<String, IngressController> zoneToIngressController = new HashMap<>();
         zones.stream().forEach(z -> zoneToIngressController.put(z, ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas-" + z))));
 
-        List<IngressController> ingressControllers = ingressControllersFrom(zoneToIngressController, defaultDomain);
-        ingressControllers.add(buildDefaultIngressController(zones, defaultDomain));
+        // someday we might share access to the operator cache
+        List<Kafka> kafkas = informerManager.getKafkas();
+
+        long connectionDemand = kafkas.stream()
+                .map(m -> m.getSpec().getKafka())
+                .map(s -> s.getListeners()
+                        .stream()
+                        .filter(l -> AbstractKafkaCluster.EXTERNAL_LISTENER_NAME.equals(l.getName()))
+                        .map(GenericKafkaListener::getConfiguration)
+                        .map(GenericKafkaListenerConfiguration::getMaxConnections)
+                        .filter(Objects::nonNull)
+                        .map(c -> c * s.getReplicas())
+                        .findFirst())
+                .mapToLong(o -> o.orElse(0))
+                .sum();
+
+        // TODO: we may want some dampening on scaling down ingress replicas - it seems like that can introduce reconnects
+        List<IngressController> ingressControllers = ingressControllersFrom(zoneToIngressController, defaultDomain, kafkas, connectionDemand);
+
+        ingressControllers.add(buildDefaultIngressController(zones, defaultDomain, connectionDemand));
 
         ingressControllers.stream().forEach(expected -> {
             String name = expected.getMetadata().getName();
@@ -316,12 +364,15 @@ public class IngressControllerManager {
         });
     }
 
-    private List<IngressController> ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain) {
+    private List<IngressController> ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
+        LongSummaryStatistics egress = summarize(kafkas, KafkaCluster::getFetchQuota, () -> config.getKafka().getEgressPerSec());
+        LongSummaryStatistics ingress = summarize(kafkas, KafkaCluster::getProduceQuota, () -> config.getKafka().getIngressPerSec());
+
         return ingressControllers.entrySet().stream().map(e -> {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
             String domain = kasZone + "." + clusterDomain;
-            int replicas = numReplicasForZone(zone, nodeInformer.getList());
+            int replicas = numReplicasForZone(zone, nodeInformer.getList(), ingress, egress, connectionDemand);
 
             Map<String, String> routeMatchLabel = Map.of("managedkafka.bf2.org/" + kasZone, "true");
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
@@ -331,9 +382,10 @@ public class IngressControllerManager {
         }).collect(Collectors.toList());
     }
 
-    private IngressController buildDefaultIngressController(List<String> zones, String clusterDomain) {
+    private IngressController buildDefaultIngressController(List<String> zones, String clusterDomain, long connectionDemand) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
-        int replicas = numReplicasForAllZones(nodeInformer.getList());
+
+        int replicas = numReplicasForAllZones(nodeInformer.getList(), connectionDemand);
 
         final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
@@ -386,34 +438,73 @@ public class IngressControllerManager {
         return builder.build();
     }
 
-    int numReplicasForZone(String zone, List<Node> nodes) {
+    int numReplicasForZone(String zone, List<Node> nodes, LongSummaryStatistics ingress, LongSummaryStatistics egress, long connectionDemand) {
+        // use the override if present
+        if (azReplicaCount.isPresent()) {
+            return azReplicaCount.get();
+        }
+
         int nodesInZone = Math.toIntExact(nodes.stream()
                 .filter(node -> zone.equals(node.getMetadata().getLabels().get(TOPOLOGY_KEY)))
                 .filter(Objects::nonNull)
                 .count());
+
+        double zonePercentage = nodesInZone / (double)nodes.size();
+
+        long throughput = (egress.getMax() + ingress.getMax())/2;
+        long replicationThroughput = ingress.getMax()*2;
+
+        // subtract out that we could share the node with a broker + the 1Mi is padding to account for the bandwidth of other colocated pods
+        // we assume a worst case that 1/2 of the traffic to this broker may come from another replicas
+        long throughputPerIngressReplica = Quantity.getAmountInBytes(maxIngressThroughput).longValue()
+                - replicationThroughput - throughput / 2 - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
+
+        // average of total ingress/egress in this zone
+        double throughputDemanded = (egress.getSum() + ingress.getSum()) * zonePercentage / 2;
+
+        int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
+        int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
         /*
          * we want at least 2 replicas, unless there are fewer nodes
          * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes
          * we'll therefore scale up after 2*NODES_PER_REPLICA nodes in the zone
          */
-        return Math.max(Math.min(2, nodesInZone), (int)Math.ceil((double)nodesInZone / NODES_PER_REPLICA));
+        return Math.max(Math.min(2, nodesInZone), Math.max(connectionReplicaCount, replicaCount));
     }
 
-    int numReplicasForAllZones(List<Node> nodes) {
-        int zones = Math.max(1, Math.toIntExact(nodes.stream()
-                .map(node -> node.getMetadata().getLabels().get(TOPOLOGY_KEY))
-                .distinct()
-                .count()));
+    private LongSummaryStatistics summarize(List<Kafka> managedKafkas, Function<Kafka, String> quantity,
+            Supplier<String> defaultValue) {
+        return managedKafkas.stream()
+                .map(m -> {
+                    KafkaClusterSpec s = m.getSpec().getKafka();
+                    String value = quantity.apply(m);
+                    if (value == null) {
+                        value = defaultValue.get();
+                    }
+                    return Quantity.getAmountInBytes(Quantity.parse(value))
+                            .multiply(BigDecimal.valueOf(s.getReplicas()));
+                })
+                .mapToLong(BigDecimal::longValue)
+                .summaryStatistics();
+    }
+
+    int numReplicasForAllZones(List<Node> nodes, long connectionDemand) {
+        // use the override if present
+        if (defaultReplicaCount.isPresent()) {
+            return defaultReplicaCount.get();
+        }
 
         /*
          * we want at least 2 replicas, unless there are fewer nodes
-         * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes in all zones
          *
-         * NOTE an implicit assumption here is that there is at most 3 zones.  A greater number of zones
-         * may eventually mean more memory resources, or additional replicas, for the additional connection support
+         * an assumption here is that these ingress replicas will not become bandwidth constrained - but that may need further qualification
          */
-        return Math.max(Math.min(2, nodes.size()), (int)Math.ceil((double)nodes.size() / (zones * NODES_PER_REPLICA)));
+        return Math.max(Math.min(2, nodes.size()), numReplicasForConnectionDemand(connectionDemand));
+    }
+
+    private int numReplicasForConnectionDemand(long connectionDemand) {
+        return (int)Math.ceil(connectionDemand / Quantity.getAmountInBytes(maxIngressConnections).doubleValue());
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
