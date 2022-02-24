@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -21,6 +22,7 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
+import io.fabric8.openshift.api.model.operator.v1.IngressControllerSpec;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.quarkus.runtime.Startup;
@@ -63,9 +65,9 @@ import java.util.stream.Stream;
 /**
  * Controls the resources and number of ingress replicas used by a managed kafka
  * <br>
- * An alternative strategy could be to look at the resource requests on the ManagedKafkas
- * - or the actual Kafkas, but that doesn't work well with performance testing that disables
- * or sets values artificially high.
+ * This uses values from the actual Kafkas to determine ingress demand.
+ * <br>
+ * It will not reclaim excess replicas until there is a reduction in the number of nodes.
  */
 @Startup
 @ApplicationScoped
@@ -73,12 +75,11 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    private static final int MIN_REPLICA_REDUCTION = 2;
+    private static final String NODE_COUNT_ANNOTATION = "managedkafka.bf2.org/node-count";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
-
-    // TODO: eventually this will need to be a parameter/calculated, for now it's based roughly on the baseline bandwidth vs the expected ingress/egress
-    public static final int NODES_PER_REPLICA = 25;
 
     /**
      * The label key for the multi-AZ IngressController
@@ -127,6 +128,7 @@ public class IngressControllerManager {
     ResourceInformer<Pod> brokerPodInformer;
     ResourceInformer<Node> nodeInformer;
     ResourceInformer<IngressController> ingressControllerInformer;
+    private boolean ready;
 
     //TODO: may need to differentiate between default and per az resources
 
@@ -147,7 +149,7 @@ public class IngressControllerManager {
     @ConfigProperty(name = "ingresscontroller.max-ingress-throughput")
     Quantity maxIngressThroughput;
     @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
-    Quantity maxIngressConnections;
+    int maxIngressConnections;
 
     @Inject
     KafkaInstanceConfiguration config;
@@ -273,6 +275,7 @@ public class IngressControllerManager {
                     }
         });
 
+        ready = true;
         resyncIngressControllerDeployments();
         reconcileIngressControllers();
     }
@@ -308,7 +311,7 @@ public class IngressControllerManager {
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void reconcileIngressControllers() {
-        if (nodeInformer == null || ingressControllerInformer == null) {
+        if (!ready) {
             log.warn("One or more informers are not yet ready");
             return;
         }
@@ -341,34 +344,32 @@ public class IngressControllerManager {
                 .mapToLong(o -> o.orElse(0))
                 .sum();
 
-        // TODO: we may want some dampening on scaling down ingress replicas - it seems like that can introduce reconnects
-        List<IngressController> ingressControllers = ingressControllersFrom(zoneToIngressController, defaultDomain, kafkas, connectionDemand);
+        ingressControllersFrom(zoneToIngressController, defaultDomain, kafkas, connectionDemand);
 
-        ingressControllers.add(buildDefaultIngressController(zones, defaultDomain, connectionDemand));
-
-        ingressControllers.stream().forEach(expected -> {
-            String name = expected.getMetadata().getName();
-
-            if (ingressControllerInformer.getList().stream().anyMatch(i -> name.equals(i.getMetadata().getName()))) {
-                openShiftClient.operator().ingressControllers()
-                    .inNamespace(expected.getMetadata().getNamespace())
-                    .withName(name)
-                    .edit(i -> new IngressControllerBuilder(i)
-                            .editMetadata().withLabels(expected.getMetadata().getLabels()).endMetadata()
-                            .withSpec(expected.getSpec())
-                            .build());
-            } else {
-                OperandUtils.createOrUpdate(openShiftClient.operator().ingressControllers(), expected);
-            }
-
-        });
+        buildDefaultIngressController(zones, defaultDomain, connectionDemand);
     }
 
-    private List<IngressController> ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
+    private void createOrEdit(IngressController expected, boolean exists) {
+        String name = expected.getMetadata().getName();
+
+        if (exists) {
+            openShiftClient.operator().ingressControllers()
+                .inNamespace(expected.getMetadata().getNamespace())
+                .withName(name)
+                .edit(i -> new IngressControllerBuilder(i)
+                        .editMetadata().withLabels(expected.getMetadata().getLabels()).endMetadata()
+                        .withSpec(expected.getSpec())
+                        .build());
+        } else {
+            OperandUtils.createOrUpdate(openShiftClient.operator().ingressControllers(), expected);
+        }
+    }
+
+    private void ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
         LongSummaryStatistics egress = summarize(kafkas, KafkaCluster::getFetchQuota, () -> config.getKafka().getEgressPerSec());
         LongSummaryStatistics ingress = summarize(kafkas, KafkaCluster::getProduceQuota, () -> config.getKafka().getIngressPerSec());
 
-        return ingressControllers.entrySet().stream().map(e -> {
+        ingressControllers.entrySet().stream().forEach(e -> {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
             String domain = kasZone + "." + clusterDomain;
@@ -378,11 +379,11 @@ public class IngressControllerManager {
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
             routeMatchLabels.putAll(routeMatchLabel);
 
-            return buildIngressController(kasZone, domain, e.getValue(), replicas, routeSelector, zone);
-        }).collect(Collectors.toList());
+            buildIngressController(kasZone, domain, e.getValue(), replicas, routeSelector, zone);
+        });
     }
 
-    private IngressController buildDefaultIngressController(List<String> zones, String clusterDomain, long connectionDemand) {
+    private void buildDefaultIngressController(List<String> zones, String clusterDomain, long connectionDemand) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
 
         int replicas = numReplicasForAllZones(nodeInformer.getList(), connectionDemand);
@@ -391,19 +392,34 @@ public class IngressControllerManager {
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
         routeMatchLabels.putAll(routeMatchLabel);
 
-        return buildIngressController("kas", "kas." + clusterDomain, existing, replicas, routeSelector, null);
+        buildIngressController("kas", "kas." + clusterDomain, existing, replicas, routeSelector, null);
     }
 
-    private IngressController buildIngressController(String name, String domain,
+    private void buildIngressController(String name, String domain,
             IngressController existing, int replicas, LabelSelector routeSelector, String topologyValue) {
 
-        IngressControllerBuilder builder = Optional.ofNullable(existing).map(IngressControllerBuilder::new).orElse(new IngressControllerBuilder());
+        Optional<IngressController> optionalExisting = Optional.ofNullable(existing);
+        IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElse(new IngressControllerBuilder());
+        Integer existingReplicas = optionalExisting.map(IngressController::getSpec).map(IngressControllerSpec::getReplicas).orElse(null);
+        int previousNodeCount = optionalExisting.map(IngressController::getMetadata)
+                .map(ObjectMeta::getAnnotations)
+                .map(m -> m.get(NODE_COUNT_ANNOTATION))
+                .map(Integer::valueOf).orElse(0);
+
+        // retain replicas as long as we're above the min reduction and the node count is at least as high as before
+        int nodeCount = nodeInformer.getList().size();
+        if (existingReplicas != null && (previousNodeCount <= nodeCount)
+                && existingReplicas - replicas <= MIN_REPLICA_REDUCTION) {
+            replicas = Math.max(existingReplicas, replicas);
+            nodeCount = Math.max(nodeCount, previousNodeCount);
+        }
 
         builder
             .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(INGRESS_OPERATOR_NAMESPACE)
                 .withLabels(OperandUtils.getDefaultLabels())
+                .addToAnnotations(NODE_COUNT_ANNOTATION, String.valueOf(nodeCount))
             .endMetadata()
             .editOrNewSpec()
                 .withDomain(domain)
@@ -435,7 +451,7 @@ public class IngressControllerManager {
                 .endSpec();
         }
 
-        return builder.build();
+        createOrEdit(builder.build(), existing != null);
     }
 
     int numReplicasForZone(String zone, List<Node> nodes, LongSummaryStatistics ingress, LongSummaryStatistics egress, long connectionDemand) {
@@ -462,6 +478,7 @@ public class IngressControllerManager {
         // average of total ingress/egress in this zone
         double throughputDemanded = (egress.getSum() + ingress.getSum()) * zonePercentage / 2;
 
+        // TODO: we are not guarding against 0 or negative throughputPerIngressReplica
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
@@ -473,15 +490,12 @@ public class IngressControllerManager {
         return Math.max(Math.min(2, nodesInZone), Math.max(connectionReplicaCount, replicaCount));
     }
 
-    private LongSummaryStatistics summarize(List<Kafka> managedKafkas, Function<Kafka, String> quantity,
+    static LongSummaryStatistics summarize(List<Kafka> managedKafkas, Function<Kafka, String> quantity,
             Supplier<String> defaultValue) {
         return managedKafkas.stream()
                 .map(m -> {
                     KafkaClusterSpec s = m.getSpec().getKafka();
-                    String value = quantity.apply(m);
-                    if (value == null) {
-                        value = defaultValue.get();
-                    }
+                    String value = Optional.of(quantity.apply(m)).orElseGet(defaultValue);
                     return Quantity.getAmountInBytes(Quantity.parse(value))
                             .multiply(BigDecimal.valueOf(s.getReplicas()));
                 })
@@ -503,8 +517,8 @@ public class IngressControllerManager {
         return Math.max(Math.min(2, nodes.size()), numReplicasForConnectionDemand(connectionDemand));
     }
 
-    private int numReplicasForConnectionDemand(long connectionDemand) {
-        return (int)Math.ceil(connectionDemand / Quantity.getAmountInBytes(maxIngressConnections).doubleValue());
+    private int numReplicasForConnectionDemand(double connectionDemand) {
+        return (int)Math.ceil(connectionDemand / maxIngressConnections);
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
