@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
@@ -21,6 +22,7 @@ import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
@@ -32,6 +34,7 @@ import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LongSummaryStatistics;
@@ -56,6 +59,12 @@ public class IngressControllerManagerTest {
     @KubernetesTestServer
     KubernetesServer kubernetesServer;
 
+    @Inject
+    KafkaCluster kafkaCluster;
+
+    @Inject
+    InformerManager informerManager;
+
     @Test
     public void testIngressControllerCreationWithNoZones() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
@@ -69,17 +78,42 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerCreationWith3Zones() {
+    public void testReplicaReduction() {
+        buildNodes(12).stream().forEach(n -> openShiftClient.nodes().create(n));
 
-        IntStream.range(0, 3).forEach(i -> {
-            Node node = new NodeBuilder()
-                    .editOrNewMetadata()
-                        .withName("z"+i)
-                        .withLabels(Map.of(IngressControllerManager.WORKER_NODE_LABEL, "", IngressControllerManager.TOPOLOGY_KEY, "zone"+i))
-                    .endMetadata()
-                    .build();
-            openShiftClient.nodes().create(node);
+        IntStream.range(0, 6).forEach(i -> {
+            ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+            mk.getMetadata().setName("ingressTest" + i);
+            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("115Mi"));
+            Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+            openShiftClient.resource(kafka).createOrReplace();
         });
+        informerManager.createKafkaInformer();
+
+        ingressControllerManager.reconcileIngressControllers();
+        checkAzReplicaCount(4);
+
+        // remove the kafkas - we should keep the same number of replicas
+        openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
+        ingressControllerManager.reconcileIngressControllers();
+        checkAzReplicaCount(4);
+
+        // delete 3 nodes
+        openShiftClient.resources(Node.class).delete();
+        buildNodes(6).stream().forEach(n -> openShiftClient.nodes().create(n));
+        ingressControllerManager.reconcileIngressControllers();
+        checkAzReplicaCount(2);
+    }
+
+    private void checkAzReplicaCount(int count) {
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        IngressController ic = ingressControllers.stream().filter(c -> !c.getMetadata().getName().equals("kas")).findFirst().get();
+        assertEquals(count, ic.getSpec().getReplicas());
+    }
+
+    @Test
+    public void testIngressControllerCreationWith3Zones() {
+        buildNodes(3).stream().forEach(n -> openShiftClient.nodes().create(n));
 
         ingressControllerManager.reconcileIngressControllers();
 
@@ -93,6 +127,21 @@ public class IngressControllerManagerTest {
             }
             return c.getSpec().getNodePlacement() != null;
         }));
+    }
+
+    @Test
+    public void testSummarize() {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+        int replicas = kafka.getSpec().getKafka().getReplicas();
+        int instances = 4;
+
+        LongSummaryStatistics egress = IngressControllerManager.summarize(Collections.nCopies(instances, kafka),
+                KafkaCluster::getFetchQuota, () -> {throw new AssertionError();});
+        long singleEgress = Quantity.getAmountInBytes(mk.getSpec().getCapacity().getEgressPerSec()).longValue()
+                / replicas * replicas;
+        assertEquals(singleEgress, egress.getMax());
+        assertEquals(singleEgress * instances, egress.getSum());
     }
 
     @Test
@@ -115,7 +164,7 @@ public class IngressControllerManagerTest {
     }
 
     private List<Node> buildNodes(int nodeCount) {
-        List<Node> nodes = IntStream.range(0, nodeCount).mapToObj(i ->
+        return IntStream.range(0, nodeCount).mapToObj(i ->
             new NodeBuilder()
                     .editOrNewMetadata()
                         .withName("z"+i)
@@ -123,7 +172,6 @@ public class IngressControllerManagerTest {
                     .endMetadata()
                     .build()
         ).collect(Collectors.toList());
-        return nodes;
     }
 
     @Test
