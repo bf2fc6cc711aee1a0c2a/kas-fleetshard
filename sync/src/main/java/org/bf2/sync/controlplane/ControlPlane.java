@@ -7,6 +7,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.informer.LocalLookup;
@@ -110,10 +111,17 @@ public class ControlPlane {
         log.debug("Updating agent status");
         executorService.execute(() -> {
             ManagedKafkaAgent localManagedKafkaAgent = localLookup.getLocalManagedKafkaAgent();
-            if (localManagedKafkaAgent != null) {
-                controlPlaneClient.updateStatus(id, localManagedKafkaAgent.getStatus());
+            if (localManagedKafkaAgent == null) {
+                return;
             }
-            // TODO if it's null we could still send an empty status
+            ManagedKafkaAgentStatus status = localManagedKafkaAgent.getStatus();
+            if (status == null) {
+                // the control plane does not like null or empty status
+                // so to avoid a warning/error in our logs, we'll just skip for now
+                // as they are not looking for this sync yet as a heartbeat
+                return;
+            }
+            controlPlaneClient.updateStatus(id, status);
         });
     }
 
