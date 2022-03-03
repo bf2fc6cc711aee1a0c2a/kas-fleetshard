@@ -401,7 +401,7 @@ public class IngressControllerManager {
             IngressController existing, int replicas, LabelSelector routeSelector, String topologyValue) {
 
         Optional<IngressController> optionalExisting = Optional.ofNullable(existing);
-        IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElse(new IngressControllerBuilder());
+        IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElseGet(IngressControllerBuilder::new);
         Integer existingReplicas = optionalExisting.map(IngressController::getSpec).map(IngressControllerSpec::getReplicas).orElse(null);
         int previousNodeCount = optionalExisting.map(IngressController::getMetadata)
                 .map(ObjectMeta::getAnnotations)
