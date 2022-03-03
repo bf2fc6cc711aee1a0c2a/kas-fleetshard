@@ -84,7 +84,8 @@ public class IngressControllerManagerTest {
         IntStream.range(0, 6).forEach(i -> {
             ManagedKafka mk = ManagedKafka.getDummyInstance(1);
             mk.getMetadata().setName("ingressTest" + i);
-            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("115Mi"));
+            mk.getMetadata().setNamespace("ingressTest");
+            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("125Mi"));
             Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
             openShiftClient.resource(kafka).createOrReplace();
         });
@@ -93,16 +94,17 @@ public class IngressControllerManagerTest {
         ingressControllerManager.reconcileIngressControllers();
         checkAzReplicaCount(4);
 
-        // remove the kafkas - we should keep the same number of replicas
-        openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
+        // remove two kafkas - we should keep the same number of replicas
+        assertTrue(openShiftClient.resources(Kafka.class).inNamespace("ingressTest").withName("ingressTest0").delete());
+        assertTrue(openShiftClient.resources(Kafka.class).inNamespace("ingressTest").withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
         checkAzReplicaCount(4);
 
-        // delete 3 nodes
+        // delete 3 nodes, we should go down to 3
         openShiftClient.resources(Node.class).delete();
-        buildNodes(6).stream().forEach(n -> openShiftClient.nodes().create(n));
+        buildNodes(9).stream().forEach(n -> openShiftClient.nodes().create(n));
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(2);
+        checkAzReplicaCount(3);
     }
 
     private void checkAzReplicaCount(int count) {
@@ -154,13 +156,14 @@ public class IngressControllerManagerTest {
         nodes = buildNodes(210);
 
         assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes, 160000));
-        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0));
+        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0));
         assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(), new LongSummaryStatistics(), 480000));
 
         nodes = buildNodes(310);
 
+        long ingress = 50000000;
         assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
-        assertEquals(5, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 2000000000L), new LongSummaryStatistics(1, 0, 30000000, 4000000000L), 0));
+        assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
     }
 
     private List<Node> buildNodes(int nodeCount) {

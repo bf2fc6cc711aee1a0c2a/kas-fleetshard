@@ -75,7 +75,7 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
-    private static final int MIN_REPLICA_REDUCTION = 2;
+    private static final int MIN_REPLICA_REDUCTION = 1;
     private static final String NODE_COUNT_ANNOTATION = "managedkafka.bf2.org/node-count";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String MEMORY = "memory";
@@ -150,6 +150,8 @@ public class IngressControllerManager {
     Quantity maxIngressThroughput;
     @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
     int maxIngressConnections;
+    @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
+    int peakPercentage;
 
     @Inject
     KafkaInstanceConfiguration config;
@@ -475,8 +477,15 @@ public class IngressControllerManager {
         long throughputPerIngressReplica = Quantity.getAmountInBytes(maxIngressThroughput).longValue()
                 - replicationThroughput - throughput / 2 - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
 
+        if (throughputPerIngressReplica < 0) {
+            throw new AssertionError("Cannot appropirately scale ingress as collocating with a broker takes more than the availalbe node bandwidth");
+        }
+
         // average of total ingress/egress in this zone
         double throughputDemanded = (egress.getSum() + ingress.getSum()) * zonePercentage / 2;
+
+        // scale back with the assumption that we don't really need to meet the peak
+        throughputDemanded *= peakPercentage / 100D;
 
         // TODO: we are not guarding against 0 or negative throughputPerIngressReplica
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
@@ -487,7 +496,7 @@ public class IngressControllerManager {
          * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes
          * we'll therefore scale up after 2*NODES_PER_REPLICA nodes in the zone
          */
-        return Math.max(Math.min(2, nodesInZone), Math.max(connectionReplicaCount, replicaCount));
+        return Math.min(nodesInZone, Math.max(2, Math.max(connectionReplicaCount, replicaCount)));
     }
 
     static LongSummaryStatistics summarize(List<Kafka> managedKafkas, Function<Kafka, String> quantity,
@@ -514,7 +523,7 @@ public class IngressControllerManager {
          *
          * an assumption here is that these ingress replicas will not become bandwidth constrained - but that may need further qualification
          */
-        return Math.max(Math.min(2, nodes.size()), numReplicasForConnectionDemand(connectionDemand));
+        return Math.min(nodes.size(), Math.max(2, numReplicasForConnectionDemand(connectionDemand)));
     }
 
     private int numReplicasForConnectionDemand(double connectionDemand) {
