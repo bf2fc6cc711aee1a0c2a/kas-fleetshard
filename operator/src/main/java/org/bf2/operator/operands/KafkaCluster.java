@@ -123,6 +123,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
 
+    public static final String MAX_PARTITIONS = "max.partitions";
+    public static final String MESSAGE_MAX_BYTES = "message.max.bytes";
+
     @ConfigProperty(name = "managedkafka.storage.check-interval")
     int storageCheckInterval;
 
@@ -570,6 +573,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
+        config.put(MESSAGE_MAX_BYTES, 1048588); // Kafka's default
 
         ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
         var maximumSessionLifetime = oauth != null ? oauth.getMaximumSessionLifetime() : null;
@@ -598,6 +602,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // custom authorizer configuration
         addKafkaAuthorizerConfig(managedKafka, config);
 
+        if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
+            config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
+        }
         return config;
     }
 
