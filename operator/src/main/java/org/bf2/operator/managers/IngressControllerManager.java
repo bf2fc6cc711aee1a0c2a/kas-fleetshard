@@ -6,7 +6,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -76,7 +75,6 @@ import java.util.stream.Stream;
 public class IngressControllerManager {
 
     private static final int MIN_REPLICA_REDUCTION = 1;
-    private static final String NODE_COUNT_ANNOTATION = "managedkafka.bf2.org/node-count";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
@@ -403,17 +401,10 @@ public class IngressControllerManager {
         Optional<IngressController> optionalExisting = Optional.ofNullable(existing);
         IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElseGet(IngressControllerBuilder::new);
         Integer existingReplicas = optionalExisting.map(IngressController::getSpec).map(IngressControllerSpec::getReplicas).orElse(null);
-        int previousNodeCount = optionalExisting.map(IngressController::getMetadata)
-                .map(ObjectMeta::getAnnotations)
-                .map(m -> m.get(NODE_COUNT_ANNOTATION))
-                .map(Integer::valueOf).orElse(0);
 
-        // retain replicas as long as we're above the min reduction and the node count is at least as high as before
-        int nodeCount = nodeInformer.getList().size();
-        if (existingReplicas != null && (previousNodeCount <= nodeCount)
-                && existingReplicas - replicas <= MIN_REPLICA_REDUCTION) {
+        // retain replicas as long as we're above the min reduction
+        if (existingReplicas != null && existingReplicas - replicas <= MIN_REPLICA_REDUCTION) {
             replicas = Math.max(existingReplicas, replicas);
-            nodeCount = Math.max(nodeCount, previousNodeCount);
         }
 
         builder
@@ -421,7 +412,6 @@ public class IngressControllerManager {
                 .withName(name)
                 .withNamespace(INGRESS_OPERATOR_NAMESPACE)
                 .withLabels(OperandUtils.getDefaultLabels())
-                .addToAnnotations(NODE_COUNT_ANNOTATION, String.valueOf(nodeCount))
             .endMetadata()
             .editOrNewSpec()
                 .withDomain(domain)

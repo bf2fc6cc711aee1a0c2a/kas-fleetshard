@@ -95,16 +95,17 @@ public class IngressControllerManagerTest {
         checkAzReplicaCount(4);
 
         // remove two kafkas - we should keep the same number of replicas
-        assertTrue(openShiftClient.resources(Kafka.class).inNamespace("ingressTest").withName("ingressTest0").delete());
-        assertTrue(openShiftClient.resources(Kafka.class).inNamespace("ingressTest").withName("ingressTest1").delete());
+        var kafkas = openShiftClient.resources(Kafka.class).inNamespace("ingressTest");
+        assertTrue(kafkas.withName("ingressTest0").delete());
+        assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
         checkAzReplicaCount(4);
 
-        // delete 3 nodes, we should go down to 3
-        openShiftClient.resources(Node.class).delete();
-        buildNodes(9).stream().forEach(n -> openShiftClient.nodes().create(n));
+        // remove two more kafkas - and we should reduce
+        assertTrue(kafkas.withName("ingressTest2").delete());
+        assertTrue(kafkas.withName("ingressTest3").delete());
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(3);
+        checkAzReplicaCount(2);
     }
 
     private void checkAzReplicaCount(int count) {
@@ -163,6 +164,9 @@ public class IngressControllerManagerTest {
 
         long ingress = 50000000;
         assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
+        for (int i = 0; i < 60; i++) {
+            System.out.println(i + " " + ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*i), new LongSummaryStatistics(1, 0, ingress*2, ingress*i*2), 0));
+        }
         assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
     }
 
