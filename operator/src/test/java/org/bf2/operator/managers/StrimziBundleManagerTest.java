@@ -254,19 +254,14 @@ public class StrimziBundleManagerTest {
     @Test
     public void testPackageManifestWithoutCurrentCSVDescAnnotations() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
-                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
-
-        // overwrite the PackaheManifest with a "bad" one, missing the annotations with Strimzi versions in the CSV description
-        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
-                new PackageManifestStatusBuilder()
-                        .withChannels(
-                                new PackageChannelBuilder()
-                                        .withNewCurrentCSVDesc()
-                                        .endCurrentCSVDesc()
-                                        .build())
-                        .build()
-        );
-        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+                () -> this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
+                        new PackageManifestStatusBuilder()
+                                .withChannels(
+                                        new PackageChannelBuilder()
+                                                .withNewCurrentCSVDesc()
+                                                .endCurrentCSVDesc()
+                                                .build())
+                                .build()));
 
         // check that InstallPlan was not approved
         this.awaitInstallPlanApproval(subscription, false);
