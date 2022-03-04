@@ -66,6 +66,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Inject
     KafkaManager kafkaManager;
 
+    @Inject
+    AbstractKafkaCluster kafkaCluster;
+
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "The number of delete events")
@@ -160,13 +163,14 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         // routes should always be set on the CR status, even if it's just an empty list
         status.setRoutes(List.of());
 
+        int replicas = kafkaCluster.getReplicas(managedKafka);
 
         if (ingressControllerManagerInstance.isResolvable()) {
             IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
             List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
 
             // expect route for each broker + 1 for bootstrap URL + 1 for Admin API server
-            int expectedNumRoutes = this.config.getKafka().getReplicas() + NUM_NON_BROKER_ROUTES;
+            int expectedNumRoutes = replicas + NUM_NON_BROKER_ROUTES;
             if (routes.size() >= expectedNumRoutes && routes.stream().noneMatch(r -> "".equals(r.getRouter()))) {
                 status.setRoutes(routes);
             }

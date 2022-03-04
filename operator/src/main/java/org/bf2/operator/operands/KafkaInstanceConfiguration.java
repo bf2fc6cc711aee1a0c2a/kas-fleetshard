@@ -80,12 +80,12 @@ public class KafkaInstanceConfiguration {
         protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
         @JsonProperty("max-connections")
         protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
+        @JsonProperty("partition-capacity")
+        protected int partitionCapacity;
         @JsonProperty("ingress-per-sec")
         protected String ingressPerSec = DEFAULT_INGRESS_PER_SEC;
         @JsonProperty("egress-per-sec")
         protected String egressPerSec = DEFAULT_EGRESS_PER_SEC;
-        @JsonProperty("replicas")
-        protected int replicas = KAFKA_BROKERS;
         @JsonProperty("storage-class")
         protected String storageClass = KAFKA_STORAGE_CLASS;
         @JsonProperty("container-memory")
@@ -112,14 +112,6 @@ public class KafkaInstanceConfiguration {
         protected long maximumSessionLifetimeDefault;
         @JsonProperty("message-max-bytes")
         protected int messageMaxBytes = MESSAGE_MAX_BYTES;
-
-        public int getReplicas() {
-            return replicas;
-        }
-
-        public void setReplicas(int replicas) {
-            this.replicas = replicas;
-        }
 
         public String getStorageClass() {
             return storageClass;
@@ -260,6 +252,14 @@ public class KafkaInstanceConfiguration {
 
         public void setMessageMaxBytes(int maxMessageBytes) {
             this.messageMaxBytes = maxMessageBytes;
+        }
+
+        public int getPartitionCapacity() {
+            return partitionCapacity;
+        }
+
+        public void setPartitionCapacity(int partitionCapacity) {
+            this.partitionCapacity = partitionCapacity;
         }
     }
 

@@ -298,7 +298,13 @@ public class ManagedKafkaProvisioner {
             throw new IllegalStateException(String
                     .format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
-        applyProfile(profile);
+
+        int replicas = 3;
+        if (managedKafkaCapacity.getMaxPartitions() != null) {
+            replicas = (int) (3 * Math.ceil(managedKafkaCapacity.getMaxPartitions() / (double)profile.getKafka().getPartitionCapacity()));
+        }
+
+        applyProfile(profile, replicas);
 
         String namespace = Constants.KAFKA_NAMESPACE;
 
@@ -395,7 +401,7 @@ public class ManagedKafkaProvisioner {
         removeTaintsOnNodes();
     }
 
-    void applyProfile(KafkaInstanceConfiguration profile) throws IOException {
+    void applyProfile(KafkaInstanceConfiguration profile, int replicas) throws IOException {
         if (!this.clusters.isEmpty()) {
             // until install applies the profile, we can only do one deployment at a time
             throw new IllegalStateException("the provisioner cannot currently manage multiple clusters");
@@ -407,7 +413,7 @@ public class ManagedKafkaProvisioner {
         List<Node> workers = cluster.getWorkerNodes();
 
         // divide the nodes by their zones, then sort them by their cpu availability then mark however brokers needed for the taint
-        validateClusterForBrokers(profile.getKafka().getReplicas(), profile.getKafka().isColocateWithZookeeper(),
+        validateClusterForBrokers(replicas, profile.getKafka().isColocateWithZookeeper(),
                 workers.stream());
 
         // convert the profile into simple configmap values

@@ -164,9 +164,6 @@ public class IngressControllerManagerTest {
 
         long ingress = 50000000;
         assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
-        for (int i = 0; i < 60; i++) {
-            System.out.println(i + " " + ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*i), new LongSummaryStatistics(1, 0, ingress*2, ingress*i*2), 0));
-        }
         assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
     }
 

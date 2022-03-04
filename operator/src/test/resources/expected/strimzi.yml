@@ -1,7 +1,8 @@
 ---
 kind: "Kafka"
 metadata:
-  annotations: {}
+  annotations:
+    org.bf2.operator/desired-broker-replicas: "3"
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"

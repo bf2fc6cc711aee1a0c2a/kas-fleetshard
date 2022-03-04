@@ -92,6 +92,9 @@ public class Canary extends AbstractCanary {
     @Inject
     protected OperandOverrideManager overrideManager;
 
+    @Inject
+    protected AbstractKafkaCluster kafkaCluster;
+
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
@@ -283,7 +286,7 @@ public class Canary extends AbstractCanary {
         String bootstrap = getBootstrapURL(managedKafka);
         envVars.add(new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(bootstrap).build());
         envVars.add(new EnvVarBuilder().withName("RECONCILE_INTERVAL_MS").withValue("5000").build());
-        envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(this.config.getKafka().getReplicas())).build());
+        envVars.add(new EnvVarBuilder().withName("EXPECTED_CLUSTER_SIZE").withValue(String.valueOf(kafkaCluster.getReplicas(managedKafka))).build());
         String kafkaVersion = managedKafka.getSpec().getVersions().getKafka();
         // takes the current Kafka version if the canary already exists. During Kafka upgrades it doesn't have to change, as any other clients.
         if (current != null) {
