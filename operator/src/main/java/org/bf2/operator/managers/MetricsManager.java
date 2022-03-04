@@ -30,7 +30,13 @@ public class MetricsManager {
     static final String KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT = "kafka_instance_max_message_size_limit";
     static final String KAFKA_INSTANCE_CONNECTION_LIMIT = "kafka_instance_connection_limit";
     static final String KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT = "kafka_instance_connection_creation_rate_limit";
-    static final Tag OWNER = Tag.of("owner", "KafkaInstanceMetricsManager");
+
+    static final String TAG_LABEL_OWNER = "owner";
+    static final String TAG_LABEL_BROKER_ID = "broker_id";
+    static final String TAG_LABEL_NAMESPACE = "namespace";
+    static final String TAG_LABEL_INSTANCE_NAME = "instance_name";
+
+    static final Tag OWNER = Tag.of(TAG_LABEL_OWNER, "KafkaInstanceMetricsManager");
 
     @Inject
     ResourceInformerFactory resourceInformerFactory;
@@ -72,7 +78,7 @@ public class MetricsManager {
 
                 if (kafka.getSpec() != null && kafka.getSpec().getKafka() != null) {
                     IntStream.range(0, kafka.getSpec().getKafka().getReplicas()).forEach(ordinal -> {
-                        Tags brokerTags = Tags.concat(tags, Tags.of(Tag.of("broker", String.valueOf(ordinal))));
+                        Tags brokerTags = Tags.concat(tags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, String.valueOf(ordinal))));
 
                         if (kafka.getSpec().getKafka().getListeners() != null) {
                             kafka.getSpec().getKafka().getListeners().stream().filter(l -> "external".equals(l.getName())).forEach(l -> {
@@ -87,7 +93,7 @@ public class MetricsManager {
 
             private Tags buildKafkaInstanceTags(Kafka obj) {
                 ObjectMeta metadata = obj.getMetadata();
-                return Tags.of(Tag.of("namespace", metadata.getNamespace()), Tag.of("name", metadata.getName()), OWNER);
+                return Tags.of(Tag.of(TAG_LABEL_NAMESPACE, metadata.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, metadata.getName()), OWNER);
             }
 
             private Double replicas(Kafka k) {

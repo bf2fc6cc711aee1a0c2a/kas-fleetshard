@@ -36,6 +36,9 @@ import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_PARTITION_LIMIT;
+import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_BROKER_ID;
+import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_INSTANCE_NAME;
+import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_NAMESPACE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -95,7 +98,7 @@ public class MetricsManagerTest {
 
         assertEquals(expectedNumberOfMeters, Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), "unexpected number of meters overall");
 
-        Tags namespaceNameTags = Tags.of(Tag.of("namespace", client.getNamespace()), Tag.of("name", kafka.getMetadata().getName()));
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, client.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
         Collection<Meter> metersByNamespaceName = Search.in(meterRegistry).tags(namespaceNameTags).meters();
         assertEquals(Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), metersByNamespaceName.size(), "unexpected number of meters registered for this namespace/name");
 
@@ -132,8 +135,8 @@ public class MetricsManagerTest {
         kafkaClient.createOrReplace(kafka);
         awaitMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
-        Tags namespaceNameTags = Tags.of(Tag.of("namespace", client.getNamespace()), Tag.of("name", kafka.getMetadata().getName()));
-        Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of("broker", "0")));
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, client.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
+        Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, "0")));
         Tags brokerListenerTags = Tags.concat(brokerTags, Tags.of(Tag.of("listener", "external")));
 
         int expectedNumberOfBrokerMeters = 2;
@@ -173,8 +176,8 @@ public class MetricsManagerTest {
                 .endSpec()
                 .build();
 
-        Tags kafka1tags = Tags.of(Tag.of("namespace", kafka1.getMetadata().getNamespace()), Tag.of("name", kafka1.getMetadata().getName()));
-        Tags kafka2tags = Tags.of(Tag.of("namespace", kafka2.getMetadata().getNamespace()), Tag.of("name", kafka2.getMetadata().getName()));
+        Tags kafka1tags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, kafka1.getMetadata().getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka1.getMetadata().getName()));
+        Tags kafka2tags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, kafka2.getMetadata().getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka2.getMetadata().getName()));
 
         int metersPerKafka = 3;
         kafkaClient.createOrReplace(kafka1);
