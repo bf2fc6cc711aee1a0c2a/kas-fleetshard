@@ -18,14 +18,16 @@ import org.bf2.operator.operands.KafkaCluster;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.Locale;
 import java.util.stream.IntStream;
 
 import static org.bf2.operator.managers.InformerManager.filter;
+import static org.bf2.operator.operands.AbstractKafkaCluster.EXTERNAL_LISTENER_NAME;
 
 @Startup
 @ApplicationScoped
 public class MetricsManager {
-    static final String KAFKA_INSTANCE_BROKERS_DESIRED_COUNT = "kafka_instance_brokers_desired_count";
+    static final String KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT = "kafka_instance_spec_brokers_desired_count";
     static final String KAFKA_INSTANCE_PARTITION_LIMIT = "kafka_instance_partition_limit";
     static final String KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT = "kafka_instance_max_message_size_limit";
     static final String KAFKA_INSTANCE_CONNECTION_LIMIT = "kafka_instance_connection_limit";
@@ -37,6 +39,7 @@ public class MetricsManager {
     static final String TAG_LABEL_INSTANCE_NAME = "instance_name";
 
     static final Tag OWNER = Tag.of(TAG_LABEL_OWNER, "KafkaInstanceMetricsManager");
+    static final String TAG_LABEL_LISTENER = "listener";
 
     @Inject
     ResourceInformerFactory resourceInformerFactory;
@@ -72,7 +75,7 @@ public class MetricsManager {
 
             private void createMetrics(Kafka kafka) {
                 Tags tags = buildKafkaInstanceTags(kafka);
-                meterRegistry.gauge(KAFKA_INSTANCE_BROKERS_DESIRED_COUNT, tags, kafka, this::replicas);
+                meterRegistry.gauge(KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT, tags, kafka, this::replicas);
                 meterRegistry.gauge(KAFKA_INSTANCE_PARTITION_LIMIT, tags, kafka, k -> kafkaConfigValue(k, KafkaCluster.MAX_PARTITIONS));
                 meterRegistry.gauge(KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT, tags, kafka, k -> kafkaConfigValue(k, KafkaCluster.MESSAGE_MAX_BYTES));
 
@@ -81,8 +84,9 @@ public class MetricsManager {
                         Tags brokerTags = Tags.concat(tags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, String.valueOf(ordinal))));
 
                         if (kafka.getSpec().getKafka().getListeners() != null) {
-                            kafka.getSpec().getKafka().getListeners().stream().filter(l -> "external".equals(l.getName())).forEach(l -> {
-                                Tags listenerTags = Tags.concat(brokerTags, Tags.of(Tag.of("listener", l.getName())));
+                            kafka.getSpec().getKafka().getListeners().stream().filter(l -> EXTERNAL_LISTENER_NAME.equals(l.getName())).forEach(l -> {
+                                String listenerName = String.format("%s-%d", l.getName().toUpperCase(Locale.ROOT), l.getPort()); // Note - kafka itself capitalises the listener name.
+                                Tags listenerTags = Tags.concat(brokerTags, Tags.of(Tag.of(TAG_LABEL_LISTENER, listenerName)));
                                 meterRegistry.gauge(KAFKA_INSTANCE_CONNECTION_LIMIT, listenerTags, l, this::maxConnections);
                                 meterRegistry.gauge(KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT, listenerTags, l, this::maxConnectionCreationRate);
                             });

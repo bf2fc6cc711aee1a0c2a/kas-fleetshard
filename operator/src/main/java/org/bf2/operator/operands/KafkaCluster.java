@@ -573,7 +573,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
-        config.put(MESSAGE_MAX_BYTES, 1048588); // Kafka's default
 
         ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
         var maximumSessionLifetime = oauth != null ? oauth.getMaximumSessionLifetime() : null;
@@ -592,7 +591,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
-        config.put("message.max.bytes", this.config.getKafka().getMessageMaxBytes());
+        config.put(MESSAGE_MAX_BYTES, this.config.getKafka().getMessageMaxBytes());
 
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {

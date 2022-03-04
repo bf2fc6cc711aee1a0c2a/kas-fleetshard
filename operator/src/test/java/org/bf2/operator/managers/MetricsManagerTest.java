@@ -31,14 +31,16 @@ import java.util.List;
 import java.util.Map;
 
 import static org.awaitility.Awaitility.await;
-import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_BROKERS_DESIRED_COUNT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_PARTITION_LIMIT;
+import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT;
 import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_BROKER_ID;
 import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_INSTANCE_NAME;
+import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_LISTENER;
 import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_NAMESPACE;
+import static org.bf2.operator.operands.AbstractKafkaCluster.EXTERNAL_LISTENER_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -102,7 +104,7 @@ public class MetricsManagerTest {
         Collection<Meter> metersByNamespaceName = Search.in(meterRegistry).tags(namespaceNameTags).meters();
         assertEquals(Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), metersByNamespaceName.size(), "unexpected number of meters registered for this namespace/name");
 
-        assertMeter(expectedReplicas, namespaceNameTags, KAFKA_INSTANCE_BROKERS_DESIRED_COUNT);
+        assertMeter(expectedReplicas, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
         assertMeter(expectedPartitionLimit, namespaceNameTags, KAFKA_INSTANCE_PARTITION_LIMIT);
         assertMeter(expectedMaxMessageSizeLimit, namespaceNameTags, KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT);
     }
@@ -121,7 +123,8 @@ public class MetricsManagerTest {
                 .withNewKafka()
                 .withReplicas(expectedReplicas)
                 .withListeners(new GenericKafkaListenerBuilder()
-                        .withName("external")
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(8080)
                         .withNewConfiguration()
                         .withMaxConnections(expectedConnections)
                         .withMaxConnectionCreationRate(expectedConnectionCreationLimit)
@@ -137,7 +140,7 @@ public class MetricsManagerTest {
 
         Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, client.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
         Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, "0")));
-        Tags brokerListenerTags = Tags.concat(brokerTags, Tags.of(Tag.of("listener", "external")));
+        Tags brokerListenerTags = Tags.concat(brokerTags, Tags.of(Tag.of(TAG_LABEL_LISTENER, "EXTERNAL-8080")));
 
         int expectedNumberOfBrokerMeters = 2;
         assertEquals(expectedNumberOfBrokerMeters, Search.in(meterRegistry).tags(brokerTags).meters().size(), "unexpected number of broker meters overall");
