@@ -50,6 +50,8 @@ import java.util.function.Predicate;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
+    public static final String EXTERNAL_LISTENER_NAME = "external";
+
     @Inject
     Logger log;
 
@@ -289,7 +291,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         return Arrays.asList(
                         new GenericKafkaListenerBuilder()
-                                .withName("external")
+                                .withName(EXTERNAL_LISTENER_NAME)
                                 .withPort(9094)
                                 .withType(externalListenerType)
                                 .withTls(true)

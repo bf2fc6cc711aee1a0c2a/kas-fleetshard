@@ -102,6 +102,10 @@ import java.util.stream.Collectors;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
+    private static final String QUOTA_FETCH = "client.quota.callback.static.fetch";
+
+    private static final String QUOTA_PRODUCE = "client.quota.callback.static.produce";
+
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
     private static final boolean DELETE_CLAIM = true;
@@ -336,7 +340,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Rack buildKafkaRack(ManagedKafka managedKafka) {
         return new RackBuilder()
-                .withNewTopologyKey("topology.kubernetes.io/zone")
+                .withTopologyKey("topology.kubernetes.io/zone")
                 .build();
     }
 
@@ -567,13 +571,21 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return config;
     }
 
+    public static String getProduceQuota(Kafka kafka) {
+        return (String)kafka.getSpec().getKafka().getConfig().get(QUOTA_PRODUCE);
+    }
+
+    public static String getFetchQuota(Kafka kafka) {
+        return (String)kafka.getSpec().getKafka().getConfig().get(QUOTA_FETCH);
+    }
+
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
 
         config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
-        config.put("client.quota.callback.static.produce", String.valueOf(getIngressBytes(managedKafka)));
-        config.put("client.quota.callback.static.fetch", String.valueOf(getEgressBytes(managedKafka)));
+        config.put(QUOTA_PRODUCE, String.valueOf(getIngressBytes(managedKafka)));
+        config.put(QUOTA_FETCH, String.valueOf(getEgressBytes(managedKafka)));
 
         // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
