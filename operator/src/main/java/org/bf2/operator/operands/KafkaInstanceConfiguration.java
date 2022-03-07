@@ -282,6 +282,8 @@ public class KafkaInstanceConfiguration {
         protected String logging = null;
         @JsonUnwrapped(prefix = "logging.suppression-window.")
         protected LoggingSuppressionWindow loggingSuppressionWindow = new LoggingSuppressionWindow();
+        @JsonProperty("private-prefix")
+        protected String privatePrefix = null;
 
         public static class LoggingSuppressionWindow {
 
@@ -389,6 +391,14 @@ public class KafkaInstanceConfiguration {
 
         public void setLoggingSuppressionWindow(LoggingSuppressionWindow loggingSuppressionWindow) {
             this.loggingSuppressionWindow = loggingSuppressionWindow;
+        }
+
+        public String getPrivatePrefix() {
+            return privatePrefix;
+        }
+
+        public void setPrivatePrefix(String privatePrefix) {
+            this.privatePrefix = privatePrefix;
         }
     }
 
