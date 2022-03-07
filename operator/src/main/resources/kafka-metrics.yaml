@@ -253,6 +253,17 @@ data:
       - pattern: kafka.server<type=Fetch, quota.type=FETCH><>throttle-time
         name: kafka_server_fetch_throttle_time
         type: GAUGE
-      - pattern : io.strimzi.kafka.quotas<type=(.+), name=(.+)><>Value
-        name: kafka_broker_quota_$2
+      - pattern: kafka.server<type=Request, quota.type=REQUEST><>request-rate
+        name: kafka_server_request_request_rate
+        type: GAUGE
+      - pattern: kafka.server<type=Request, quota.type=REQUEST><>throttle-time
+        name: kafka_server_request_throttle_time
+        type: GAUGE
+      - pattern : io.strimzi.kafka.quotas<type=StorageChecker, name=(.+)><>Value
+        name: kafka_broker_quota_$1
+        type: GAUGE
+      - pattern : io.strimzi.kafka.quotas<type=StaticQuotaCallback, name=(.+)><>Value
+        name: kafka_broker_client_quota_limit
+        labels:
+          quota_type: "$1"
         type: GAUGE
