@@ -26,11 +26,6 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
             WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
             ResourceEventHandler<? super T> eventHandler) {
         ResourceInformer<T> mock = Mockito.mock(ResourceInformer.class);
-
-        if (eventHandler != null) {
-            watchListDeletable.inform((ResourceEventHandler) eventHandler);
-        }
-
         Mockito.when(mock.getList()).then(new Answer<List<T>>() {
 
             @Override
