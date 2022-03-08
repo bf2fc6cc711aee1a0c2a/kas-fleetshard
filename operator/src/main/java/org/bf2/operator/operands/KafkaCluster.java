@@ -256,6 +256,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     public int getBrokerReplicas(ManagedKafka managedKafka, Kafka current) {
+        if (current != null) {
+            return current.getSpec().getKafka().getReplicas();
+        }
         Integer maxPartitions = managedKafka.getSpec().getCapacity().getMaxPartitions();
         int scalingAndReplicationFactor = 3;
         int desiredReplicas = scalingAndReplicationFactor;
@@ -266,10 +269,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
             desiredReplicas = (int) (Math.ceil(desiredReplicas / (double)scalingAndReplicationFactor) * scalingAndReplicationFactor);
         }
 
-        if (current != null) {
-            int existingReplicas = current.getSpec().getKafka().getReplicas();
-            desiredReplicas = existingReplicas;
-        }
         return desiredReplicas;
     }
 
