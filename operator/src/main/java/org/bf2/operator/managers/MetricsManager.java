@@ -1,27 +1,23 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.search.Search;
 import io.quarkus.runtime.Startup;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
-import org.bf2.common.ResourceInformer;
-import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.KafkaCluster;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Locale;
 import java.util.stream.IntStream;
 
-import static org.bf2.operator.managers.InformerManager.filter;
 import static org.bf2.operator.operands.AbstractKafkaCluster.EXTERNAL_LISTENER_NAME;
 
 @Startup
@@ -42,21 +38,14 @@ public class MetricsManager {
     static final String TAG_LABEL_LISTENER = "listener";
 
     @Inject
-    ResourceInformerFactory resourceInformerFactory;
+    InformerManager informerManager;
 
     @Inject
     MeterRegistry meterRegistry;
 
-    @Inject
-    KubernetesClient kubernetesClient;
-
-    private volatile ResourceInformer<Kafka> kafkaResourceInformer;
-
-    protected synchronized void createInformer() {
-        if (kafkaResourceInformer != null) {
-            return;
-        }
-        kafkaResourceInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.resources(Kafka.class, KafkaList.class)), new ResourceEventHandler<>() {
+    @PostConstruct
+    public void postConstruct() {
+        informerManager.registerKafkaInformerHandler(new ResourceEventHandler<>() {
             @Override
             public void onAdd(Kafka kafka) {
                 createMetrics(kafka);

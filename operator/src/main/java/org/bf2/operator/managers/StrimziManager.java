@@ -64,9 +64,6 @@ public class StrimziManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    @Inject
-    MetricsManager metricsManager;
-
     private Map<String, StrimziVersionStatus> strimziVersions = new ConcurrentHashMap<>();
     private volatile ConcurrentHashMap<String, StrimziVersionStatus> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
 
@@ -125,7 +122,6 @@ public class StrimziManager {
         // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
         if (!versions.isEmpty()) {
             informerManager.createKafkaInformer();
-            metricsManager.createInformer();
         }
 
         ManagedKafkaAgent resource = agentClient.getByName(agentClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME);

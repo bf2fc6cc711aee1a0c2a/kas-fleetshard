@@ -1,28 +1,28 @@
 package org.bf2.operator.managers;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.search.Search;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.KafkaCluster;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 
-import javax.enterprise.context.Dependent;
 import javax.inject.Inject;
 
 import java.time.Duration;
@@ -43,35 +43,34 @@ import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_NAMESPACE;
 import static org.bf2.operator.operands.AbstractKafkaCluster.EXTERNAL_LISTENER_NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.doAnswer;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class MetricsManagerTest {
-    @Inject
-    KubernetesClient client;
+    private static final String NAMESPACE = "namespace";
+    private static ResourceEventHandler<Kafka> resourceEventHandler;
 
     @Inject
-    @Dependent
     MetricsManager metricsManager;
 
     @Inject
     MeterRegistry meterRegistry;
 
-    private MixedOperation<Kafka, KafkaList, Resource<Kafka>> kafkaClient;
-
-    @BeforeEach
-    public void setup() {
-        meterRegistry.clear();
-        kafkaClient = client.resources(Kafka.class, KafkaList.class);
-        kafkaClient.inAnyNamespace().delete();
-        kafkaClient.list().getItems().forEach(kafkaClient::delete);
-        metricsManager.createInformer();
+    @BeforeAll
+    @SuppressWarnings("unchecked")
+    public static void beforeAll() {
+        InformerManager mock = Mockito.mock(InformerManager.class);
+        ArgumentCaptor<ResourceEventHandler<Kafka>> handler = ArgumentCaptor.forClass(ResourceEventHandler.class);
+        doAnswer(invocationOnMock -> resourceEventHandler = handler.getValue()).when(mock).registerKafkaInformerHandler(handler.capture());
+        QuarkusMock.installMockForType(mock, InformerManager.class);
     }
 
+    @BeforeEach
     @AfterEach
-    public void teardown() {
+    public void clean() {
+        metricsManager.toString(); // Required to prevent Quarkus deeming bean as unused and removing it.
         meterRegistry.clear();
-        kafkaClient.inAnyNamespace().delete();
     }
 
     @Test
@@ -81,7 +80,7 @@ public class MetricsManagerTest {
         int expectedMaxMessageSizeLimit = 2048;
         Kafka kafka = new KafkaBuilder()
                 .withNewMetadata()
-                .withNamespace(client.getNamespace())
+                .withNamespace(NAMESPACE)
                 .withName(info.getTestMethod().get().getName())
                 .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
@@ -95,12 +94,12 @@ public class MetricsManagerTest {
                 .build();
 
         int expectedNumberOfMeters = 3;
-        kafkaClient.createOrReplace(kafka);
+        resourceEventHandler.onAdd(kafka);
         awaitMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
         assertEquals(expectedNumberOfMeters, Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), "unexpected number of meters overall");
 
-        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, client.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, NAMESPACE), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
         Collection<Meter> metersByNamespaceName = Search.in(meterRegistry).tags(namespaceNameTags).meters();
         assertEquals(Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), metersByNamespaceName.size(), "unexpected number of meters registered for this namespace/name");
 
@@ -108,6 +107,7 @@ public class MetricsManagerTest {
         assertMeter(expectedPartitionLimit, namespaceNameTags, KAFKA_INSTANCE_PARTITION_LIMIT);
         assertMeter(expectedMaxMessageSizeLimit, namespaceNameTags, KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT);
     }
+
     @Test
     public void brokerMetrics(TestInfo info) throws Exception {
         int expectedReplicas = 1;
@@ -115,7 +115,7 @@ public class MetricsManagerTest {
         int expectedConnectionCreationLimit = 100;
         Kafka kafka = new KafkaBuilder()
                 .withNewMetadata()
-                .withNamespace(client.getNamespace())
+                .withNamespace(NAMESPACE)
                 .withName(info.getTestMethod().get().getName())
                 .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
@@ -135,10 +135,10 @@ public class MetricsManagerTest {
                 .build();
 
         int expectedNumberOfMeters = 5;
-        kafkaClient.createOrReplace(kafka);
+        resourceEventHandler.onAdd(kafka);
         awaitMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
-        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, client.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, NAMESPACE), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
         Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, "0")));
         Tags brokerListenerTags = Tags.concat(brokerTags, Tags.of(Tag.of(TAG_LABEL_LISTENER, "EXTERNAL-8080")));
 
@@ -156,7 +156,7 @@ public class MetricsManagerTest {
     public void deletingKafkaInstanceDeletesMetersToo(TestInfo info) throws Exception {
         Kafka kafka1 = new KafkaBuilder()
                 .withNewMetadata()
-                .withNamespace(client.getNamespace())
+                .withNamespace(NAMESPACE)
                 .withName(info.getTestMethod().get().getName() + "1")
                 .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
@@ -168,7 +168,7 @@ public class MetricsManagerTest {
                 .build();
         Kafka kafka2 = new KafkaBuilder()
                 .withNewMetadata()
-                .withNamespace(client.getNamespace())
+                .withNamespace(NAMESPACE)
                 .withName(info.getTestMethod().get().getName() + "2")
                 .withLabels(OperandUtils.getDefaultLabels())
                 .endMetadata()
@@ -183,12 +183,12 @@ public class MetricsManagerTest {
         Tags kafka2tags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, kafka2.getMetadata().getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka2.getMetadata().getName()));
 
         int metersPerKafka = 3;
-        kafkaClient.createOrReplace(kafka1);
-        kafkaClient.createOrReplace(kafka2);
+        resourceEventHandler.onAdd(kafka1);
+        resourceEventHandler.onAdd(kafka2);
         awaitMetersMatchingTags(kafka1tags, metersPerKafka, "unexpected number of meters for kafka 1");
         awaitMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
 
-        kafkaClient.delete(kafka1);
+        resourceEventHandler.onDelete(kafka1, false);
 
         awaitMetersMatchingTags(kafka1tags, 0, "unexpected number of meters for kafka 1 after its deletion");
         awaitMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
