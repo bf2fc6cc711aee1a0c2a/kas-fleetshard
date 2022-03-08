@@ -138,7 +138,6 @@ class KafkaClusterTest {
             KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
 
             clone.getKafka().setConnectionAttemptsPerSec(300);
-            clone.getKafka().setReplicas(4);
             clone.getKafka().setContainerMemory("2Gi");
             clone.getKafka().setJvmXx("foo bar, foo2 bar2");
 
@@ -153,6 +152,7 @@ class KafkaClusterTest {
             kafkaCluster.setKafkaConfiguration(clone);
 
             ManagedKafka mk = exampleManagedKafka("60Gi");
+            mk.getSpec().getCapacity().setMaxPartitions(2*clone.getKafka().getPartitionCapacity());
 
             Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
@@ -168,7 +168,6 @@ class KafkaClusterTest {
         ObjectMapper objectMapper = new ObjectMapper();
         KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
         clone.getKafka().setConnectionAttemptsPerSec(300);
-        clone.getKafka().setReplicas(4);
         clone.getKafka().setContainerMemory("2Gi");
         clone.getKafka().setJvmXx("foo bar, foo2 bar2");
 
@@ -177,7 +176,6 @@ class KafkaClusterTest {
         clone.getZookeeper().setJvmXx("zkfoo zkbar, zkfoo2 zkbar2");
 
         Map<String, String> propertyMap = clone.toMap(false);
-        assertEquals("4", propertyMap.get("managedkafka.kafka.replicas"));
         assertEquals("2Gi", propertyMap.get("managedkafka.kafka.container-memory"));
         assertEquals("foo bar, foo2 bar2", propertyMap.get("managedkafka.kafka.jvm-xx"));
 
@@ -253,7 +251,7 @@ class KafkaClusterTest {
         long bytes = getBrokerStorageBytes(kafka);
         assertEquals(25095918893L, bytes);
 
-        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, 25095918893L)*3);
+        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, null, 25095918893L)*3);
     }
 
     private long getBrokerStorageBytes(Kafka kafka) {

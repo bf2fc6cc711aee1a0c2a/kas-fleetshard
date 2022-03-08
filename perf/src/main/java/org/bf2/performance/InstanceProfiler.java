@@ -589,10 +589,12 @@ public class InstanceProfiler {
                     additionalPodMemory.stream().collect(Collectors.summingLong(Long::valueOf)),
                     additionalPodCpu.stream().collect(Collectors.summingLong(Long::valueOf)));
 
-            // actual needs ~ 800Mi and 1575m cpu over 3 nodes, but worst case is over two. amountNeeded will
+            // actual needs ~ 800Mi and 1075m/1575m cpu over 3 nodes, but worst case is over two. amountNeeded will
             // estimate that in a more targeted way - but still simplified
             memoryBytes = resources.memoryBytes - density*(zookeeperBytes + amountNeeded(additionalPodMemory));
             cpuMillis = resources.cpuMillis - density*(zookeeperCpu + amountNeeded(additionalPodCpu));
+
+            // TODO account for possible ingress replica collocation
         }
 
         // reserve additional memory to help lessen the fluctuation of resources across openshift versions
@@ -631,7 +633,6 @@ public class InstanceProfiler {
         KafkaInstanceConfiguration toUse = new KafkaInstanceConfiguration();
         toUse.getKafka().setEnableQuota(false);
         AdopterProfile.openListenersAndAccess(toUse);
-        toUse.getKafka().setReplicas(numberOfBrokers);
         toUse.getKafka().setContainerCpu(cpuMillis+"m");
         toUse.getKafka().setJvmXms(String.valueOf(maxVmBytes));
         toUse.getKafka().setContainerMemory(String.valueOf(memoryBytes));
@@ -651,6 +652,7 @@ public class InstanceProfiler {
         // once we make the determination, create the instance
         profilingResult.capacity = kafkaProvisioner.defaultCapacity(40_000_000); // not used as quota is turned off
         profilingResult.capacity.setMaxDataRetentionSize(Quantity.parse((GIGS * numberOfBrokers/3) + "Gi"));
+        profilingResult.capacity.setMaxPartitions(defaults.getKafka().getPartitionCapacity()*numberOfBrokers/3);
 
         Kafka kafka = profilingResult.config.getKafka();
         LOGGER.info("Running with kafka sizing {} container memory, {} container cpu, and {} vm memory", kafka.getContainerMemory(), kafka.getContainerCpu(), kafka.getJvmXms());
@@ -666,6 +668,9 @@ public class InstanceProfiler {
 
     /**
      * Computes the amount needed assuming that the values will be spread across two nodes
+     * TODO: this is not pathologically correct, nor minimal in our small cases (we're dealing with
+     * only three items currently) - which results in an overestimate, but has been left in to account for
+     * the cpu limit of exporter.
      * @param additionalPodCpu
      */
     private long amountNeeded(List<Long> resources) {

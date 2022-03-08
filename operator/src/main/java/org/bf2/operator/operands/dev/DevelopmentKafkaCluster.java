@@ -60,6 +60,8 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
+        int replicas = getReplicas(managedKafka);
+
         Kafka kafka = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
@@ -69,8 +71,8 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(managedKafka.getSpec().getVersions().getKafka())
-                        .withReplicas(this.config.getKafka().getReplicas())
-                        .withListeners(buildListeners(managedKafka))
+                        .withReplicas(replicas)
+                        .withListeners(buildListeners(managedKafka, replicas))
                         .withStorage(buildStorage())
                         .withConfig(buildKafkaConfig(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
@@ -127,5 +129,10 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                     .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                 .endPod()
             .build();
+    }
+
+    @Override
+    public int getReplicas(ManagedKafka managedKafka) {
+        return 3;
     }
 }

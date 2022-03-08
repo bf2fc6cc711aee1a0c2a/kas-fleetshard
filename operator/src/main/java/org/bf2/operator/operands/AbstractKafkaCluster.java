@@ -230,7 +230,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         kafkaResourceClient.createOrUpdate(kafka);
     }
 
-    protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka) {
+    protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka, int replicas) {
 
         KafkaListenerAuthentication plainOverOauthAuthenticationListener = null;
         KafkaListenerAuthentication oauthAuthenticationListener = null;
@@ -274,9 +274,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections()) / this.config.getKafka().getReplicas();
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections()) / replicas;
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec()) / this.config.getKafka().getReplicas();
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec()) / replicas;
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
@@ -284,7 +284,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                         .withAnnotations(Map.of("haproxy.router.openshift.io/balance", "leastconn"))
                         .build()
                 )
-                .withBrokers(buildBrokerOverrides(managedKafka))
+                .withBrokers(buildBrokerOverrides(managedKafka, replicas))
                 .withBrokerCertChainAndKey(buildTlsCertAndKeySecretSource(managedKafka))
                 .withMaxConnections(totalMaxConnections)
                 .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
@@ -318,9 +318,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 );
     }
 
-    protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka) {
-        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(this.config.getKafka().getReplicas());
-        for (int i = 0; i < this.config.getKafka().getReplicas(); i++) {
+    protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka, int replicas) {
+        List<GenericKafkaListenerConfigurationBroker> brokerOverrides = new ArrayList<>(replicas);
+        for (int i = 0; i < replicas; i++) {
             brokerOverrides.add(
                     new GenericKafkaListenerConfigurationBrokerBuilder()
                             .withHost(String.format("broker-%d-%s", i, managedKafka.getSpec().getEndpoint().getBootstrapServerHost()))
@@ -396,5 +396,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     public Quantity calculateRetentionSize(ManagedKafka managedKafka) {
         return managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
     }
+
+    public abstract int getReplicas(ManagedKafka managedKafka);
 
 }
