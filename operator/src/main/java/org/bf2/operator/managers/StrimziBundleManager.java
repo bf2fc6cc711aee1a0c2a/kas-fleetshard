@@ -41,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Startup
@@ -84,12 +83,10 @@ public class StrimziBundleManager {
 
     ResourceInformer<Subscription> subscriptionInformer;
 
-    private volatile long lastPendingInstallationCheck;
+    private volatile long lastPendingInstationCheck;
 
     @ConfigProperty(name = "strimzi.bundle.approval-delay")
-    Duration approvalDelay;
-
-    private Function<Long, Boolean> approvalDelayAssessor = this::isApprovalDelayed;
+    private Duration approvalDelay;
 
     @PostConstruct
     protected void onStart() {
@@ -118,7 +115,7 @@ public class StrimziBundleManager {
                         });
     }
 
-    @Scheduled(every = "{strimzi.bundle.interval}", delayed = "{strimzi.bundle.delay}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Scheduled(every = "{strimzi.bundle.interval}", delay = 1, concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void handleSubscriptionLoop() {
         log.debugf("Strimzi bundle Subscription periodic check");
         Subscription subscription =
@@ -128,7 +125,7 @@ public class StrimziBundleManager {
         }
     }
 
-    private synchronized void handleSubscription(Subscription subscription) {
+    /* test */ public synchronized void handleSubscription(Subscription subscription) {
         if (!this.isInstallPlanApprovalAsManual(subscription)) {
             log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Skipping approval process.",
                     subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
@@ -138,7 +135,8 @@ public class StrimziBundleManager {
             Optional<SubscriptionCondition> conditionOptional =
                     subscription.getStatus().getConditions()
                             .stream()
-                            .filter(StrimziBundleManager::isSubscriptionConditionInstallPlanPendingRequiresApproval)
+                            .filter(c -> c.getType() != null && "InstallPlanPending".equals(c.getType()) &&
+                                    c.getReason() != null && "RequiresApproval".equals(c.getReason()))
                             .findFirst();
 
             // waiting for approval
@@ -165,7 +163,7 @@ public class StrimziBundleManager {
             } else if (!Objects.equals(subscription.getStatus().getCurrentCSV(), subscription.getStatus().getInstalledCSV())) {
                 // approved, but not yet installed
                 if (this.strimziManager.getStrimziPendingInstallationVersions().isEmpty()) {
-                    List<String> strimziVersions = getStrimziVersionsFromPackageManifest(subscription);
+                    List<String> strimziVersions = getStrimziVersions(subscription);
 
                     if (strimziVersions != null && !strimziVersions.isEmpty()) {
                         this.strimziManager.setStrimziPendingInstallationVersions(strimziVersions);
@@ -181,7 +179,7 @@ public class StrimziBundleManager {
     }
 
     private Approval approveInstallation(Subscription subscription) {
-        List<String> strimziVersions = getStrimziVersionsFromPackageManifest(subscription);
+        List<String> strimziVersions = getStrimziVersions(subscription);
 
         if (strimziVersions == null || strimziVersions.isEmpty()) {
             return Approval.UNKNOWN;
@@ -208,10 +206,10 @@ public class StrimziBundleManager {
                 boolean changed = this.strimziManager.setStrimziPendingInstallationVersions(strimziVersions);
 
                 long currentTimeMillis = System.currentTimeMillis();
-                if (changed || lastPendingInstallationCheck == Long.MAX_VALUE) {
-                    lastPendingInstallationCheck = currentTimeMillis;
+                if (changed || lastPendingInstationCheck == Long.MAX_VALUE) {
+                    lastPendingInstationCheck = currentTimeMillis;
                 }
-                if (approvalDelayAssessor.apply(currentTimeMillis)) {
+                if (currentTimeMillis - lastPendingInstationCheck < approvalDelay.toMillis()) {
                     log.infof("Subscription %s/%s will be approved after a delay", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                     return Approval.WAITING;
                 }
@@ -220,7 +218,7 @@ public class StrimziBundleManager {
                 log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
                 return Approval.APPROVED;
             } else {
-                lastPendingInstallationCheck = Long.MAX_VALUE; // reset the timestamp next time we go through above
+                lastPendingInstationCheck = Long.MAX_VALUE; // reset the timestamp next time we go through above
                 // covered Kafkas should be less, so if this bundle is installed, some Kafkas would be orphaned
                 log.infof("Subscription %s/%s will not be approved. Covered Kafka %d/%d.",
                         subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), coveredKafkas, kafkas.size());
@@ -237,16 +235,10 @@ public class StrimziBundleManager {
         }
     }
 
-    private List<String> getStrimziVersionsFromPackageManifest(Subscription subscription) {
+    private List<String> getStrimziVersions(Subscription subscription) {
         PackageManifest packageManifest = this.packageManifestClient.inNamespace(subscription.getMetadata().getNamespace())
                 .withName(subscription.getSpec().getName())
                 .get();
-
-        if (packageManifest == null) {
-            log.warnf("No PackageManifest found for subscription %s/%s yet.",
-                    subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
-            return Collections.emptyList();
-        }
 
         List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
         return strimziVersions;
@@ -338,21 +330,16 @@ public class StrimziBundleManager {
         }
     }
 
-    static boolean isInstallPlanApprovalAsManual(Subscription subscription) {
+    private boolean isInstallPlanApprovalAsManual(Subscription subscription) {
         return subscription.getSpec() != null && subscription.getSpec().getInstallPlanApproval() != null &&
                 "Manual".equals(subscription.getSpec().getInstallPlanApproval());
     }
 
-    static boolean isSubscriptionConditionInstallPlanPendingRequiresApproval(SubscriptionCondition c) {
-        return c.getType() != null && "InstallPlanPending".equals(c.getType()) &&
-                c.getReason() != null && "RequiresApproval".equals(c.getReason());
+    void setApprovalDelay(Duration approvalDelay) {
+        this.approvalDelay = approvalDelay;
     }
 
-    private boolean isApprovalDelayed(long currentTimeMillis) {
-        return currentTimeMillis - lastPendingInstallationCheck < approvalDelay.toMillis();
-    }
-
-    /* test */ void setApprovalDelayAssessor(Function<Long, Boolean> delayAssessor) {
-        this.approvalDelayAssessor = delayAssessor;
+    Duration getApprovalDelay() {
+        return approvalDelay;
     }
 }

@@ -3,13 +3,8 @@ package org.bf2.operator.managers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ObjectReferenceBuilder;
-import io.fabric8.kubernetes.api.model.OwnerReference;
-import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinitionBuilder;
-import io.fabric8.kubernetes.client.Watch;
-import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.WatcherException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageChannelBuilder;
@@ -22,7 +17,6 @@ import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlan;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.InstallPlanBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionBuilder;
-import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionConditionBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -40,16 +34,9 @@ import javax.inject.Inject;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
-import static org.awaitility.Awaitility.await;
-import static org.awaitility.pollinterval.FixedPollInterval.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -69,46 +56,11 @@ public class StrimziBundleManagerTest {
     @Inject
     StrimziManager strimziManager;
 
-    private MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
-
-    private Watch olmInstallPlanWatch;
+    MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
 
     @BeforeEach
     public void beforeEach() {
         this.packageManifestClient = this.openShiftClient.operatorHub().packageManifests();
-
-        // Mimics OLM in so far as it will remove the pending condition from the subscription when the installplan
-        // on a manually approved, is approved.
-        // approved
-        olmInstallPlanWatch = this.openShiftClient.operatorHub().installPlans().inAnyNamespace().watch(new Watcher<>() {
-            @Override
-            public void eventReceived(Action action, InstallPlan resource) {
-                if (action == Action.MODIFIED && resource.getSpec().getApproved() && "Manual".equals(resource.getSpec().getApproval())) {
-                    OwnerReference ownerReference = resource.getMetadata().getOwnerReferences().get(0);
-                    Subscription subscription = openShiftClient.operatorHub().subscriptions().inNamespace(resource.getMetadata().getNamespace()).withName(ownerReference.getName()).get();
-                    if (subscription != null && StrimziBundleManager.isInstallPlanApprovalAsManual(subscription)) {
-                        List<SubscriptionCondition> c = subscription.getStatus().getConditions().stream()
-                                .filter(Predicate.not(StrimziBundleManager::isSubscriptionConditionInstallPlanPendingRequiresApproval))
-                                .collect(Collectors.toList());
-                        Subscription sub = new SubscriptionBuilder(subscription)
-                                .editOrNewStatus()
-                                .withConditions(c)
-                                .endStatus()
-                                .build();
-                        openShiftClient.operatorHub().subscriptions().inNamespace(subscription.getMetadata().getNamespace()).replaceStatus(sub);
-                    }
-                }
-            }
-
-            @Override
-            public void onClose(WatcherException cause) {
-            }
-        });
-    }
-
-    @AfterEach
-    public void afterEach() {
-        olmInstallPlanWatch.close();
 
         // cleaning OpenShift cluster
         this.openShiftClient.operatorHub().subscriptions().inAnyNamespace().delete();
@@ -118,137 +70,175 @@ public class StrimziBundleManagerTest {
         this.kafkaClient.delete();
     }
 
+    @AfterEach
+    public void afterEach() {
+        strimziManager.clearStrimziPendingInstallationVersions();
+    }
+
     @Test
     public void testFirstInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
     }
 
     @Test
     public void testInstallationWithEmptyStrimzi() {
-        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual");
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual", null);
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to empty Strimzi versions
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
     public void testInstallationWithAutomaticApproval() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Automatic",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved by the bundle manager due to Automatic approval (by OLM)
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
     public void testUpdateInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
 
         this.createKafkaCRDs();
 
         subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as update of Strimzi bundle with Kafka CRDs already existing
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
     }
 
     @Test
-    public void testDelayUpdateInstallation()  {
-        AtomicBoolean delay = new AtomicBoolean(true);
-        this.strimziBundleManager.setApprovalDelayAssessor(l -> delay.get());
-
+    public void testDelayUpdateInstallation() throws InterruptedException {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
-        // check that InstallPlan was approved as first installation with no Kafka CRDs installed
-        this.awaitInstallPlanApproval(subscription, true);
+        Duration existing = this.strimziBundleManager.getApprovalDelay();
+        this.strimziBundleManager.setApprovalDelay(Duration.ofSeconds(1));
+        try {
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved as first installation with no Kafka CRDs installed
+            this.checkInstallPlan(subscription, true);
 
-        this.createKafkaCRDs();
+            this.createKafkaCRDs();
 
-        subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
-                "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+            subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                    "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved not yet approved
+            this.checkInstallPlan(subscription, false);
+            // the strimzi manager is notified that v2/v3 are pending
+            assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getStrimziPendingInstallationVersions());
 
-        // check that InstallPlan was approved not yet approved
-        this.awaitInstallPlanApproval(subscription, false);
+            Thread.sleep(1500);
 
-        // the strimzi manager is notified that v2/v3 are pending
-        awaitPendingInstallationNotification(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"));
-        delay.set(false);
-
-        // check that InstallPlan was approved as update of Strimzi bundle with Kafka CRDs already existing
-        this.awaitInstallPlanApproval(subscription, true);
+            this.strimziBundleManager.handleSubscription(subscription);
+            // check that InstallPlan was approved as update of Strimzi bundle with Kafka CRDs already existing
+            this.checkInstallPlan(subscription, true);
+        } finally {
+            this.strimziBundleManager.setApprovalDelay(existing);
+        }
     }
 
     @Test
     public void testNotApprovedInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
 
         this.createKafkaCRDs();
         this.createOrUpdateKafka("my-kafka-namespace", "my-kafka", "strimzi-cluster-operator.v1");
 
         subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to an orphaned Kafka instance
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
     public void testApprovedInstallationAfterKafkaUpdate() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved as first installation with no Kafka CRDs installed
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
 
         this.createKafkaCRDs();
         this.createOrUpdateKafka("my-kafka-namespace", "my-kafka", "strimzi-cluster-operator.v1");
 
         subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3");
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to an orphaned Kafka instance
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
 
         this.createOrUpdateKafka("my-kafka-namespace", "my-kafka", "strimzi-cluster-operator.v2");
 
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was approved after Kafka updated to a newer Strimzi version and not orphan anymore
-        this.awaitInstallPlanApproval(subscription, true);
+        this.checkInstallPlan(subscription, true);
+
+        // check that the strimzi manager was notified of pending versions
+        assertEquals(Arrays.asList("strimzi-cluster-operator.v2", "strimzi-cluster-operator.v3"), this.strimziManager.getStrimziPendingInstallationVersions());
     }
 
     @Test
     public void testPackageManifestWithoutStatus() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
-                () -> createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", null));
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
+        // overwrite the PackaheManifest with a "bad" one, completely missing the status
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", null);
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
     public void testPackageManifestWithoutChannels() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
-                () -> createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", new PackageManifestStatusBuilder().build()));
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
+        // overwrite the PackaheManifest with a "bad" one, completely missing the channel with the CSV description
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle", new PackageManifestStatusBuilder().build());
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
     public void testPackageManifestWithoutCurrentCSVDesc() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
-                () -> this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
-                        new PackageManifestStatusBuilder()
-                                .withChannels(new PackageChannelBuilder().build())
-                                .build()
-                ));
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
+        // overwrite the PackaheManifest with a "bad" one, completely missing the CSV description
+        PackageManifest packageManifest = this.createPackageManifestWithStatus("kas-strimzi-operator", "kas-strimzi-bundle",
+                new PackageManifestStatusBuilder()
+                        .withChannels(new PackageChannelBuilder().build())
+                        .build()
+        );
+        this.packageManifestClient.inNamespace("kas-strimzi-operator").createOrReplace(packageManifest);
+
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     @Test
@@ -263,8 +253,9 @@ public class StrimziBundleManagerTest {
                                                 .build())
                                 .build()));
 
+        this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved
-        this.awaitInstallPlanApproval(subscription, false);
+        this.checkInstallPlan(subscription, false);
     }
 
     /**
@@ -277,61 +268,35 @@ public class StrimziBundleManagerTest {
      * @param strimziVersions Strimzi versions provided by the bundle
      * @return Subscription created by the installation/update
      */
-    private Subscription installOrUpdateBundle(String namespace, String name, String installPlanApproval, String... strimziVersions) {
-        return installOrUpdateBundle(namespace, name, installPlanApproval, () -> {
-            String jsonStrimziVersions = null;
-            ObjectMapper objectMapper = new ObjectMapper();
-            try {
-                jsonStrimziVersions = objectMapper.writeValueAsString(strimziVersions);
-            } catch (JsonProcessingException e) {
-                fail(e);
-            }
+    private Subscription installOrUpdateBundle(String namespace, String name, String installPlanApproval, String ... strimziVersions) {
+        String installPlan = "install-" + UUID.randomUUID().toString().substring(0, 4);
 
-            PackageManifest packageManifest = this.createPackageManifestWithStatus(namespace, name, new PackageManifestStatusBuilder()
-                        .withChannels(
-                                new PackageChannelBuilder()
-                                        .withNewCurrentCSVDesc()
-                                        .withAnnotations(Map.of("strimziVersions", jsonStrimziVersions))
-                                        .endCurrentCSVDesc()
-                                        .build())
-                        .build());
-            return packageManifest;
-        });
-    }
+        String jsonStrimziVersions = null;
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            jsonStrimziVersions = objectMapper.writeValueAsString(strimziVersions);
+        } catch (JsonProcessingException e) {
+            fail(e);
+        }
 
-    private Subscription installOrUpdateBundle(String namespace, String name, String installPlanApproval, Supplier<PackageManifest> packageManifestSupplier) {
-        String installPlanName = "install-" + UUID.randomUUID().toString().substring(0, 4);
-
-        this.packageManifestClient.inNamespace(namespace).createOrReplace(packageManifestSupplier.get());
-        Subscription subscription = this.createOrUpdateSubscription(namespace, name + "-sub", name, installPlanName, installPlanApproval);
-        this.createOrUpdateInstallPlan(namespace, installPlanName, subscription);
+        Subscription subscription = this.createOrUpdateSubscription(namespace, name + "-sub", name, installPlan, installPlanApproval);
+        this.createOrUpdateInstallPlan(namespace, installPlan);
+        this.createOrUpdatePackageManifest(namespace, name, jsonStrimziVersions);
         return subscription;
     }
 
-    private void awaitPendingInstallationNotification(List<String> expected) {
-        await(String.format("awaiting pending installation notification : %s", expected))
-                .pollInterval(fixed(Duration.ofSeconds(1)))
-                .atMost(Duration.ofSeconds(15)).untilAsserted(() -> assertEquals(expected, this.strimziManager.getStrimziPendingInstallationVersions()));
-    }
-
     /**
-     * Awaits for the InstallPlan to be in the desired approval state
+     * Check that the InstallPlan is in the provided state (approved or not)
      *
      * @param subscription Subscription which refers to the InstallPlan to check
-     * @param desiredApprovalState if need to check on approval or not
+     * @param approved if need to check on approval or not
      */
-    private void awaitInstallPlanApproval(Subscription subscription, boolean desiredApprovalState) {
-        await(String.format("awaiting installplan approval state: %s", desiredApprovalState))
-                .pollInterval(fixed(Duration.ofSeconds(1)))
-                .atMost(Duration.ofSeconds(15))
-                .untilAsserted(() -> {
-                    String name = subscription.getStatus().getInstallPlanRef().getName();
-                    InstallPlan installPlan = openShiftClient.operatorHub().installPlans()
-                    .inNamespace(subscription.getMetadata().getNamespace())
-                    .withName(name)
-                    .get();
-            assertEquals(desiredApprovalState, installPlan.getSpec().getApproved());
-        });
+    private void checkInstallPlan(Subscription subscription, boolean approved) {
+        InstallPlan installPlan = this.openShiftClient.operatorHub().installPlans()
+                .inNamespace(subscription.getMetadata().getNamespace())
+                .withName(subscription.getStatus().getInstallPlanRef().getName())
+                .get();
+        assertEquals(approved, installPlan.getSpec().getApproved());
     }
 
     private PackageManifest createPackageManifestWithStatus(String namespace, String name, PackageManifestStatus status) {
@@ -346,19 +311,29 @@ public class StrimziBundleManagerTest {
         return packageManifestBuilder.build();
     }
 
-    private InstallPlan createOrUpdateInstallPlan(String namespace, String name, Subscription subscription) {
+    private PackageManifest createOrUpdatePackageManifest(String namespace, String name, String jsonStrimziVersions) {
+        PackageManifest packageManifest = this.createPackageManifestWithStatus(namespace, name,
+                new PackageManifestStatusBuilder()
+                        .withChannels(
+                                new PackageChannelBuilder()
+                                        .withNewCurrentCSVDesc()
+                                            .withAnnotations(Map.of("strimziVersions", jsonStrimziVersions))
+                                        .endCurrentCSVDesc()
+                                        .build())
+                        .build()
+        );
+
+        this.packageManifestClient.inNamespace(namespace).createOrReplace(packageManifest);
+        return packageManifest;
+    }
+
+    private InstallPlan createOrUpdateInstallPlan(String namespace, String name) {
         InstallPlan installPlan = new InstallPlanBuilder()
                 .withNewMetadata()
                     .withNamespace(namespace)
                     .withName(name)
-                    .withOwnerReferences(new OwnerReferenceBuilder()
-                        .withKind(subscription.getKind())
-                        .withApiVersion(subscription.getApiVersion())
-                        .withName(subscription.getMetadata().getName())
-                        .build())
                 .endMetadata()
                 .withNewSpec()
-                    .withApproval("Manual")
                     .withApproved(false)
                 .endSpec()
                 .build();
