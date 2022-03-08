@@ -134,8 +134,7 @@ class KafkaClusterTest {
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
+            KafkaInstanceConfiguration clone = Serialization.clone(config);
 
             clone.getKafka().setConnectionAttemptsPerSec(300);
             clone.getKafka().setContainerMemory("2Gi");
@@ -157,6 +156,26 @@ class KafkaClusterTest {
             Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
             diffToExpected(kafka, "/expected/custom-config-strimzi.yml");
+        } finally {
+            kafkaCluster.setKafkaConfiguration(config);
+        }
+    }
+
+    @Test
+    void testScalingAndReplicationFactor() throws IOException {
+        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
+        try {
+            KafkaInstanceConfiguration clone = Serialization.clone(config);
+
+            clone.getKafka().setScalingAndReplicationFactor(1);
+
+            kafkaCluster.setKafkaConfiguration(clone);
+
+            ManagedKafka mk = exampleManagedKafka("60Gi");
+
+            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+            diffToExpected(kafka.getSpec().getKafka().getConfig(), "/expected/scaling-one.yml");
         } finally {
             kafkaCluster.setKafkaConfiguration(config);
         }

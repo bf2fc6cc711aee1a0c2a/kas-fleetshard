@@ -260,7 +260,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return current.getSpec().getKafka().getReplicas();
         }
         Integer maxPartitions = managedKafka.getSpec().getCapacity().getMaxPartitions();
-        int scalingAndReplicationFactor = 3;
+        int scalingAndReplicationFactor = config.getKafka().getScalingAndReplicationFactor();
+        // assume 1 physical unit if no other information
         int desiredReplicas = scalingAndReplicationFactor;
         if (maxPartitions != null) {
             double physicalCapacity = config.getKafka().getPartitionCapacity();
@@ -560,12 +561,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current) {
         Map<String, Object> config = new HashMap<>();
-        config.put("offsets.topic.replication.factor", 3);
-        config.put("transaction.state.log.min.isr", 2);
-        config.put("transaction.state.log.replication.factor", 3);
+        int scalingAndReplicationFactor = this.config.getKafka().getScalingAndReplicationFactor();
+        config.put("offsets.topic.replication.factor", scalingAndReplicationFactor);
+        config.put("transaction.state.log.min.isr", Math.min(scalingAndReplicationFactor, 2));
+        config.put("transaction.state.log.replication.factor", scalingAndReplicationFactor);
         config.put("auto.create.topics.enable", "false");
-        config.put("min.insync.replicas", 2);
-        config.put("default.replication.factor", 3);
+        config.put("min.insync.replicas", Math.min(scalingAndReplicationFactor, 2));
+        config.put("default.replication.factor", scalingAndReplicationFactor);
         config.put("log.message.format.version", this.kafkaManager.currentKafkaLogMessageFormatVersion(managedKafka));
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");

@@ -82,6 +82,8 @@ public class KafkaInstanceConfiguration {
         protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
         @JsonProperty("partition-capacity")
         protected int partitionCapacity;
+        @JsonProperty("scaling-and-replication-factor")
+        protected int scalingAndReplicationFactor = 3;
         @JsonProperty("ingress-per-sec")
         protected String ingressPerSec = DEFAULT_INGRESS_PER_SEC;
         @JsonProperty("egress-per-sec")
@@ -261,6 +263,15 @@ public class KafkaInstanceConfiguration {
         public void setPartitionCapacity(int partitionCapacity) {
             this.partitionCapacity = partitionCapacity;
         }
+
+        public int getScalingAndReplicationFactor() {
+            return scalingAndReplicationFactor;
+        }
+
+        public void setScalingAndReplicationFactor(int scalingAndReplicationFactor) {
+            this.scalingAndReplicationFactor = scalingAndReplicationFactor;
+        }
+
     }
 
     public static class AccessControl {
