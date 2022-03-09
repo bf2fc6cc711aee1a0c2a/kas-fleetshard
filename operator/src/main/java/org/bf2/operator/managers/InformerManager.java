@@ -12,6 +12,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
 import io.quarkus.runtime.Startup;
@@ -29,7 +30,9 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.ArrayDeque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -52,6 +55,7 @@ public class InformerManager {
     @Inject
     OpenShiftSupport openShiftSupport;
 
+    private final Deque<ResourceEventHandler<Kafka>> additionalKafkaInfomerHandlers = new ArrayDeque<>();
     private volatile ResourceInformer<Kafka> kafkaInformer;
     private ResourceInformer<Deployment> deploymentInformer;
     private ResourceInformer<Service> serviceInformer;
@@ -154,9 +158,20 @@ public class InformerManager {
      * Create the Kafka informer
      * NOTE: it's called when a Strimzi bundle is installed and Kafka related CRDs are available to be listed/watched
      */
-    public void createKafkaInformer() {
+    public synchronized void createKafkaInformer() {
         if (kafkaInformer == null) {
             kafkaInformer = resourceInformerFactory.create(Kafka.class, filter(kubernetesClient.resources(Kafka.class, KafkaList.class)), eventSource);
+            while (!additionalKafkaInfomerHandlers.isEmpty()) {
+                kafkaInformer.addEventHandler(additionalKafkaInfomerHandlers.pop());
+            }
+        }
+    }
+
+    public synchronized void registerKafkaInformerHandler(ResourceEventHandler<Kafka> handler) {
+        if (kafkaInformer == null) {
+            additionalKafkaInfomerHandlers.add(handler);
+        } else {
+            kafkaInformer.addEventHandler(handler);
         }
     }
 

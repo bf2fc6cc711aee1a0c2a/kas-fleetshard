@@ -123,6 +123,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
 
+    public static final String MAX_PARTITIONS = "max.partitions";
+    public static final String MESSAGE_MAX_BYTES = "message.max.bytes";
+
     @ConfigProperty(name = "managedkafka.storage.check-interval")
     int storageCheckInterval;
 
@@ -588,7 +591,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
-        config.put("message.max.bytes", this.config.getKafka().getMessageMaxBytes());
+        config.put(MESSAGE_MAX_BYTES, this.config.getKafka().getMessageMaxBytes());
 
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {
@@ -598,6 +601,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // custom authorizer configuration
         addKafkaAuthorizerConfig(managedKafka, config);
 
+        if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
+            config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
+        }
         return config;
     }
 
