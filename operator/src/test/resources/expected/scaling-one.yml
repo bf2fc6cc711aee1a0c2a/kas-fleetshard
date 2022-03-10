@@ -59,3 +59,9 @@ strimzi.authorization.custom-authorizer.resource-operations: "{ \"cluster\": [ \
   : [ \"all\", \"describe\", \"write\" ] }"
 leader.imbalance.per.broker.percentage: 0
 strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
+strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds: 10
+strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds: 15
+strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: __redhat_
+strimzi.authorization.custom-authorizer.adminclient-listener.name: controlplane-9090
+strimzi.authorization.custom-authorizer.adminclient-listener.port: 9090
+strimzi.authorization.custom-authorizer.adminclient-listener.protocol: SSL

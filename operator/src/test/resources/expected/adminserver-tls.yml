@@ -41,6 +41,8 @@ spec:
            weight: 100    
       containers:
       - env:
+        - name: "KAFKA_ADMIN_REPLICATION_FACTOR"
+          value: "3"
         - name: "KAFKA_ADMIN_BOOTSTRAP_SERVERS"
           value: "test-mk-tls-kafka-bootstrap:9095"
         - name: "KAFKA_ADMIN_BROKER_TLS_ENABLED"
