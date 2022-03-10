@@ -175,14 +175,98 @@ public class MetricsManagerTest {
         awaitMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
     }
 
+    @Test
+    public void metricReflectsUpdates(TestInfo info) {
+        Kafka nopSpec = new KafkaBuilder()
+                .withNewMetadata()
+                .withNamespace(NAMESPACE)
+                .withName(info.getTestMethod().get().getName())
+                .withLabels(OperandUtils.getDefaultLabels())
+                .endMetadata()
+                .build();
+
+        metricsManager.onAdd(nopSpec);
+
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, NAMESPACE), Tag.of(TAG_LABEL_INSTANCE_NAME, nopSpec.getMetadata().getName()));
+        assertMeter(Double.NaN, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
+
+        int expectedReplicas = 3;
+        Kafka update = new KafkaBuilder(nopSpec)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .endKafka()
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(nopSpec, update);
+        assertMeter(expectedReplicas, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
+
+        int expectedMaxConnections = 100;
+        Kafka updateAgain = new KafkaBuilder(update)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .withListeners(new GenericKafkaListenerBuilder()
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(8080)
+                        .withNewConfiguration()
+                        .withMaxConnections(expectedMaxConnections)
+                        .endConfiguration()
+                        .build())
+                .endKafka()
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(update, updateAgain);
+
+        int expectedNumberOfListenerMeters = expectedReplicas * 2;
+
+        Tags listenerTags = Tags.of(Tag.of(TAG_LABEL_LISTENER, "EXTERNAL-8080"));
+        assertEquals(expectedNumberOfListenerMeters, Search.in(meterRegistry).tags(listenerTags).meters().size(), "unexpected number of broker listener meters overall");
+
+        Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, "0")));
+        Tags brokerListenerTags = Tags.concat(brokerTags, listenerTags);
+
+        assertMeter(expectedMaxConnections, brokerListenerTags, KAFKA_INSTANCE_CONNECTION_LIMIT);
+
+        // Reduce the replicas and change the connection limit.
+        expectedReplicas = 1;
+        expectedMaxConnections = 101;
+        Kafka reduceReplicas = new KafkaBuilder(update)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .withListeners(new GenericKafkaListenerBuilder()
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(8080)
+                        .withNewConfiguration()
+                        .withMaxConnections(expectedMaxConnections)
+                        .endConfiguration()
+                        .build())
+                .endKafka()
+
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(update, reduceReplicas);
+
+        expectedNumberOfListenerMeters = expectedReplicas * 2;
+        assertEquals(expectedNumberOfListenerMeters, Search.in(meterRegistry).tags(listenerTags).meters().size(), "unexpected number of broker listener meters overall after reduction in replica");
+
+        assertMeter(expectedMaxConnections, brokerListenerTags, KAFKA_INSTANCE_CONNECTION_LIMIT);
+
+    }
+
+
     private void awaitMetersMatchingTags(Tags tags, int expectedMeters, String message) {
         assertEquals(expectedMeters, Search.in(meterRegistry).tags(tags).meters().size(), message);
     }
 
-    private void assertMeter(int expectedReplicas, Iterable<Tag> tags, String meterName) {
+    private void assertMeter(double expectedValue, Iterable<Tag> tags, String meterName) {
         Meter meter = Search.in(meterRegistry).tags(tags).name(meterName).meter();
         assertNotNull(meter, String.format("meter named %s with tags %s not found", meterName, tags));
-        assertEquals(expectedReplicas, meter.measure().iterator().next().getValue());
+        assertEquals(expectedValue, meter.measure().iterator().next().getValue());
     }
 
 }
