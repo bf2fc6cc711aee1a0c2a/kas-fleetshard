@@ -606,6 +606,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
             config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
         }
+
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds", 10);
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds", 15);
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix",
+                this.config.kafka.acl.privatePrefix);
+
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.name", "controlplane-9090");
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.port", 9090);
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.protocol", "SSL");
+
         return config;
     }
 

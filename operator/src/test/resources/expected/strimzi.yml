@@ -115,6 +115,12 @@ spec:
       leader.imbalance.per.broker.percentage: 0
       connections.max.reauth.ms: 299000
       create.topic.policy.class.name: io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy
+      strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds: 10
+      strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds: 15
+      strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: __redhat_
+      strimzi.authorization.custom-authorizer.adminclient-listener.name: controlplane-9090
+      strimzi.authorization.custom-authorizer.adminclient-listener.port: 9090
+      strimzi.authorization.custom-authorizer.adminclient-listener.protocol: SSL
       strimzi.authorization.custom-authorizer.allowed-listeners: SRE-9096
       strimzi.authorization.custom-authorizer.resource-operations: '{ "cluster": [ "describe", "alter" ], "group": [ "all", "delete", "describe", "read" ], "topic": [ "all", "alter", "alter_configs", "create", "delete", "describe", "describe_configs", "read", "write" ], "transactional_id": [ "all", "describe", "write" ] }'
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.duration: PT300S
