@@ -137,7 +137,7 @@ public class OperandOverrideManager {
         String name = obj.getMetadata().getName();
         if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
             String data = obj.getData().get(OPERANDS_YAML);
-            log.infof("Updating overrides for {} to {}", name, data);
+            log.infof("Updating overrides for %s to %s", name, data);
             boolean resync = false;
             if (data == null) {
                 overrides.remove(name);
@@ -156,7 +156,7 @@ public class OperandOverrideManager {
     void removeOverrides(ConfigMap obj) {
         String name = obj.getMetadata().getName();
         if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
-            log.infof("removing overrides for {}", name);
+            log.infof("removing overrides for %s", name);
             overrides.remove(name);
             informerManager.resyncManagedKafka();
         }
