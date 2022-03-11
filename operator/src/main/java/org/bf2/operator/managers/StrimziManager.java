@@ -377,7 +377,7 @@ public class StrimziManager {
         if (!Collections.disjoint(strimziPendingInstallationVersions.keySet(), pendingVersions)) {
             return false;
         }
-        log.infof("Notified of pending strimzi versions {}", pendingVersions);
+        log.infof("Notified of pending strimzi versions %s", pendingVersions);
         ConcurrentHashMap<String, StrimziVersionStatus> next = new ConcurrentHashMap<>();
         for (String version : pendingVersions) {
             StrimziVersionStatus existing = strimziVersions.get(version);
