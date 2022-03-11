@@ -134,8 +134,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     private Optional<GenericKafkaListener> getExternalListener(AtomicReference<Kafka> r) {
         return getKafkaClusterSpec(r)
                 .map(KafkaClusterSpec::getListeners)
-                .orElse(List.of())
-                .stream().filter(l -> AbstractKafkaCluster.EXTERNAL_LISTENER_NAME.equals(l.getName())).findFirst();
+                .flatMap(ll -> ll.stream().filter(l -> AbstractKafkaCluster.EXTERNAL_LISTENER_NAME.equals(l.getName())).findFirst());
     }
 
     private Optional<KafkaClusterSpec> getKafkaClusterSpec(AtomicReference<Kafka> k) {
