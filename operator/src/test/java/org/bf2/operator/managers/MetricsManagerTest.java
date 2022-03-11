@@ -76,7 +76,7 @@ public class MetricsManagerTest {
 
         int expectedNumberOfMeters = 3;
         metricsManager.onAdd(kafka);
-        awaitMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
+        assertMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
         assertEquals(expectedNumberOfMeters, Search.in(meterRegistry).tags(List.of(MetricsManager.OWNER)).meters().size(), "unexpected number of meters overall");
 
@@ -90,7 +90,7 @@ public class MetricsManagerTest {
     }
 
     @Test
-    public void brokerMetrics(TestInfo info) throws Exception {
+    public void brokerMetrics(TestInfo info) {
         int expectedReplicas = 1;
         int expectedConnections = 1000;
         int expectedConnectionCreationLimit = 100;
@@ -117,11 +117,11 @@ public class MetricsManagerTest {
 
         int expectedNumberOfMeters = 5;
         metricsManager.onAdd(kafka);
-        awaitMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
+        assertMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
         Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, NAMESPACE), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka.getMetadata().getName()));
-        Tags brokerTags = Tags.concat(namespaceNameTags, Tags.of(Tag.of(TAG_LABEL_BROKER_ID, "0")));
-        Tags brokerListenerTags = Tags.concat(brokerTags, Tags.of(Tag.of(TAG_LABEL_LISTENER, "EXTERNAL-8080")));
+        Tags brokerTags = namespaceNameTags.and(TAG_LABEL_BROKER_ID, "0");
+        Tags brokerListenerTags = brokerTags.and(TAG_LABEL_LISTENER, "EXTERNAL-8080");
 
         int expectedNumberOfBrokerMeters = 2;
         assertEquals(expectedNumberOfBrokerMeters, Search.in(meterRegistry).tags(brokerTags).meters().size(), "unexpected number of broker meters overall");
@@ -134,7 +134,7 @@ public class MetricsManagerTest {
     }
 
     @Test
-    public void deletingKafkaInstanceDeletesMetersToo(TestInfo info) throws Exception {
+    public void deletingKafkaInstanceDeletesMetersToo(TestInfo info) {
         Kafka kafka1 = new KafkaBuilder()
                 .withNewMetadata()
                 .withNamespace(NAMESPACE)
@@ -166,23 +166,106 @@ public class MetricsManagerTest {
         int metersPerKafka = 3;
         metricsManager.onAdd(kafka1);
         metricsManager.onAdd(kafka2);
-        awaitMetersMatchingTags(kafka1tags, metersPerKafka, "unexpected number of meters for kafka 1");
-        awaitMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
+        assertMetersMatchingTags(kafka1tags, metersPerKafka, "unexpected number of meters for kafka 1");
+        assertMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
 
         metricsManager.onDelete(kafka1, false);
 
-        awaitMetersMatchingTags(kafka1tags, 0, "unexpected number of meters for kafka 1 after its deletion");
-        awaitMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
+        assertMetersMatchingTags(kafka1tags, 0, "unexpected number of meters for kafka 1 after its deletion");
+        assertMetersMatchingTags(kafka2tags, metersPerKafka, "unexpected number of meters for kafka 2");
     }
 
-    private void awaitMetersMatchingTags(Tags tags, int expectedMeters, String message) {
+    @Test
+    public void metricsReflectsUpdates(TestInfo info) {
+        Kafka noSpec = new KafkaBuilder()
+                .withNewMetadata()
+                .withNamespace(NAMESPACE)
+                .withName(info.getTestMethod().get().getName())
+                .withLabels(OperandUtils.getDefaultLabels())
+                .endMetadata()
+                .build();
+
+        metricsManager.onAdd(noSpec);
+
+        Tags namespaceNameTags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, NAMESPACE), Tag.of(TAG_LABEL_INSTANCE_NAME, noSpec.getMetadata().getName()));
+        assertMeter(Double.NaN, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
+
+        int expectedReplicas = 3;
+        Kafka withKafkaSpec = new KafkaBuilder(noSpec)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .endKafka()
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(noSpec, withKafkaSpec);
+        assertMeter(expectedReplicas, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
+
+        int expectedMaxConnections = 100;
+        Kafka withListener = new KafkaBuilder(withKafkaSpec)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .withListeners(new GenericKafkaListenerBuilder()
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(8080)
+                        .withNewConfiguration()
+                        .withMaxConnections(expectedMaxConnections)
+                        .endConfiguration()
+                        .build())
+                .endKafka()
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(withKafkaSpec, withListener);
+
+        int expectedNumberOfListenerMeters = expectedReplicas * 2;
+
+        Tags listenerTags = Tags.of(Tag.of(TAG_LABEL_LISTENER, "EXTERNAL-8080"));
+        assertEquals(expectedNumberOfListenerMeters, Search.in(meterRegistry).tags(listenerTags).meters().size(), "unexpected number of broker listener meters overall");
+
+        Tags brokerTags = namespaceNameTags.and(TAG_LABEL_BROKER_ID, "0");
+        Tags brokerListenerTags = brokerTags.and(listenerTags);
+
+        assertMeter(expectedMaxConnections, brokerListenerTags, KAFKA_INSTANCE_CONNECTION_LIMIT);
+
+        // Reduce the replicas and change the connection limit.
+        expectedReplicas = 1;
+        expectedMaxConnections = 101;
+        Kafka reduceReplicas = new KafkaBuilder(withListener)
+                .withNewSpec()
+                .withNewKafka()
+                .withReplicas(expectedReplicas)
+                .withListeners(new GenericKafkaListenerBuilder()
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(8080)
+                        .withNewConfiguration()
+                        .withMaxConnections(expectedMaxConnections)
+                        .endConfiguration()
+                        .build())
+                .endKafka()
+                .endSpec()
+                .build();
+
+        metricsManager.onUpdate(withListener, reduceReplicas);
+
+        expectedNumberOfListenerMeters = expectedReplicas * 2;
+        assertEquals(expectedNumberOfListenerMeters, Search.in(meterRegistry).tags(listenerTags).meters().size(), "unexpected number of broker listener meters overall after reduction in replica");
+
+        assertMeter(expectedMaxConnections, brokerListenerTags, KAFKA_INSTANCE_CONNECTION_LIMIT);
+
+    }
+
+
+    private void assertMetersMatchingTags(Tags tags, int expectedMeters, String message) {
         assertEquals(expectedMeters, Search.in(meterRegistry).tags(tags).meters().size(), message);
     }
 
-    private void assertMeter(int expectedReplicas, Iterable<Tag> tags, String meterName) {
+    private void assertMeter(double expectedValue, Iterable<Tag> tags, String meterName) {
         Meter meter = Search.in(meterRegistry).tags(tags).name(meterName).meter();
         assertNotNull(meter, String.format("meter named %s with tags %s not found", meterName, tags));
-        assertEquals(expectedReplicas, meter.measure().iterator().next().getValue());
+        assertEquals(expectedValue, meter.measure().iterator().next().getValue());
     }
 
 }
