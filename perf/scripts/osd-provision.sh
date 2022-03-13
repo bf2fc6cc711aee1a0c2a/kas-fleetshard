@@ -302,9 +302,10 @@ function wait_for_cluster_install() {
         if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
             echo "Cluster state is error, stopping script"
             echo "Getting ocm cluster logs"
-            mkdir -p ${RESULT_DIR}
-            touch "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
-            $OCM get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)/logs/install" | tee "${RESULT_DIR}/${CLUSTER_NAME}"_install_logs.json
+            : "${RESULTS_DIR:="${REPO_ROOT}"}"
+            mkdir -p ${RESULTS_DIR}
+            touch "${RESULTS_DIR}/${CLUSTER_NAME}"_install_logs.json
+            $OCM get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)/logs/install" | tee "${RESULTS_DIR}/${CLUSTER_NAME}"_install_logs.json
             exit 1
         fi
         if [[ $current == "ready" ]] && [[ $ver == "NONE" ]]; then
