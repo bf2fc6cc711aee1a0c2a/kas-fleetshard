@@ -538,8 +538,10 @@ public class AdminServer extends AbstractAdminServer {
 
     @Override
     public String uri(ManagedKafka managedKafka) {
-        Route route = cachedRoute(managedKafka);
+        return getRouteURI(cachedRoute(managedKafka));
+    }
 
+    String getRouteURI(Route route) {
         if (route != null) {
             RouteSpec spec = route.getSpec();
             StringBuilder uri = new StringBuilder();
