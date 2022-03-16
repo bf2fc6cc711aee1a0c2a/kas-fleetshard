@@ -28,10 +28,10 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
+import org.bf2.common.SecuritySecretManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
-import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 

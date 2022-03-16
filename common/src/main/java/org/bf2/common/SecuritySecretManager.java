@@ -173,6 +173,22 @@ public class SecuritySecretManager {
         return secret;
     }
 
+    public boolean isDeleted(ManagedKafka managedKafka) {
+        boolean isDeleted = true;
+
+        if (isKafkaExternalCertificateEnabled(managedKafka)) {
+            isDeleted = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka)) == null;
+        }
+
+        if (isKafkaAuthenticationEnabled(managedKafka)) {
+            isDeleted = isDeleted && cachedSecret(managedKafka, ssoClientSecretName(managedKafka)) == null &&
+                    cachedSecret(managedKafka, ssoTlsSecretName(managedKafka)) == null;
+        }
+
+        return isDeleted;
+    }
+
+
     public void delete(ManagedKafka managedKafka) {
         if (isKafkaExternalCertificateEnabled(managedKafka)) {
             secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
