@@ -1,6 +1,7 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.fabric8.kubernetes.api.model.SecretKeySelector;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -19,13 +20,18 @@ import javax.validation.constraints.NotNull;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TlsKeyPair {
 
-    @NotNull
+    //@NotNull
     private String cert;
-    @NotNull
+    //@NotNull
     private String key;
+    private SecretKeySelector certRef;
+    private SecretKeySelector keyRef;
 
     public String getCert() {
-        return cert;
+        if (cert != null){
+            return cert;
+        }
+        else return getCertRef().getKey();
     }
 
     public void setCert(String cert) {
@@ -38,5 +44,21 @@ public class TlsKeyPair {
 
     public void setKey(String key) {
         this.key = key;
+    }
+
+    public SecretKeySelector getCertRef() {
+        return certRef;
+    }
+
+    public void setCertRef(SecretKeySelector certRef) {
+        this.certRef = certRef;
+    }
+
+    public SecretKeySelector getKeyRef() {
+        return keyRef;
+    }
+
+    public void setKeyRef(SecretKeySelector keyRef) {
+        this.keyRef = keyRef;
     }
 }
