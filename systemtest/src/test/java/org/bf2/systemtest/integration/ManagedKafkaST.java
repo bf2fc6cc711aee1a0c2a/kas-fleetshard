@@ -40,6 +40,7 @@ public class ManagedKafkaST extends AbstractST {
     private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
     private KeycloakInstance keycloak;
     private String latestStrimziVersion;
+    private String latestKafkaVersion;
 
     @BeforeAll
     void deploy() throws Exception {
@@ -52,6 +53,7 @@ public class ManagedKafkaST extends AbstractST {
         keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
+        latestKafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, latestStrimziVersion);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
@@ -71,7 +73,7 @@ public class ManagedKafkaST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         AssertUtils.assertManagedKafka(mk);
@@ -96,7 +98,7 @@ public class ManagedKafkaST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
 
         mk = resourceManager.createResource(extensionContext, mk);
 
@@ -121,7 +123,7 @@ public class ManagedKafkaST extends AbstractST {
         ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
             String mkAppName = "mk-test-restart-kubeapi";
-            ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+            ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
 
             //start restarting kubeapi
             executor.execute(TestUtils::restartKubeApi);

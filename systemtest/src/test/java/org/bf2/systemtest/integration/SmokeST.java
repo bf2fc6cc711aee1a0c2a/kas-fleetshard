@@ -38,6 +38,7 @@ public class SmokeST extends AbstractST {
     private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
     private KeycloakInstance keycloak;
     private String latestStrimziVersion;
+    private String latestKafkaVersion;
 
     @BeforeAll
     void deploy() throws Exception {
@@ -50,6 +51,7 @@ public class SmokeST extends AbstractST {
         keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
         syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
+        latestKafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, latestStrimziVersion);
         LOGGER.info("Endpoint address {}", syncEndpoint);
     }
 
@@ -80,7 +82,7 @@ public class SmokeST extends AbstractST {
     @SequentialTest
     void testCreateManagedKafka(ExtensionContext extensionContext) throws Exception {
         String mkAppName = "mk-test-create";
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
         String id = mk.getId();
 
         //Create mk using api
