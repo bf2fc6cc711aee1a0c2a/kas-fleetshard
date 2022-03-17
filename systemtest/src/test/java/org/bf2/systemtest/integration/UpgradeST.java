@@ -70,16 +70,17 @@ public class UpgradeST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         String startVersion = SyncApiClient.getPreviousStrimziVersion(syncEndpoint);
+        String kafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, startVersion);
 
         LOGGER.info("Create managedkafka with version {}", startVersion);
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, startVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, startVersion, kafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         AssertUtils.assertManagedKafka(mk);
 
         LocalDateTime dateBeforeStartUpgrade = LocalDateTime.now(ZoneOffset.UTC);
         LOGGER.info("Upgrade to {}", latestStrimziVersion);
-        mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, kafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         if (!ManagedKafkaResourceType.isDevKafka(mk)) {
