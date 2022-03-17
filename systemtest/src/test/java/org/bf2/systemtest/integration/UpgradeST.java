@@ -21,10 +21,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Tag(TestTags.UPGRADE)
 public class UpgradeST extends AbstractST {
@@ -70,16 +70,16 @@ public class UpgradeST extends AbstractST {
         resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         String startVersion = SyncApiClient.getPreviousStrimziVersion(syncEndpoint);
+        String kafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, startVersion);
 
         LOGGER.info("Create managedkafka with version {}", startVersion);
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, startVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, startVersion, kafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         AssertUtils.assertManagedKafka(mk);
 
-        LocalDateTime dateBeforeStartUpgrade = LocalDateTime.now(ZoneOffset.UTC);
         LOGGER.info("Upgrade to {}", latestStrimziVersion);
-        mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion);
+        mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, kafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         if (!ManagedKafkaResourceType.isDevKafka(mk)) {
@@ -97,10 +97,10 @@ public class UpgradeST extends AbstractST {
                     TimeUnit.MINUTES.toMillis(10));
         }
 
-        ManagedKafka finalMk = mk;
         TestUtils.waitFor("MK is upgraded", TimeUnit.SECONDS.toMillis(20), TimeUnit.MINUTES.toMillis(10), () -> {
             try {
-                AssertUtils.assertStrimziUpgraded(finalMk, dateBeforeStartUpgrade);
+                assertEquals(latestStrimziVersion, ManagedKafkaResourceType.getOperation().inNamespace(mkAppName)
+                        .withName(mkAppName).get().getStatus().getVersions().getStrimzi());
                 return true;
             } catch (AssertionError err) {
                 return false;
