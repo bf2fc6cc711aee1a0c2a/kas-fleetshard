@@ -2,8 +2,6 @@ package org.bf2.systemtest.integration;
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.strimzi.api.kafka.KafkaList;
-import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -13,7 +11,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.framework.AssertUtils;
 import org.bf2.systemtest.framework.KeycloakInstance;
-import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.SequentialTest;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
@@ -63,59 +60,6 @@ public class ManagedKafkaST extends AbstractST {
                 KeycloakOperatorManager.uninstallKeycloak(kube),
                 FleetShardOperatorManager.deleteFleetShard(kube),
                 strimziOperatorManager.uninstallStrimziClusterWideResources(kube)).join();
-    }
-
-    @ParallelTest
-    void testCreateDeleteCreateSameManagedKafka(ExtensionContext extensionContext) throws Exception {
-        String mkAppName = "mk-test-create-delete";
-
-        LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
-
-        LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
-        mk = resourceManager.createResource(extensionContext, mk);
-
-        AssertUtils.assertManagedKafka(mk);
-
-        LOGGER.info("Remove managedKafka");
-        resourceManager.deleteResource(mk);
-
-        LOGGER.info("Create managedkafka again");
-        //added more timeout because of strimzi reconcile interval
-        mk = resourceManager.createResource(extensionContext, TimeUnit.MINUTES.toMillis(15), mk);
-
-        AssertUtils.assertManagedKafka(mk);
-    }
-
-    @ParallelTest
-    void testDeleteDeployedResources(ExtensionContext extensionContext) throws Exception {
-        String mkAppName = "mk-test-resource-recovery";
-
-        var kafkacli = kube.client().resources(Kafka.class, KafkaList.class);
-
-        LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
-
-        LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, latestKafkaVersion);
-
-        mk = resourceManager.createResource(extensionContext, mk);
-
-        AssertUtils.assertManagedKafka(mk);
-
-        LOGGER.info("Delete resources in namespace {}", mkAppName);
-        kube.client().apps().deployments().inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
-        kafkacli.inNamespace(mkAppName).withLabel("app.kubernetes.io/managed-by", FleetShardOperatorManager.OPERATOR_NAME).delete();
-
-        resourceManager.waitResourceCondition(mk, m ->
-                ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.False));
-
-        resourceManager.waitResourceCondition(mk, m ->
-                        ManagedKafkaResourceType.hasConditionStatus(m, ManagedKafkaCondition.Type.Ready, ManagedKafkaCondition.Status.True),
-                TimeUnit.MINUTES.toMillis(15));
-
-        AssertUtils.assertManagedKafka(mk);
     }
 
     @SequentialTest
