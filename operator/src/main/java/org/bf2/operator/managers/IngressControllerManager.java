@@ -477,7 +477,6 @@ public class IngressControllerManager {
         // scale back with the assumption that we don't really need to meet the peak
         throughputDemanded *= peakPercentage / 100D;
 
-        // TODO: we are not guarding against 0 or negative throughputPerIngressReplica
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
