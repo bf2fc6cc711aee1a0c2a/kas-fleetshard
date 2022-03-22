@@ -538,6 +538,9 @@ public class IngressControllerManager {
         String serviceName = route.getSpec().getTo().getName();
         String namespace = route.getMetadata().getNamespace();
         Service svc = informerManager.getLocalService(namespace, serviceName);
+        if (svc == null) {
+            return "";
+        }
 
         Map<String, String> labels = svc.getSpec().getSelector();
         Stream<Pod> pods = brokerPodInformer.getList().stream()
