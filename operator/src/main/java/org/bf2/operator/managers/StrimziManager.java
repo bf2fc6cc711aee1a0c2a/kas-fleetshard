@@ -1,12 +1,15 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
@@ -26,6 +29,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,6 +37,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,8 +51,12 @@ public class StrimziManager {
     public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
     public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
 
+    public static final String KAFKA_IMAGES_ANNOTATION = "managedkafka.bf2.org/kafka-images";
+    public static final String KAFKA_IMAGES_ENVVAR = "STRIMZI_KAFKA_IMAGES";
+    public static final String RELATED_IMAGES_ANNOTATION = "managedkafka.bf2.org/related-images";
+
     // concurrent hash maps don't like null values, so we'll use this instead
-    private static final StrimziVersionStatus EMPTY_STATUS = new StrimziVersionStatus();
+    private static final ComponentVersions EMPTY_STATUS = new ComponentVersions(new StrimziVersionStatus(), Collections.emptyMap());
 
     @Inject
     Logger log;
@@ -64,8 +73,22 @@ public class StrimziManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
-    private Map<String, StrimziVersionStatus> strimziVersions = new ConcurrentHashMap<>();
-    private volatile ConcurrentHashMap<String, StrimziVersionStatus> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
+    static class ComponentVersions {
+        final StrimziVersionStatus strimziVersion;
+        final Map<String, String> relatedImages;
+
+        ComponentVersions(StrimziVersionStatus strimziVersion, Map<String, String> relatedImages) {
+            this.strimziVersion = strimziVersion;
+            this.relatedImages = relatedImages;
+        }
+
+        public StrimziVersionStatus getStrimziVersion() {
+            return strimziVersion;
+        }
+    }
+
+    private Map<String, ComponentVersions> strimziVersions = new ConcurrentHashMap<>();
+    private volatile ConcurrentHashMap<String, ComponentVersions> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
@@ -118,7 +141,7 @@ public class StrimziManager {
     }
 
     private void updateStatus() {
-        List<StrimziVersionStatus> versions = new ArrayList<>(this.strimziVersions.values());
+        List<StrimziVersionStatus> versions = this.strimziVersions.values().stream().map(ComponentVersions::getStrimziVersion).collect(Collectors.toCollection(ArrayList::new));
         // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
         if (!versions.isEmpty()) {
             informerManager.createKafkaInformer();
@@ -146,39 +169,65 @@ public class StrimziManager {
     }
 
     /* test */ public void updateStrimziVersion(Deployment deployment) {
+        List<String> kafkaVersions = readKafkaVersions(deployment);
+        List<String> kafkaIbpVersions = kafkaVersions.stream().map(AbstractKafkaCluster::getKafkaIbpVersion).collect(Collectors.toCollection(ArrayList::new));
+        Map<String, String> relatedImages = readRelatedImagesAnnotation(deployment);
 
-        Optional<EnvVar> kafkaImagesEnvVar =
-                deployment.getSpec().getTemplate().getSpec().getContainers().get(0).getEnv()
-                        .stream()
-                        .filter(ev -> ev.getName().equals("STRIMZI_KAFKA_IMAGES"))
-                        .findFirst();
-
-        List<String> kafkaVersions = Collections.emptyList();
-        List<String> kafkaIbpVersions = Collections.emptyList();
-        if (kafkaImagesEnvVar.isPresent() && kafkaImagesEnvVar.get().getValue() != null) {
-            String kafkaImages = kafkaImagesEnvVar.get().getValue();
-            String[] kafkaImagesList = kafkaImages.split("\n");
-            kafkaVersions = new ArrayList<>(kafkaImagesList.length);
-            kafkaIbpVersions = new ArrayList<>(kafkaImagesList.length);
-            for (String kafkaImage : kafkaImagesList) {
-                String kafkaVersion = kafkaImage.split("=")[0];
-                String kafkaIbpVersion = AbstractKafkaCluster.getKafkaIbpVersion(kafkaVersion);
-                kafkaVersions.add(kafkaVersion);
-                kafkaIbpVersions.add(kafkaIbpVersion);
-            }
-        }
+        StrimziVersionStatus strimziVersion = new StrimziVersionStatusBuilder()
+                .withVersion(deployment.getMetadata().getName())
+                .withKafkaVersions(kafkaVersions)
+                .withKafkaIbpVersions(kafkaIbpVersions)
+                .withReady(Readiness.isDeploymentReady(deployment))
+                .build();
 
         this.strimziVersions.put(deployment.getMetadata().getName(),
-                new StrimziVersionStatusBuilder()
-                        .withVersion(deployment.getMetadata().getName())
-                        .withKafkaVersions(kafkaVersions)
-                        .withKafkaIbpVersions(kafkaIbpVersions)
-                        .withReady(Readiness.isDeploymentReady(deployment))
-                        .build());
+                new ComponentVersions(strimziVersion, relatedImages));
+    }
+
+    List<String> readKafkaVersions(Deployment deployment) {
+        return readAnnotation(deployment, KAFKA_IMAGES_ANNOTATION)
+            .or(() -> readVersionEnvVar(deployment))
+            .map(this::parseKafkaVersions)
+            .orElseGet(Collections::emptyList);
+    }
+
+    Optional<String> readVersionEnvVar(Deployment deployment) {
+        return deployment.getSpec()
+                .getTemplate()
+                .getSpec()
+                .getContainers()
+                .get(0)
+                .getEnv()
+                .stream()
+                .filter(ev -> ev.getName().equals(KAFKA_IMAGES_ENVVAR))
+                .map(EnvVar::getValue)
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    List<String> parseKafkaVersions(String versions) {
+        return Arrays.stream(versions.split("\n"))
+                .map(entry -> entry.split("="))
+                .map(entry -> entry[0])
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    @SuppressWarnings("unchecked")
+    Map<String, String> readRelatedImagesAnnotation(Deployment deployment) {
+        return readAnnotation(deployment, RELATED_IMAGES_ANNOTATION)
+                .map(value -> Serialization.unmarshal(value, Map.class))
+                .orElseGet(Collections::emptyMap);
+    }
+
+    Optional<String> readAnnotation(Deployment deployment, String annotationName) {
+        return Optional.of(deployment.getSpec().getTemplate())
+                .map(PodTemplateSpec::getMetadata)
+                .map(ObjectMeta::getAnnotations)
+                .map(annotations -> annotations.get(annotationName));
     }
 
     /* test */ public void deleteStrimziVersion(Deployment deployment) {
-        StrimziVersionStatus removed = this.strimziVersions.remove(deployment.getMetadata().getName());
+        ComponentVersions removed = this.strimziVersions.remove(deployment.getMetadata().getName());
         if (removed != null) {
             // if we will resurrect the version, then just move the info into pending.
             // this approach does leave open a small window for the fso to be restarted after the
@@ -187,7 +236,7 @@ public class StrimziManager {
             // the only guard against that involves a lot more refinement of this logic
             // including extracting the status info from the csv in the bundle manager
             this.strimziPendingInstallationVersions.computeIfPresent(deployment.getMetadata().getName(),
-                    (k, s) -> new StrimziVersionStatusBuilder(removed).withReady(false).build());
+                    (k, s) -> new ComponentVersions(new StrimziVersionStatusBuilder(removed.strimziVersion).withReady(false).build(), Map.copyOf(removed.relatedImages)));
         }
     }
 
@@ -313,14 +362,18 @@ public class StrimziManager {
      * @return the corresponding status, which may be from a version that will be removed
      */
     public StrimziVersionStatus getStrimziVersion(String strimziVersion) {
-        StrimziVersionStatus result = this.strimziVersions.get(strimziVersion);
+        ComponentVersions result = this.strimziVersions.get(strimziVersion);
         if (result == null) {
             result = this.strimziPendingInstallationVersions.get(strimziVersion);
             if (result == EMPTY_STATUS) {
                 result = null;
             }
         }
-        return result;
+        return result != null ? result.strimziVersion : null;
+    }
+
+    public String getRelatedImage(String strimziVersion, String key) {
+        return strimziVersions.getOrDefault(strimziVersion, EMPTY_STATUS).relatedImages.get(key);
     }
 
     /**
@@ -329,14 +382,14 @@ public class StrimziManager {
      * Common versions are those found in both an old and a new CSV.
      */
     public List<StrimziVersionStatus> getStrimziVersions() {
-        Map<String, StrimziVersionStatus> nextVersions = new HashMap<>(strimziPendingInstallationVersions);
-        Map<String, StrimziVersionStatus> result = this.strimziVersions;
+        Map<String, ComponentVersions> nextVersions = new HashMap<>(strimziPendingInstallationVersions);
+        Map<String, ComponentVersions> result = this.strimziVersions;
         // if there are pending versions, then merge the lists by keeping only the valid next
         if (!nextVersions.isEmpty()) {
             result = nextVersions;
-            for (Iterator<Map.Entry<String, StrimziVersionStatus>> iter = result.entrySet().iterator(); iter.hasNext();) {
-                Map.Entry<String, StrimziVersionStatus> entry = iter.next();
-                StrimziVersionStatus live = this.strimziVersions.get(entry.getKey());
+            for (Iterator<Map.Entry<String, ComponentVersions>> iter = result.entrySet().iterator(); iter.hasNext();) {
+                Map.Entry<String, ComponentVersions> entry = iter.next();
+                ComponentVersions live = this.strimziVersions.get(entry.getKey());
                 if (live != null) {
                     entry.setValue(live);
                 } else if (entry.getValue() == EMPTY_STATUS) {
@@ -344,7 +397,7 @@ public class StrimziManager {
                 }
             }
         }
-        return new ArrayList<>(result.values());
+        return result.values().stream().map(ComponentVersions::getStrimziVersion).collect(Collectors.toCollection(ArrayList::new));
     }
 
     /* test */ public void clearStrimziVersions() {
@@ -378,11 +431,12 @@ public class StrimziManager {
             return false;
         }
         log.infof("Notified of pending strimzi versions %s", pendingVersions);
-        ConcurrentHashMap<String, StrimziVersionStatus> next = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, ComponentVersions> next = new ConcurrentHashMap<>();
         for (String version : pendingVersions) {
-            StrimziVersionStatus existing = strimziVersions.get(version);
+            ComponentVersions existing = strimziVersions.get(version);
             if (existing != null) {
-                next.put(version, new StrimziVersionStatusBuilder(existing).withReady(false).build());
+                StrimziVersionStatus strimziVersion = new StrimziVersionStatusBuilder(existing.strimziVersion).withReady(false).build();
+                next.put(version, new ComponentVersions(strimziVersion, Map.copyOf(existing.relatedImages)));
             } else {
                 next.put(version, EMPTY_STATUS);
             }

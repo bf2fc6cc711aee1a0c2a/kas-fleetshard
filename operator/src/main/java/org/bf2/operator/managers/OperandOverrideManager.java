@@ -89,6 +89,9 @@ public class OperandOverrideManager {
     InformerManager informerManager;
 
     @Inject
+    StrimziManager strimziManager;
+
+    @Inject
     Logger log;
 
     @PostConstruct
@@ -118,11 +121,11 @@ public class OperandOverrideManager {
     }
 
     public String getCanaryImage(String strimzi) {
-        return Optional.ofNullable(getOverrides(strimzi).canary.image).orElse(canaryImage);
+        return getImage(getOverrides(strimzi).canary, strimzi, "canary").orElse(canaryImage);
     }
 
     public String getCanaryInitImage(String strimzi) {
-        return Optional.ofNullable(getOverrides(strimzi).canary.init.image).orElse(canaryInitImage);
+        return getImage(getOverrides(strimzi).canary.init, strimzi, "canary-init").orElse(canaryInitImage);
     }
 
     public OperandOverride getAdminServerOverride(String strimzi) {
@@ -130,7 +133,17 @@ public class OperandOverrideManager {
     }
 
     public String getAdminServerImage(String strimzi) {
-        return Optional.ofNullable(getAdminServerOverride(strimzi).image).orElse(adminApiImage);
+        return getImage(getAdminServerOverride(strimzi), strimzi, "admin-server").orElse(adminApiImage);
+    }
+
+    Optional<String> getImage(OperandOverride override, String strimzi, String componentName) {
+        return Optional.ofNullable(override.getImage())
+                .or(() -> {
+                    if (strimzi != null) {
+                        return Optional.ofNullable(strimziManager.getRelatedImage(strimzi, componentName));
+                    }
+                    return Optional.empty();
+                });
     }
 
     void updateOverrides(ConfigMap obj) {

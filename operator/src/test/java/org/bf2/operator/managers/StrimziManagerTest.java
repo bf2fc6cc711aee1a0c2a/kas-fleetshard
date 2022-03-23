@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesCrudDispatcher;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
@@ -84,6 +85,26 @@ public class StrimziManagerTest {
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v2", true));
+    }
+
+    @Test
+    public void testInstalledStrimziOperatorsWithVersionAnnotations() {
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", Collections.emptyMap(), true, true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0\n2.8.0=kafka-2.8.0", Collections.emptyMap(), true, true, true);
+
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkKafkaVersions(strimziVersions, "strimzi-cluster-operator.v1", List.of("2.7.0")));
+        assertTrue(checkKafkaVersions(strimziVersions, "strimzi-cluster-operator.v2", List.of("2.7.0", "2.8.0")));
+    }
+
+    @Test
+    public void testInstalledStrimziOperatorsWithRelatedImages() {
+        installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", Map.of("canary", "canary:1.0"), true, true, true);
+        installStrimziOperator("strimzi-cluster-operator.v2", "ns-2", "2.7.0=kafka-2.7.0", Map.of("canary", "canary:2.0", "admin-server", "admin-server:latest"), true, true, true);
+
+        assertEquals("canary:1.0", this.strimziManager.getRelatedImage("strimzi-cluster-operator.v1", "canary"));
+        assertEquals("canary:2.0", this.strimziManager.getRelatedImage("strimzi-cluster-operator.v2", "canary"));
+        assertEquals("admin-server:latest", this.strimziManager.getRelatedImage("strimzi-cluster-operator.v2", "admin-server"));
     }
 
     @Test
@@ -231,6 +252,10 @@ public class StrimziManagerTest {
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 
+    private void installStrimziOperator(String name, String namespace, String kafkaImages, boolean ready, boolean discoverable) {
+        installStrimziOperator(name, namespace, kafkaImages, Collections.emptyMap(), ready, discoverable, false);
+    }
+
     /**
      * Install a Strimzi operator creating the corresponding Deployment in the specified namespace
      * and making it ready and discoverable if requested
@@ -241,11 +266,21 @@ public class StrimziManagerTest {
      * @param ready if the Strimzi operator has to be ready
      * @param discoverable if the Strimzi operator should be discoverable by the Strimzi manager
      */
-    private void installStrimziOperator(String name, String namespace, String kafkaImages, boolean ready, boolean discoverable) {
+    private void installStrimziOperator(String name, String namespace, String kafkaImages, Map<String, String> relatedImages, boolean ready, boolean discoverable, boolean versionsAnnotations) {
         Map<String, String> labels = new HashMap<>(+2);
         labels.put("name", name);
         if (discoverable) {
             labels.put("app.kubernetes.io/part-of", "managed-kafka");
+        }
+
+        Map<String, String> annotations = new HashMap<>();
+
+        if (versionsAnnotations && kafkaImages != null) {
+            annotations.put(StrimziManager.KAFKA_IMAGES_ANNOTATION, kafkaImages);
+        }
+
+        if (!relatedImages.isEmpty()) {
+            annotations.put(StrimziManager.RELATED_IMAGES_ANNOTATION, Serialization.asJson(relatedImages));
         }
 
         Deployment deployment = new DeploymentBuilder()
@@ -262,6 +297,7 @@ public class StrimziManagerTest {
                     .withNewTemplate()
                         .withNewMetadata()
                             .withLabels(labels)
+                            .withAnnotations(annotations)
                         .endMetadata()
                         .withNewSpec()
                             .withContainers(new ContainerBuilder()
@@ -279,9 +315,9 @@ public class StrimziManagerTest {
                 .endStatus()
                 .build();
 
-        if (kafkaImages != null) {
+        if (!versionsAnnotations && kafkaImages != null) {
             deployment.getSpec().getTemplate().getSpec().getContainers().get(0)
-                    .setEnv(Collections.singletonList(new EnvVarBuilder().withName("STRIMZI_KAFKA_IMAGES").withValue(kafkaImages).build()));
+                    .setEnv(Collections.singletonList(new EnvVarBuilder().withName(StrimziManager.KAFKA_IMAGES_ENVVAR).withValue(kafkaImages).build()));
         }
 
         this.server.getClient().apps().deployments().inNamespace(namespace).create(deployment);
@@ -316,5 +352,18 @@ public class StrimziManagerTest {
      */
     private boolean checkStrimziVersion(List<StrimziVersionStatus> strimziVersions, String version, boolean isReady) {
         return strimziVersions.stream().anyMatch(svs -> version.equals(svs.getVersion()) && svs.isReady() == isReady);
+    }
+
+    /**
+     * Check if the list of Kafka versions is present in one of the strimziVersions
+     *
+     * @param strimziVersions list of Strimzi versions where to check
+     * @param versions Kafka versions version to check
+     * @return if the Kafka versions are in the provided status list
+     */
+    private boolean checkKafkaVersions(List<StrimziVersionStatus> strimziVersions, String strimziVersion, List<String> versions) {
+        return strimziVersions.stream()
+                .filter(svs -> strimziVersion.equals(svs.getVersion()))
+                .allMatch(svs -> svs.getKafkaVersions().equals(versions));
     }
 }
