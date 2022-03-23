@@ -12,9 +12,6 @@ import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -205,7 +202,7 @@ public class Canary extends AbstractCanary {
                 .withName("init")
                 .withImage(overrideManager.getCanaryInitImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildInitEnvVar(managedKafka))
-                .withResources(buildResources())
+                .withResources(config.getCanary().buildResources())
                 .withCommand("/opt/strimzi-canary-tool/canary-dns-init.sh")
                 .build();
     }
@@ -222,7 +219,7 @@ public class Canary extends AbstractCanary {
                 .withImage(overrideManager.getCanaryImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
-                .withResources(buildResources())
+                .withResources(config.getCanary().buildResources())
                 .withReadinessProbe(buildReadinessProbe())
                 .withLivenessProbe(buildLivenessProbe())
                 .withVolumeMounts(buildVolumeMounts(managedKafka))
@@ -356,17 +353,6 @@ public class Canary extends AbstractCanary {
 
     private List<ContainerPort> buildContainerPorts() {
         return Collections.singletonList(new ContainerPortBuilder().withName(METRICS_PORT_NAME).withContainerPort(METRICS_PORT).build());
-    }
-
-    private ResourceRequirements buildResources() {
-        Quantity mem = new Quantity(config.getCanary().getContainerMemory());
-        Quantity cpu = new Quantity(config.getCanary().getContainerCpu());
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", mem)
-                .addToRequests("cpu", cpu)
-                .addToLimits("memory", mem)
-                .addToLimits("cpu", cpu)
-                .build();
     }
 
     private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {

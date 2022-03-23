@@ -63,8 +63,6 @@ import java.util.stream.Stream;
  */
 public class ManagedKafkaProvisioner {
 
-    public static final int ZONES = 3;
-
     private static final String KAS_FLEETSHARD_CONFIG = "kas-fleetshard-config";
     public static final String KAFKA_BROKER_TAINT_KEY = "org.bf2.operator/kafka-broker";
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaProvisioner.class);
@@ -299,9 +297,10 @@ public class ManagedKafkaProvisioner {
                     .format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
 
-        int replicas = 3;
-        if (managedKafkaCapacity.getMaxPartitions() != null) {
-            replicas = (int) (3 * Math.ceil(managedKafkaCapacity.getMaxPartitions() / (double)profile.getKafka().getPartitionCapacity()));
+        Integer replicas = profile.getKafka().getReplicasOverride();
+        if (replicas == null) {
+            replicas = 3;
+            profile.getKafka().setReplicasOverride(replicas);
         }
 
         applyProfile(profile, replicas);
@@ -446,7 +445,7 @@ public class ManagedKafkaProvisioner {
                         (n1, n2) -> Long.compare(TestUtils.getMaxAvailableResources(n1).cpuMillis,
                                 TestUtils.getMaxAvailableResources(n2).cpuMillis)));
 
-        int brokersPerZone = brokers / ZONES;
+        int brokersPerZone = brokers / zoneAwareNodeList.size();
         for (List<Node> nodes : zoneAwareNodeList.values()) {
             if (nodes.size() < brokersPerZone) {
                 throw new IllegalStateException("Not enough nodes per zone available");

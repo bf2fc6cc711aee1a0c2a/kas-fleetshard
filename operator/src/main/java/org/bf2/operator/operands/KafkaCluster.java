@@ -13,8 +13,6 @@ import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.api.model.PodAntiAffinity;
 import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
@@ -220,7 +218,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withVersion(this.kafkaManager.currentKafkaVersion(managedKafka))
                         .withConfig(buildKafkaConfig(managedKafka, current))
                         .withReplicas(actualReplicas)
-                        .withResources(buildKafkaResources(managedKafka))
+                        .withResources(config.kafka.buildResources())
                         .withJvmOptions(buildKafkaJvmOptions(managedKafka))
                         .withStorage(buildKafkaStorage(managedKafka, current))
                         .withListeners(buildListeners(managedKafka, actualReplicas))
@@ -234,7 +232,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewZookeeper()
                         .withReplicas(this.config.getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage) buildZooKeeperStorage(current))
-                        .withResources(buildZooKeeperResources(managedKafka))
+                        .withResources(config.zookeeper.buildResources())
                         .withJvmOptions(buildZooKeeperJvmOptions(managedKafka))
                         .withTemplate(buildZookeeperTemplate(managedKafka))
                         .withMetricsConfig(buildZooKeeperMetricsConfig(managedKafka))
@@ -259,6 +257,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     public int getBrokerReplicas(ManagedKafka managedKafka, Kafka current) {
+        Integer replicas = config.getKafka().getReplicasOverride();
+        if (replicas != null) {
+            return replicas;
+        }
         if (current != null) {
             return current.getSpec().getKafka().getReplicas();
         }
@@ -506,30 +508,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private ResourceRequirements buildKafkaResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getKafka().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getKafka().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
-                .build();
-    }
-
-    private ResourceRequirements buildZooKeeperResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
-                .build();
-    }
-
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
         ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
-                .withResources(buildKafkaExporterResources(managedKafka));
+                .withResources(this.config.getExporter().buildResources());
 
         if (configMap != null) {
             String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
@@ -551,15 +535,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endTemplate();
         }
         return specBuilder.build();
-    }
-
-    private ResourceRequirements buildKafkaExporterResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getExporter().getContainerRequestMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getExporter().getContainerRequestCpu()))
-                .addToLimits("memory", new Quantity(this.config.getExporter().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getExporter().getContainerCpu()))
-                .build();
     }
 
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current) {

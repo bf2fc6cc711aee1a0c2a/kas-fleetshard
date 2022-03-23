@@ -10,9 +10,6 @@ import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -276,7 +273,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withImage(overrideManager.getAdminServerImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka))
                 .withPorts(buildContainerPorts(managedKafka))
-                .withResources(buildResources())
+                .withResources(config.getAdminserver().buildResources())
                 .withReadinessProbe(readinessProbe)
                 .withLivenessProbe(livenessProbe)
                 .withVolumeMounts(buildVolumeMounts(managedKafka))
@@ -526,17 +523,6 @@ public class AdminServer extends AbstractAdminServer {
                            .withPort(apiPort)
                            .withTargetPort(apiTargetPort)
                            .build());
-    }
-
-    private ResourceRequirements buildResources() {
-        Quantity mem = new Quantity(config.getAdminserver().getContainerMemory());
-        Quantity cpu = new Quantity(config.getAdminserver().getContainerCpu());
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", mem)
-                .addToRequests("cpu", cpu)
-                .addToLimits("memory", mem)
-                .addToLimits("cpu", cpu)
-                .build();
     }
 
     @Override
