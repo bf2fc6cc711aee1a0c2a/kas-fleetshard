@@ -63,8 +63,6 @@ import java.util.stream.Stream;
  */
 public class ManagedKafkaProvisioner {
 
-    public static final int ZONES = 3;
-
     private static final String KAS_FLEETSHARD_CONFIG = "kas-fleetshard-config";
     public static final String KAFKA_BROKER_TAINT_KEY = "org.bf2.operator/kafka-broker";
     private static final Logger LOGGER = LogManager.getLogger(ManagedKafkaProvisioner.class);
@@ -298,7 +296,14 @@ public class ManagedKafkaProvisioner {
             throw new IllegalStateException(String
                     .format("Strimzi version %s is not in the set of installed versions %s", strimziVersion, versions));
         }
-        applyProfile(profile);
+
+        Integer replicas = profile.getKafka().getReplicasOverride();
+        if (replicas == null) {
+            replicas = 3;
+            profile.getKafka().setReplicasOverride(replicas);
+        }
+
+        applyProfile(profile, replicas);
 
         String namespace = Constants.KAFKA_NAMESPACE;
 
@@ -395,7 +400,7 @@ public class ManagedKafkaProvisioner {
         removeTaintsOnNodes();
     }
 
-    void applyProfile(KafkaInstanceConfiguration profile) throws IOException {
+    void applyProfile(KafkaInstanceConfiguration profile, int replicas) throws IOException {
         if (!this.clusters.isEmpty()) {
             // until install applies the profile, we can only do one deployment at a time
             throw new IllegalStateException("the provisioner cannot currently manage multiple clusters");
@@ -407,7 +412,7 @@ public class ManagedKafkaProvisioner {
         List<Node> workers = cluster.getWorkerNodes();
 
         // divide the nodes by their zones, then sort them by their cpu availability then mark however brokers needed for the taint
-        validateClusterForBrokers(profile.getKafka().getReplicas(), profile.getKafka().isColocateWithZookeeper(),
+        validateClusterForBrokers(replicas, profile.getKafka().isColocateWithZookeeper(),
                 workers.stream());
 
         // convert the profile into simple configmap values
@@ -440,7 +445,7 @@ public class ManagedKafkaProvisioner {
                         (n1, n2) -> Long.compare(TestUtils.getMaxAvailableResources(n1).cpuMillis,
                                 TestUtils.getMaxAvailableResources(n2).cpuMillis)));
 
-        int brokersPerZone = brokers / ZONES;
+        int brokersPerZone = brokers / zoneAwareNodeList.size();
         for (List<Node> nodes : zoneAwareNodeList.values()) {
             if (nodes.size() < brokersPerZone) {
                 throw new IllegalStateException("Not enough nodes per zone available");

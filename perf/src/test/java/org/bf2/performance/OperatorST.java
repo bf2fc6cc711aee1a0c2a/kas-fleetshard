@@ -43,6 +43,7 @@ public class OperatorST extends AbstractST {
     private OlmBasedStrimziOperatorManager strimziOperatorManager;
     private List<String> strimziVersions;
     private String latestStrimziVersion;
+    private String latestKafkaVersion;
 
     @BeforeAll
     void deploy() throws Exception {
@@ -74,6 +75,7 @@ public class OperatorST extends AbstractST {
         assertTrue(strimziVersions.size() > 1);
 
         latestStrimziVersion = strimziVersions.get(strimziVersions.size() - 1);
+        latestKafkaVersion = SyncApiClient.getLatestAvailableKafkaVersion(() -> agentResource.fromServer().get().getStatus(), latestStrimziVersion);
     }
 
     @AfterAll
@@ -92,7 +94,7 @@ public class OperatorST extends AbstractST {
         String startVersion = strimziVersions.get(strimziVersions.size() - 2);
 
         LOGGER.info("Create managedkafka with version {}", startVersion);
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, null, startVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, null, startVersion, latestKafkaVersion);
         mk = resourceManager.createResource(extensionContext, mk);
 
         Resource<ManagedKafka> mkResource = kube.client()
@@ -128,7 +130,7 @@ public class OperatorST extends AbstractST {
         resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         LOGGER.info("Create managedkafka");
-        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, null, latestStrimziVersion);
+        ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, null, latestStrimziVersion, latestKafkaVersion);
         Quantity quantity = Quantity.parse("100Gi");
         // for values below 270Gi, the logic will report a slightly larger values
         Quantity reportedQuantity = Quantity.parse("103Gi");

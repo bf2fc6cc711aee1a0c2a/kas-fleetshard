@@ -13,8 +13,6 @@ import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.api.model.PodAntiAffinity;
 import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
@@ -89,7 +87,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -102,6 +99,10 @@ import java.util.stream.Collectors;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
+    private static final String QUOTA_FETCH = "client.quota.callback.static.fetch";
+
+    private static final String QUOTA_PRODUCE = "client.quota.callback.static.produce";
+
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
     private static final boolean DELETE_CLAIM = true;
@@ -111,9 +112,17 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
 
     private static final String DIGEST = "org.bf2.operator/digest";
+    /* tracks the number of brokers desired as inferred from the capacity
+     * it may differ from the actual number of brokers on the kafka resource
+     * and will later need a reconciliation process
+     */
+    private static final String REPLICAS = "org.bf2.operator/desired-broker-replicas";
     private static final String IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK = "io.strimzi.kafka.quotas.StaticQuotaCallback";
 
     private static final String SERVICE_ACCOUNT_KEY = "managedkafka.kafka.acl.service-accounts.%s";
+
+    public static final String MAX_PARTITIONS = "max.partitions";
+    public static final String MESSAGE_MAX_BYTES = "message.max.bytes";
 
     @ConfigProperty(name = "managedkafka.storage.check-interval")
     int storageCheckInterval;
@@ -193,22 +202,26 @@ public class KafkaCluster extends AbstractKafkaCluster {
     public Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current) {
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
+        int actualReplicas = getBrokerReplicas(managedKafka, current);
+        int desiredReplicas = getBrokerReplicas(managedKafka, null);
+
         KafkaBuilder kafkaBuilder = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withLabels(buildKafkaLabels(managedKafka))
                     .withAnnotations(buildKafkaAnnotations(managedKafka, current))
+                    .addToAnnotations(REPLICAS, String.valueOf(desiredReplicas))
                 .endMetadata()
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(this.kafkaManager.currentKafkaVersion(managedKafka))
                         .withConfig(buildKafkaConfig(managedKafka, current))
-                        .withReplicas(this.config.getKafka().getReplicas())
-                        .withResources(buildKafkaResources(managedKafka))
+                        .withReplicas(actualReplicas)
+                        .withResources(config.kafka.buildResources())
                         .withJvmOptions(buildKafkaJvmOptions(managedKafka))
                         .withStorage(buildKafkaStorage(managedKafka, current))
-                        .withListeners(buildListeners(managedKafka))
+                        .withListeners(buildListeners(managedKafka, actualReplicas))
                         .withRack(buildKafkaRack(managedKafka))
                         .withTemplate(buildKafkaTemplate(managedKafka))
                         .withMetricsConfig(buildKafkaMetricsConfig(managedKafka))
@@ -219,7 +232,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .editOrNewZookeeper()
                         .withReplicas(this.config.getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage) buildZooKeeperStorage(current))
-                        .withResources(buildZooKeeperResources(managedKafka))
+                        .withResources(config.zookeeper.buildResources())
                         .withJvmOptions(buildZooKeeperJvmOptions(managedKafka))
                         .withTemplate(buildZookeeperTemplate(managedKafka))
                         .withMetricsConfig(buildZooKeeperMetricsConfig(managedKafka))
@@ -236,6 +249,33 @@ public class KafkaCluster extends AbstractKafkaCluster {
         OperandUtils.setAsOwner(managedKafka, kafka);
 
         return kafka;
+    }
+
+    @Override
+    public int getReplicas(ManagedKafka managedKafka) {
+        return getBrokerReplicas(managedKafka, cachedKafka(managedKafka));
+    }
+
+    public int getBrokerReplicas(ManagedKafka managedKafka, Kafka current) {
+        Integer replicas = config.getKafka().getReplicasOverride();
+        if (replicas != null) {
+            return replicas;
+        }
+        if (current != null) {
+            return current.getSpec().getKafka().getReplicas();
+        }
+        Integer maxPartitions = managedKafka.getSpec().getCapacity().getMaxPartitions();
+        int scalingAndReplicationFactor = config.getKafka().getScalingAndReplicationFactor();
+        // assume 1 physical unit if no other information
+        int desiredReplicas = scalingAndReplicationFactor;
+        if (maxPartitions != null) {
+            double physicalCapacity = config.getKafka().getPartitionCapacity();
+            desiredReplicas = (int) Math.ceil(maxPartitions * scalingAndReplicationFactor / physicalCapacity);
+            // round to only even multiples
+            desiredReplicas = (int) (Math.ceil(desiredReplicas / (double)scalingAndReplicationFactor) * scalingAndReplicationFactor);
+        }
+
+        return desiredReplicas;
     }
 
     /**
@@ -336,7 +376,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private Rack buildKafkaRack(ManagedKafka managedKafka) {
         return new RackBuilder()
-                .withNewTopologyKey("topology.kubernetes.io/zone")
+                .withTopologyKey("topology.kubernetes.io/zone")
                 .build();
     }
 
@@ -468,30 +508,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private ResourceRequirements buildKafkaResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getKafka().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getKafka().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getKafka().getContainerCpu()))
-                .build();
-    }
-
-    private ResourceRequirements buildZooKeeperResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
-                .addToLimits("memory", new Quantity(this.config.getZookeeper().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getZookeeper().getContainerCpu()))
-                .build();
-    }
-
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
         ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
-                .withResources(buildKafkaExporterResources(managedKafka));
+                .withResources(this.config.getExporter().buildResources());
 
         if (configMap != null) {
             String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
@@ -515,23 +537,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return specBuilder.build();
     }
 
-    private ResourceRequirements buildKafkaExporterResources(ManagedKafka managedKafka) {
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", new Quantity(this.config.getExporter().getContainerRequestMemory()))
-                .addToRequests("cpu", new Quantity(this.config.getExporter().getContainerRequestCpu()))
-                .addToLimits("memory", new Quantity(this.config.getExporter().getContainerMemory()))
-                .addToLimits("cpu", new Quantity(this.config.getExporter().getContainerCpu()))
-                .build();
-    }
-
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current) {
         Map<String, Object> config = new HashMap<>();
-        config.put("offsets.topic.replication.factor", 3);
-        config.put("transaction.state.log.min.isr", 2);
-        config.put("transaction.state.log.replication.factor", 3);
+        int scalingAndReplicationFactor = this.config.getKafka().getScalingAndReplicationFactor();
+        config.put("offsets.topic.replication.factor", scalingAndReplicationFactor);
+        config.put("transaction.state.log.min.isr", Math.min(scalingAndReplicationFactor, 2));
+        config.put("transaction.state.log.replication.factor", scalingAndReplicationFactor);
         config.put("auto.create.topics.enable", "false");
-        config.put("min.insync.replicas", 2);
-        config.put("default.replication.factor", 3);
+        config.put("min.insync.replicas", Math.min(scalingAndReplicationFactor, 2));
+        config.put("default.replication.factor", scalingAndReplicationFactor);
         config.put("log.message.format.version", this.kafkaManager.currentKafkaLogMessageFormatVersion(managedKafka));
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
@@ -554,7 +568,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
-        config.put("message.max.bytes", this.config.getKafka().getMessageMaxBytes());
+        config.put(MESSAGE_MAX_BYTES, this.config.getKafka().getMessageMaxBytes());
 
         // configure quota plugin
         if (this.config.getKafka().isEnableQuota()) {
@@ -564,7 +578,28 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // custom authorizer configuration
         addKafkaAuthorizerConfig(managedKafka, config);
 
+        if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
+            config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
+        }
+
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds", 10);
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds", 15);
+        config.put("strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix",
+                this.config.kafka.acl.privatePrefix);
+
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.name", "controlplane-9090");
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.port", 9090);
+        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.protocol", "SSL");
+
         return config;
+    }
+
+    public static String getProduceQuota(Kafka kafka) {
+        return (String)kafka.getSpec().getKafka().getConfig().get(QUOTA_PRODUCE);
+    }
+
+    public static String getFetchQuota(Kafka kafka) {
+        return (String)kafka.getSpec().getKafka().getConfig().get(QUOTA_FETCH);
     }
 
     private void addQuotaConfig(ManagedKafka managedKafka, Kafka current, Map<String, Object> config) {
@@ -572,13 +607,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("client.quota.callback.class", IO_STRIMZI_KAFKA_QUOTA_STATIC_QUOTA_CALLBACK);
 
         // Throttle at Ingress/Egress MB/sec per broker
-        config.put("client.quota.callback.static.produce", String.valueOf(getIngressBytes(managedKafka)));
-        config.put("client.quota.callback.static.fetch", String.valueOf(getEgressBytes(managedKafka)));
+        config.put(QUOTA_PRODUCE, String.valueOf(getIngressBytes(managedKafka, current)));
+        config.put(QUOTA_FETCH, String.valueOf(getEgressBytes(managedKafka, current)));
 
         // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
         long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(storageMinMargin).longValue();
-        long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka);
+        long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka, current);
         config.put("client.quota.callback.static.storage.soft", String.valueOf(softStorageLimit));
         config.put("client.quota.callback.static.storage.hard", String.valueOf(hardStorageLimit));
 
@@ -633,36 +668,35 @@ public class KafkaCluster extends AbstractKafkaCluster {
     /**
      * Get per broker value
      */
-    private long getPerBrokerBytes(ManagedKafka managedKafka, Function<ManagedKafka, Quantity> capacityValue, Supplier<String> defaultValue) {
-        Quantity quantity = capacityValue.apply(managedKafka);
-        long bytes = Quantity.getAmountInBytes(Objects.requireNonNullElse(quantity, new Quantity(defaultValue.get()))).longValue();
+    private long getPerBrokerBytes(ManagedKafka managedKafka, Kafka current, Quantity quantity, Supplier<String> defaultValue) {
+        long bytes = Quantity.getAmountInBytes(Optional.ofNullable(quantity).orElseGet(() -> Quantity.parse(defaultValue.get()))).longValue();
 
-        return bytes / this.config.getKafka().getReplicas();
+        return bytes / getBrokerReplicas(managedKafka, current);
     }
 
-    private long getIngressBytes(ManagedKafka managedKafka) {
-        return getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getIngressPerSec(), () -> config.getKafka().getIngressPerSec());
+    private long getIngressBytes(ManagedKafka managedKafka, Kafka current) {
+        return getPerBrokerBytes(managedKafka, current, managedKafka.getSpec().getCapacity().getIngressPerSec(), () -> config.getKafka().getIngressPerSec());
     }
 
-    private long getEgressBytes(ManagedKafka managedKafka) {
-        return getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getEgressPerSec(), () -> config.getKafka().getEgressPerSec());
+    private long getEgressBytes(ManagedKafka managedKafka, Kafka current) {
+        return getPerBrokerBytes(managedKafka, current, managedKafka.getSpec().getCapacity().getEgressPerSec(), () -> config.getKafka().getEgressPerSec());
     }
 
     /**
      * Get extra storage padding given the effective IngressEgressThroughput limit and storageMinMargin
      */
-    private long getStoragePadding(ManagedKafka managedKafka) {
-        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getIngressBytes(managedKafka) * storageCheckInterval * storageSafetyFactor;
+    private long getStoragePadding(ManagedKafka managedKafka, Kafka current) {
+        return Quantity.getAmountInBytes(storageMinMargin).longValue() + getIngressBytes(managedKafka, current) * storageCheckInterval * storageSafetyFactor;
     }
 
     /**
      * Get the effective volume size considering extra padding and the existing size
      */
     private Quantity getAdjustedMaxDataRetentionSize(ManagedKafka managedKafka, Kafka current) {
-        long bytes = getPerBrokerBytes(managedKafka, m -> m.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.config.getKafka().getVolumeSize());
+        long bytes = getPerBrokerBytes(managedKafka, current, managedKafka.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.config.getKafka().getVolumeSize());
 
         // pad to give a margin before soft/hard limits kick in
-        bytes += getStoragePadding(managedKafka);
+        bytes += getStoragePadding(managedKafka, current);
 
         // strimzi won't allow the size to be reduced so scrape the size if possible
         if (current != null) {
@@ -684,8 +718,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return new Quantity(String.valueOf(bytes));
     }
 
-    public long unpadBrokerStorage(ManagedKafka managedKafka, long value) {
-        return value - getStoragePadding(managedKafka);
+    public long unpadBrokerStorage(ManagedKafka managedKafka, Kafka current, long value) {
+        return value - getStoragePadding(managedKafka, current);
     }
 
     /**
@@ -694,6 +728,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
      */
     @Override
     public Quantity calculateRetentionSize(ManagedKafka managedKafka) {
+        Kafka current = cachedKafka(managedKafka);
         long storageInGbs = informerManager.getPvcsInNamespace(managedKafka.getMetadata().getNamespace()).stream().map(pvc -> {
             if (pvc.getStatus() == null) {
                 return 0L;
@@ -705,7 +740,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
             long value = Quantity.getAmountInBytes(q).longValue();
             // round down to the nearest GB - the PVC request is automatically rounded up
-            return (long)Math.floor(((double)unpadBrokerStorage(managedKafka, value))/(1L<<30));
+            return (long)Math.floor(((double)unpadBrokerStorage(managedKafka, current, value))/(1L<<30));
         }).collect(Collectors.summingLong(Long::longValue));
 
         Quantity capacity = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
@@ -713,7 +748,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // try to correct for the overall rounding
         if (storageInGbs > 0 && (capacity == null
                 || ("Gi".equals(capacity.getFormat()) && (Quantity.getAmountInBytes(capacity).longValue() / (1L << 30))
-                        % config.getKafka().getReplicas() != 0))) {
+                        % getBrokerReplicas(managedKafka, current) != 0))) {
             storageInGbs++;
         }
 

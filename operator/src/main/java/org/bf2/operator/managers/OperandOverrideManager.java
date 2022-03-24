@@ -1,5 +1,8 @@
 package org.bf2.operator.managers;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -15,6 +18,7 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,9 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @ApplicationScoped
 public class OperandOverrideManager {
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OperandOverride {
         public String image;
+
+        @JsonIgnore
+        private Map<String, Object> additionalProperties = new HashMap<>();
 
         public String getImage() {
             return image;
@@ -33,6 +39,16 @@ public class OperandOverrideManager {
 
         public void setImage(String image) {
             this.image = image;
+        }
+
+        @JsonAnyGetter
+        public Map<String, Object> getAdditionalProperties() {
+            return this.additionalProperties;
+        }
+
+        @JsonAnySetter
+        public void setAdditionalProperty(String name, Object value) {
+            this.additionalProperties.put(name, value);
         }
     }
 
@@ -109,15 +125,19 @@ public class OperandOverrideManager {
         return Optional.ofNullable(getOverrides(strimzi).canary.init.image).orElse(canaryInitImage);
     }
 
+    public OperandOverride getAdminServerOverride(String strimzi) {
+        return getOverrides(strimzi).adminServer;
+    }
+
     public String getAdminServerImage(String strimzi) {
-        return Optional.ofNullable(getOverrides(strimzi).adminServer.image).orElse(adminApiImage);
+        return Optional.ofNullable(getAdminServerOverride(strimzi).image).orElse(adminApiImage);
     }
 
     void updateOverrides(ConfigMap obj) {
         String name = obj.getMetadata().getName();
         if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
             String data = obj.getData().get(OPERANDS_YAML);
-            log.infof("Updating overrides for {} to {}", name, data);
+            log.infof("Updating overrides for %s to %s", name, data);
             boolean resync = false;
             if (data == null) {
                 overrides.remove(name);
@@ -136,7 +156,7 @@ public class OperandOverrideManager {
     void removeOverrides(ConfigMap obj) {
         String name = obj.getMetadata().getName();
         if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
-            log.infof("removing overrides for {}", name);
+            log.infof("removing overrides for %s", name);
             overrides.remove(name);
             informerManager.resyncManagedKafka();
         }

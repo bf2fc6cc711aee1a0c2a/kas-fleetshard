@@ -10,9 +10,6 @@ import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -260,26 +257,37 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     protected List<Container> buildContainers(ManagedKafka managedKafka) {
+        Probe readinessProbe;
+        Probe livenessProbe;
+
+        if (isQuarkusBasedAdminServer(managedKafka)) {
+            readinessProbe = buildProbe("/health/ready", HTTP_PORT_TARGET);
+            livenessProbe = buildProbe("/health/live", HTTP_PORT_TARGET);
+        } else {
+            readinessProbe = buildProbe("/health/liveness", MANAGEMENT_PORT_TARGET);
+            livenessProbe = buildProbe("/health/liveness", MANAGEMENT_PORT_TARGET);
+        }
+
         Container container = new ContainerBuilder()
                 .withName("admin-server")
                 .withImage(overrideManager.getAdminServerImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka))
                 .withPorts(buildContainerPorts(managedKafka))
-                .withResources(buildResources())
-                .withReadinessProbe(buildProbe())
-                .withLivenessProbe(buildProbe())
+                .withResources(config.getAdminserver().buildResources())
+                .withReadinessProbe(readinessProbe)
+                .withLivenessProbe(livenessProbe)
                 .withVolumeMounts(buildVolumeMounts(managedKafka))
                 .build();
 
         return Collections.singletonList(container);
     }
 
-    private Probe buildProbe() {
+    private Probe buildProbe(String path, IntOrString portTarget) {
         return new ProbeBuilder()
                 .withHttpGet(
                         new HTTPGetActionBuilder()
-                        .withPath("/health/liveness")
-                        .withPort(MANAGEMENT_PORT_TARGET)
+                        .withPath(path)
+                        .withPort(portTarget)
                         .build()
                 )
                 .withTimeoutSeconds(5)
@@ -395,6 +403,7 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>();
 
+        addEnvVar(envVars, "KAFKA_ADMIN_REPLICATION_FACTOR", String.valueOf(config.getKafka().getScalingAndReplicationFactor()));
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
         addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
@@ -446,25 +455,51 @@ public class AdminServer extends AbstractAdminServer {
     }
 
     private List<ContainerPort> buildContainerPorts(ManagedKafka managedKafka) {
-        final String apiPortName;
-        final int apiContainerPort;
+        if (isQuarkusBasedAdminServer(managedKafka)) {
+            List<ContainerPort> ports = new ArrayList<>(3);
 
-        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            apiPortName = HTTPS_PORT_NAME;
-            apiContainerPort = HTTPS_PORT;
+            // HTTP port always exposed for health probes
+            ports.add(new ContainerPortBuilder()
+                    .withName(HTTP_PORT_NAME)
+                    .withContainerPort(HTTP_PORT)
+                    .build());
+
+            // HTTP "management" alias port exposed for metrics pod monitor. Remove when no longer needed.
+            ports.add(new ContainerPortBuilder()
+                    .withName(MANAGEMENT_PORT_NAME)
+                    .withContainerPort(HTTP_PORT)
+                    .build());
+
+            if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+                // HTTPS port exposed when the route/service will be configured for TLS
+                ports.add(new ContainerPortBuilder()
+                        .withName(HTTPS_PORT_NAME)
+                        .withContainerPort(HTTPS_PORT)
+                        .build());
+            }
+
+            return ports;
         } else {
-            apiPortName = HTTP_PORT_NAME;
-            apiContainerPort = HTTP_PORT;
-        }
+            final String apiPortName;
+            final int apiContainerPort;
 
-        return List.of(new ContainerPortBuilder()
-                           .withName(apiPortName)
-                           .withContainerPort(apiContainerPort)
-                           .build(),
-                       new ContainerPortBuilder()
-                           .withName(MANAGEMENT_PORT_NAME)
-                           .withContainerPort(MANAGEMENT_PORT)
-                           .build());
+            if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+                apiPortName = HTTPS_PORT_NAME;
+                apiContainerPort = HTTPS_PORT;
+            } else {
+                apiPortName = HTTP_PORT_NAME;
+                apiContainerPort = HTTP_PORT;
+            }
+
+            return List.of(new ContainerPortBuilder()
+                               .withName(apiPortName)
+                               .withContainerPort(apiContainerPort)
+                               .build(),
+                           new ContainerPortBuilder()
+                               .withName(MANAGEMENT_PORT_NAME)
+                               .withContainerPort(MANAGEMENT_PORT)
+                               .build());
+        }
     }
 
     private List<ServicePort> buildServicePorts(ManagedKafka managedKafka) {
@@ -488,17 +523,6 @@ public class AdminServer extends AbstractAdminServer {
                            .withPort(apiPort)
                            .withTargetPort(apiTargetPort)
                            .build());
-    }
-
-    private ResourceRequirements buildResources() {
-        Quantity mem = new Quantity(config.getAdminserver().getContainerMemory());
-        Quantity cpu = new Quantity(config.getAdminserver().getContainerCpu());
-        return new ResourceRequirementsBuilder()
-                .addToRequests("memory", mem)
-                .addToRequests("cpu", cpu)
-                .addToLimits("memory", mem)
-                .addToLimits("cpu", cpu)
-                .build();
     }
 
     @Override
@@ -525,5 +549,14 @@ public class AdminServer extends AbstractAdminServer {
         return openShiftClient.routes()
                 .inNamespace(adminServerNamespace(managedKafka))
                 .withName(adminServerName(managedKafka));
+    }
+
+    /**
+     * Temporary configuration check for transition to Quarkus-based admin server
+     */
+    boolean isQuarkusBasedAdminServer(ManagedKafka managedKafka) {
+        String strimziVersion = managedKafka.getSpec().getVersions().getStrimzi();
+        Object quarkusBased = overrideManager.getAdminServerOverride(strimziVersion).getAdditionalProperties().get("quarkus-based");
+        return Boolean.TRUE.equals(quarkusBased);
     }
 }

@@ -6,10 +6,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.client.utils.Serialization;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -20,41 +24,10 @@ import java.util.stream.Collectors;
  */
 public class KafkaInstanceConfiguration {
     // cluster level
-    private static final Integer DEFAULT_CONNECTION_ATTEMPTS_PER_SEC = 100;
-    private static final Integer DEFAULT_MAX_CONNECTIONS = 500;
-    private static final String DEFAULT_INGRESS_PER_SEC = "30Mi";
-    private static final String DEFAULT_EGRESS_PER_SEC = "30Mi";
     private static final String JVM_OPTIONS_XX = "ExitOnOutOfMemoryError true";
 
     // broker
-    public static final int KAFKA_BROKERS = 3;
     private static final String KAFKA_STORAGE_CLASS = "gp2";
-    private static final String KAFKA_CONTAINER_MEMORY = "8Gi";
-    private static final String KAFKA_CONTAINER_CPU = "3000m";
-    private static final String DEFAULT_KAFKA_VOLUME_SIZE = "1000Gi";
-    private static final String KAFKA_JVM_XMS = "3G";
-    private static final int MESSAGE_MAX_BYTES = 1048588;
-
-    // zookeeper
-    private static final int ZOOKEEPER_NODES = 3;
-    private static final String ZOOKEEPER_VOLUME_SIZE = "10Gi";
-    private static final String ZOOKEEPER_CONTAINER_MEMORY = "4Gi";
-    private static final String ZOOKEEPER_CONTAINER_CPU = "1000m";
-    private static final String ZOOKEEPER_JVM_XMS = "1G";
-
-    // exporter
-    private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST = "256Mi";
-    private static final String KAFKA_EXPORTER_CONTAINER_CPU_REQUEST = "500m";
-    private static final String KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT = "256Mi";
-    private static final String KAFKA_EXPORTER_CONTAINER_CPU_LIMIT = "1000m";
-
-    // canary
-    private static final String CANARY_CONTAINER_MEMORY = "64Mi";
-    private static final String CANARY_CONTAINER_CPU = "75m";
-
-    // admin server
-    private static final String ADMIN_SERVER_CONTAINER_MEMORY = "512Mi";
-    private static final String ADMIN_SERVER_CONTAINER_CPU = "500m";
 
     @JsonUnwrapped(prefix = "managedkafka.kafka.")
     protected Kafka kafka = new Kafka();
@@ -75,59 +48,15 @@ public class KafkaInstanceConfiguration {
         return mapper.convertValue(this, new TypeReference<Map<String, String>>() {});
     }
 
-    public static class Kafka {
-        @JsonProperty("connection-attempts-per-sec")
-        protected int connectionAttemptsPerSec = DEFAULT_CONNECTION_ATTEMPTS_PER_SEC;
-        @JsonProperty("max-connections")
-        protected int maxConnections = DEFAULT_MAX_CONNECTIONS;
-        @JsonProperty("ingress-per-sec")
-        protected String ingressPerSec = DEFAULT_INGRESS_PER_SEC;
-        @JsonProperty("egress-per-sec")
-        protected String egressPerSec = DEFAULT_EGRESS_PER_SEC;
-        @JsonProperty("replicas")
-        protected int replicas = KAFKA_BROKERS;
-        @JsonProperty("storage-class")
-        protected String storageClass = KAFKA_STORAGE_CLASS;
+    public static class Container {
+        @JsonProperty("container-request-memory")
+        protected String containerRequestMemory;
+        @JsonProperty("container-request-cpu")
+        protected String containerRequestCpu;
         @JsonProperty("container-memory")
-        protected String containerMemory = KAFKA_CONTAINER_MEMORY;
+        protected String containerMemory;
         @JsonProperty("container-cpu")
-        protected String containerCpu = KAFKA_CONTAINER_CPU;
-        @JsonProperty("volume-size")
-        protected String volumeSize = DEFAULT_KAFKA_VOLUME_SIZE;
-        @JsonProperty("jvm-xms")
-        protected String jvmXms = KAFKA_JVM_XMS;
-        @JsonProperty("jvm-xx")
-        protected String jvmXx = JVM_OPTIONS_XX;
-        @JsonProperty("enable-quota")
-        protected boolean enableQuota = true;
-        @JsonUnwrapped(prefix = "acl.")
-        protected AccessControl acl = new AccessControl();
-        @JsonUnwrapped(prefix = "acl-legacy.")
-        protected AccessControl aclLegacy = new AccessControl();
-        @JsonProperty("colocate-with-zookeeper")
-        protected boolean colocateWithZookeeper = false;
-        @JsonProperty("one-instance-per-node")
-        protected boolean oneInstancePerNode = false;
-        @JsonProperty("maximum-session-lifetime-default")
-        protected long maximumSessionLifetimeDefault;
-        @JsonProperty("message-max-bytes")
-        protected int messageMaxBytes = MESSAGE_MAX_BYTES;
-
-        public int getReplicas() {
-            return replicas;
-        }
-
-        public void setReplicas(int replicas) {
-            this.replicas = replicas;
-        }
-
-        public String getStorageClass() {
-            return storageClass;
-        }
-
-        public void setStorageClass(String storageClass) {
-            this.storageClass = storageClass;
-        }
+        protected String containerCpu;
 
         public String getContainerMemory() {
             return containerMemory;
@@ -143,6 +72,82 @@ public class KafkaInstanceConfiguration {
 
         public void setContainerCpu(String containerCpu) {
             this.containerCpu = containerCpu;
+        }
+
+        public String getContainerRequestCpu() {
+            return containerRequestCpu;
+        }
+
+        public String getContainerRequestMemory() {
+            return containerRequestMemory;
+        }
+
+        public void setContainerRequestCpu(String containerRequestCpu) {
+            this.containerRequestCpu = containerRequestCpu;
+        }
+
+        public void setContainerRequestMemory(String containerRequestMemory) {
+            this.containerRequestMemory = containerRequestMemory;
+        }
+
+        public ResourceRequirements buildResources() {
+            Quantity mem = new Quantity(getContainerMemory());
+            Quantity cpu = new Quantity(getContainerCpu());
+            Quantity memRequest = new Quantity(Objects.requireNonNullElse(getContainerRequestMemory(), getContainerMemory()));
+            Quantity cpuRequest = new Quantity(Objects.requireNonNullElse(getContainerRequestCpu(), getContainerCpu()));
+            return new ResourceRequirementsBuilder()
+                    .addToRequests("memory", memRequest)
+                    .addToRequests("cpu", cpuRequest)
+                    .addToLimits("memory", mem)
+                    .addToLimits("cpu", cpu)
+                    .build();
+        }
+    }
+
+    public static class Kafka extends Container {
+        @JsonProperty("connection-attempts-per-sec")
+        protected int connectionAttemptsPerSec;
+        @JsonProperty("max-connections")
+        protected int maxConnections;
+        @JsonProperty("partition-capacity")
+        protected int partitionCapacity;
+        @JsonProperty("scaling-and-replication-factor")
+        protected int scalingAndReplicationFactor;
+        @JsonProperty("ingress-per-sec")
+        protected String ingressPerSec;
+        @JsonProperty("egress-per-sec")
+        protected String egressPerSec;
+        @JsonProperty("storage-class")
+        protected String storageClass = KAFKA_STORAGE_CLASS;
+        @JsonProperty("volume-size")
+        protected String volumeSize;
+        @JsonProperty("jvm-xms")
+        protected String jvmXms;
+        @JsonProperty("jvm-xx")
+        protected String jvmXx = JVM_OPTIONS_XX;
+        @JsonProperty("enable-quota")
+        protected boolean enableQuota = true;
+        @JsonUnwrapped(prefix = "acl.")
+        protected AccessControl acl = new AccessControl();
+        @JsonUnwrapped(prefix = "acl-legacy.")
+        protected AccessControl aclLegacy = new AccessControl();
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
+        @JsonProperty("one-instance-per-node")
+        protected boolean oneInstancePerNode = false;
+        @JsonProperty("maximum-session-lifetime-default")
+        protected long maximumSessionLifetimeDefault;
+        @JsonProperty("message-max-bytes")
+        protected int messageMaxBytes;
+        @JsonProperty("replicas-override")
+        protected Integer replicasOverride;
+
+        public String getStorageClass() {
+            return storageClass;
+        }
+
+        public void setStorageClass(String storageClass) {
+            this.storageClass = storageClass;
         }
 
         public String getVolumeSize() {
@@ -261,6 +266,31 @@ public class KafkaInstanceConfiguration {
         public void setMessageMaxBytes(int maxMessageBytes) {
             this.messageMaxBytes = maxMessageBytes;
         }
+
+        public int getPartitionCapacity() {
+            return partitionCapacity;
+        }
+
+        public void setPartitionCapacity(int partitionCapacity) {
+            this.partitionCapacity = partitionCapacity;
+        }
+
+        public int getScalingAndReplicationFactor() {
+            return scalingAndReplicationFactor;
+        }
+
+        public void setScalingAndReplicationFactor(int scalingAndReplicationFactor) {
+            this.scalingAndReplicationFactor = scalingAndReplicationFactor;
+        }
+
+        public Integer getReplicasOverride() {
+            return replicasOverride;
+        }
+
+        public void setReplicasOverride(Integer replicasOverride) {
+            this.replicasOverride = replicasOverride;
+        }
+
     }
 
     public static class AccessControl {
@@ -282,6 +312,8 @@ public class KafkaInstanceConfiguration {
         protected String logging = null;
         @JsonUnwrapped(prefix = "logging.suppression-window.")
         protected LoggingSuppressionWindow loggingSuppressionWindow = new LoggingSuppressionWindow();
+        @JsonProperty("private-prefix")
+        protected String privatePrefix = null;
 
         public static class LoggingSuppressionWindow {
 
@@ -390,19 +422,23 @@ public class KafkaInstanceConfiguration {
         public void setLoggingSuppressionWindow(LoggingSuppressionWindow loggingSuppressionWindow) {
             this.loggingSuppressionWindow = loggingSuppressionWindow;
         }
+
+        public String getPrivatePrefix() {
+            return privatePrefix;
+        }
+
+        public void setPrivatePrefix(String privatePrefix) {
+            this.privatePrefix = privatePrefix;
+        }
     }
 
-    public static class ZooKeeper {
+    public static class ZooKeeper extends Container {
         @JsonProperty("replicas")
-        private int replicas = ZOOKEEPER_NODES;
+        private int replicas;
         @JsonProperty("volume-size")
-        private String volumeSize = ZOOKEEPER_VOLUME_SIZE;
-        @JsonProperty("container-memory")
-        private String containerMemory = ZOOKEEPER_CONTAINER_MEMORY;
-        @JsonProperty("container-cpu")
-        private String containerCpu = ZOOKEEPER_CONTAINER_CPU;
+        private String volumeSize;
         @JsonProperty("jvm-xms")
-        private String jvmXms = ZOOKEEPER_JVM_XMS;
+        private String jvmXms;
         @JsonProperty("jvm-xx")
         protected String jvmXx = JVM_OPTIONS_XX;
 
@@ -420,22 +456,6 @@ public class KafkaInstanceConfiguration {
 
         public void setVolumeSize(String volumeSize) {
             this.volumeSize = volumeSize;
-        }
-
-        public String getContainerMemory() {
-            return containerMemory;
-        }
-
-        public void setContainerMemory(String containerMemory) {
-            this.containerMemory = containerMemory;
-        }
-
-        public String getContainerCpu() {
-            return containerCpu;
-        }
-
-        public void setContainerCpu(String containerCpu) {
-            this.containerCpu = containerCpu;
         }
 
         public String getJvmXms() {
@@ -460,49 +480,9 @@ public class KafkaInstanceConfiguration {
         }
     }
 
-    public static class Exporter {
-        @JsonProperty("container-memory")
-        private String containerMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_LIMIT;
-        @JsonProperty("container-cpu")
-        private String containerCpu = KAFKA_EXPORTER_CONTAINER_CPU_LIMIT;
-        @JsonProperty("container-request-memory")
-        private String containerRequestMemory = KAFKA_EXPORTER_CONTAINER_MEMORY_REQUEST;
-        @JsonProperty("container-request-cpu")
-        private String containerRequestCpu = KAFKA_EXPORTER_CONTAINER_CPU_REQUEST;
+    public static class Exporter extends Container {
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
-
-        public String getContainerMemory() {
-            return containerMemory;
-        }
-
-        public void setContainerMemory(String containerMemory) {
-            this.containerMemory = containerMemory;
-        }
-
-        public String getContainerCpu() {
-            return containerCpu;
-        }
-
-        public void setContainerCpu(String containerCpu) {
-            this.containerCpu = containerCpu;
-        }
-
-        public String getContainerRequestMemory() {
-            return containerRequestMemory;
-        }
-
-        public void setContainerRequestMemory(String containerRequestMemory) {
-            this.containerRequestMemory = containerRequestMemory;
-        }
-
-        public String getContainerRequestCpu() {
-            return containerRequestCpu;
-        }
-
-        public void setContainerRequestCpu(String containerRequestCpu) {
-            this.containerRequestCpu = containerRequestCpu;
-        }
 
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
@@ -513,17 +493,12 @@ public class KafkaInstanceConfiguration {
         }
     }
 
-    public static class AdminServer {
+    public static class AdminServer extends Container {
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
         @JsonProperty("edge-tls-enabled")
         protected boolean edgeTlsEnabled = false;
-
-        @JsonProperty("container-memory")
-        protected String containerMemory = ADMIN_SERVER_CONTAINER_MEMORY;
-        @JsonProperty("container-cpu")
-        protected String containerCpu = ADMIN_SERVER_CONTAINER_CPU;
 
         @JsonProperty("rate-limit-enabled")
         protected boolean rateLimitEnabled = true;
@@ -548,22 +523,6 @@ public class KafkaInstanceConfiguration {
 
         public void setEdgeTlsEnabled(boolean edgeTlsEnabled) {
             this.edgeTlsEnabled = edgeTlsEnabled;
-        }
-
-        public String getContainerMemory() {
-            return containerMemory;
-        }
-
-        public void setContainerMemory(String containerMemory) {
-            this.containerMemory = containerMemory;
-        }
-
-        public String getContainerCpu() {
-            return containerCpu;
-        }
-
-        public void setContainerCpu(String containerCpu) {
-            this.containerCpu = containerCpu;
         }
 
         public boolean isRateLimitEnabled() {
@@ -591,17 +550,12 @@ public class KafkaInstanceConfiguration {
         }
     }
 
-    public static class Canary {
+    public static class Canary extends Container {
         @JsonProperty("probe-external-bootstrap-server-host")
         protected boolean probeExternalBootstrapServerHost = false;
 
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
-
-        @JsonProperty("container-memory")
-        protected String containerMemory = CANARY_CONTAINER_MEMORY;
-        @JsonProperty("container-cpu")
-        protected String containerCpu = CANARY_CONTAINER_CPU;
 
         protected String topic;
 
@@ -625,22 +579,6 @@ public class KafkaInstanceConfiguration {
 
         public void setProbeExternalBootstrapServerHost(boolean probeExternalBootstrapServerHost) {
             this.probeExternalBootstrapServerHost = probeExternalBootstrapServerHost;
-        }
-
-        public String getContainerMemory() {
-            return containerMemory;
-        }
-
-        public void setContainerMemory(String containerMemory) {
-            this.containerMemory = containerMemory;
-        }
-
-        public String getContainerCpu() {
-            return containerCpu;
-        }
-
-        public void setContainerCpu(String containerCpu) {
-            this.containerCpu = containerCpu;
         }
 
         public String getTopic() {

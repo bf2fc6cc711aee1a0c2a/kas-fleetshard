@@ -86,6 +86,18 @@ public class SyncApiClient {
         return getSortedAvailableStrimziVersions(endpoint).reduce((first, second) -> second).orElse(null);
     }
 
+    public static String getLatestKafkaVersion(String endpoint, String strimziVersion) throws Exception {
+        return getLatestAvailableKafkaVersion(() -> {
+            try {
+                return Serialization.jsonMapper()
+                        .readValue(SyncApiClient.getManagedKafkaAgentStatus(endpoint).body(),
+                                ManagedKafkaAgentStatus.class);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }, strimziVersion);
+    }
+
     public static String getPreviousStrimziVersion(String endpoint) throws Exception {
         List<String> strimziVersions = getSortedAvailableStrimziVersions(endpoint).collect(Collectors.toList());
         return strimziVersions.get(strimziVersions.size() - 2);
@@ -115,17 +127,36 @@ public class SyncApiClient {
         return sortedStrimziVersion(statusSupplier.get().getStrimzi().stream().map(StrimziVersionStatus::getVersion));
     }
 
+    public static Stream<String> getKafkaVersions(Supplier<ManagedKafkaAgentStatus> statusSupplier, String strimziVersion) {
+        TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
+            try {
+                return statusSupplier.get().getStrimzi().size() > 0;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+        return statusSupplier.get().getStrimzi().stream().filter(item -> item.getVersion().equals(strimziVersion)).findFirst().get().getKafkaVersions().stream();
+    }
+
+    public static String getLatestAvailableKafkaVersion(Supplier<ManagedKafkaAgentStatus> statusSupplier, String strimziVersion) {
+        return getKafkaVersions(statusSupplier, strimziVersion).sorted((a, b) -> {
+            ComparableVersion aVersion = new ComparableVersion(a);
+            ComparableVersion bVersion = new ComparableVersion(b);
+            return aVersion.compareTo(bVersion);
+        }).reduce((first, second) -> second).get();
+    }
+
     public static Stream<String> sortedStrimziVersion(Stream<String> versions) {
         Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+[-0-9]*)$");
         return Objects.requireNonNull(versions.sorted((a, b) -> {
-                    Matcher aMatcher = pattern.matcher(a);
-                    Matcher bMatcher = pattern.matcher(b);
-                    aMatcher.matches();
-                    bMatcher.matches();
-                    ComparableVersion aVersion = new ComparableVersion(aMatcher.group("version"));
-                    ComparableVersion bVersion = new ComparableVersion(bMatcher.group("version"));
-                    return aVersion.compareTo(bVersion);
-                }));
+            Matcher aMatcher = pattern.matcher(a);
+            Matcher bMatcher = pattern.matcher(b);
+            aMatcher.matches();
+            bMatcher.matches();
+            ComparableVersion aVersion = new ComparableVersion(aMatcher.group("version"));
+            ComparableVersion bVersion = new ComparableVersion(bMatcher.group("version"));
+            return aVersion.compareTo(bVersion);
+        }));
     }
 
     /**

@@ -8,10 +8,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
 import org.bf2.test.k8s.KubeClient;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,17 +48,5 @@ public class AssertUtils {
         assertNotNull(agentStatus.getRemaining(), yml);
         assertNotNull(agentStatus.getResizeInfo(), yml);
         assertNotNull(agentStatus.getNodeInfo(), yml);
-    }
-
-    public static void assertStrimziUpgraded(ManagedKafka mk, LocalDateTime dateBeforeStartUpgrade) {
-        ManagedKafkaResourceType.getKafkaPods(mk).forEach(kp -> {
-            LocalDateTime started = LocalDateTime.ofInstant(Instant.parse(kp.getStatus().getStartTime()), ZoneOffset.UTC);
-            assertTrue(dateBeforeStartUpgrade.isBefore(started));
-        });
-
-        ManagedKafkaResourceType.getZookeeperPods(mk).forEach(zp -> {
-            LocalDateTime started = LocalDateTime.ofInstant(Instant.parse(zp.getStatus().getStartTime()), ZoneOffset.UTC);
-            assertTrue(dateBeforeStartUpgrade.isBefore(started));
-        });
     }
 }
