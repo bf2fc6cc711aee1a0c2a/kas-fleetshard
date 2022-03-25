@@ -71,7 +71,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     protected Optional<String> zookeeperImage;
 
     @Inject
-    protected KafkaInstanceConfiguration config;
+    protected KafkaInstanceConfigurations configs;
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
@@ -274,9 +274,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections()) / replicas;
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.configs.getConfig(managedKafka).getKafka().getMaxConnections()) / replicas;
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec()) / replicas;
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.configs.getConfig(managedKafka).getKafka().getConnectionAttemptsPerSec()) / replicas;
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()

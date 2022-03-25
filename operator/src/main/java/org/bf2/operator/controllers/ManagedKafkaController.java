@@ -16,7 +16,6 @@ import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
-import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
@@ -53,9 +52,6 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
 
     @Inject
     KafkaInstance kafkaInstance;
-
-    @Inject
-    protected KafkaInstanceConfiguration config;
 
     @Inject
     Instance<IngressControllerManager> ingressControllerManagerInstance;
