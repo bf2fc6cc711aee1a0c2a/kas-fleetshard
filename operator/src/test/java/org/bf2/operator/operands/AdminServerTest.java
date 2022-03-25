@@ -2,6 +2,8 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
@@ -88,6 +90,28 @@ class AdminServerTest {
                 .withName(adminServerDeployment.getMetadata().getName()).get());
 
         KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource);
+    }
+
+    @Test
+    void routeUriPlain() throws Exception {
+        Route route = new RouteBuilder().withNewSpec()
+                .withHost("test.net")
+            .endSpec()
+            .build();
+
+        assertEquals("http://test.net", adminServer.getRouteURI(route));
+    }
+
+    @Test
+    void routeUriTls() throws Exception {
+        Route route = new RouteBuilder().withNewSpec()
+                .withHost("test.net")
+                .withNewTls()
+                .endTls()
+            .endSpec()
+            .build();
+
+        assertEquals("https://test.net", adminServer.getRouteURI(route));
     }
 
     @Test

@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.api.model.RouteSpec;
 import io.fabric8.openshift.api.model.TLSConfig;
 import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -236,7 +237,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withLabels(buildRouteLabels())
                     .withAnnotations(buildRouteAnnotations(config))
                 .endMetadata()
-                .editOrNewSpec()
+                .withNewSpec()
                     .withNewTo()
                         .withKind("Service")
                         .withName(adminServerName)
@@ -537,8 +538,20 @@ public class AdminServer extends AbstractAdminServer {
 
     @Override
     public String uri(ManagedKafka managedKafka) {
-        Route route = cachedRoute(managedKafka);
-        return route != null ? route.getSpec().getHost() : null;
+        return getRouteURI(cachedRoute(managedKafka));
+    }
+
+    String getRouteURI(Route route) {
+        if (route != null) {
+            RouteSpec spec = route.getSpec();
+            StringBuilder uri = new StringBuilder();
+            uri.append(spec.getTls() != null ? "https://" : "http://");
+            uri.append(spec.getHost());
+
+            return uri.toString();
+        }
+
+        return null;
     }
 
     private Route cachedRoute(ManagedKafka managedKafka) {
