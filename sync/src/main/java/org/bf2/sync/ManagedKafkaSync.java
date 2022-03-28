@@ -64,6 +64,9 @@ public class ManagedKafkaSync {
     @Inject
     ExecutorService executorService;
 
+    @Inject
+    protected InlineSecretManager inlineSecretManager;
+
     /**
      * Update the local state based upon the remote ManagedKafkas
      * The strategy here is to take a pass over the list and find any deferred work
@@ -258,6 +261,7 @@ public class ManagedKafkaSync {
                                 .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
                             .endMetadata()
                             .build());
+        //Creating the inline Secrets
 
         try {
             client.create(remote);
