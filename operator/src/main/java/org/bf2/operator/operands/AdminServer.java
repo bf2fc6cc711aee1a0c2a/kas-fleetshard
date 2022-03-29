@@ -219,10 +219,11 @@ public class AdminServer extends AbstractAdminServer {
         final IntOrString targetPort;
         final TLSConfig tlsConfig;
 
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             targetPort = HTTPS_PORT_TARGET;
             tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
-        } else if (this.configs.getConfig(managedKafka).getAdminserver().isEdgeTlsEnabled()) {
+        } else if (config.getAdminserver().isEdgeTlsEnabled()) {
             targetPort = HTTP_PORT_TARGET;
             tlsConfig = new TLSConfigBuilder().withTermination("edge").build();
         } else {
@@ -235,7 +236,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
                     .withLabels(buildRouteLabels())
-                    .withAnnotations(buildRouteAnnotations(this.configs.getConfig(managedKafka)))
+                    .withAnnotations(buildRouteAnnotations(config))
                 .endMetadata()
                 .withNewSpec()
                     .withNewTo()
@@ -404,11 +405,12 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>();
 
-        addEnvVar(envVars, "KAFKA_ADMIN_REPLICATION_FACTOR", String.valueOf(this.configs.getConfig(managedKafka).getKafka().getScalingAndReplicationFactor()));
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
+        addEnvVar(envVars, "KAFKA_ADMIN_REPLICATION_FACTOR", String.valueOf(config.getKafka().getScalingAndReplicationFactor()));
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
         addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
-        addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.configs.getConfig(managedKafka).getKafka().getAcl().getResourceOperations());
+        addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", config.getKafka().getAcl().getResourceOperations());
 
         Integer maxPartitions = managedKafka.getSpec().getCapacity().getMaxPartitions();
         if (maxPartitions != null) {

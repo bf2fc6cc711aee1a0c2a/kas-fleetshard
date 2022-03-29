@@ -274,9 +274,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.configs.getConfig(managedKafka).getKafka().getMaxConnections()) / replicas;
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), config.getKafka().getMaxConnections()) / replicas;
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.configs.getConfig(managedKafka).getKafka().getConnectionAttemptsPerSec()) / replicas;
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), config.getKafka().getConnectionAttemptsPerSec()) / replicas;
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()

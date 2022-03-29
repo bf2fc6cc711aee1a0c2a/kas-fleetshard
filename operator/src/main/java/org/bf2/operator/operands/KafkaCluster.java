@@ -504,10 +504,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
         ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
-                .withResources(this.configs.getConfig(managedKafka).getExporter().buildResources());
+                .withResources(config.getExporter().buildResources());
 
         if (configMap != null) {
             String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
@@ -520,7 +521,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
         }
 
-        if(this.configs.getConfig(managedKafka).getExporter().isColocateWithZookeeper()) {
+        if(config.getExporter().isColocateWithZookeeper()) {
             specBuilder
                 .editOrNewTemplate()
                     .editOrNewPod()
@@ -607,13 +608,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
         Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
-        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(this.configs.getConfig(managedKafka).getStorage().getMinMargin()).longValue();
+        KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
+        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(instanceConfig.getStorage().getMinMargin()).longValue();
         long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka, current);
         config.put("client.quota.callback.static.storage.soft", String.valueOf(softStorageLimit));
         config.put("client.quota.callback.static.storage.hard", String.valueOf(hardStorageLimit));
 
         // Check storage every storageCheckInterval seconds
-        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(this.configs.getConfig(managedKafka).getStorage().getCheckInterval()));
+        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(instanceConfig.getStorage().getCheckInterval()));
 
         // Configure the quota plugin so that the canary is not subjected to the quota checks.
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
@@ -767,7 +769,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private AccessControl getAclConfig(ManagedKafka managedKafka) {
-        AccessControl legacyConfig = this.configs.getConfig(managedKafka).getKafka().getAclLegacy();
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
+        AccessControl legacyConfig = config.getKafka().getAclLegacy();
 
         if (legacyConfig != null && managedKafka.getSpec().getVersions().compareStrimziVersionTo(legacyConfig.getFinalVersion()) <= 0) {
             /*
@@ -777,7 +780,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return legacyConfig;
         }
 
-        return this.configs.getConfig(managedKafka).getKafka().getAcl();
+        return config.getKafka().getAcl();
     }
 
     private KafkaAuthorization buildKafkaAuthorization(ManagedKafka managedKafka) {

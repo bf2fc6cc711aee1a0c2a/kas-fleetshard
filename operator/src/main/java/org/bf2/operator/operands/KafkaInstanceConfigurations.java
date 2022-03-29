@@ -22,7 +22,7 @@ import java.util.function.UnaryOperator;
  * <p>
  * Properties in each instance file will omit this prefix.
  * <p>
- * Properties overlayed from the Quarkus Config will be prefixed accordingly - managedkafka.kafka... standard.kafka...
+ * Properties overlaid from the Quarkus Config will be prefixed accordingly - managedkafka.kafka... standard.kafka...
  */
 @Startup
 @ApplicationScoped
@@ -30,64 +30,59 @@ public class KafkaInstanceConfigurations {
 
     private static final String MANAGEDKAFKA = "managedkafka";
 
-    public enum Config {
+    public enum InstanceType {
         STANDARD,
         DEVELOPER
     }
 
-    private Map<Config, KafkaInstanceConfiguration> configs = new HashMap<Config, KafkaInstanceConfiguration>();
+    private Map<InstanceType, KafkaInstanceConfiguration> configs = new HashMap<InstanceType, KafkaInstanceConfiguration>();
 
     @PostConstruct
     void init() throws IOException {
         // load the default using the managedkafka prefix
         Map<String, String> defaultValues = new KafkaInstanceConfiguration().toMap(true);
-        overlayWithConfigProperties(defaultValues, UnaryOperator.identity());
+        loadConfiguration(defaultValues, MANAGEDKAFKA);
 
-        for (Config config : Config.values()) {
-            loadConfiguration(defaultValues, config);
+        for (InstanceType type : InstanceType.values()) {
+            configs.put(type, loadConfiguration(new HashMap<>(defaultValues), type.name().toLowerCase()));
         }
     }
 
-    private void loadConfiguration(Map<String, String> defaultValues, Config toLoad) throws IOException {
-        String name = toLoad.name().toLowerCase();
-        Map<String, String> allValues = new HashMap<>(defaultValues);
-
+    private KafkaInstanceConfiguration loadConfiguration(Map<String, String> allValues, String name) throws IOException {
         Properties p = new Properties();
-        try (InputStream stream = this.getClass().getResourceAsStream(String.format("/%s.properties", name))) {
+        try (InputStream stream = this.getClass().getResourceAsStream(String.format("/instances/%s.properties", name))) {
             p.load(stream);
         }
 
         // set the properties from the file
-        allValues.keySet().forEach(n -> {
-            String key = n.substring(MANAGEDKAFKA.length() + 1);
+        allValues.entrySet().forEach(e -> {
+            String key = e.getKey().substring(MANAGEDKAFKA.length() + 1);
             String value = p.getProperty(key);
             if (value != null) {
-                allValues.put(n, value);
+                e.setValue(value);
             }
         });
 
         overlayWithConfigProperties(allValues, n -> n.replace(MANAGEDKAFKA, name));
 
-        KafkaInstanceConfiguration config =
-                Serialization.jsonMapper().convertValue(allValues, KafkaInstanceConfiguration.class);
-        configs.put(toLoad, config);
+        return Serialization.jsonMapper().convertValue(allValues, KafkaInstanceConfiguration.class);
     }
 
     private void overlayWithConfigProperties(Map<String, String> defaultValues, UnaryOperator<String> keyMapper) {
         // overlay anything from the quarkus config
-        defaultValues.keySet()
-                .forEach(n -> ConfigProvider.getConfig()
-                        .getOptionalValue(keyMapper.apply(n), String.class)
-                        .ifPresent(v -> defaultValues.put(n, v)));
+        defaultValues.entrySet()
+                .forEach(e -> ConfigProvider.getConfig()
+                        .getOptionalValue(keyMapper.apply(e.getKey()), String.class)
+                        .ifPresent(v -> e.setValue(v)));
     }
 
-    public KafkaInstanceConfiguration getConfig(Config config) {
+    public KafkaInstanceConfiguration getConfig(InstanceType config) {
         return configs.get(config);
     }
 
     public KafkaInstanceConfiguration getConfig(ManagedKafka managedKafka) {
         // TDB where to get name from
-        return configs.get(Config.STANDARD);
+        return configs.get(InstanceType.STANDARD);
     }
 
 }

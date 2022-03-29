@@ -29,7 +29,7 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
-import org.bf2.operator.operands.KafkaInstanceConfigurations.Config;
+import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -103,7 +103,7 @@ class KafkaClusterTest {
     }
 
     private void alternativeConfig(Consumer<KafkaInstanceConfiguration> configModifier) throws JsonProcessingException, JsonMappingException {
-        KafkaInstanceConfiguration config = configs.getConfig(Config.STANDARD);
+        KafkaInstanceConfiguration config = configs.getConfig(InstanceType.STANDARD);
 
         ObjectMapper objectMapper = new ObjectMapper();
         KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
@@ -137,7 +137,7 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
-        mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(Config.STANDARD).getKafka().getPartitionCapacity());
+        mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());
 
         alternativeConfig(clone -> {
             clone.getKafka().setConnectionAttemptsPerSec(300);
@@ -173,7 +173,7 @@ class KafkaClusterTest {
 
     @Test
     void testKafkaInstanceConfigurationSerialization() throws IOException {
-        KafkaInstanceConfiguration config = configs.getConfig(Config.STANDARD);
+        KafkaInstanceConfiguration config = configs.getConfig(InstanceType.STANDARD);
         ObjectMapper objectMapper = new ObjectMapper();
         KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
         clone.getKafka().setConnectionAttemptsPerSec(300);
