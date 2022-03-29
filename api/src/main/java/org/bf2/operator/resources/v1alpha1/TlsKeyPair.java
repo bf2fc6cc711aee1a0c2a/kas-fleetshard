@@ -26,7 +26,10 @@ public class TlsKeyPair {
     private SecretKeySelector keyRef;
 
     public String getCert() {
-        return cert;
+        if(cert != null){
+            return cert;
+        }
+        return certRef.getKey();
     }
 
     public void setCert(String cert) {
@@ -34,7 +37,10 @@ public class TlsKeyPair {
     }
 
     public String getKey() {
-        return key;
+        if(key != null){
+            return key;
+        }
+        return keyRef.getKey();
     }
 
     public void setKey(String key) {

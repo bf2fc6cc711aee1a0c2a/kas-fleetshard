@@ -2,6 +2,7 @@ package org.bf2.sync;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -13,6 +14,7 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
@@ -65,7 +67,7 @@ public class ManagedKafkaSync {
     ExecutorService executorService;
 
     @Inject
-    protected InlineSecretManager inlineSecretManager;
+    protected SecretManager secretManager;
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -121,7 +123,7 @@ public class ManagedKafkaSync {
                     }
                 }
 
-                if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
+                if (specChanged(remoteManagedKafka, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
                     reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
                 }
             }
@@ -154,14 +156,15 @@ public class ManagedKafkaSync {
         return true;
     }
 
-    public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
-        if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
+    public boolean specChanged(ManagedKafka remote, ManagedKafka existing) {
+        if (!remote.getSpec().isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
             return false;
         }
-
-        return !remoteSpec.equals(existing.getSpec());
+        ManagedKafka remoteCopy = new ManagedKafkaBuilder(remote).build();
+        remoteCopy = secretManager.removeSecretsFromManagedKafka(remoteCopy,secretManager.cachedOrRemoteSecret(remoteCopy,SecretManager.masterSecretName(remoteCopy)));
+        return !remoteCopy.getSpec().equals(existing.getSpec());
     }
 
     /**
@@ -217,14 +220,23 @@ public class ManagedKafkaSync {
                     log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
                     return;
                 }
-                if (specChanged(remote.getSpec(), local)) {
+                if (specChanged(remote, local)) {
                     log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
                     ManagedKafkaSpec spec = remote.getSpec();
+                    if(secretManager.masterSecretChanged(remote,local)){
+                        secretManager.createSecret(remote);
+                    }
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
                             mk.setSpec(spec);
                             return mk;
                         });
                     // the operator will handle it from here
+                }
+
+                // If master secret doesn't exist for existing instances,this should create one
+                if (!secretManager.masterSecretExists(remote)){
+                    Secret secret = secretManager.createSecret(remote);
+                    remote = secretManager.removeSecretsFromManagedKafka(remote, secret);
                 }
             }
         } finally {
@@ -252,16 +264,19 @@ public class ManagedKafkaSync {
         final String remoteNamespace = remote.getMetadata().getNamespace();
         final String remoteManagedKafkaId = remote.getMetadata().getAnnotations() == null ? null : remote.getMetadata().getAnnotations().get(MANAGEDKAFKA_ID_LABEL);
 
-            kubeClient.namespaces().createOrReplace(
-                    new NamespaceBuilder()
-                            .withNewMetadata()
-                                .withName(remoteNamespace)
-                                .withLabels(OperandUtils.getDefaultLabels())
-                                .addToLabels("observability-operator/scrape-logging", "true")
-                                .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
-                            .endMetadata()
-                            .build());
-        //Creating the inline Secrets
+        kubeClient.namespaces().createOrReplace(
+                new NamespaceBuilder()
+                        .withNewMetadata()
+                            .withName(remoteNamespace)
+                            .withLabels(OperandUtils.getDefaultLabels())
+                            .addToLabels("observability-operator/scrape-logging", "true")
+                            .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
+                        .endMetadata()
+                        .build());
+
+        //Creating the master Secrets
+       Secret secret = secretManager.createSecret(remote);
+       remote = secretManager.removeSecretsFromManagedKafka(remote, secret);
 
         try {
             client.create(remote);
