@@ -38,7 +38,7 @@ We use this information to acknowledge your contributions in release announcemen
 
 ### Code reviews
 
-All submissions, including submissions by project members, need to be reviewed by at least two kas-fleetshard committer before being merged.
+All submissions, including submissions by project members, need to be reviewed by at least two kas-fleetshard committers before being merged.
 
 [GitHub Pull Request Review Process](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/about-pull-request-reviews) is followed for every pull request.
 
