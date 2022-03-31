@@ -1,7 +1,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import io.fabric8.kubernetes.api.model.SecretKeySelector;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -26,10 +25,7 @@ public class TlsKeyPair {
     private SecretKeySelector keyRef;
 
     public String getCert() {
-        if(cert != null){
-            return cert;
-        }
-        return certRef.getKey();
+        return cert;
     }
 
     public void setCert(String cert) {
@@ -37,10 +33,7 @@ public class TlsKeyPair {
     }
 
     public String getKey() {
-        if(key != null){
             return key;
-        }
-        return keyRef.getKey();
     }
 
     public void setKey(String key) {

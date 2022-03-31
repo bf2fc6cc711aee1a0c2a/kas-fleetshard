@@ -2,14 +2,10 @@ package org.bf2.sync;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.api.model.SecretKeySelectorBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
-import org.bf2.operator.resources.v1alpha1.ServiceAccount;
-import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
+import org.bf2.operator.resources.v1alpha1.*;
 import org.bf2.sync.informer.InformerManager;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
@@ -17,18 +13,22 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
+
+
 
 @ApplicationScoped
 public class SecretManager {
-    //TODO:private
-    public static final String ENDPOINT_TLS_CRT = "endpoint.tls.crt";
-    public static final String ENDPOINT_TLS_KEY = "endpoint.tls.key";
-    public static final String OAUTH_SSO_CLIENT_ID = "oauth.ssoClientId";
-    public static final String OAUTH_SSO_CLIENT_SECRET = "oauth.ssoClientSecret";
-    public static final String CANARY_SASL_PRINCIPAL = "canary.sasl.principal";
-    public static final String CANARY_SASL_PASSWORD = "canary.sasl.password";
+
+    private static final String ENDPOINT_TLS_CRT = "endpoint.tls.crt";
+    private static final String ENDPOINT_TLS_KEY = "endpoint.tls.key";
+    private static final String OAUTH_SSO_CLIENT_ID = "oauth.ssoClientId";
+    private static final String OAUTH_SSO_CLIENT_SECRET = "oauth.ssoClientSecret";
+    private static final String CANARY_SASL_PRINCIPAL = "canary.sasl.principal";
+    private static final String CANARY_SASL_PASSWORD = "canary.sasl.password";
     private static final String ANNOTATION_MASTER_SECRET_DIGEST = "managedkafka.bf2.org/master-secret-digest";
 
     @Inject
@@ -100,17 +100,23 @@ public class SecretManager {
         return secret;
     }
 
-    private static Map buildSecretData(ManagedKafka managedKafka) {
-        return Map.of(ENDPOINT_TLS_CRT, managedKafka.getSpec().getEndpoint().getTls().getCert(),
-                ENDPOINT_TLS_KEY, managedKafka.getSpec().getEndpoint().getTls().getKey(),
-                OAUTH_SSO_CLIENT_ID, managedKafka.getSpec().getOauth().getClientId(),
-                OAUTH_SSO_CLIENT_SECRET, managedKafka.getSpec().getOauth().getClientSecret(),
-                CANARY_SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
-                CANARY_SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword());
+    private Map<String,String> buildSecretData(ManagedKafka managedKafka) {
+        // Add to
+        Map<String, String> data = new HashMap<>();
+        if(isKafkaAuthenticationEnabled(managedKafka)){
+            data.putAll(ssoClientDataFrom(managedKafka));
+        }
+        if(isKafkaExternalCertificateEnabled(managedKafka)){
+            data.putAll(kafkaTlsDataFrom(managedKafka));
+        }
+        if(isCanaryServiceAccountPresent(managedKafka)){
+            data.putAll(canarySaslDataFrom(managedKafka));
+        }
+        return data;
     }
 
     public ManagedKafka removeSecretsFromManagedKafka(ManagedKafka managedKafka, Secret secret){
-        if(isKafkaAuthenticationEnabled(managedKafka) && isKafkaExternalCertificateEnabled(managedKafka)){
+        if(isKafkaExternalCertificateEnabled(managedKafka)){
             TlsKeyPair tlsKeyPair = managedKafka.getSpec().getEndpoint().getTls();
             tlsKeyPair.setKey(null);
             tlsKeyPair.setCert(null);
@@ -121,6 +127,32 @@ public class SecretManager {
             tlsKeyPair.setCertRef(new SecretKeySelectorBuilder()
                     .withName(secret.getMetadata().getName())
                     .withKey(ENDPOINT_TLS_CRT)
+                    .build());
+        }
+        if(isKafkaAuthenticationEnabled(managedKafka)){
+            ManagedKafkaAuthenticationOAuth managedKafkaAuthenticationOAuth = managedKafka.getSpec().getOauth();
+            managedKafkaAuthenticationOAuth.setClientId(null);
+            managedKafkaAuthenticationOAuth.setClientSecret(null);
+            managedKafkaAuthenticationOAuth.setClientIdRef(new SecretKeySelectorBuilder()
+                    .withName(secret.getMetadata().getName())
+                    .withKey(OAUTH_SSO_CLIENT_ID)
+                    .build());
+            managedKafkaAuthenticationOAuth.setClientSecretRef(new SecretKeySelectorBuilder()
+                    .withName(secret.getMetadata().getName())
+                    .withKey(OAUTH_SSO_CLIENT_SECRET)
+                    .build());
+        }
+        if(isCanaryServiceAccountPresent(managedKafka)){
+            ServiceAccount serviceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get();
+            serviceAccount.setPrincipal(null);
+            serviceAccount.setPassword(null);
+            serviceAccount.setPrincipalRef(new SecretKeySelectorBuilder()
+                    .withName(secret.getMetadata().getName())
+                    .withKey(CANARY_SASL_PRINCIPAL)
+                    .build());
+            serviceAccount.setPasswordRef(new SecretKeySelectorBuilder()
+                    .withName(secret.getMetadata().getName())
+                    .withKey(CANARY_SASL_PASSWORD)
                     .build());
         }
        managedKafka = new ManagedKafkaBuilder(managedKafka)
@@ -180,5 +212,20 @@ public class SecretManager {
         return kubernetesClient.secrets()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);
+    }
+
+    private Map<String, String> kafkaTlsDataFrom(ManagedKafka managedKafka) {
+        return Map.of(ENDPOINT_TLS_CRT, managedKafka.getSpec().getEndpoint().getTls().getCert(),
+                ENDPOINT_TLS_KEY, managedKafka.getSpec().getEndpoint().getTls().getKey());
+    }
+
+    private Map<String, String> ssoClientDataFrom(ManagedKafka managedKafka) {
+        return Map.of(OAUTH_SSO_CLIENT_ID, managedKafka.getSpec().getOauth().getClientId(),
+                OAUTH_SSO_CLIENT_SECRET, managedKafka.getSpec().getOauth().getClientSecret());
+    }
+
+    private Map<String, String > canarySaslDataFrom(ManagedKafka managedKafka){
+        return Map.of(CANARY_SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
+                CANARY_SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword());
     }
 }
