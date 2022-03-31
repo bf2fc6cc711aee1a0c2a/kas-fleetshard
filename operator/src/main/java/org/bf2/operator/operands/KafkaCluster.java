@@ -440,7 +440,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
-        // onePerNode = true - one zk per node exclusively
+        // onePerNode = true - one zk per node across all namespaces
         // onePerNode = false - one zk per node per managedkafka
         boolean onePerNode = this.configs.getConfig(managedKafka).getKafka().isOneInstancePerNode();
 
@@ -449,20 +449,31 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", DO_NOT_SCHEDULE));
 
+        AffinityBuilder affinityBuilder = new AffinityBuilder();
+        PodAffinityTerm affinityTerm = null;
+
         if (onePerNode) {
-            PodAffinityTerm affinityTerm = affinityTerm("app.kubernetes.io/name", "zookeeper");
-            affinityTerm.setNamespaceSelector(new LabelSelector());
-
-            PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                    .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
+            affinityTerm = affinityTerm("app.kubernetes.io/name", "zookeeper");
+        } else {
+            // try to collocate together - by having anti-affinity to everything else
+            affinityTerm = new PodAffinityTermBuilder()
+                    .withTopologyKey("kubernetes.io/hostname")
+                    .withNewLabelSelector()
+                    .addNewMatchExpression()
+                    .withKey(KafkaInstanceConfigurations.PROFILE_TYPE)
+                    .withOperator("NotIn")
+                    .withValues(KafkaInstanceConfigurations.getInstanceType(managedKafka))
+                    .endMatchExpression()
+                    .endLabelSelector()
                     .build();
-
-            AffinityBuilder affinityBuilder = new AffinityBuilder();
-            affinityBuilder.withPodAntiAffinity(podAntiAffinity);
-
-            podNestedBuilder.withAffinity(affinityBuilder.build());
         }
+        affinityTerm.setNamespaceSelector(new LabelSelector());
+        PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
+            .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
+            .build();
 
+        affinityBuilder.withPodAntiAffinity(podAntiAffinity);
+        podNestedBuilder.withAffinity(affinityBuilder.build());
 
         ZookeeperClusterTemplateBuilder templateBuilder = podNestedBuilder.endPod();
 
@@ -862,6 +873,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         labels.put("ingressType", "sharded");
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
+        labels.put(KafkaInstanceConfigurations.PROFILE_TYPE, KafkaInstanceConfigurations.getInstanceType(managedKafka));
+
+        String consumed = OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), KafkaInstanceConfigurations.PROFILE_QUOTA_CONSUMED, null);
+        if (consumed != null) {
+            labels.put(KafkaInstanceConfigurations.PROFILE_QUOTA_CONSUMED, consumed);
+        }
 
         if (ingressControllerManagerInstance.isResolvable()) {
             labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());

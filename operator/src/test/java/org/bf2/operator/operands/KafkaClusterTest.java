@@ -135,6 +135,17 @@ class KafkaClusterTest {
     }
 
     @Test
+    void testDeveloperManagedKafka() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getMetadata().setLabels(Map.of(KafkaInstanceConfigurations.PROFILE_TYPE, KafkaInstanceConfigurations.InstanceType.DEVELOPER.lowerName));
+        mk.getSpec().getCapacity().setMaxPartitions(100);
+
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        diffToExpected(kafka, "/expected/developer-strimzi.yml");
+    }
+
+    @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
         mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());

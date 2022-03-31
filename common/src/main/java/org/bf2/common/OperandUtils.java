@@ -95,7 +95,7 @@ public class OperandUtils {
 
     public static <T> T getOrDefault(Map<String, T> map, String key, T defaultValue) {
         if (map == null) {
-            return null;
+            return defaultValue;
         }
         return map.getOrDefault(key, defaultValue);
     }

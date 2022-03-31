@@ -1,5 +1,6 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.api.Context;
 import io.javaoperatorsdk.operator.api.Controller;
 import io.javaoperatorsdk.operator.api.DeleteControl;
@@ -16,6 +17,7 @@ import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaInstance;
+import org.bf2.operator.operands.KafkaInstanceConfigurations;
 import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacityBuilder;
@@ -65,28 +67,15 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Inject
     AbstractKafkaCluster kafkaCluster;
 
+    @Inject
+    KafkaInstanceConfigurations configs;
+
     @Override
     @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
     @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "The number of delete events")
     public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
         log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         return DeleteControl.DEFAULT_DELETE;
-    }
-
-    public void handleUpdate(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        // if the ManagedKafka resource is "marked" as to be deleted
-        if (managedKafka.getSpec().isDeleted()) {
-            // check that it's actually not deleted yet, so operands are gone
-            if (!kafkaInstance.isDeleted(managedKafka)) {
-                log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
-                kafkaInstance.delete(managedKafka, context);
-            }
-        } else {
-            if (this.isValid(managedKafka)) {
-                log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
-                kafkaInstance.createOrUpdate(managedKafka);
-            }
-        }
     }
 
     /**
@@ -103,8 +92,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             NDC.push(ManagedKafkaResourceClient.ID_LOG_KEY + "=" + managedKafka.getId());
         }
         try {
-            handleUpdate(managedKafka, context);
-            updateManagedKafkaStatus(managedKafka);
+            Optional<OperandReadiness> invalid = invalid(managedKafka);
+            // if the ManagedKafka resource is "marked" as to be deleted
+            if (managedKafka.getSpec().isDeleted()) {
+                // check that it's actually not deleted yet, so operands are gone
+                if (!kafkaInstance.isDeleted(managedKafka)) {
+                    log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                    kafkaInstance.delete(managedKafka, context);
+                }
+            } else if (invalid.isEmpty()) {
+                log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                kafkaInstance.createOrUpdate(managedKafka);
+            }
+            updateManagedKafkaStatus(managedKafka, invalid);
             return UpdateControl.updateStatusSubResource(managedKafka);
         } finally {
             if (managedKafka.getId() != null) {
@@ -124,8 +124,9 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
      * a corresponding list of ManagedKafkaCondition(s) to set on the ManagedKafka status
      *
      * @param managedKafka ManagedKafka instance
+     * @param invalid
      */
-    private void updateManagedKafkaStatus(ManagedKafka managedKafka) {
+    private void updateManagedKafkaStatus(ManagedKafka managedKafka, Optional<OperandReadiness> invalid) {
         // add status if not already available on the ManagedKafka resource
         ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
                 new ManagedKafkaStatusBuilder()
@@ -152,12 +153,16 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
         }
 
         // a not valid ManagedKafka skips the handling of it, so the status will report an error condition
-        OperandReadiness readiness = this.validity(managedKafka).orElse(kafkaInstance.getReadiness(managedKafka));
+        OperandReadiness readiness = invalid.filter(r -> !managedKafka.getSpec().isDeleted()).orElse(kafkaInstance.getReadiness(managedKafka));
 
         ConditionUtils.updateConditionStatus(ready, readiness.getStatus(), readiness.getReason(), readiness.getMessage());
 
         // routes should always be set on the CR status, even if it's just an empty list
         status.setRoutes(List.of());
+
+        if (configs.getConfig(managedKafka) == null) {
+            return; // can't determine anything else
+        }
 
         int replicas = kafkaCluster.getReplicas(managedKafka);
 
@@ -198,22 +203,17 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     }
 
     /**
-     * Just a wrapper around the ManagedKafka validity check to return a boolean
-     *
-     * @param managedKafka ManagedKafka custom resource to validate
-     * @return if its specification is valid or not
-     */
-    private boolean isValid(ManagedKafka managedKafka) {
-        return validity(managedKafka).isEmpty();
-    }
-
-    /**
      * Run a validity check on the ManagedKafka custom resource
      *
      * @param managedKafka ManagedKafka custom resource to validate
      * @return readiness indicating an error in the ManagedKafka custom resource, empty Optional otherwise
      */
-    private Optional<OperandReadiness> validity(ManagedKafka managedKafka) {
+    private Optional<OperandReadiness> invalid(ManagedKafka managedKafka) {
+        if (configs.getConfig(managedKafka) == null) {
+            String message = String.format("No valid profile for %s", Serialization.asYaml(managedKafka.getMetadata()));
+            log.error(message);
+            return Optional.of(new OperandReadiness(Status.False, Reason.Error, message));
+        }
         String message = null;
         StrimziVersionStatus strimziVersion = this.strimziManager.getStrimziVersion(managedKafka.getSpec().getVersions().getStrimzi());
         if (strimziVersion == null) {
