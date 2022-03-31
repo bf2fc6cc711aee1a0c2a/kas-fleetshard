@@ -5,8 +5,6 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-import javax.validation.constraints.NotNull;
-
 /**
  * Defines the configuration for the Kafka instance authentication against an OAuth server
  */
@@ -20,7 +18,6 @@ import javax.validation.constraints.NotNull;
 public class ManagedKafkaAuthenticationOAuth {
 
     private String clientId;
-    @NotNull
     private String clientSecret;
     private String tokenEndpointURI;
     private String jwksEndpointURI;
