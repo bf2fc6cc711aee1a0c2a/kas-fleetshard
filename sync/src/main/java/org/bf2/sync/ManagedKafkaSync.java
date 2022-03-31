@@ -223,7 +223,7 @@ public class ManagedKafkaSync {
                 if (specChanged(remote, local)) {
                     log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
                     ManagedKafkaSpec spec = remote.getSpec();
-                    if(secretManager.masterSecretChanged(remote,local)){
+                    if(secretManager.isMasterSecretChanged(remote,local)){
                         secretManager.createSecret(remote);
                     }
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
@@ -234,7 +234,7 @@ public class ManagedKafkaSync {
                 }
 
                 // If master secret doesn't exist for existing instances,this should create one
-                if (!secretManager.masterSecretExists(remote)){
+                if (!secretManager.isMasterSecretExists(remote)){
                     Secret secret = secretManager.createSecret(remote);
                     remote = secretManager.removeSecretsFromManagedKafka(remote, secret);
                 }

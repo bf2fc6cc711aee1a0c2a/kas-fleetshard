@@ -4,11 +4,14 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.*;
 import org.bf2.sync.informer.InformerManager;
+
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,7 +20,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 
 
 @ApplicationScoped
@@ -53,11 +55,11 @@ public class SecretManager {
         return managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).isPresent();
     }
 
-    public boolean masterSecretExists(ManagedKafka managedKafka){
+    public boolean isMasterSecretExists(ManagedKafka managedKafka){
         return cachedOrRemoteSecret(managedKafka,masterSecretName(managedKafka)) != null;
     }
 
-    public boolean masterSecretChanged(ManagedKafka remote, ManagedKafka local){
+    public boolean isMasterSecretChanged(ManagedKafka remote, ManagedKafka local){
         String localDigest = local.getMetadata().getAnnotations().get(ANNOTATION_MASTER_SECRET_DIGEST);
         String remoteDigest =  buildDigest(buildSecretData(remote));
         return !remoteDigest.equals(localDigest);
@@ -104,13 +106,16 @@ public class SecretManager {
         // Add to
         Map<String, String> data = new HashMap<>();
         if(isKafkaAuthenticationEnabled(managedKafka)){
-            data.putAll(ssoClientDataFrom(managedKafka));
+            data.putAll(Map.of(OAUTH_SSO_CLIENT_ID, managedKafka.getSpec().getOauth().getClientId(),
+                    OAUTH_SSO_CLIENT_SECRET, managedKafka.getSpec().getOauth().getClientSecret()));
         }
         if(isKafkaExternalCertificateEnabled(managedKafka)){
-            data.putAll(kafkaTlsDataFrom(managedKafka));
+            data.putAll(Map.of(ENDPOINT_TLS_CRT, managedKafka.getSpec().getEndpoint().getTls().getCert(),
+                    ENDPOINT_TLS_KEY, managedKafka.getSpec().getEndpoint().getTls().getKey()));
         }
         if(isCanaryServiceAccountPresent(managedKafka)){
-            data.putAll(canarySaslDataFrom(managedKafka));
+            data.putAll(Map.of(CANARY_SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
+                    CANARY_SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword()));
         }
         return data;
     }
@@ -212,20 +217,5 @@ public class SecretManager {
         return kubernetesClient.secrets()
                 .inNamespace(kafkaClusterNamespace(managedKafka))
                 .withName(name);
-    }
-
-    private Map<String, String> kafkaTlsDataFrom(ManagedKafka managedKafka) {
-        return Map.of(ENDPOINT_TLS_CRT, managedKafka.getSpec().getEndpoint().getTls().getCert(),
-                ENDPOINT_TLS_KEY, managedKafka.getSpec().getEndpoint().getTls().getKey());
-    }
-
-    private Map<String, String> ssoClientDataFrom(ManagedKafka managedKafka) {
-        return Map.of(OAUTH_SSO_CLIENT_ID, managedKafka.getSpec().getOauth().getClientId(),
-                OAUTH_SSO_CLIENT_SECRET, managedKafka.getSpec().getOauth().getClientSecret());
-    }
-
-    private Map<String, String > canarySaslDataFrom(ManagedKafka managedKafka){
-        return Map.of(CANARY_SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
-                CANARY_SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword());
     }
 }
