@@ -29,6 +29,7 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -45,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
@@ -67,6 +69,9 @@ class KafkaClusterTest {
     @KubernetesTestServer
     KubernetesServer kubernetesServer;
 
+    @Inject
+    KafkaInstanceConfigurations configs;
+
     @BeforeEach
     void beforeEach() {
         informerManager.createKafkaInformer();
@@ -84,58 +89,57 @@ class KafkaClusterTest {
 
     @Test
     void testManagedKafkaToKafka() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
-            clone.getKafka().setOneInstancePerNode(false);
-            clone.getKafka().setColocateWithZookeeper(false);
-            clone.getExporter().setColocateWithZookeeper(false);
+        alternativeConfig(config -> {
+            config.getKafka().setOneInstancePerNode(false);
+            config.getKafka().setColocateWithZookeeper(false);
+            config.getExporter().setColocateWithZookeeper(false);
+        });
 
-            kafkaCluster.setKafkaConfiguration(clone);
-            ManagedKafka mk = exampleManagedKafka("60Gi");
+        ManagedKafka mk = exampleManagedKafka("60Gi");
 
-            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-            diffToExpected(kafka, "/expected/strimzi.yml");
-        } finally {
-            kafkaCluster.setKafkaConfiguration(config);
-        }
+        diffToExpected(kafka, "/expected/strimzi.yml");
+    }
+
+    private void alternativeConfig(Consumer<KafkaInstanceConfiguration> configModifier) throws JsonProcessingException, JsonMappingException {
+        KafkaInstanceConfiguration config = configs.getConfig(InstanceType.STANDARD);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
+        configModifier.accept(clone);
+
+        KafkaInstanceConfigurations mock = Mockito.mock(KafkaInstanceConfigurations.class);
+        Mockito.when(mock.getConfig(Mockito.<ManagedKafka>any())).thenReturn(clone);
+        QuarkusMock.installMockForType(mock, KafkaInstanceConfigurations.class);
     }
 
     @Test
     void testManagedKafkaToKafkaWithSizeChanges() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
+        alternativeConfig(clone -> {
             clone.getKafka().setOneInstancePerNode(false);
             clone.getKafka().setColocateWithZookeeper(false);
             clone.getExporter().setColocateWithZookeeper(false);
+        });
+        Kafka kafka = kafkaCluster.kafkaFrom(exampleManagedKafka("60Gi"), null);
 
-            kafkaCluster.setKafkaConfiguration(clone);
-            Kafka kafka = kafkaCluster.kafkaFrom(exampleManagedKafka("60Gi"), null);
+        Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
 
-            Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
+        // should not change to a smaller size
+        diffToExpected(reduced, "/expected/strimzi.yml");
 
-            // should not change to a smaller size
-            diffToExpected(reduced, "/expected/strimzi.yml");
+        Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
 
-            Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
-
-            // should change to a larger size
-            diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28675058306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39412476546\"}]");
-        } finally {
-            kafkaCluster.setKafkaConfiguration(config);
-        }
+        // should change to a larger size
+        diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28675058306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39412476546\"}]");
     }
 
     @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
-        try {
-            KafkaInstanceConfiguration clone = Serialization.clone(config);
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());
 
+        alternativeConfig(clone -> {
             clone.getKafka().setConnectionAttemptsPerSec(300);
             clone.getKafka().setContainerMemory("2Gi");
             clone.getKafka().setJvmXx("foo bar, foo2 bar2");
@@ -147,43 +151,29 @@ class KafkaClusterTest {
             clone.getKafka().setOneInstancePerNode(false);
             clone.getKafka().setColocateWithZookeeper(false);
             clone.getExporter().setColocateWithZookeeper(false);
+        });
 
-            kafkaCluster.setKafkaConfiguration(clone);
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-            ManagedKafka mk = exampleManagedKafka("60Gi");
-            mk.getSpec().getCapacity().setMaxPartitions(2*clone.getKafka().getPartitionCapacity());
-
-            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-            diffToExpected(kafka, "/expected/custom-config-strimzi.yml");
-        } finally {
-            kafkaCluster.setKafkaConfiguration(config);
-        }
+        diffToExpected(kafka, "/expected/custom-config-strimzi.yml");
     }
 
     @Test
     void testScalingAndReplicationFactor() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
-        try {
-            KafkaInstanceConfiguration clone = Serialization.clone(config);
+        alternativeConfig(config -> {
+            config.getKafka().setScalingAndReplicationFactor(1);
+        });
 
-            clone.getKafka().setScalingAndReplicationFactor(1);
+        ManagedKafka mk = exampleManagedKafka("60Gi");
 
-            kafkaCluster.setKafkaConfiguration(clone);
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
-            ManagedKafka mk = exampleManagedKafka("60Gi");
-
-            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-            diffToExpected(kafka.getSpec().getKafka().getConfig(), "/expected/scaling-one.yml");
-        } finally {
-            kafkaCluster.setKafkaConfiguration(config);
-        }
+        diffToExpected(kafka.getSpec().getKafka().getConfig(), "/expected/scaling-one.yml");
     }
 
     @Test
     void testKafkaInstanceConfigurationSerialization() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
+        KafkaInstanceConfiguration config = configs.getConfig(InstanceType.STANDARD);
         ObjectMapper objectMapper = new ObjectMapper();
         KafkaInstanceConfiguration clone = objectMapper.readValue(objectMapper.writeValueAsString(config), KafkaInstanceConfiguration.class);
         clone.getKafka().setConnectionAttemptsPerSec(300);
@@ -201,26 +191,20 @@ class KafkaClusterTest {
         assertEquals("5", propertyMap.get("managedkafka.zookeeper.replicas"));
         assertEquals("11Gi", propertyMap.get("managedkafka.zookeeper.container-memory"));
         assertEquals("zkfoo zkbar, zkfoo2 zkbar2", propertyMap.get("managedkafka.zookeeper.jvm-xx"));
-
     }
 
     @Test
     void testManagedKafkaToKafkaBrokerPerNode() throws IOException {
-        KafkaInstanceConfiguration config = kafkaCluster.getKafkaConfiguration();
-        config.getKafka().setOneInstancePerNode(true);
-        config.getKafka().setColocateWithZookeeper(true);
-        config.getExporter().setColocateWithZookeeper(true);
-        try {
-            ManagedKafka mk = exampleManagedKafka("60Gi");
-            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-            diffToExpected(kafka.getSpec().getKafka().getTemplate(), "/expected/broker-per-node-kafka.yml");
-            diffToExpected(kafka.getSpec().getKafkaExporter().getTemplate(), "/expected/broker-per-node-exporter.yml");
-            diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
-        } finally {
-            config.getKafka().setOneInstancePerNode(false);
-            config.getKafka().setColocateWithZookeeper(false);
-            config.getExporter().setColocateWithZookeeper(false);
-        }
+        alternativeConfig(config -> {
+            config.getKafka().setOneInstancePerNode(true);
+            config.getKafka().setColocateWithZookeeper(true);
+            config.getExporter().setColocateWithZookeeper(true);
+        });
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+        diffToExpected(kafka.getSpec().getKafka().getTemplate(), "/expected/broker-per-node-kafka.yml");
+        diffToExpected(kafka.getSpec().getKafkaExporter().getTemplate(), "/expected/broker-per-node-exporter.yml");
+        diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
     }
 
     static JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {

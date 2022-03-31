@@ -84,7 +84,7 @@ public class Canary extends AbstractCanary {
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
 
     @Inject
-    protected KafkaInstanceConfiguration config;
+    protected KafkaInstanceConfigurations configs;
 
     @Inject
     protected OperandOverrideManager overrideManager;
@@ -122,7 +122,7 @@ public class Canary extends AbstractCanary {
                     .endTemplate()
                 .endSpec();
 
-        if (this.config.getCanary().isColocateWithZookeeper()) {
+        if (this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper()) {
             builder
                 .editOrNewSpec()
                     .editOrNewTemplate()
@@ -202,7 +202,7 @@ public class Canary extends AbstractCanary {
                 .withName("init")
                 .withImage(overrideManager.getCanaryInitImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildInitEnvVar(managedKafka))
-                .withResources(config.getCanary().buildResources())
+                .withResources(this.configs.getConfig(managedKafka).getCanary().buildResources())
                 .withCommand("/opt/strimzi-canary-tool/canary-dns-init.sh")
                 .build();
     }
@@ -219,7 +219,7 @@ public class Canary extends AbstractCanary {
                 .withImage(overrideManager.getCanaryImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka, current))
                 .withPorts(buildContainerPorts())
-                .withResources(config.getCanary().buildResources())
+                .withResources(this.configs.getConfig(managedKafka).getCanary().buildResources())
                 .withReadinessProbe(buildReadinessProbe())
                 .withLivenessProbe(buildLivenessProbe())
                 .withVolumeMounts(buildVolumeMounts(managedKafka))
@@ -267,7 +267,7 @@ public class Canary extends AbstractCanary {
     }
 
     private String getBootstrapURL(ManagedKafka managedKafka) {
-        return config.getCanary().isProbeExternalBootstrapServerHost()
+        return this.configs.getConfig(managedKafka).getCanary().isProbeExternalBootstrapServerHost()
                 ? managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443"
                 : managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093";
     }
@@ -333,6 +333,7 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("SARAMA_LOG_ENABLED").withValueFrom(saramaLogEnabled).build());
         envVars.add(new EnvVarBuilder().withName("VERBOSITY_LOG_LEVEL").withValueFrom(verbosityLogLevel).build());
         envVars.add(new EnvVarBuilder().withName("GODEBUG").withValueFrom(goDebug).build());
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         envVars.add(new EnvVarBuilder().withName("TOPIC").withValue(config.getCanary().getTopic()).build());
         envVars.add(new EnvVarBuilder().withName("TOPIC_CONFIG").withValue("retention.ms=600000;segment.bytes=16384").build());
         envVars.add(new EnvVarBuilder().withName("CLIENT_ID").withValue(config.getCanary().getClientId()).build());
