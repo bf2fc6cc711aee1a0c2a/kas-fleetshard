@@ -13,7 +13,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.events.ResourceEvent;
 import org.bf2.operator.managers.StrimziManager;
-import org.bf2.operator.operands.KafkaInstanceConfigurations;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatusBuilder;
@@ -64,7 +63,7 @@ public class ManagedKafkaControllerTest {
         ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
         assertEquals(ManagedKafkaCondition.Reason.Installing.name(), condition.getReason());
 
-        mk.getMetadata().setLabels(Map.of(KafkaInstanceConfigurations.PROFILE_TYPE, "not valid"));
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.PROFILE_TYPE, "not valid"));
         mkController.createOrUpdateResource(mk, context);
         condition = mk.getStatus().getConditions().get(0);
         assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());

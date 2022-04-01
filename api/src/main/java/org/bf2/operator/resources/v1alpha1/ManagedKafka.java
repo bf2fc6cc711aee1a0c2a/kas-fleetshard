@@ -33,6 +33,9 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public static final String ID = BF2_DOMAIN + "id";
     public static final String PLACEMENT_ID = BF2_DOMAIN + "placementId";
 
+    public static final String PROFILE_TYPE = BF2_DOMAIN + "kafkaInstanceProfileType";
+    public static final String PROFILE_QUOTA_CONSUMED = BF2_DOMAIN + "kafkaInstanceProfileQuotaConsumed";
+
     @Override
     protected ManagedKafkaSpec initSpec() {
         return new ManagedKafkaSpec();

@@ -1,3 +1,4 @@
+---
 kind: "Kafka"
 metadata:
   annotations:
@@ -260,17 +261,6 @@ spec:
           optional: false
     template:
       pod:
-        affinity:
-          podAntiAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                - key: "bf2.org/kafkaInstanceProfileType"
-                  operator: "NotIn"
-                  values:
-                  - "developer"
-              namespaceSelector: {}
-              topologyKey: "kubernetes.io/hostname"
         topologySpreadConstraints:
         - labelSelector:
             matchExpressions:

@@ -31,9 +31,6 @@ public class KafkaInstanceConfigurations {
 
     private static final String MANAGEDKAFKA = "managedkafka";
 
-    public static final String PROFILE_TYPE = "bf2.org/kafkaInstanceProfileType";
-    public static final String PROFILE_QUOTA_CONSUMED = "bf2.org/kafkaInstanceProfileQuotaConsumed";
-
     public enum InstanceType {
         STANDARD,
         DEVELOPER;
@@ -95,7 +92,7 @@ public class KafkaInstanceConfigurations {
     }
 
     public static String getInstanceType(ManagedKafka managedKafka) {
-        return OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), PROFILE_TYPE, InstanceType.STANDARD.lowerName);
+        return OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.PROFILE_TYPE, InstanceType.STANDARD.lowerName);
     }
 
 }

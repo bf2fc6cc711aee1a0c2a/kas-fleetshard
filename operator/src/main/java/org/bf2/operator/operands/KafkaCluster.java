@@ -454,26 +454,17 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         if (onePerNode) {
             affinityTerm = affinityTerm("app.kubernetes.io/name", "zookeeper");
-        } else {
-            // try to collocate together - by having anti-affinity to everything else
-            affinityTerm = new PodAffinityTermBuilder()
-                    .withTopologyKey("kubernetes.io/hostname")
-                    .withNewLabelSelector()
-                    .addNewMatchExpression()
-                    .withKey(KafkaInstanceConfigurations.PROFILE_TYPE)
-                    .withOperator("NotIn")
-                    .withValues(KafkaInstanceConfigurations.getInstanceType(managedKafka))
-                    .endMatchExpression()
-                    .endLabelSelector()
-                    .build();
-        }
-        affinityTerm.setNamespaceSelector(new LabelSelector());
-        PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-            .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
-            .build();
 
-        affinityBuilder.withPodAntiAffinity(podAntiAffinity);
-        podNestedBuilder.withAffinity(affinityBuilder.build());
+            affinityTerm.setNamespaceSelector(new LabelSelector());
+            PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
+                .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
+                .build();
+
+            affinityBuilder.withPodAntiAffinity(podAntiAffinity);
+            podNestedBuilder.withAffinity(affinityBuilder.build());
+        } else {
+            // TODO either mixing profiles disallowed or could try to collocate similar instances together
+        }
 
         ZookeeperClusterTemplateBuilder templateBuilder = podNestedBuilder.endPod();
 
@@ -871,14 +862,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private Map<String, String> buildKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
+        Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
+        labels.put(ManagedKafka.PROFILE_TYPE, KafkaInstanceConfigurations.getInstanceType(managedKafka));
         labels.put("ingressType", "sharded");
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
-        labels.put(KafkaInstanceConfigurations.PROFILE_TYPE, KafkaInstanceConfigurations.getInstanceType(managedKafka));
-
-        String consumed = OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), KafkaInstanceConfigurations.PROFILE_QUOTA_CONSUMED, null);
-        if (consumed != null) {
-            labels.put(KafkaInstanceConfigurations.PROFILE_QUOTA_CONSUMED, consumed);
-        }
 
         if (ingressControllerManagerInstance.isResolvable()) {
             labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
