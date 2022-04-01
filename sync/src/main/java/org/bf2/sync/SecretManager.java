@@ -4,9 +4,13 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-
 import org.bf2.common.OperandUtils;
-import org.bf2.operator.resources.v1alpha1.*;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.SecretKeySelectorBuilder;
+import org.bf2.operator.resources.v1alpha1.ServiceAccount;
+import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
 import org.bf2.sync.informer.InformerManager;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -43,6 +47,10 @@ public class SecretManager {
         return managedKafka.getMetadata().getName() + "-master-secret";
     }
 
+    public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getNamespace();
+    }
+
     public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
         return managedKafka.getSpec().getOauth() != null;
     }
@@ -63,10 +71,6 @@ public class SecretManager {
         String localDigest = local.getMetadata().getAnnotations().get(ANNOTATION_MASTER_SECRET_DIGEST);
         String remoteDigest =  buildDigest(buildSecretData(remote));
         return !remoteDigest.equals(localDigest);
-    }
-
-    public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getNamespace();
     }
 
     public Secret createSecret(ManagedKafka managedKafka) {
