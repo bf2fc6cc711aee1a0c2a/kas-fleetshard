@@ -137,11 +137,11 @@ public class StrimziManager {
     }
 
     private boolean isStrimziDeployment(Deployment deployment) {
-        return deployment.getMetadata().getName().startsWith("strimzi-cluster-operator");
+        return deployment.getMetadata().getName().startsWith(STRIMZI_CLUSTER_OPERATOR);
     }
 
     private void updateStatus() {
-        List<StrimziVersionStatus> versions = this.strimziVersions.values().stream().map(ComponentVersions::getStrimziVersion).collect(Collectors.toCollection(ArrayList::new));
+        List<StrimziVersionStatus> versions = this.strimziVersions.values().stream().map(ComponentVersions::getStrimziVersion).collect(Collectors.toList());
         // create the Kafka informer only when a Strimzi bundle is installed (aka at least one available version)
         if (!versions.isEmpty()) {
             informerManager.createKafkaInformer();
@@ -196,9 +196,9 @@ public class StrimziManager {
                 .getTemplate()
                 .getSpec()
                 .getContainers()
-                .get(0)
-                .getEnv()
                 .stream()
+                .filter(container -> container.getName().startsWith(STRIMZI_CLUSTER_OPERATOR))
+                .flatMap(container -> container.getEnv().stream())
                 .filter(ev -> ev.getName().equals(KAFKA_IMAGES_ENVVAR))
                 .map(EnvVar::getValue)
                 .filter(Objects::nonNull)
