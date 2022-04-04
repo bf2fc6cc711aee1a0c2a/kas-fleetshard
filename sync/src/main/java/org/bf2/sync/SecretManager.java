@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-
 @ApplicationScoped
 public class SecretManager {
 
@@ -177,10 +176,10 @@ public class SecretManager {
     }
 
     private static String decode(String value){
-        return new String(Base64.getDecoder().decode(value));
+        return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
     }
 
-    private static Map decode(Map<String, String> data){
+    private static Map<String, String> decode(Map<String, String> data){
         return data.entrySet()
                 .stream()
                 .map(entry -> Map.entry(entry.getKey(), decode(entry.getValue())))
