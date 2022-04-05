@@ -343,11 +343,20 @@ public class InstanceProfiler {
             try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
                 p.load(is);
             }
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/instances/managedkafka.properties")) {
+                Properties p1 = new Properties();
+                p1.load(is);
+                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
+            }
+            String name = "standard";
             if (testParameters.alternativeProfile != null) {
-                try (InputStream is = InstanceProfiler.class.getResourceAsStream(
-                        String.format("/application-%s.properties", testParameters.alternativeProfile))) {
-                    p.load(is);
-                }
+                name = testParameters.alternativeProfile;
+            }
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream(
+                    String.format("/instances/%s.properties", name))) {
+                Properties p1 = new Properties();
+                p1.load(is);
+                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
             }
             if (testParameters.override != null) {
                 p.putAll(testParameters.override);
