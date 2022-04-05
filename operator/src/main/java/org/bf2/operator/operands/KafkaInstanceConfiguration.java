@@ -39,6 +39,8 @@ public class KafkaInstanceConfiguration {
     protected AdminServer adminserver = new AdminServer();
     @JsonUnwrapped(prefix = "managedkafka.canary.")
     protected Canary canary = new Canary();
+    @JsonUnwrapped(prefix = "managedkafka.storage.")
+    protected Storage storage = new Storage();
 
     public Map<String, String> toMap(boolean includeAll) {
         ObjectMapper mapper = Serialization.jsonMapper();
@@ -46,6 +48,41 @@ public class KafkaInstanceConfiguration {
             mapper = mapper.copy().setSerializationInclusion(Include.NON_NULL);
         }
         return mapper.convertValue(this, new TypeReference<Map<String, String>>() {});
+    }
+
+    public static class Storage {
+        @JsonProperty("check-interval")
+        protected int checkInterval;
+
+        @JsonProperty("safety-factor")
+        protected int safetyFactor;
+
+        @JsonProperty("min-margin")
+        protected Quantity minMargin;
+
+        public int getCheckInterval() {
+            return checkInterval;
+        }
+
+        public void setCheckInterval(int checkInterval) {
+            this.checkInterval = checkInterval;
+        }
+
+        public int getSafetyFactor() {
+            return safetyFactor;
+        }
+
+        public void setSafetyFactor(int safetyFactor) {
+            this.safetyFactor = safetyFactor;
+        }
+
+        public Quantity getMinMargin() {
+            return minMargin;
+        }
+
+        public void setMinMargin(Quantity minMargin) {
+            this.minMargin = minMargin;
+        }
     }
 
     public static class Container {
@@ -655,6 +692,14 @@ public class KafkaInstanceConfiguration {
 
     public void setCanary(Canary canary) {
         this.canary = canary;
+    }
+
+    public Storage getStorage() {
+        return storage;
+    }
+
+    public void setStorage(Storage storage) {
+        this.storage = storage;
     }
 
     public void setColocateWithZookeeper(boolean colocate) {

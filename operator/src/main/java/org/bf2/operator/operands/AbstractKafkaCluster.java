@@ -71,7 +71,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     protected Optional<String> zookeeperImage;
 
     @Inject
-    protected KafkaInstanceConfiguration config;
+    protected KafkaInstanceConfigurations configs;
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
@@ -274,9 +274,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         KafkaListenerType externalListenerType = kubernetesClient.isAdaptable(OpenShiftClient.class) ? KafkaListenerType.ROUTE : KafkaListenerType.INGRESS;
 
         // Limit client connections per listener
-        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), this.config.getKafka().getMaxConnections()) / replicas;
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
+        Integer totalMaxConnections = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getTotalMaxConnections(), config.getKafka().getMaxConnections()) / replicas;
         // Limit connection attempts per listener
-        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), this.config.getKafka().getConnectionAttemptsPerSec()) / replicas;
+        Integer maxConnectionAttemptsPerSec = Objects.requireNonNullElse(managedKafka.getSpec().getCapacity().getMaxConnectionAttemptsPerSec(), config.getKafka().getConnectionAttemptsPerSec()) / replicas;
 
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
@@ -343,6 +344,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected GenericSecretSource buildSsoClientGenericSecretSource(ManagedKafka managedKafka) {
+        if (managedKafka.getSpec().getOauth().getClientSecret() == null) {
+            return null;
+        }
+
         return new GenericSecretSourceBuilder()
                 .withSecretName(SecuritySecretManager.ssoClientSecretName(managedKafka))
                 .withKey("ssoClientSecret")

@@ -79,7 +79,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                         .withImage(kafkaImage.orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
-                        .withReplicas(this.config.getZookeeper().getReplicas())
+                        .withReplicas(this.configs.getConfig(managedKafka).getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage) buildStorage())
                         .withTemplate(getZookeeperTemplate(managedKafka))
                         .withImage(zookeeperImage.orElse(null))

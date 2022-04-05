@@ -35,7 +35,6 @@ import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
-import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -150,9 +149,6 @@ public class IngressControllerManager {
     int maxIngressConnections;
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
-
-    @Inject
-    KafkaInstanceConfiguration config;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -366,8 +362,8 @@ public class IngressControllerManager {
     }
 
     private void ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
-        LongSummaryStatistics egress = summarize(kafkas, KafkaCluster::getFetchQuota, () -> config.getKafka().getEgressPerSec());
-        LongSummaryStatistics ingress = summarize(kafkas, KafkaCluster::getProduceQuota, () -> config.getKafka().getIngressPerSec());
+        LongSummaryStatistics egress = summarize(kafkas, KafkaCluster::getFetchQuota, () -> {throw new IllegalStateException("A kafka lacks a fetch quota");});
+        LongSummaryStatistics ingress = summarize(kafkas, KafkaCluster::getProduceQuota, () -> {throw new IllegalStateException("A kafka lacks a produce quota");});
 
         ingressControllers.entrySet().stream().forEach(e -> {
             String zone = e.getKey();

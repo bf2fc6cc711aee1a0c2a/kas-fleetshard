@@ -96,7 +96,7 @@ public class AdminServer extends AbstractAdminServer {
     protected SecuritySecretManager securitySecretManager;
 
     @Inject
-    protected KafkaInstanceConfiguration config;
+    protected KafkaInstanceConfigurations configs;
 
     @Inject
     protected Instance<IngressControllerManager> ingressControllerManagerInstance;
@@ -163,7 +163,7 @@ public class AdminServer extends AbstractAdminServer {
                 .endSpec();
 
 
-        if(this.config.getAdminserver().isColocateWithZookeeper()) {
+        if(this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper()) {
             builder
                 .editOrNewSpec()
                     .editOrNewTemplate()
@@ -219,6 +219,7 @@ public class AdminServer extends AbstractAdminServer {
         final IntOrString targetPort;
         final TLSConfig tlsConfig;
 
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
             targetPort = HTTPS_PORT_TARGET;
             tlsConfig = new TLSConfigBuilder().withTermination("passthrough").build();
@@ -274,7 +275,7 @@ public class AdminServer extends AbstractAdminServer {
                 .withImage(overrideManager.getAdminServerImage(managedKafka.getSpec().getVersions().getStrimzi()))
                 .withEnv(buildEnvVar(managedKafka))
                 .withPorts(buildContainerPorts(managedKafka))
-                .withResources(config.getAdminserver().buildResources())
+                .withResources(this.configs.getConfig(managedKafka).getAdminserver().buildResources())
                 .withReadinessProbe(readinessProbe)
                 .withLivenessProbe(livenessProbe)
                 .withVolumeMounts(buildVolumeMounts(managedKafka))
@@ -404,11 +405,12 @@ public class AdminServer extends AbstractAdminServer {
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka) {
         List<EnvVar> envVars = new ArrayList<>();
 
+        KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         addEnvVar(envVars, "KAFKA_ADMIN_REPLICATION_FACTOR", String.valueOf(config.getKafka().getScalingAndReplicationFactor()));
         addEnvVar(envVars, "KAFKA_ADMIN_BOOTSTRAP_SERVERS", managedKafka.getMetadata().getName() + "-kafka-bootstrap:9095");
         addEnvVar(envVars, "KAFKA_ADMIN_BROKER_TLS_ENABLED", "true");
         addEnvVarSecret(envVars, "KAFKA_ADMIN_BROKER_TRUSTED_CERT", SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), "ca.crt");
-        addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", this.config.getKafka().getAcl().getResourceOperations());
+        addEnvVar(envVars, "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS", config.getKafka().getAcl().getResourceOperations());
 
         Integer maxPartitions = managedKafka.getSpec().getCapacity().getMaxPartitions();
         if (maxPartitions != null) {
