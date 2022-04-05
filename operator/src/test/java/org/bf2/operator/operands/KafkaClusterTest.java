@@ -18,6 +18,8 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuth;
+import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
@@ -46,11 +48,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -382,6 +386,37 @@ class KafkaClusterTest {
         assertEquals(Status.Unknown, readiness.getStatus());
         assertEquals(Reason.Paused, readiness.getReason());
         assertEquals("Kafka mk-1 is paused for an unknown reason", readiness.getMessage());
+    }
+
+    @Test
+    void testOAuthClientCredentialsAbsentWhenRemoved() throws IOException {
+        BiFunction<Kafka, String, GenericKafkaListener> getListener =
+                (k, n) -> k.getSpec().getKafka().getListeners().stream().filter(l -> l.getName().equals(n)).findFirst().orElse(null);
+
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        // Credentials present from default example MK
+        var extListener1 = getListener.apply(kafka, AbstractKafkaCluster.EXTERNAL_LISTENER_NAME);
+        assertNotNull(((KafkaListenerAuthenticationOAuth) extListener1.getAuth()).getClientId());
+        assertNotNull(((KafkaListenerAuthenticationOAuth) extListener1.getAuth()).getClientSecret());
+
+        var oauthListener1 = getListener.apply(kafka, "oauth");
+        assertNotNull(((KafkaListenerAuthenticationOAuth) oauthListener1.getAuth()).getClientId());
+        assertNotNull(((KafkaListenerAuthenticationOAuth) oauthListener1.getAuth()).getClientSecret());
+
+        // Credentials absent when removed from default example MK
+        mk.getSpec().getOauth().setClientId(null);
+        mk.getSpec().getOauth().setClientSecret(null);
+        kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        var extListener2 = getListener.apply(kafka, AbstractKafkaCluster.EXTERNAL_LISTENER_NAME);
+        assertNull(((KafkaListenerAuthenticationOAuth) extListener2.getAuth()).getClientId());
+        assertNull(((KafkaListenerAuthenticationOAuth) extListener2.getAuth()).getClientSecret());
+
+        var oauthListener2 = getListener.apply(kafka, "oauth");
+        assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientId());
+        assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
     }
 
 }

@@ -98,8 +98,12 @@ public class SecuritySecretManager {
         Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
 
         if (isKafkaAuthenticationEnabled(managedKafka)) {
-            Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
-            createOrUpdate(ssoClientSecret);
+            if (managedKafka.getSpec().getOauth().getClientSecret() != null) {
+                Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret);
+                createOrUpdate(ssoClientSecret);
+            } else if (currentSsoClientSecret != null) {
+                secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
+            }
 
             if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
                 Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
