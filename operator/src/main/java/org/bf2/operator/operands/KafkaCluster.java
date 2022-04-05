@@ -863,7 +863,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
-        labels.put(ManagedKafka.PROFILE_TYPE, KafkaInstanceConfigurations.getInstanceType(managedKafka));
         labels.put("ingressType", "sharded");
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
 

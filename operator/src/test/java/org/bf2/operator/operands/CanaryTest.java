@@ -16,6 +16,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import javax.inject.Inject;
 
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -80,5 +83,13 @@ public class CanaryTest {
                 .withName(canaryService.getMetadata().getName())
                 .get());
         KafkaClusterTest.diffToExpected(canaryService, "/expected/canary-service.yml");
+    }
+
+    @Test
+    void testLabels() throws Exception {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.PROFILE_TYPE, "something"));
+
+        assertEquals("something", canary.buildLabels("my-canary", mk).get(ManagedKafka.PROFILE_TYPE));
     }
 }

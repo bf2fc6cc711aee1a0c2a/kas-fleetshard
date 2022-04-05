@@ -51,7 +51,7 @@ public class KafkaInstanceConfigurations {
         loadConfiguration(defaultValues, MANAGEDKAFKA);
 
         for (InstanceType type : InstanceType.values()) {
-            configs.put(type.name().toLowerCase(), loadConfiguration(new HashMap<>(defaultValues), type.name().toLowerCase()));
+            configs.put(type.lowerName, loadConfiguration(new HashMap<>(defaultValues), type.lowerName));
         }
     }
 

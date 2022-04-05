@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
     managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-    bf2.org/kafkaInstanceProfileType: "standard"
     managedkafka.bf2.org/kas-zone2: "true"
     managedkafka.bf2.org/kas-zone1: "true"
     managedkafka.bf2.org/kas-zone0: "true"
