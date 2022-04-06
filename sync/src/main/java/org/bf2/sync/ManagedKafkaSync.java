@@ -14,7 +14,6 @@ import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
@@ -162,8 +161,12 @@ public class ManagedKafkaSync {
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
             return false;
         }
-        ManagedKafka remoteCopy = new ManagedKafkaBuilder(remote).build();
-        remoteCopy = secretManager.removeSecretsFromManagedKafka(remoteCopy,secretManager.cachedOrRemoteSecret(remoteCopy,SecretManager.masterSecretName(remoteCopy)));
+
+        if (secretManager.isMasterSecretChanged(remote, existing)) {
+            return true;
+        }
+
+        ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
         return !remoteCopy.getSpec().equals(existing.getSpec());
     }
 
@@ -220,23 +223,18 @@ public class ManagedKafkaSync {
                     log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
                     return;
                 }
+
                 if (specChanged(remote, local)) {
                     log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
-                    ManagedKafkaSpec spec = remote.getSpec();
-                    if(secretManager.isMasterSecretChanged(remote,local)){
-                        secretManager.createSecret(remote);
-                    }
+                    Secret masterSecret = secretManager.createSecret(remote);
+                    ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
+
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                            mk.setSpec(spec);
+                            secretManager.calculateMasterSecretDigest(mk, masterSecret);
+                            mk.setSpec(remoteCopy.getSpec());
                             return mk;
                         });
                     // the operator will handle it from here
-                }
-
-                // If master secret doesn't exist for existing instances,this should create one
-                if (!secretManager.isMasterSecretExists(remote)){
-                    Secret secret = secretManager.createSecret(remote);
-                    secretManager.removeSecretsFromManagedKafka(remote, secret);
                 }
             }
         } finally {
@@ -276,16 +274,17 @@ public class ManagedKafkaSync {
 
         //Creating the master Secrets
        Secret secret = secretManager.createSecret(remote);
-       remote = secretManager.removeSecretsFromManagedKafka(remote, secret);
+       remote = secretManager.removeSecretsFromManagedKafka(remote);
+       secretManager.calculateMasterSecretDigest(remote, secret);
 
-        try {
-            client.create(remote);
-        } catch (KubernetesClientException e) {
-            if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
-                throw e;
-            }
-            log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
-        }
+       try {
+           client.create(remote);
+       } catch (KubernetesClientException e) {
+           if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
+               throw e;
+           }
+           log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
+       }
     }
 
     @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
