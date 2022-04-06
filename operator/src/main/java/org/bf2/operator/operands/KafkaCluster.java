@@ -607,14 +607,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put(QUOTA_FETCH, String.valueOf(getEgressBytes(managedKafka, current)));
 
         // Start throttling when disk is above requested size. Full stop when only storageMinMargin is free.
-        Quantity maxDataRetentionSize = getAdjustedMaxDataRetentionSize(managedKafka, current);
-        KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
-        long hardStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - Quantity.getAmountInBytes(instanceConfig.getStorage().getMinMargin()).longValue();
-        long softStorageLimit = Quantity.getAmountInBytes(maxDataRetentionSize).longValue() - getStoragePadding(managedKafka, current);
-        config.put("client.quota.callback.static.storage.soft", String.valueOf(softStorageLimit));
-        config.put("client.quota.callback.static.storage.hard", String.valueOf(hardStorageLimit));
+        final long maxRetentionBytes = Quantity.getAmountInBytes(getAdjustedMaxDataRetentionSize(managedKafka, current)).longValue();
+        final long storagePaddingBytes = getStoragePadding(managedKafka, current);
+        long storageLimit = maxRetentionBytes - storagePaddingBytes;
+        //It's unlikely that customers will notice producer throttling, so we set it to the same as the hard limit and let the hard limit win
+        config.put("client.quota.callback.static.storage.soft", String.valueOf(storageLimit));
+        config.put("client.quota.callback.static.storage.hard", String.valueOf(storageLimit));
 
         // Check storage every storageCheckInterval seconds
+        KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
         config.put("client.quota.callback.static.storage.check-interval", String.valueOf(instanceConfig.getStorage().getCheckInterval()));
 
         // Configure the quota plugin so that the canary is not subjected to the quota checks.
