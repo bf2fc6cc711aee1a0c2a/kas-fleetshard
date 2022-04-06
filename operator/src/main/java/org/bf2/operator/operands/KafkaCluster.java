@@ -610,7 +610,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         final long maxRetentionBytes = Quantity.getAmountInBytes(getAdjustedMaxDataRetentionSize(managedKafka, current)).longValue();
         final long storagePaddingBytes = getStoragePadding(managedKafka, current);
         long storageLimit = maxRetentionBytes - storagePaddingBytes;
-        //For RHOASK its unlikely that customers will notice producer throttling, so we set it to the same as the hard limit and let the hard limit win
+        //It's unlikely that customers will notice producer throttling, so we set it to the same as the hard limit and let the hard limit win
         config.put("client.quota.callback.static.storage.soft", String.valueOf(storageLimit));
         config.put("client.quota.callback.static.storage.hard", String.valueOf(storageLimit));
 
