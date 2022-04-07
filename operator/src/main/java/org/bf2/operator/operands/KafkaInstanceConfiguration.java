@@ -61,7 +61,7 @@ public class KafkaInstanceConfiguration {
         protected Quantity minMargin;
 
         @JsonProperty("formatting-overhead")
-        protected double formattingOverhead = 105d/100;
+        protected double formattingOverhead;
 
 
         public int getCheckInterval() {
