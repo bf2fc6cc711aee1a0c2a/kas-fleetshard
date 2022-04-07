@@ -60,6 +60,10 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("min-margin")
         protected Quantity minMargin;
 
+        @JsonProperty("formatting-overhead")
+        protected double formattingOverhead = 105d/100;
+
+
         public int getCheckInterval() {
             return checkInterval;
         }
@@ -83,6 +87,15 @@ public class KafkaInstanceConfiguration {
         public void setMinMargin(Quantity minMargin) {
             this.minMargin = minMargin;
         }
+
+        public double getFormattingOverhead() {
+            return formattingOverhead;
+        }
+
+        public void setFormattingOverhead(double formattingOverhead) {
+            this.formattingOverhead = formattingOverhead;
+        }
+
     }
 
     public static class Container {
