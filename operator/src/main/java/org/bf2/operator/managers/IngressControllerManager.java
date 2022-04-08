@@ -1,6 +1,7 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
@@ -9,6 +10,7 @@ import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -17,6 +19,7 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -47,12 +50,15 @@ import javax.inject.Inject;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -149,6 +155,11 @@ public class IngressControllerManager {
     int maxIngressConnections;
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
+
+    private ResourceInformer<Deployment> deployments;
+    private CachedSingleThreadScheduler scheduler = new CachedSingleThreadScheduler();
+    private Set<String> deploymentsToReconcile = new HashSet<>();
+    private ResourceRequirements deploymentResourceRequirements;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -252,57 +263,92 @@ public class IngressControllerManager {
             }
         });
 
+        ResourceRequirementsBuilder deploymentResourceBuilder = new ResourceRequirementsBuilder();
+        limitCpu.ifPresent(quantity -> deploymentResourceBuilder.addToLimits(CPU, quantity));
+        limitMemory.ifPresent(quantity -> deploymentResourceBuilder.addToLimits(MEMORY, quantity));
+        requestCpu.ifPresent(quantity -> deploymentResourceBuilder.addToRequests(CPU, quantity));
+        requestMemory.ifPresent(quantity -> deploymentResourceBuilder.addToRequests(MEMORY, quantity));
+
         // this is to patch the IngressController Router deployments to correctly size for resources, should be removed
         // after https://issues.redhat.com/browse/RFE-1475 is resolved.
-        this.resourceInformerFactory.create(Deployment.class,
-                this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),
-                new ResourceEventHandler<Deployment>() {
-                    @Override
-                    public void onAdd(Deployment deployment) {
-                        patchIngressDeploymentResources(deployment);
-                    }
-                    @Override
-                    public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
-                        patchIngressDeploymentResources(newDeployment);
-                    }
-                    @Override
-                    public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
-                        // do nothing
-                    }
-        });
+        if (deploymentResourceBuilder.hasLimits() || deploymentResourceBuilder.hasRequests()) {
+            this.deploymentResourceRequirements = deploymentResourceBuilder.build();
+            deployments = this.resourceInformerFactory.create(Deployment.class,
+                    this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),
+                    new ResourceEventHandler<Deployment>() {
+                        @Override
+                        public void onAdd(Deployment deployment) {
+                            patchIngressDeploymentResources(deployment);
+                        }
+                        @Override
+                        public void onUpdate(Deployment oldDeployment, Deployment newDeployment) {
+                            patchIngressDeploymentResources(newDeployment);
+                        }
+                        @Override
+                        public void onDelete(Deployment deployment, boolean deletedFinalStateUnknown) {
+                            // do nothing
+                        }
+            });
+        }
 
         ready = true;
-        resyncIngressControllerDeployments();
         reconcileIngressControllers();
     }
 
     private void patchIngressDeploymentResources(Deployment d) {
-        if (OperandUtils.getOrDefault(d.getMetadata().getLabels(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
+        if (!shouldReconcile(d)) {
+            return;
+        }
 
-            ResourceRequirementsBuilder builder = new ResourceRequirementsBuilder();
-            limitCpu.ifPresent(quantity -> builder.addToLimits(CPU, quantity));
-            limitMemory.ifPresent(quantity -> builder.addToLimits(MEMORY, quantity));
-            requestCpu.ifPresent(quantity -> builder.addToRequests(CPU, quantity));
-            requestMemory.ifPresent(quantity -> builder.addToRequests(MEMORY, quantity));
+        synchronized (deploymentsToReconcile) {
+            boolean needsReconcile = deploymentsToReconcile.isEmpty();
+            deploymentsToReconcile.add(Cache.metaNamespaceKeyFunc(d));
 
-            if (builder.hasLimits() || builder.hasRequests()) {
-                log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
-                openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
-                    .withName(d.getMetadata().getName()).edit(
-                        new TypedVisitor<ContainerBuilder>() {
-                            @Override
-                            public void visit(ContainerBuilder element) {
-                                element.withResources(builder.build());
-                            }
-                        });
+            if (needsReconcile) {
+                // delay the reconcile as we see clustered events
+                scheduler.schedule(() -> {
+                    Set<String> toReconcile;
+                    synchronized (deploymentsToReconcile) {
+                        toReconcile = new HashSet<>(deploymentsToReconcile);
+                        deploymentsToReconcile.clear();
+                    }
+                    toReconcile.stream()
+                            .map(deployments::getByKey)
+                            .filter(Objects::nonNull)
+                            .filter(this::shouldReconcile)
+                            .forEach(this::doIngressPatch);
+                }, 2, TimeUnit.SECONDS);
             }
         }
     }
 
-    void resyncIngressControllerDeployments() {
-        openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).list().getItems().forEach(d -> {
-            patchIngressDeploymentResources(d);
-        });
+    /**
+     * check first to see if an update is needed - if for whatever reason we get back a deployment with a non-schema field
+     * 5.7 fabric8 has a bug that will not copy that in a builder, thus triggering an update via edit even if nothing really is changing
+     * - that's fixed in ~5.11
+     */
+    private boolean shouldReconcile(Deployment d) {
+        if (!OperandUtils.getOrDefault(d.getMetadata().getLabels(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
+            return false;
+        }
+        List<Container> containers = d.getSpec().getTemplate().getSpec().getContainers();
+        if (containers.size() != 1) {
+            log.errorf("Wrong number of containers for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+            return false;
+        }
+        return !containers.get(0).getResources().equals(deploymentResourceRequirements);
+    }
+
+    private void doIngressPatch(Deployment d) {
+        log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+        openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
+            .withName(d.getMetadata().getName()).edit(
+                new TypedVisitor<ContainerBuilder>() {
+                    @Override
+                    public void visit(ContainerBuilder element) {
+                        element.withResources(deploymentResourceRequirements);
+                    }
+                });
     }
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
