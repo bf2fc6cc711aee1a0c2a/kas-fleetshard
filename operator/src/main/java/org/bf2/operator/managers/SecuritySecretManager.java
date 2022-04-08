@@ -246,7 +246,7 @@ public class SecuritySecretManager {
                     "Opaque",
                     managedKafka,
                     current,
-                    Map.of("ssoClientSecret", currentMasterSecret.getData().get("oauth.ssoClientSecret") ));
+                    Map.of("ssoClientSecret", currentMasterSecret.getData().get(managedKafka.getSpec().getOauth().getClientSecretRef().getKey())));
         }
         else{
             return buildSecretFrom(ssoClientSecretName(managedKafka),

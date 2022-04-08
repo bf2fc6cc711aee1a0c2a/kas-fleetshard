@@ -64,13 +64,17 @@ public class SecretManager {
         return !remoteDigest.equals(localDigest);
     }
 
-    public Secret createSecret(ManagedKafka managedKafka) {
+    public Secret buildSecret(ManagedKafka managedKafka) {
         Secret secret = buildSecret(masterSecretName(managedKafka),
                             "Opaque",
                              managedKafka,
                              buildSecretData(managedKafka));
-        OperandUtils.createOrUpdate(kubernetesClient.secrets(), secret);
         return secret;
+    }
+
+    public void createOrUpdateSecret(ManagedKafka managedKafka, Secret secret) {
+        OperandUtils.setAsOwner(managedKafka, secret);
+        OperandUtils.createOrUpdate(kubernetesClient.secrets(), secret);
     }
 
     private Secret buildSecret(String name, String type, ManagedKafka managedKafka, Map<String, String> dataSource) {
@@ -91,8 +95,6 @@ public class SecretManager {
                 .withType(type)
                 .withData(data)
                 .build();
-
-        OperandUtils.setAsOwner(managedKafka, secret);
 
         return secret;
     }

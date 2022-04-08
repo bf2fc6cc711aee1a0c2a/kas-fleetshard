@@ -226,7 +226,7 @@ public class ManagedKafkaSync {
 
                 if (specChanged(remote, local)) {
                     log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
-                    Secret masterSecret = secretManager.createSecret(remote);
+                    Secret masterSecret = secretManager.buildSecret(remote);
                     ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
 
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
@@ -234,6 +234,7 @@ public class ManagedKafkaSync {
                             mk.setSpec(remoteCopy.getSpec());
                             return mk;
                         });
+                    secretManager.createOrUpdateSecret(local, masterSecret);
                     // the operator will handle it from here
                 }
             }
@@ -273,12 +274,13 @@ public class ManagedKafkaSync {
                         .build());
 
         //Creating the master Secrets
-       Secret secret = secretManager.createSecret(remote);
+       Secret secret = secretManager.buildSecret(remote);
        remote = secretManager.removeSecretsFromManagedKafka(remote);
        secretManager.calculateMasterSecretDigest(remote, secret);
 
        try {
-           client.create(remote);
+           remote = client.create(remote);
+           secretManager.createOrUpdateSecret(remote, secret);
        } catch (KubernetesClientException e) {
            if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
                throw e;
