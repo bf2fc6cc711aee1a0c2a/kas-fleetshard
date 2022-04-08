@@ -195,8 +195,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         int desiredReplicas = getBrokerReplicas(managedKafka, null);
 
         long storagePerBroker = getPerBrokerBytes(managedKafka.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.configs.getConfig(managedKafka).getKafka().getVolumeSize(), actualReplicas);
-        long safetyMargin = calculateSafetyMargin(managedKafka, current);
-        long formatOverheadWithMargin = safetyMargin + calculateFormattingOverhead(managedKafka, storagePerBroker + safetyMargin, FormattedValueType.FORMATTED);
 
         KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         KafkaBuilder kafkaBuilder = builder
@@ -214,7 +212,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withReplicas(actualReplicas)
                         .withResources(config.kafka.buildResources())
                         .withJvmOptions(buildKafkaJvmOptions(managedKafka))
-                        .withStorage(buildKafkaStorage(managedKafka, current, storagePerBroker, formatOverheadWithMargin))
+                        .withStorage(buildKafkaStorage(managedKafka, current, storagePerBroker))
                         .withListeners(buildListeners(managedKafka, actualReplicas))
                         .withRack(buildKafkaRack(managedKafka))
                         .withTemplate(buildKafkaTemplate(managedKafka))
@@ -625,10 +623,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("quota.window.size.seconds", "2");
     }
 
-    private Storage buildKafkaStorage(ManagedKafka managedKafka, Kafka current, long storagePerBroker, long storagePadding) {
+    private Storage buildKafkaStorage(ManagedKafka managedKafka, Kafka current, long storagePerBroker) {
+        long storageBytes = storagePerBroker;
+        storageBytes += calculateSafetyMargin(managedKafka, current);
+        storageBytes += calculateFormatOverheadFromFormattedSize(managedKafka, storageBytes);
+
         PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
                 .withId(JBOD_VOLUME_ID)
-                .withSize(getAdjustedMaxDataRetentionSize(current, storagePerBroker, storagePadding).getAmount())
+                .withSize(getAdjustedMaxDataRetentionSize(current, storageBytes).getAmount())
                 .withDeleteClaim(DELETE_CLAIM);
 
         Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getKafka).map(KafkaClusterSpec::getStorage)
@@ -690,31 +692,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         * config.getStorage().getSafetyFactor();
     }
 
-    enum FormattedValueType {
-        FORMATTED, UNFORMATTED
+    protected long calculateFormatOverheadFromUnformattedSize(ManagedKafka managedKafka, long size) {
+        double formattingOverhead = this.configs.getConfig(managedKafka).getStorage().getFormattingOverhead();
+        return (long) (size - (size / (1 + formattingOverhead)));
     }
 
-    /**
-     * Given either a formatted or unformatted size, calculate the formatting overhead using a heuristic.
-     */
-    protected long calculateFormattingOverhead(ManagedKafka managedKafka, long size, FormattedValueType formattedValueType) {
+    protected long calculateFormatOverheadFromFormattedSize(ManagedKafka managedKafka, long size) {
         double formattingOverhead = this.configs.getConfig(managedKafka).getStorage().getFormattingOverhead();
-        if (formattedValueType == FormattedValueType.FORMATTED) {
-            return (long) (size * formattingOverhead);
-        } else {
-            return (long) (size - (size / (1 + formattingOverhead)));
-        }
+        return (long) (size * formattingOverhead);
     }
 
     /**
      * Get the effective volume size considering extra padding and the existing size
      */
-    private Quantity getAdjustedMaxDataRetentionSize(Kafka current, long storagePerBroker, long storagePadding) {
-        long bytes = storagePerBroker + storagePadding;
-
-        // pad to give a margin before soft/hard limits kick in
-
+    private Quantity getAdjustedMaxDataRetentionSize(Kafka current, long storageBytes) {
         // strimzi won't allow the size to be reduced so scrape the size if possible
+        long bytes = storageBytes;
         if (current != null) {
             Storage storage = current.getSpec().getKafka().getStorage();
             if (storage instanceof JbodStorage) {
@@ -735,7 +728,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     public long unpadBrokerStorage(ManagedKafka managedKafka, Kafka current, long value) {
-        return value - calculateFormattingOverhead(managedKafka, value, FormattedValueType.UNFORMATTED) - calculateSafetyMargin(managedKafka, current);
+        long formattingOverhead = calculateFormatOverheadFromUnformattedSize(managedKafka, value);
+        return value - formattingOverhead - calculateSafetyMargin(managedKafka, current);
     }
 
     /**

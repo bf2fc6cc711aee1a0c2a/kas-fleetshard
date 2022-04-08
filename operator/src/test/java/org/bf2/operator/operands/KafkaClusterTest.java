@@ -357,10 +357,10 @@ class KafkaClusterTest {
         ManagedKafka mk = dummyManagedKafka("id");
 
         long desiredUserStorage = Quantity.getAmountInBytes(Quantity.parse("1Gi")).longValue();
-        long formattingOverhead = kafkaCluster.calculateFormattingOverhead(mk, desiredUserStorage, KafkaCluster.FormattedValueType.FORMATTED);
+        long formattingOverhead = kafkaCluster.calculateFormatOverheadFromFormattedSize(mk, desiredUserStorage);
         long physicalStorage = desiredUserStorage + formattingOverhead;
         assertTrue(physicalStorage > desiredUserStorage);
-        long formattingOverheadFromPhysicalStorage = kafkaCluster.calculateFormattingOverhead(mk, physicalStorage, KafkaCluster.FormattedValueType.UNFORMATTED);
+        long formattingOverheadFromPhysicalStorage = kafkaCluster.calculateFormatOverheadFromUnformattedSize(mk, physicalStorage);
         assertEquals(formattingOverhead, formattingOverheadFromPhysicalStorage);
     }
 
