@@ -52,6 +52,7 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.bf2.operator.utils.ManagedKafkaUtils.dummyManagedKafka;
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -130,13 +131,13 @@ class KafkaClusterTest {
 
         Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
 
-        // should not change to a smaller size
-        diffToExpected(reduced, "/expected/strimzi.yml");
+        // storage should not change to a smaller size, but the lower limits should be enforced
+        diffToExpected(reduced, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"14316557653\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"14316557653\"}]");
 
         Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
 
-        // should change to a larger size
-        diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39412476546\"}]");
+        // storage should change to a larger size with the higher limits.
+        diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"41383100373\"}]");
     }
 
     @Test
@@ -342,13 +343,25 @@ class KafkaClusterTest {
     }
 
     @Test
-    void testStorageCalculations() throws IOException {
+    void testStorageCalculations() {
         ManagedKafka mk = exampleManagedKafka("40Gi");
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
         long bytes = getBrokerStorageBytes(kafka);
-        assertEquals(25095918893L, bytes);
+        assertEquals(26350714837L, bytes);
 
-        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, null, 25095918893L)*3);
+        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, null,   bytes)*3);
+    }
+
+    @Test
+    void testFormattedStorageCalculations() {
+        ManagedKafka mk = dummyManagedKafka("id");
+
+        long desiredUserStorage = Quantity.getAmountInBytes(Quantity.parse("1Gi")).longValue();
+        long formattingOverhead = kafkaCluster.calculateFormatOverheadFromFormattedSize(mk, desiredUserStorage);
+        long physicalStorage = desiredUserStorage + formattingOverhead;
+        assertTrue(physicalStorage > desiredUserStorage);
+        long formattingOverheadFromPhysicalStorage = kafkaCluster.calculateFormatOverheadFromUnformattedSize(mk, physicalStorage);
+        assertEquals(formattingOverhead, formattingOverheadFromPhysicalStorage);
     }
 
     private long getBrokerStorageBytes(Kafka kafka) {
@@ -419,7 +432,7 @@ class KafkaClusterTest {
         // there's no pvcs, should be 0
         assertEquals("0", kafkaCluster.calculateRetentionSize(mk).getAmount());
 
-        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("344Gi")).endStatus().build();
+        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("361Gi")).endStatus().build();
         Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc, pvc));
 
         // should be the sum in Gi, less the padding
