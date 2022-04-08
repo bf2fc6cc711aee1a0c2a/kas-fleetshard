@@ -710,10 +710,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
      * Get the effective volume size considering extra padding and the existing size
      */
     private Quantity getAdjustedMaxDataRetentionSize(Kafka current, long storagePerBroker, long storagePadding) {
-        long bytes = storagePerBroker;
+        long bytes = storagePerBroker + storagePadding;
 
         // pad to give a margin before soft/hard limits kick in
-        bytes += storagePadding;
 
         // strimzi won't allow the size to be reduced so scrape the size if possible
         if (current != null) {
