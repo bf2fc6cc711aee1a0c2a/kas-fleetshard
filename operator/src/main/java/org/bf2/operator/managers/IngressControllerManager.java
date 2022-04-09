@@ -389,6 +389,10 @@ public class IngressControllerManager {
         ingressControllersFrom(zoneToIngressController, defaultDomain, kafkas, connectionDemand);
 
         buildDefaultIngressController(zones, defaultDomain, connectionDemand);
+
+        if (deployments != null) {
+            deployments.getList().stream().filter(this::shouldReconcile).forEach(this::doIngressPatch);
+        }
     }
 
     private void createOrEdit(IngressController expected, boolean exists) {
