@@ -344,6 +344,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected GenericSecretSource buildSsoClientGenericSecretSource(ManagedKafka managedKafka) {
+        if (managedKafka.getSpec().getOauth().getClientSecret() == null) {
+            return null;
+        }
+
         return new GenericSecretSourceBuilder()
                 .withSecretName(SecuritySecretManager.ssoClientSecretName(managedKafka))
                 .withKey("ssoClientSecret")

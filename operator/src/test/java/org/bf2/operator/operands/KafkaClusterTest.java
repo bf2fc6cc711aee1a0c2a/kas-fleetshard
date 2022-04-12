@@ -18,6 +18,8 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuth;
+import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.storage.JbodStorage;
 import io.strimzi.api.kafka.model.storage.JbodStorageBuilder;
@@ -46,12 +48,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static org.bf2.operator.utils.ManagedKafkaUtils.dummyManagedKafka;
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -125,13 +131,102 @@ class KafkaClusterTest {
 
         Kafka reduced = kafkaCluster.kafkaFrom(exampleManagedKafka("40Gi"), kafka);
 
-        // should not change to a smaller size
-        diffToExpected(reduced, "/expected/strimzi.yml");
+        // storage should not change to a smaller size, but the lower limits should be enforced
+        diffToExpected(reduced, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"14316557653\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"14316557653\"}]");
 
         Kafka larger = kafkaCluster.kafkaFrom(exampleManagedKafka("80Gi"), kafka);
 
-        // should change to a larger size
-        diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28675058306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"39412476546\"}]");
+        // storage should change to a larger size with the higher limits.
+        diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"41383100373\"}]");
+    }
+
+    @Test
+    void hardLimitShouldBeAtCustomerStorage() throws IOException {
+        //Given
+        alternativeConfig(clone -> {
+            clone.getKafka().setOneInstancePerNode(false);
+            clone.getKafka().setColocateWithZookeeper(false);
+            clone.getKafka().setEnableQuota(true);
+            clone.getExporter().setColocateWithZookeeper(false);
+        });
+        final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
+
+        //When
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        //Then
+        final Map<String, Object> config = kafka.getSpec().getKafka().getConfig();
+        final long brokerCapacity = getBrokerCapacity(managedKafka, kafka);
+
+        assertLimitAt("client.quota.callback.static.storage.hard", config, brokerCapacity);
+    }
+
+    @Test
+    void hardLimitShouldBeWithinPvcStorage() throws IOException {
+        //Given
+        alternativeConfig(clone -> {
+            clone.getKafka().setOneInstancePerNode(false);
+            clone.getKafka().setColocateWithZookeeper(false);
+            clone.getKafka().setEnableQuota(true);
+            clone.getExporter().setColocateWithZookeeper(false);
+        });
+        final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
+
+        //When
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        //Then
+        final Map<String, Object> config = kafka.getSpec().getKafka().getConfig();
+        final long volumeSizeInBytes = getVolumeSizeInBytes(kafka);
+
+        assertLimitUnder("client.quota.callback.static.storage.hard", config, volumeSizeInBytes);
+    }
+
+    @Test
+    void softLimitShouldBeEqualToHardLimit() throws IOException {
+        //Given
+        alternativeConfig(clone -> {
+            clone.getKafka().setOneInstancePerNode(false);
+            clone.getKafka().setColocateWithZookeeper(false);
+            clone.getKafka().setEnableQuota(true);
+            clone.getExporter().setColocateWithZookeeper(false);
+        });
+        final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
+
+        //When
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        //Then
+        final Map<String, Object> config = kafka.getSpec().getKafka().getConfig();
+        final long volumeSizeInBytes = getVolumeSizeInBytes(kafka);
+
+        final long actualSoftLimit = assertLimitUnder("client.quota.callback.static.storage.soft", config, volumeSizeInBytes);
+        final long actualHardLimit = assertLimitUnder("client.quota.callback.static.storage.hard", config, volumeSizeInBytes);
+        assertEquals(actualSoftLimit, actualHardLimit);
+    }
+
+    private long getVolumeSizeInBytes(Kafka kafka) {
+        final JbodStorage storage = (JbodStorage) kafka.getSpec().getKafka().getStorage();
+        final PersistentClaimStorage pvc = (PersistentClaimStorage) storage.getVolumes().get(0);
+        return Long.parseLong(pvc.getSize());
+    }
+
+    private long getBrokerCapacity(ManagedKafka managedKafka, Kafka kafka) {
+        final Quantity maxDataRetentionSize = managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
+        final long clusterCapacity = Quantity.getAmountInBytes(maxDataRetentionSize).longValue();
+        final int replicas = kafka.getSpec().getKafka().getReplicas();
+        return clusterCapacity / replicas;
+    }
+
+    private long assertLimitUnder(String key, Map<String, Object> config, long expected) {
+        final long actualLimit = Long.parseLong(String.valueOf(config.get(key)));
+        assertTrue(actualLimit < expected, "expected (" + key + ") " + actualLimit + " to be smaller than " + expected);
+        return actualLimit;
+    }
+
+    private void assertLimitAt(String key, Map<String, Object> config, long expected) {
+        final long actualLimit = Long.parseLong(String.valueOf(config.get(key)));
+        assertEquals(actualLimit, expected, "expected (" + key + ") " + actualLimit + " to be smaller than " + expected);
     }
 
     @Test
@@ -224,10 +319,10 @@ class KafkaClusterTest {
 
     static JsonNode diffToExpected(Object kafka, String expected, String diff) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = Serialization.yamlMapper();
-        JsonNode file1 = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
+        JsonNode expectedJson = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
         String yaml = Serialization.asYaml(kafka);
-        JsonNode file2 = objectMapper.readTree(yaml);
-        JsonNode patch = JsonDiff.asJson(file1, file2);
+        JsonNode actualJson = objectMapper.readTree(yaml);
+        JsonNode patch = JsonDiff.asJson(expectedJson, actualJson);
         assertEquals(diff, patch.toString(), yaml);
         return patch;
     }
@@ -259,13 +354,25 @@ class KafkaClusterTest {
     }
 
     @Test
-    void testStorageCalculations() throws IOException {
+    void testStorageCalculations() {
         ManagedKafka mk = exampleManagedKafka("40Gi");
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
         long bytes = getBrokerStorageBytes(kafka);
-        assertEquals(25095918893L, bytes);
+        assertEquals(26350714837L, bytes);
 
-        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, null, 25095918893L)*3);
+        assertEquals((40*1L<<30)-1, kafkaCluster.unpadBrokerStorage(mk, null,   bytes)*3);
+    }
+
+    @Test
+    void testFormattedStorageCalculations() {
+        ManagedKafka mk = dummyManagedKafka("id");
+
+        long desiredUserStorage = Quantity.getAmountInBytes(Quantity.parse("1Gi")).longValue();
+        long formattingOverhead = kafkaCluster.calculateFormatOverheadFromFormattedSize(mk, desiredUserStorage);
+        long physicalStorage = desiredUserStorage + formattingOverhead;
+        assertTrue(physicalStorage > desiredUserStorage);
+        long formattingOverheadFromPhysicalStorage = kafkaCluster.calculateFormatOverheadFromUnformattedSize(mk, physicalStorage);
+        assertEquals(formattingOverhead, formattingOverheadFromPhysicalStorage);
     }
 
     private long getBrokerStorageBytes(Kafka kafka) {
@@ -336,7 +443,7 @@ class KafkaClusterTest {
         // there's no pvcs, should be 0
         assertEquals("0", kafkaCluster.calculateRetentionSize(mk).getAmount());
 
-        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("344Gi")).endStatus().build();
+        PersistentVolumeClaim pvc = new PersistentVolumeClaimBuilder().withNewStatus().addToCapacity("storage", Quantity.parse("361Gi")).endStatus().build();
         Mockito.when(informerManager.getPvcsInNamespace(Mockito.anyString())).thenReturn(List.of(pvc, pvc, pvc));
 
         // should be the sum in Gi, less the padding
@@ -393,6 +500,37 @@ class KafkaClusterTest {
         assertEquals(Status.Unknown, readiness.getStatus());
         assertEquals(Reason.Paused, readiness.getReason());
         assertEquals("Kafka mk-1 is paused for an unknown reason", readiness.getMessage());
+    }
+
+    @Test
+    void testOAuthClientCredentialsAbsentWhenRemoved() throws IOException {
+        BiFunction<Kafka, String, GenericKafkaListener> getListener =
+                (k, n) -> k.getSpec().getKafka().getListeners().stream().filter(l -> l.getName().equals(n)).findFirst().orElse(null);
+
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        // Credentials present from default example MK
+        var extListener1 = getListener.apply(kafka, AbstractKafkaCluster.EXTERNAL_LISTENER_NAME);
+        assertNotNull(((KafkaListenerAuthenticationOAuth) extListener1.getAuth()).getClientId());
+        assertNotNull(((KafkaListenerAuthenticationOAuth) extListener1.getAuth()).getClientSecret());
+
+        var oauthListener1 = getListener.apply(kafka, "oauth");
+        assertNotNull(((KafkaListenerAuthenticationOAuth) oauthListener1.getAuth()).getClientId());
+        assertNotNull(((KafkaListenerAuthenticationOAuth) oauthListener1.getAuth()).getClientSecret());
+
+        // Credentials absent when removed from default example MK
+        mk.getSpec().getOauth().setClientId(null);
+        mk.getSpec().getOauth().setClientSecret(null);
+        kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        var extListener2 = getListener.apply(kafka, AbstractKafkaCluster.EXTERNAL_LISTENER_NAME);
+        assertNull(((KafkaListenerAuthenticationOAuth) extListener2.getAuth()).getClientId());
+        assertNull(((KafkaListenerAuthenticationOAuth) extListener2.getAuth()).getClientSecret());
+
+        var oauthListener2 = getListener.apply(kafka, "oauth");
+        assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientId());
+        assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
     }
 
 }

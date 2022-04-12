@@ -63,17 +63,14 @@ class AdminServerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "test-mk-q,     1, true,  false, /expected/adminserver-quarkus.yml",
-        "test-mk-tls-q, 2, true,  true,  /expected/adminserver-tls-quarkus.yml",
-        "test-mk,       3, false, false, /expected/adminserver.yml",
-        "test-mk-tls,   4, false, true,  /expected/adminserver-tls.yml"
+        "test-mk-q,     1, true,  false, /expected/adminserver.yml",
+        "test-mk-tls-q, 2, true,  true,  /expected/adminserver-tls.yml"
     })
     void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, String expectedResource) throws Exception {
         ManagedKafka mk = buildBasicManagedKafka(name, versionString, tls ? new TlsKeyPair() : null);
 
         OperandOverride override = new OperandOverride();
-        override.setImage("quay.io/mk-ci-cd/kafka-admin-api:0.7.0");
-        override.setAdditionalProperty("quarkus-based", quarkusBased);
+        override.setImage("quay.io/mk-ci-cd/kafka-admin-api:0.8.0");
 
         OperandOverrideManager overrideManager = Mockito.mock(OperandOverrideManager.class);
         Mockito.when(overrideManager.getAdminServerOverride(versionString))

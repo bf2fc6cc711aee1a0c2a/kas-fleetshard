@@ -147,7 +147,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.017: "priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.logging.001: "cluster=*;apis=fetch,list_groups,describe_configs;level=DEBUG"
       strimzi.authorization.custom-authorizer.acl.018: "priority=1;permission=allow;principal=canary-123;cluster=*;operations=describe;apis=list_partition_reassignments"
-      client.quota.callback.static.storage.hard: "21516779480"
+      client.quota.callback.static.storage.hard: "21474836480"
       strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds: 15
       strimzi.authorization.custom-authorizer.resource-operations: "{ \"cluster\"\
         : [ \"describe\", \"alter\" ], \"group\": [ \"all\", \"delete\", \"describe\"\
@@ -159,7 +159,7 @@ spec:
     storage:
       volumes:
       - type: "persistent-claim"
-        size: "32254197720"
+        size: "33866907606"
         class: "gp2"
         deleteClaim: true
         id: 0
