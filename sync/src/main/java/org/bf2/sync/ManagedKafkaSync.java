@@ -2,6 +2,7 @@ package org.bf2.sync;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -118,7 +119,7 @@ public class ManagedKafkaSync {
                     }
                 }
 
-                if (specChanged(remoteSpec, existing) || !Objects.equals(existing.getPlacementId(), remoteManagedKafka.getPlacementId())) {
+                if (changed(remoteManagedKafka, existing)) {
                     reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
                 }
             }
@@ -151,14 +152,15 @@ public class ManagedKafkaSync {
         return true;
     }
 
-    public static boolean specChanged(ManagedKafkaSpec remoteSpec, ManagedKafka existing) {
+    public static boolean changed(ManagedKafka remoteManagedKafka, ManagedKafka existing) {
+        ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
         if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
             return false;
         }
 
-        return !remoteSpec.equals(existing.getSpec());
+        return !remoteSpec.equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteManagedKafka.getMetadata());
     }
 
     /**
@@ -214,10 +216,12 @@ public class ManagedKafkaSync {
                     log.debugf("Waiting for existing ManagedKafka %s to disappear before attempting next placement", local.getPlacementId());
                     return;
                 }
-                if (specChanged(remote.getSpec(), local)) {
-                    log.debugf("Updating ManagedKafka Spec for %s", Cache.metaNamespaceKeyFunc(local));
+                if (changed(remote, local)) {
+                    log.debugf("Updating ManagedKafka %s", Cache.metaNamespaceKeyFunc(local));
                     ManagedKafkaSpec spec = remote.getSpec();
+                    ObjectMeta meta = remote.getMetadata();
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
+                            mk.setMetadata(meta);
                             mk.setSpec(spec);
                             return mk;
                         });

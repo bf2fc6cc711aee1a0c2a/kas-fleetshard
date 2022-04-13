@@ -102,7 +102,7 @@ public class Canary extends AbstractCanary {
                 .editOrNewMetadata()
                     .withName(canaryName)
                     .withNamespace(canaryNamespace(managedKafka))
-                    .withLabels(buildLabels(canaryName))
+                    .withLabels(buildLabels(canaryName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
@@ -111,7 +111,7 @@ public class Canary extends AbstractCanary {
                     .endSelector()
                     .editOrNewTemplate()
                         .editOrNewMetadata()
-                            .withLabels(buildLabels(canaryName))
+                            .withLabels(buildLabels(canaryName, managedKafka))
                         .endMetadata()
                         .editOrNewSpec()
                             .withInitContainers()
@@ -163,7 +163,7 @@ public class Canary extends AbstractCanary {
                 .editOrNewMetadata()
                     .withNamespace(canaryNamespace(managedKafka))
                     .withName(canaryName)
-                    .withLabels(buildLabels(canaryName))
+                    .withLabels(buildLabels(canaryName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .withClusterIP(null) // to prevent 422 errors
@@ -260,8 +260,9 @@ public class Canary extends AbstractCanary {
         return labels;
     }
 
-    private Map<String, String> buildLabels(String canaryName) {
+    Map<String, String> buildLabels(String canaryName, ManagedKafka managedKafka) {
         Map<String, String> labels = buildSelectorLabels(canaryName);
+        Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
         labels.put("app.kubernetes.io/component", "canary");
         return labels;
     }

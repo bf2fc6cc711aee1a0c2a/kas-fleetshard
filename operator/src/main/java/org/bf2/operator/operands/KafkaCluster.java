@@ -441,7 +441,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
-        // onePerNode = true - one zk per node exclusively
+        // onePerNode = true - one zk per node across all namespaces
         // onePerNode = false - one zk per node per managedkafka
         boolean onePerNode = this.configs.getConfig(managedKafka).getKafka().isOneInstancePerNode();
 
@@ -450,20 +450,22 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                         .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", DO_NOT_SCHEDULE));
 
+        AffinityBuilder affinityBuilder = new AffinityBuilder();
+        PodAffinityTerm affinityTerm = null;
+
         if (onePerNode) {
-            PodAffinityTerm affinityTerm = affinityTerm("app.kubernetes.io/name", "zookeeper");
+            affinityTerm = affinityTerm("app.kubernetes.io/name", "zookeeper");
+
             affinityTerm.setNamespaceSelector(new LabelSelector());
-
             PodAntiAffinity podAntiAffinity = new PodAntiAffinityBuilder()
-                    .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
-                    .build();
+                .withRequiredDuringSchedulingIgnoredDuringExecution(affinityTerm)
+                .build();
 
-            AffinityBuilder affinityBuilder = new AffinityBuilder();
             affinityBuilder.withPodAntiAffinity(podAntiAffinity);
-
             podNestedBuilder.withAffinity(affinityBuilder.build());
+        } else {
+            // TODO either mixing profiles disallowed or could try to collocate similar instances together
         }
-
 
         ZookeeperClusterTemplateBuilder templateBuilder = podNestedBuilder.endPod();
 
@@ -870,6 +872,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private Map<String, String> buildKafkaLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
+        Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
         labels.put("ingressType", "sharded");
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
 

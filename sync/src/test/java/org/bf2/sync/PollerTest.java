@@ -7,6 +7,7 @@ import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.sync.controlplane.ControlPlane;
@@ -97,6 +98,15 @@ public class PollerTest {
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
         assertNotEquals("?", items.get(0).getSpec().getVersions().getStrimzi());
+
+        // update the profile type
+        managedKafka = new ManagedKafkaBuilder(managedKafka).editOrNewMetadata().addToLabels(ManagedKafka.PROFILE_TYPE, "anything").endMetadata().build();
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Arrays.asList(managedKafka)));
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        // should still be one instance, but it's profile type has been updated
+        assertEquals(1, items.size());
+        assertEquals("anything", items.get(0).getMetadata().getLabels().get(ManagedKafka.PROFILE_TYPE));
 
         // try to remove before marked as deleted, should not be successful
         Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList());

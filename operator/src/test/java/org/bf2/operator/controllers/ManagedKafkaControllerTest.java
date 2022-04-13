@@ -22,6 +22,7 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,8 +36,10 @@ public class ManagedKafkaControllerTest {
 
     @Test
     void shouldCreateStatus() throws InterruptedException {
+        String id = UUID.randomUUID().toString();
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        mk.getMetadata().setUid(UUID.randomUUID().toString());
+        mk.getMetadata().setUid(id);
+        mk.getMetadata().setName(id);
         mk.getMetadata().setGeneration(1l);
         mk.getMetadata().setResourceVersion("1");
 
@@ -59,6 +62,11 @@ public class ManagedKafkaControllerTest {
         mkController.createOrUpdateResource(mk, context);
         ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
         assertEquals(ManagedKafkaCondition.Reason.Installing.name(), condition.getReason());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.PROFILE_TYPE, "not valid"));
+        mkController.createOrUpdateResource(mk, context);
+        condition = mk.getStatus().getConditions().get(0);
+        assertEquals(ManagedKafkaCondition.Reason.Error.name(), condition.getReason());
 
         mk.getSpec().setDeleted(true);
         // this simulates, but not exactly an issue seen with older logic

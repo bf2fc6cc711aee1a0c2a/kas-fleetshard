@@ -2,6 +2,7 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.runtime.Startup;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.ConfigProvider;
 
@@ -32,10 +33,16 @@ public class KafkaInstanceConfigurations {
 
     public enum InstanceType {
         STANDARD,
-        DEVELOPER
+        DEVELOPER;
+
+        final String lowerName;
+
+        private InstanceType() {
+            lowerName = name().toLowerCase();
+        }
     }
 
-    private Map<InstanceType, KafkaInstanceConfiguration> configs = new HashMap<InstanceType, KafkaInstanceConfiguration>();
+    private Map<String, KafkaInstanceConfiguration> configs = new HashMap<String, KafkaInstanceConfiguration>();
 
     @PostConstruct
     void init() throws IOException {
@@ -44,7 +51,7 @@ public class KafkaInstanceConfigurations {
         loadConfiguration(defaultValues, MANAGEDKAFKA);
 
         for (InstanceType type : InstanceType.values()) {
-            configs.put(type, loadConfiguration(new HashMap<>(defaultValues), type.name().toLowerCase()));
+            configs.put(type.lowerName, loadConfiguration(new HashMap<>(defaultValues), type.lowerName));
         }
     }
 
@@ -77,12 +84,15 @@ public class KafkaInstanceConfigurations {
     }
 
     public KafkaInstanceConfiguration getConfig(InstanceType config) {
-        return configs.get(config);
+        return configs.get(config.lowerName);
     }
 
     public KafkaInstanceConfiguration getConfig(ManagedKafka managedKafka) {
-        // TDB where to get name from
-        return configs.get(InstanceType.STANDARD);
+        return configs.get(getInstanceType(managedKafka));
+    }
+
+    public static String getInstanceType(ManagedKafka managedKafka) {
+        return OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.PROFILE_TYPE, InstanceType.STANDARD.lowerName);
     }
 
 }

@@ -133,4 +133,12 @@ class AdminServerTest {
                 AdminServer.RATE_LIMIT_ANNOTATION_TCP_RATE)));
     }
 
+    @Test
+    void testLabels() throws Exception {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.PROFILE_TYPE, "something"));
+
+        assertEquals("something", adminServer.buildLabels("my-admin", mk).get(ManagedKafka.PROFILE_TYPE));
+    }
+
 }

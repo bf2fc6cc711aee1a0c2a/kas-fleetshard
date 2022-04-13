@@ -140,7 +140,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewMetadata()
                     .withName(adminServerName)
                     .withNamespace(adminServerNamespace(managedKafka))
-                    .withLabels(buildLabels(adminServerName))
+                    .withLabels(buildLabels(adminServerName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
@@ -150,7 +150,7 @@ public class AdminServer extends AbstractAdminServer {
                     .editOrNewTemplate()
                         .editOrNewMetadata()
                             .withAnnotations(buildAnnotations(managedKafka))
-                            .withLabels(buildLabels(adminServerName))
+                            .withLabels(buildLabels(adminServerName, managedKafka))
                         .endMetadata()
                         .editOrNewSpec()
                             .withContainers(buildContainers(managedKafka))
@@ -192,7 +192,7 @@ public class AdminServer extends AbstractAdminServer {
                 .editOrNewMetadata()
                     .withNamespace(adminServerNamespace(managedKafka))
                     .withName(adminServerName(managedKafka))
-                    .withLabels(buildLabels(adminServerName))
+                    .withLabels(buildLabels(adminServerName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
                     .withClusterIP(null) // to prevent 422 errors
@@ -336,8 +336,9 @@ public class AdminServer extends AbstractAdminServer {
         return labels;
     }
 
-    private Map<String, String> buildLabels(String adminServerName) {
+    Map<String, String> buildLabels(String adminServerName, ManagedKafka managedKafka) {
         Map<String, String> labels = buildSelectorLabels(adminServerName);
+        Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
         labels.put("app.kubernetes.io/component", "adminserver");
         return labels;
     }
