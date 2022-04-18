@@ -156,8 +156,8 @@ public class ManagedKafkaSync {
         return true;
     }
 
-    public static boolean changed(ManagedKafka remoteManagedKafka, ManagedKafka existing) {
-        ManagedKafkaSpec remoteSpec = remoteManagedKafka.getSpec();
+    public boolean changed(ManagedKafka remote, ManagedKafka existing) {
+        ManagedKafkaSpec remoteSpec = remote.getSpec();
         if (!remoteSpec.isDeleted() && existing.getSpec().isDeleted()) {
             // TODO: seems like a problem / resurrection - should not happen
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
@@ -167,7 +167,7 @@ public class ManagedKafkaSync {
             return true;
         }
         ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
-        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteManagedKafka.getMetadata());
+        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remote.getMetadata());
     }
 
     /**
