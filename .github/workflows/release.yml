@@ -11,15 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     name: release
     if: ${{github.event.pull_request.merged == true}}
+    env:
+      GITHUB_TOKEN: ${{secrets.RELEASE_TOKEN}}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          token: ${{secrets.RELEASE_TOKEN}}
 
       - name: Retrieve Project Metadata
         uses: radcortez/project-metadata-action@243817f1e0f2b4df4e012fc17efc45cff166425d
         id: metadata
         with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
           metadata-file-path: '.github/project.yml'
           local-file: true
 
@@ -31,8 +36,9 @@ jobs:
 
       - name: Perform Maven Release
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          #git config --global user.name "github-actions[bot]"
+          #git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "bf2-ci-bot"
           # Prepare release and tag repository on the pull request's merge branch (e.g. `refs/pull/123/merge`)
           mvn -B -P release release:prepare -DreleaseVersion=${{steps.metadata.outputs.current-version}} -DdevelopmentVersion=${{steps.metadata.outputs.next-version}} -DignoreSnapshots=true
           # Switch to the target branch of the pull request (e.g. `main`) and fast-forward to the results of the release:prepare task
