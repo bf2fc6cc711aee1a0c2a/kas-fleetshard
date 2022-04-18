@@ -11,6 +11,7 @@ import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,6 +63,14 @@ public class ImagePullSecretManager {
     }
 
     static List<LocalObjectReference> getImagePullSecrets(KubernetesClient client, String deploymentName) {
+        Optional<List<String>> configuredPullSecrets = ConfigProvider.getConfig().getOptionalValues("managedkafka.image-pull-secrets", String.class);
+
+        if (configuredPullSecrets.isPresent()) {
+            return configuredPullSecrets.get().stream()
+                .map(LocalObjectReference::new)
+                .collect(Collectors.toList());
+        }
+
         final String namespace = client.getNamespace();
 
         Deployment deployment = client.apps()
