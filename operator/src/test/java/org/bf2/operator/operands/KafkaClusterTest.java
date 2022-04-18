@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -29,6 +30,7 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
 import org.bf2.operator.managers.DrainCleanerManager;
+import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.StrimziManager;
@@ -36,6 +38,7 @@ import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.bf2.operator.resources.v1alpha1.Versions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -107,6 +110,34 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         diffToExpected(kafka, "/expected/strimzi.yml");
+    }
+
+    @Test
+    void testManagedKafkaToKafka_StreamingUnitsTwo() throws IOException {
+        alternativeConfig(config -> {
+            config.getKafka().setOneInstancePerNode(false);
+            config.getKafka().setColocateWithZookeeper(false);
+            config.getExporter().setColocateWithZookeeper(false);
+        });
+
+        ManagedKafka mk = exampleManagedKafka("2Ti");
+        mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("100Mi"));
+        mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("200Mi"));
+        mk.getSpec().getCapacity().setMaxPartitions(3000);
+        mk.getSpec().getCapacity().setTotalMaxConnections(6000);
+        mk.getSpec().getCapacity().setTotalMaxConnections(200);
+        mk.getSpec().getVersions().setStrimzi(Versions.STRIMZI_CLUSTER_OPERATOR_V0_26_0_9);
+
+
+        ImagePullSecretManager imagePullSecretManager = Mockito.mock(ImagePullSecretManager.class);
+        Mockito.when(imagePullSecretManager.getOperatorImagePullSecrets(Mockito.any())).thenReturn(
+            List.of(new LocalObjectReferenceBuilder().withName("myimage:0.0.1").build()));
+
+        QuarkusMock.installMockForType(imagePullSecretManager, ImagePullSecretManager.class);
+
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        diffToExpected(kafka, "/expected/strimzi_su2.yml");
     }
 
     private void alternativeConfig(Consumer<KafkaInstanceConfiguration> configModifier) throws JsonProcessingException, JsonMappingException {
