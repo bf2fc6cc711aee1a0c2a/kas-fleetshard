@@ -51,7 +51,7 @@ public class InformerManager implements LocalLookup {
         managedAgentInformer = resourceInformerFactory.create(ManagedKafkaAgent.class, client.resources(ManagedKafkaAgent.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
-        secretInformer = resourceInformerFactory.create(Secret.class, client.secrets().inAnyNamespace().withLabels(OperandUtils.getDefaultLabels()),
+        secretInformer = resourceInformerFactory.create(Secret.class, client.secrets().inAnyNamespace().withLabels(OperandUtils.getMasterSecretLabel()),
                 new ResourceEventHandler<Secret>() {
                     @Override
                     public void onAdd(Secret obj) {

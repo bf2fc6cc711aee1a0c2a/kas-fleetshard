@@ -222,39 +222,38 @@ public class SecuritySecretManager {
     }
 
     private static Secret kafkaTlsSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret) {
+        String tlsCert;
+        String tlsKey;
+
         if(currentMasterSecret != null){
-            return buildSecretFrom(kafkaTlsSecretName(managedKafka),
-                    "kubernetes.io/tls",
-                    managedKafka,
-                    current,
-                    Map.of("tls.crt", currentMasterSecret.getData().get("endpoint.tls.crt"),
-                            "tls.key", currentMasterSecret.getData().get("endpoint.tls.key")));
+            tlsCert = currentMasterSecret.getData().get(managedKafka.getSpec().getEndpoint().getTls().getCertRef().getKey());
+            tlsKey = currentMasterSecret.getData().get(managedKafka.getSpec().getEndpoint().getTls().getKeyRef().getKey());
         }
         else {
-            return buildSecretFrom(kafkaTlsSecretName(managedKafka),
-                    "kubernetes.io/tls",
-                    managedKafka,
-                    current,
-                    Map.of("tls.crt", managedKafka.getSpec().getEndpoint().getTls().getCert(),
-                            "tls.key", managedKafka.getSpec().getEndpoint().getTls().getKey()));
+            tlsCert = managedKafka.getSpec().getEndpoint().getTls().getCert();
+            tlsKey = managedKafka.getSpec().getEndpoint().getTls().getKey();
         }
+        return buildSecretFrom(kafkaTlsSecretName(managedKafka),
+                "kubernetes.io/tls",
+                managedKafka,
+                current,
+                Map.of("tls.crt", tlsCert,
+                        "tls.key", tlsKey));
     }
 
     private static Secret ssoClientSecretFrom(ManagedKafka managedKafka, Secret current,Secret currentMasterSecret) {
+        String ssoClientSecret;
         if(currentMasterSecret != null ){
-            return buildSecretFrom(ssoClientSecretName(managedKafka),
-                    "Opaque",
-                    managedKafka,
-                    current,
-                    Map.of("ssoClientSecret", currentMasterSecret.getData().get(managedKafka.getSpec().getOauth().getClientSecretRef().getKey())));
+            ssoClientSecret = currentMasterSecret.getData().get(managedKafka.getSpec().getOauth().getClientSecretRef().getKey());
         }
         else{
-            return buildSecretFrom(ssoClientSecretName(managedKafka),
-                    "Opaque",
-                    managedKafka,
-                    current,
-                    Map.of("ssoClientSecret", managedKafka.getSpec().getOauth().getClientSecret()));
+            ssoClientSecret = managedKafka.getSpec().getOauth().getClientSecret();
         }
+        return buildSecretFrom(ssoClientSecretName(managedKafka),
+                "Opaque",
+                managedKafka,
+                current,
+                Map.of("ssoClientSecret", ssoClientSecret));
     }
 
     private static Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
@@ -266,22 +265,22 @@ public class SecuritySecretManager {
     }
 
     private static Secret canarySaslSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret){
+        String saslPrincipal;
+        String saslPassword;
         if (currentMasterSecret != null) {
-            return buildSecretFrom(canarySaslSecretName(managedKafka),
-                    "Opaque",
-                    managedKafka,
-                    current,
-                    Map.of(SASL_PRINCIPAL, currentMasterSecret.getData().get("canary.sasl.principal"),
-                            SASL_PASSWORD, currentMasterSecret.getData().get("canary.sasl.password")));
+            saslPrincipal = currentMasterSecret.getData().get(managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipalRef().getKey());
+            saslPassword = currentMasterSecret.getData().get(managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPasswordRef().getKey());
         }
         else {
-            return buildSecretFrom(canarySaslSecretName(managedKafka),
-                    "Opaque",
-                    managedKafka,
-                    current,
-                    Map.of(SASL_PRINCIPAL, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal(),
-                            SASL_PASSWORD, managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword()));
+            saslPrincipal = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipal();
+            saslPassword = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPassword();
         }
+        return buildSecretFrom(canarySaslSecretName(managedKafka),
+                "Opaque",
+                managedKafka,
+                current,
+                Map.of(SASL_PRINCIPAL, saslPrincipal,
+                        SASL_PASSWORD, saslPassword));
     }
 
 
