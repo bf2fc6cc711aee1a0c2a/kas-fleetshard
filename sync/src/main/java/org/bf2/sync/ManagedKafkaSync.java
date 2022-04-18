@@ -3,6 +3,7 @@ package org.bf2.sync;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -64,6 +65,9 @@ public class ManagedKafkaSync {
 
     @Inject
     ExecutorService executorService;
+
+    @Inject
+    protected SecretManager secretManager;
 
     /**
      * Update the local state based upon the remote ManagedKafkas
@@ -159,8 +163,11 @@ public class ManagedKafkaSync {
             log.warnf("Ignoring ManagedKafka %s that wants to come back to life", Cache.metaNamespaceKeyFunc(existing));
             return false;
         }
-
-        return !remoteSpec.equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteManagedKafka.getMetadata());
+        if (secretManager.isMasterSecretChanged(remote, existing)) {
+            return true;
+        }
+        ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
+        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteManagedKafka.getMetadata());
     }
 
     /**
@@ -218,13 +225,17 @@ public class ManagedKafkaSync {
                 }
                 if (changed(remote, local)) {
                     log.debugf("Updating ManagedKafka %s", Cache.metaNamespaceKeyFunc(local));
-                    ManagedKafkaSpec spec = remote.getSpec();
-                    ObjectMeta meta = remote.getMetadata();
+                    Secret masterSecret = secretManager.buildSecret(remote);
+                    ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
+                    ManagedKafkaSpec spec = remoteCopy.getSpec();
+                    ObjectMeta meta = remoteCopy.getMetadata();
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
+                            secretManager.calculateMasterSecretDigest(mk, masterSecret);
                             mk.setMetadata(meta);
                             mk.setSpec(spec);
                             return mk;
                         });
+                    secretManager.createOrUpdateSecret(local, masterSecret);
                     // the operator will handle it from here
                 }
             }
@@ -253,24 +264,30 @@ public class ManagedKafkaSync {
         final String remoteNamespace = remote.getMetadata().getNamespace();
         final String remoteManagedKafkaId = remote.getMetadata().getAnnotations() == null ? null : remote.getMetadata().getAnnotations().get(MANAGEDKAFKA_ID_LABEL);
 
-            kubeClient.namespaces().createOrReplace(
-                    new NamespaceBuilder()
-                            .withNewMetadata()
-                                .withName(remoteNamespace)
-                                .withLabels(OperandUtils.getDefaultLabels())
-                                .addToLabels("observability-operator/scrape-logging", "true")
-                                .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
-                            .endMetadata()
-                            .build());
+        kubeClient.namespaces().createOrReplace(
+                new NamespaceBuilder()
+                        .withNewMetadata()
+                            .withName(remoteNamespace)
+                            .withLabels(OperandUtils.getDefaultLabels())
+                            .addToLabels("observability-operator/scrape-logging", "true")
+                            .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, remoteManagedKafkaId)
+                        .endMetadata()
+                        .build());
 
-        try {
-            client.create(remote);
-        } catch (KubernetesClientException e) {
-            if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
-                throw e;
-            }
-            log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
-        }
+        //Creating the master Secrets
+       Secret secret = secretManager.buildSecret(remote);
+       remote = secretManager.removeSecretsFromManagedKafka(remote);
+       secretManager.calculateMasterSecretDigest(remote, secret);
+
+       try {
+           remote = client.create(remote);
+           secretManager.createOrUpdateSecret(remote, secret);
+       } catch (KubernetesClientException e) {
+           if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
+               throw e;
+           }
+           log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
+       }
     }
 
     @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)

@@ -1,9 +1,13 @@
 package org.bf2.sync.informer;
 
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.ConditionUtils;
+import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -36,6 +40,7 @@ public class InformerManager implements LocalLookup {
 
     private ResourceInformer<ManagedKafka> managedKafkaInformer;
     private ResourceInformer<ManagedKafkaAgent> managedAgentInformer;
+    private ResourceInformer<Secret> secretInformer;
 
     @PostConstruct
     protected void onStart() {
@@ -45,6 +50,19 @@ public class InformerManager implements LocalLookup {
         // for the Agent
         managedAgentInformer = resourceInformerFactory.create(ManagedKafkaAgent.class, client.resources(ManagedKafkaAgent.class).inAnyNamespace(),
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
+
+        secretInformer = resourceInformerFactory.create(Secret.class, client.secrets().inAnyNamespace().withLabels(OperandUtils.getDefaultLabels()),
+                new ResourceEventHandler<Secret>() {
+                    @Override
+                    public void onAdd(Secret obj) {
+                    }
+                    @Override
+                    public void onUpdate(Secret oldObj, Secret newObj) {
+                    }
+                    @Override
+                    public void onDelete(Secret obj, boolean deletedFinalStateUnknown) {
+                    }
+                });
 
         meterRegistry.gauge("managedkafkas", this, (informer) -> {
             return informer.getLocalManagedKafkas().size();
@@ -60,7 +78,6 @@ public class InformerManager implements LocalLookup {
                     .count();
         });
     }
-
     @Override
     public ManagedKafka getLocalManagedKafka(String metaNamespaceKey) {
         return managedKafkaInformer.getByKey(metaNamespaceKey);
@@ -79,5 +96,9 @@ public class InformerManager implements LocalLookup {
         }
         // we're assuming it's a singleton
         return list.get(0);
+    }
+
+    public Secret getLocalSecret(String namespace, String name) {
+        return secretInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
     }
 }
