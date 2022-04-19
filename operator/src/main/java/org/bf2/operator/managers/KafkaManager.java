@@ -3,7 +3,6 @@ package org.bf2.operator.managers;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.clients.canary.CanaryService;
@@ -40,7 +39,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-@Startup
 @ApplicationScoped
 public class KafkaManager {
 

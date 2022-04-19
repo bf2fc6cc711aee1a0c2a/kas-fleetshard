@@ -29,7 +29,6 @@ import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.Context;
 import io.quarkus.arc.DefaultBean;
-import io.quarkus.runtime.Startup;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;
@@ -57,7 +56,6 @@ import java.util.Optional;
  * Provides same functionalities to get a AdminServer deployment from a ManagedKafka one
  * and checking the corresponding status
  */
-@Startup
 @ApplicationScoped
 @DefaultBean
 public class AdminServer extends AbstractAdminServer {

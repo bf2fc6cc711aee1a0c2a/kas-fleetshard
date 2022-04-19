@@ -2,7 +2,6 @@ package org.bf2.sync.controlplane;
 
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.annotation.Counted;
-import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNullElse;
 
-@Startup
 @ApplicationScoped
 public class ControlPlane {
 
