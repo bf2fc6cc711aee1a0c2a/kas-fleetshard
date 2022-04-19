@@ -33,6 +33,7 @@ import org.jboss.logging.Logger;
 import javax.inject.Inject;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -43,7 +44,7 @@ import java.util.List;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@Controller
+@Controller(finalizerName = Controller.NO_FINALIZER)
 public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
 
     @Inject
@@ -74,6 +75,10 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
             Context<ManagedKafkaAgent> context) {
         this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
+        if (!resource.getMetadata().getFinalizers().isEmpty()) {
+            resource.getMetadata().setFinalizers(Collections.emptyList());
+            return UpdateControl.updateCustomResource(resource);
+        }
         return UpdateControl.noUpdate();
     }
 

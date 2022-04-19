@@ -36,11 +36,12 @@ import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@Controller
+@Controller(finalizerName = Controller.NO_FINALIZER)
 public class ManagedKafkaController implements ResourceController<ManagedKafka> {
 
     // 1 for bootstrap URL + 1 for Admin API server
@@ -105,6 +106,10 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
                 kafkaInstance.createOrUpdate(managedKafka);
             }
             updateManagedKafkaStatus(managedKafka, invalid);
+            if (!managedKafka.getMetadata().getFinalizers().isEmpty()) {
+                managedKafka.getMetadata().setFinalizers(Collections.emptyList());
+                return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+            }
             return UpdateControl.updateStatusSubResource(managedKafka);
         } finally {
             if (managedKafka.getId() != null) {
