@@ -1,6 +1,6 @@
 package org.bf2.operator.operands;
 
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -86,7 +86,7 @@ public class KafkaInstanceTest {
 
     @Test
     void deleteOrderCanaryDeleteBeforeKafkaCluster() {
-        Context<ManagedKafka> context = Mockito.mock(Context.class);
+        Context context = Mockito.mock(Context.class);
 
         kafkaInstance.delete(DUMMY_MANAGED_KAFKA, context);
 

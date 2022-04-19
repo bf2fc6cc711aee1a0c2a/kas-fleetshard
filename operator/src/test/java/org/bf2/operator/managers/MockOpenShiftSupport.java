@@ -5,7 +5,6 @@ import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftConfig;
 import io.quarkus.test.Mock;
-import okhttp3.OkHttpClient;
 
 import javax.enterprise.context.ApplicationScoped;
 
@@ -20,7 +19,7 @@ public class MockOpenShiftSupport extends OpenShiftSupport {
 
     @Override
     public OpenShiftClient adapt(KubernetesClient client) {
-        return new DefaultOpenShiftClient(client.adapt(OkHttpClient.class),
+        return new DefaultOpenShiftClient(client.getHttpClient(),
                 OpenShiftConfig.wrap(client.getConfiguration()));
     }
 

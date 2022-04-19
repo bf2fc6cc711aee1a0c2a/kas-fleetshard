@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -47,7 +47,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     }
 
     @Override
-    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    public void delete(ManagedKafka managedKafka, Context context) {
         RollableScalableResource<Deployment> deploymentResource = canaryDeploymentResource(managedKafka);
         try {
             deploymentResource.scale(0, true);

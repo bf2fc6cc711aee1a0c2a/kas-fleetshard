@@ -1,12 +1,15 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.javaoperatorsdk.operator.api.Context;
-import io.javaoperatorsdk.operator.api.Controller;
-import io.javaoperatorsdk.operator.api.DeleteControl;
-import io.javaoperatorsdk.operator.api.ResourceController;
-import io.javaoperatorsdk.operator.api.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
+import io.javaoperatorsdk.operator.api.reconciler.Constants;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
+import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
@@ -36,13 +39,14 @@ import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@Controller(finalizerName = Controller.NO_FINALIZER)
-public class ManagedKafkaController implements ResourceController<ManagedKafka> {
+@ControllerConfiguration(finalizerName = Constants.NO_FINALIZER)
+public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSourceInitializer<HasMetadata> {
 
     // 1 for bootstrap URL + 1 for Admin API server
     private static final int NUM_NON_BROKER_ROUTES = 2;
@@ -71,24 +75,16 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     @Inject
     KafkaInstanceConfigurations configs;
 
-    @Override
-    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing delete events")
-    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafka"}, description = "The number of delete events")
-    public DeleteControl deleteResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
-        log.infof("Kafka instance %s/%s fully deleted", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-        return DeleteControl.DEFAULT_DELETE;
-    }
-
     /**
      * This logic handles events (edge triggers) using level logic.
      * On any modification to the ManagedKafka or it's owned resources,
      * perform a full update to the desired state.
      * This strategy is straight-forward and works well as long as few events are expected.
      */
-    @Override
     @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "Time spent processing createOrUpdate calls")
     @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafka"}, description = "The number of createOrUpdate calls")
-    public UpdateControl<ManagedKafka> createOrUpdateResource(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    @Override
+    public UpdateControl<ManagedKafka> reconcile(ManagedKafka managedKafka, Context context) {
         if (managedKafka.getId() != null) {
             NDC.push(ManagedKafkaResourceClient.ID_LOG_KEY + "=" + managedKafka.getId());
         }
@@ -98,19 +94,19 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
             if (managedKafka.getSpec().isDeleted()) {
                 // check that it's actually not deleted yet, so operands are gone
                 if (!kafkaInstance.isDeleted(managedKafka)) {
-                    log.infof("Deleting Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                    log.infof("Deleting Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
                     kafkaInstance.delete(managedKafka, context);
                 }
             } else if (invalid.isEmpty()) {
-                log.infof("Updating Kafka instance %s/%s %s - modified %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion(), context.getEvents().getList());
+                log.infof("Updating Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
                 kafkaInstance.createOrUpdate(managedKafka);
             }
             updateManagedKafkaStatus(managedKafka, invalid);
             if (!managedKafka.getMetadata().getFinalizers().isEmpty()) {
                 managedKafka.getMetadata().setFinalizers(Collections.emptyList());
-                return UpdateControl.updateCustomResourceAndStatus(managedKafka);
+                return UpdateControl.updateResourceAndStatus(managedKafka);
             }
-            return UpdateControl.updateStatusSubResource(managedKafka);
+            return UpdateControl.updateStatus(managedKafka);
         } finally {
             if (managedKafka.getId() != null) {
                 NDC.pop();
@@ -119,9 +115,8 @@ public class ManagedKafkaController implements ResourceController<ManagedKafka> 
     }
 
     @Override
-    public void init(EventSourceManager eventSourceManager) {
-        log.info("init");
-        eventSourceManager.registerEventSource("event-source", eventSource);
+    public List<EventSource> prepareEventSources(EventSourceContext<HasMetadata> context) {
+        return Arrays.asList(eventSource);
     }
 
     /**

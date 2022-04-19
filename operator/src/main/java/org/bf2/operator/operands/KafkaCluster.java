@@ -18,7 +18,7 @@ import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.ExternalLogging;
@@ -172,7 +172,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     @Override
-    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    public void delete(ManagedKafka managedKafka, Context context) {
         super.delete(managedKafka, context);
         secretManager.delete(managedKafka);
 

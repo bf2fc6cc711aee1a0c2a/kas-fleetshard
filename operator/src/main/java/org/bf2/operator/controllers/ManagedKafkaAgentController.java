@@ -1,12 +1,11 @@
 package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.javaoperatorsdk.operator.api.Context;
-import io.javaoperatorsdk.operator.api.Controller;
-import io.javaoperatorsdk.operator.api.DeleteControl;
-import io.javaoperatorsdk.operator.api.ResourceController;
-import io.javaoperatorsdk.operator.api.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.EventSourceManager;
+import io.javaoperatorsdk.operator.api.reconciler.Constants;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
+import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
@@ -30,6 +29,7 @@ import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.jboss.logging.Logger;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Arrays;
@@ -44,8 +44,9 @@ import java.util.List;
  * An alternative to this approach would be to have the ManagedKafkaControl make status
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
-@Controller(finalizerName = Controller.NO_FINALIZER)
-public class ManagedKafkaAgentController implements ResourceController<ManagedKafkaAgent> {
+@ApplicationScoped
+@ControllerConfiguration(finalizerName = Constants.NO_FINALIZER)
+public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent> {
 
     @Inject
     Logger log;
@@ -59,32 +60,16 @@ public class ManagedKafkaAgentController implements ResourceController<ManagedKa
     @Inject
     StrimziManager strimziManager;
 
-    @Timed(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing delete events")
-    @Counted(value = "controller.delete", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of delete events") // not expected to be called
-    @Override
-    public DeleteControl deleteResource(ManagedKafkaAgent resource, Context<ManagedKafkaAgent> context) {
-        log.warnf("Deleting Kafka agent instance %s in namespace %s", resource.getMetadata().getName(), this.agentClient.getNamespace());
-
-        // nothing to do as resource cleanup, just ack.
-        return DeleteControl.DEFAULT_DELETE;
-    }
-
     @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing createOrUpdate calls")
     @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of createOrUpdate calls processed")
     @Override
-    public UpdateControl<ManagedKafkaAgent> createOrUpdateResource(ManagedKafkaAgent resource,
-            Context<ManagedKafkaAgent> context) {
+    public UpdateControl<ManagedKafkaAgent> reconcile(ManagedKafkaAgent resource, Context context) {
         this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
         if (!resource.getMetadata().getFinalizers().isEmpty()) {
             resource.getMetadata().setFinalizers(Collections.emptyList());
-            return UpdateControl.updateCustomResource(resource);
+            return UpdateControl.updateResource(resource);
         }
         return UpdateControl.noUpdate();
-    }
-
-    @Override
-    public void init(EventSourceManager eventSourceManager) {
-        log.info("Managed Kafka Agent started");
     }
 
     @Timed(value = "controller.status.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing status updates")

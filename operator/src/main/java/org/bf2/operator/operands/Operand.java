@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 
@@ -29,7 +29,7 @@ public interface Operand<T extends CustomResource<?, ?>> {
      * @param customResource custom resource
      * @param context current context
      */
-    void delete(T customResource, Context<T> context);
+    void delete(T customResource, Context context);
 
     /**
      *

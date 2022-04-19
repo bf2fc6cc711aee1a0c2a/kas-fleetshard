@@ -1,6 +1,6 @@
 package org.bf2.operator.operands;
 
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
@@ -47,7 +47,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     }
 
     @Override
-    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    public void delete(ManagedKafka managedKafka, Context context) {
         imagePullSecretManager.deleteSecrets(managedKafka);
 
         // The deletion order is significant. The canary is deleted before the cluster so that the
