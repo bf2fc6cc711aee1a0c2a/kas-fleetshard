@@ -17,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -163,11 +165,12 @@ public class SecuritySecretManager {
         secretNames.stream()
             .map(name -> cachedOrRemoteSecret(managedKafka, name))
             .filter(Objects::nonNull)
-            .map(Secret::getMetadata)
-            .forEach(secretMetadata -> {
-                secretsDigest.update(secretMetadata.getUid().getBytes(StandardCharsets.UTF_8));
-                secretsDigest.update(secretMetadata.getResourceVersion().getBytes(StandardCharsets.UTF_8));
-            });
+            .map(Secret::getData)
+            .map(Map::entrySet)
+            .flatMap(Collection::stream)
+            .sorted(Comparator.comparing(Map.Entry::getKey))
+            .forEach(entry ->
+                secretsDigest.update(entry.getValue().getBytes(StandardCharsets.UTF_8)));
 
         return String.format("%040x", new BigInteger(1, secretsDigest.digest()));
     }
