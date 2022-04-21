@@ -17,9 +17,8 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TlsKeyPair {
 
-    //@NotNull
+
     private String cert;
-    //@NotNull
     private String key;
     private SecretKeySelector certRef;
     private SecretKeySelector keyRef;

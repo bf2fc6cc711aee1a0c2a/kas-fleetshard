@@ -18,7 +18,6 @@ import lombok.ToString;
 public class ManagedKafkaAuthenticationOAuth {
 
     private String clientId;
-    //@NotNull
     private String clientSecret;
     private SecretKeySelector clientIdRef;
     private SecretKeySelector clientSecretRef;

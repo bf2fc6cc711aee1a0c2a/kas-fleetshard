@@ -199,16 +199,6 @@ public class SecretManager {
         return String.format("%040x", new BigInteger(1, secretsDigest.digest()));
     }
 
-    Secret cachedOrRemoteSecret(ManagedKafka managedKafka, String name) {
-        Secret secret = cachedSecret(managedKafka, name);
-
-        if (secret == null) {
-            secret = secretResource(managedKafka, name).get();
-        }
-
-        return secret;
-    }
-
     private Secret cachedSecret(ManagedKafka managedKafka, String name) {
         return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
     }

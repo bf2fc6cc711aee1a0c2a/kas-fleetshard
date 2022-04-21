@@ -44,9 +44,7 @@ public class ServiceAccount {
     // opened GitHub issue for this: https://github.com/fabric8io/kubernetes-client/issues/3411
     @NotNull
     private String name;
-    //@NotNull
     private String principal;
-    //@NotNull
     private String password;
     private SecretKeySelector principalRef;
     private SecretKeySelector passwordRef;
