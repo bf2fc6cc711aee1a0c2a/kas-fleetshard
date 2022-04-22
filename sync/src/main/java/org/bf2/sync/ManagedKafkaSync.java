@@ -221,7 +221,8 @@ public class ManagedKafkaSync {
                     ManagedKafkaSpec spec = remote.getSpec();
                     ObjectMeta meta = remote.getMetadata();
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
-                            mk.setMetadata(meta);
+                            mk.getMetadata().setLabels(meta.getLabels());
+                            mk.getMetadata().setAnnotations(meta.getAnnotations());
                             mk.setSpec(spec);
                             return mk;
                         });
