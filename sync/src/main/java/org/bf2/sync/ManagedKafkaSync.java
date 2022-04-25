@@ -167,7 +167,7 @@ public class ManagedKafkaSync {
             return true;
         }
         ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
-        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remote.getMetadata());
+        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteCopy.getMetadata());
     }
 
     /**

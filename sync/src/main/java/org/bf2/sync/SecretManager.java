@@ -91,6 +91,7 @@ public class SecretManager {
                     .withNamespace(kafkaClusterNamespace(managedKafka))
                     .withName(name)
                     .withLabels(OperandUtils.getDefaultLabels())
+                    .addToLabels(OperandUtils.getMasterSecretLabel())
                 .endMetadata()
                 .withType(type)
                 .withData(data)
