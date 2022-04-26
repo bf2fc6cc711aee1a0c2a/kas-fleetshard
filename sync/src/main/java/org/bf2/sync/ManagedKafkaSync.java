@@ -231,6 +231,8 @@ public class ManagedKafkaSync {
                     ObjectMeta meta = remoteCopy.getMetadata();
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
                             secretManager.calculateMasterSecretDigest(mk, masterSecret);
+                            mk.getMetadata().setLabels(meta.getLabels());
+                            mk.getMetadata().setAnnotations(meta.getAnnotations());
                             mk.setMetadata(meta);
                             mk.setSpec(spec);
                             return mk;
