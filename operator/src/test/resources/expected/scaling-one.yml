@@ -18,6 +18,9 @@ strimzi.authorization.custom-authorizer.allowed-listeners: "SRE-9096"
 quota.window.num: "30"
 strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.duration: "PT300S"
 client.quota.callback.static.storage.check-interval: "30"
+client.quota.callback.usageMetrics.topic: __redhat_strimzi_volumeUsageMetrics
+client.quota.callback.quotaPolicy.check-interval: "15"
+client.quota.callback.kafka.clientIdPrefix: __redhat_strimzi
 strimzi.authorization.custom-authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
 strimzi.authorization.custom-authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
 strimzi.authorization.custom-authorizer.acl.003: "default=true;permission=allow;cluster=*;operations=describe"

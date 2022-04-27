@@ -193,6 +193,12 @@ public class KafkaInstanceConfiguration {
         protected int messageMaxBytes;
         @JsonProperty("replicas-override")
         protected Integer replicasOverride;
+        @JsonProperty("quota-callback-usage-metrics-topic")
+        private String quotaCallbackUsageMetricsTopic;
+        @JsonProperty("quota-callback-quota-policy-check-interval")
+        private int quotaCallbackQuotaPolicyCheckInterval;
+        @JsonProperty("quota-callback-quota-kafka-clientid-prefix")
+        private String quotaCallbackQuotaKafkaClientidPrefix;
 
         public String getStorageClass() {
             return storageClass;
@@ -351,6 +357,31 @@ public class KafkaInstanceConfiguration {
             this.replicasOverride = replicasOverride;
         }
 
+
+        public String getQuotaCallbackUsageMetricsTopic() {
+            return quotaCallbackUsageMetricsTopic;
+        }
+
+        public void setQuotaCallbackUsageMetricsTopic(String quotaCallbackUsageMetricsTopic) {
+            this.quotaCallbackUsageMetricsTopic = quotaCallbackUsageMetricsTopic;
+        }
+
+        public int getQuotaCallbackQuotaPolicyCheckInterval() {
+            return quotaCallbackQuotaPolicyCheckInterval;
+        }
+
+        public void setQuotaCallbackQuotaPolicyCheckInterval(int quotaCallbackQuotaPolicyCheckInterval) {
+            this.quotaCallbackQuotaPolicyCheckInterval = quotaCallbackQuotaPolicyCheckInterval;
+        }
+
+
+        public String getQuotaCallbackQuotaKafkaClientIdPrefix() {
+            return quotaCallbackQuotaKafkaClientidPrefix;
+        }
+
+        public void setQuotaCallbackQuotaKafkaClientidPrefix(String quotaCallbackQuotaKafkaClientidPrefix) {
+            this.quotaCallbackQuotaKafkaClientidPrefix = quotaCallbackQuotaKafkaClientidPrefix;
+        }
     }
 
     public static class AccessControl {

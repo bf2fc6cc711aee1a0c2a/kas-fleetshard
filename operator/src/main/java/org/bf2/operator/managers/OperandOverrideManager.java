@@ -62,6 +62,12 @@ public class OperandOverrideManager {
         public Canary canary = new Canary();
         @JsonProperty(value = "admin-server")
         public OperandOverride adminServer = new OperandOverride();
+
+        @JsonProperty(value = "kafka")
+        public OperandOverride kafka = new OperandOverride();
+
+        @JsonProperty(value = "zookeeper")
+        public OperandOverride zookeeper = new OperandOverride();
     }
 
     static final OperandOverrides EMPTY = new OperandOverrides();
@@ -78,6 +84,12 @@ public class OperandOverrideManager {
 
     @ConfigProperty(name = "image.canary-init")
     String canaryInitImage;
+
+    @ConfigProperty(name = "image.kafka")
+    Optional<String> kafkaImage;
+
+    @ConfigProperty(name = "image.zookeeper")
+    Optional<String> zookeeperImage;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -134,6 +146,22 @@ public class OperandOverrideManager {
 
     public String getAdminServerImage(String strimzi) {
         return getImage(getAdminServerOverride(strimzi), strimzi, "admin-server").orElse(adminApiImage);
+    }
+
+    public OperandOverride getKafkaOverride(String strimzi) {
+        return getOverrides(strimzi).kafka;
+    }
+
+    public Optional<String> getKafkaImage(String strimzi) {
+        return getImage(getKafkaOverride(strimzi), strimzi, "kafka").or(() -> kafkaImage);
+    }
+
+    public OperandOverride getZookeeperOverride(String strimzi) {
+        return getOverrides(strimzi).zookeeper;
+    }
+
+    public Optional<String> getZookeeperImage(String strimzi) {
+        return getImage(getZookeeperOverride(strimzi), strimzi, "zookeeper").or(() -> zookeeperImage);
     }
 
     Optional<String> getImage(OperandOverride override, String strimzi, String componentName) {

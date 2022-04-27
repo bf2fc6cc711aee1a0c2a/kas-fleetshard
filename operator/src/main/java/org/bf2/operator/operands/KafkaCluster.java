@@ -197,6 +197,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         long storagePerBroker = getPerBrokerBytes(managedKafka.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.configs.getConfig(managedKafka).getKafka().getVolumeSize(), actualReplicas);
 
         KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         KafkaBuilder kafkaBuilder = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
@@ -220,6 +221,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withAuthorization(buildKafkaAuthorization(managedKafka))
                         .withImage(kafkaImage.orElse(null))
                         .withExternalLogging(buildKafkaExternalLogging(managedKafka))
+                        .withImage(this.overrideManager.getKafkaImage(strimzi).orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(config.getZookeeper().getReplicas())
@@ -230,6 +232,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withMetricsConfig(buildZooKeeperMetricsConfig(managedKafka))
                         .withImage(zookeeperImage.orElse(null))
                         .withExternalLogging(buildZookeeperExternalLogging(managedKafka))
+                        .withImage(this.overrideManager.getZookeeperImage(strimzi).orElse(null))
                     .endZookeeper()
                     .withKafkaExporter(buildKafkaExporter(managedKafka))
                 .endSpec();
@@ -617,7 +620,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // Check storage every storageCheckInterval seconds
         KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
-        config.put("client.quota.callback.static.storage.check-interval", String.valueOf(instanceConfig.getStorage().getCheckInterval()));
+        if (instanceConfig.getKafka().isEnableQuota()) {
+            KafkaInstanceConfiguration.Kafka kafka = instanceConfig.getKafka();
+            config.put("client.quota.callback.usageMetrics.topic", String.valueOf(kafka.getQuotaCallbackUsageMetricsTopic()));
+            config.put("client.quota.callback.quotaPolicy.check-interval", String.valueOf(kafka.getQuotaCallbackQuotaPolicyCheckInterval()));
+            config.put("client.quota.callback.kafka.clientIdPrefix", String.valueOf(kafka.getQuotaCallbackQuotaKafkaClientIdPrefix()));
+            config.put("client.quota.callback.static.storage.check-interval", String.valueOf(instanceConfig.getStorage().getCheckInterval()));
+        }
 
         // Configure the quota plugin so that the canary is not subjected to the quota checks.
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);

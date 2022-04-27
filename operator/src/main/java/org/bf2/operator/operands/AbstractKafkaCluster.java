@@ -27,6 +27,7 @@ import io.strimzi.api.kafka.model.status.KafkaStatus;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.KafkaManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -72,6 +73,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @Inject
     protected KafkaInstanceConfigurations configs;
+
+    @Inject
+    protected OperandOverrideManager overrideManager;
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();
