@@ -65,3 +65,4 @@ strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: 
 strimzi.authorization.custom-authorizer.adminclient-listener.name: controlplane-9090
 strimzi.authorization.custom-authorizer.adminclient-listener.port: 9090
 strimzi.authorization.custom-authorizer.adminclient-listener.protocol: SSL
+strimzi.authorization.custom-authorizer.partition-limit-enforced: false
