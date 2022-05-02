@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # Usage: . update_env.sh <AWS credentials CSV> <region>
 
-set -e
-
 SED=sed
 GREP=grep
 if [[ "$OSTYPE" == "darwin"* ]]; then
