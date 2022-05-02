@@ -59,7 +59,6 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.KafkaManager;
-import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -127,9 +126,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Inject
     Config applicationConfig;
-
-    @Inject
-    protected SecuritySecretManager secretManager;
 
     @Inject
     protected ImagePullSecretManager imagePullSecretManager;
