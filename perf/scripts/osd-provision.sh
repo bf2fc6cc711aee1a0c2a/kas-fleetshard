@@ -26,7 +26,7 @@ function usage() {
         --install-addon ADDON_ID                    install selected addon id
         --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
-        --set-display-name                          change display name of the cluster (it does not change name or od of cluster)
+        --set-display-name DISPLAY_NAME             change display name of the cluster (it does not change name or od of cluster)
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
         --scale-count NUM                           scales the worker count
