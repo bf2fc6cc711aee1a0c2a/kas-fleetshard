@@ -26,6 +26,7 @@ function usage() {
         --install-addon ADDON_ID                    install selected addon id
         --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
+        --set-display-name                          change display name of the cluster (it does not change name or od of cluster)
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
         --scale-count NUM                           scales the worker count
@@ -85,6 +86,9 @@ function usage() {
 
         Resume cluster
             ./scripts/osd-provision.sh --resume --name cluster-name
+
+        Change display name
+            ./scripts/osd-provision.sh --set-display-name custom-cluster-name --name cluster-name
     "
 }
 
@@ -123,6 +127,12 @@ while [[ $# -gt 0 ]]; do
     --remove-addon)
         OPERATION="remove-addon"
         ADDON_ID="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --set-display-name)
+        OPERATION="set-display-name"
+        DISPLAY_NAME="$2"
         shift # past argument
         shift # past value
         ;;
@@ -260,6 +270,7 @@ function print_vars() {
     echo "AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}"
     echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
     echo "ADDON_ID: ${ADDON_ID}"
+    echo "DISPLAY_NAME: ${DISPLAY_NAME}"
 }
 
 function set_default() {
@@ -550,6 +561,15 @@ if [[ "${OPERATION}" == "extend-expiration" ]]; then
     fi
     id=$(get_cluster_id $CLUSTER_NAME)
     printf '{\n\t"expiration_timestamp": "%s"\n}\n' "$(${DATE} --iso-8601=seconds -d +${EXTEND_DAYS}\ days)" | $OCM patch /api/clusters_mgmt/v1/clusters/$id
+    exit
+fi
+
+if [[ "${OPERATION}" == "set-display-name" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    id=$(get_cluster_id $CLUSTER_NAME)
+    echo "{\"display_name\":\"${DISPLAY_NAME}\" }" | $OCM patch /api/clusters_mgmt/v1/clusters/$id
     exit
 fi
 
