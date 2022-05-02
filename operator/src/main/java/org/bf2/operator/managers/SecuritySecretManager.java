@@ -38,7 +38,7 @@ public class SecuritySecretManager {
     InformerManager informerManager;
 
     public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
-        return managedKafka.getSpec().getOauth() != null;
+        return (managedKafka.getSpec().getOauth() != null && managedKafka.getSpec().getOauth().getClientSecretRef() != null);
     }
 
     public static boolean isKafkaExternalCertificateEnabled(ManagedKafka managedKafka) {
@@ -46,7 +46,9 @@ public class SecuritySecretManager {
     }
 
     public static boolean isCanaryServiceAccountPresent(ManagedKafka managedKafka){
-        return managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).isPresent();
+        return (managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).isPresent()
+                && managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPasswordRef() != null
+                && managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary).get().getPrincipalRef() != null);
     }
 
     public static String masterSecretName(ManagedKafka managedKafka) {
@@ -95,8 +97,8 @@ public class SecuritySecretManager {
         Secret currentMasterSecret = cachedOrRemoteSecret(managedKafka, masterSecretName(managedKafka));
 
         Secret currentKafkaTlsSecret = cachedSecret(managedKafka, kafkaTlsSecretName(managedKafka));
-        if (isKafkaExternalCertificateEnabled(managedKafka)) {
-            Secret kafkaTlsSecret = kafkaTlsSecretFrom(managedKafka, currentKafkaTlsSecret, currentMasterSecret);
+        Secret kafkaTlsSecret = kafkaTlsSecretFrom(managedKafka, currentKafkaTlsSecret, currentMasterSecret);
+        if (isKafkaExternalCertificateEnabled(managedKafka) && kafkaTlsSecret != null) {
             createOrUpdate(kafkaTlsSecret);
         } else if (currentKafkaTlsSecret != null) {
             secretResource(managedKafka, kafkaTlsSecretName(managedKafka)).delete();
@@ -104,19 +106,15 @@ public class SecuritySecretManager {
 
         Secret currentSsoClientSecret = cachedSecret(managedKafka, ssoClientSecretName(managedKafka));
         Secret currentSsoTlsSecret = cachedSecret(managedKafka, ssoTlsSecretName(managedKafka));
-
         if (isKafkaAuthenticationEnabled(managedKafka)) {
             Secret ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret, currentMasterSecret);
-            createOrUpdate(ssoClientSecret);
-            if (managedKafka.getSpec().getOauth().getClientSecret() != null) {
-                ssoClientSecret = ssoClientSecretFrom(managedKafka, currentSsoClientSecret, currentMasterSecret);
+            if (managedKafka.getSpec().getOauth().getClientSecretRef() != null && ssoClientSecret != null) {
                 createOrUpdate(ssoClientSecret);
             } else if (currentSsoClientSecret != null) {
                 secretResource(managedKafka, ssoClientSecretName(managedKafka)).delete();
             }
-
-            if (managedKafka.getSpec().getOauth().getTlsTrustedCertificate() != null) {
-                Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
+            Secret ssoTlsSecret = ssoTlsSecretFrom(managedKafka, currentSsoTlsSecret);
+            if (ssoTlsSecret != null) {
                 createOrUpdate(ssoTlsSecret);
             } else if (currentSsoTlsSecret != null) {
                 secretResource(managedKafka, ssoTlsSecretName(managedKafka)).delete();
@@ -130,8 +128,8 @@ public class SecuritySecretManager {
             }
         }
         Secret currentCanarySaslSecret = cachedSecret(managedKafka, canarySaslSecretName(managedKafka));
-        if(isCanaryServiceAccountPresent(managedKafka)){
-            Secret canarySaslSecret = canarySaslSecretFrom(managedKafka, currentCanarySaslSecret, currentMasterSecret);
+        Secret canarySaslSecret = canarySaslSecretFrom(managedKafka, currentCanarySaslSecret, currentMasterSecret);
+        if(isCanaryServiceAccountPresent(managedKafka) && canarySaslSecret != null){
             createOrUpdate(canarySaslSecret);
         } else {
             if (currentCanarySaslSecret != null){
@@ -249,7 +247,7 @@ public class SecuritySecretManager {
         if(currentMasterSecret != null ){
             ssoClientSecret = currentMasterSecret.getData().get(managedKafka.getSpec().getOauth().getClientSecretRef().getKey());
         }
-        else{
+        else {
             ssoClientSecret = managedKafka.getSpec().getOauth().getClientSecret();
         }
         return buildSecretFrom(ssoClientSecretName(managedKafka),

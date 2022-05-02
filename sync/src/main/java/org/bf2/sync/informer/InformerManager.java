@@ -2,7 +2,6 @@ package org.bf2.sync.informer;
 
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.runtime.Startup;
@@ -52,17 +51,7 @@ public class InformerManager implements LocalLookup {
                 CustomResourceEventHandler.of(controlPlane::updateAgentStatus));
 
         secretInformer = resourceInformerFactory.create(Secret.class, client.secrets().inAnyNamespace().withLabels(OperandUtils.getMasterSecretLabel()),
-                new ResourceEventHandler<Secret>() {
-                    @Override
-                    public void onAdd(Secret obj) {
-                    }
-                    @Override
-                    public void onUpdate(Secret oldObj, Secret newObj) {
-                    }
-                    @Override
-                    public void onDelete(Secret obj, boolean deletedFinalStateUnknown) {
-                    }
-                });
+                null);
 
         meterRegistry.gauge("managedkafkas", this, (informer) -> {
             return informer.getLocalManagedKafkas().size();
