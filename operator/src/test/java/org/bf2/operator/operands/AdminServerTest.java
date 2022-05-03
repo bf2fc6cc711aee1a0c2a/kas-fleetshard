@@ -1,6 +1,9 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
@@ -11,10 +14,12 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -27,17 +32,31 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 class AdminServerTest {
 
+    @Inject
+    KubernetesClient client;
+
     @KubernetesTestServer
     KubernetesServer server;
 
     @Inject
     AdminServer adminServer;
+
+    @BeforeEach
+    public void setup() {
+        client.apps()
+                .deployments()
+                .inNamespace(client.getNamespace())
+                .withLabel("app.kubernetes.io/component", "adminserver")
+                .delete();
+        client.secrets().inNamespace(client.getNamespace()).delete();
+    }
 
     static ManagedKafka buildBasicManagedKafka(String name, String strimziVersion, TlsKeyPair tls) {
         return new ManagedKafkaBuilder()
@@ -141,4 +160,55 @@ class AdminServerTest {
         assertEquals("something", adminServer.buildLabels("my-admin", mk).get(ManagedKafka.PROFILE_TYPE));
     }
 
+    @Test
+    void testDeploymentCreatedWhenSecretsExist() {
+        ManagedKafka mk = buildBasicManagedKafka("test", "0.26.0-10", new TlsKeyPair());
+
+        Resource<Deployment> deployment = client.apps().deployments()
+                .inNamespace(client.getNamespace())
+                .withName(AdminServer.adminServerName(mk));
+
+        // No secrets present initially
+        assertNull(deployment.get());
+        adminServer.createOrUpdate(mk);
+        assertNull(deployment.get());
+
+        client.secrets()
+            .inNamespace(client.getNamespace())
+            .create(new SecretBuilder()
+                    .withNewMetadata()
+                        .withName(SecuritySecretManager.strimziClusterCaCertSecret(mk))
+                    .endMetadata()
+                    .withData(Map.of("ca.crt", "dummycacert"))
+                    .build());
+
+        // 1 of 2 required secrets exist
+        adminServer.createOrUpdate(mk);
+        assertNull(deployment.get());
+
+        client.secrets()
+            .inNamespace(client.getNamespace())
+            .create(new SecretBuilder()
+                    .withNewMetadata()
+                        .withName(SecuritySecretManager.kafkaTlsSecretName(mk))
+                    .endMetadata()
+                    .withData(Map.of("tls.crt", "dummycert")) // Missing `tls.key`
+                    .build());
+
+        // 2 of 2 required secrets exist, but `tls.key` is missing from TLS secret
+        adminServer.createOrUpdate(mk);
+        assertNull(deployment.get());
+
+        client.secrets()
+            .inNamespace(client.getNamespace())
+            .withName(SecuritySecretManager.kafkaTlsSecretName(mk))
+            .edit(tlsSecret -> {
+                tlsSecret.getData().put("tls.key", "dummykey");
+                return tlsSecret;
+            });
+
+        // 2 of 2 required secrets fully exist
+        adminServer.createOrUpdate(mk);
+        assertNotNull(deployment.get());
+    }
 }

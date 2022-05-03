@@ -48,6 +48,7 @@ import javax.inject.Inject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -110,6 +111,10 @@ public class AdminServer extends AbstractAdminServer {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        if (!secretDependenciesPresent(managedKafka)) {
+            return;
+        }
+
         super.createOrUpdate(managedKafka);
 
         if (openShiftClient != null) {
@@ -343,25 +348,34 @@ public class AdminServer extends AbstractAdminServer {
         return labels;
     }
 
-    private Map<String, String> buildAnnotations(ManagedKafka managedKafka) {
-        List<String> dependsOnSecrets = new ArrayList<>();
+    private Map<String, List<String>> getDependsOnSecrets(ManagedKafka managedKafka) {
+        Map<String, List<String>> dependsOnSecrets = new HashMap<>();
 
-        dependsOnSecrets.add(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka));
+        dependsOnSecrets.put(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka), List.of("ca.crt"));
 
         if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
-            dependsOnSecrets.add(SecuritySecretManager.kafkaTlsSecretName(managedKafka));
+            dependsOnSecrets.put(SecuritySecretManager.kafkaTlsSecretName(managedKafka), List.of("tls.crt", "tls.key"));
         }
 
         if (SecuritySecretManager.isKafkaAuthenticationEnabled(managedKafka)) {
             ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
 
             if (oauth.getTlsTrustedCertificate() != null) {
-                dependsOnSecrets.add(SecuritySecretManager.ssoTlsSecretName(managedKafka));
+                dependsOnSecrets.put(SecuritySecretManager.ssoTlsSecretName(managedKafka), List.of("keycloak.crt"));
             }
         }
 
-        return Map.of(SecuritySecretManager.ANNOTATION_SECRET_DEP_DIGEST,
-                securitySecretManager.digestSecretsVersions(managedKafka, dependsOnSecrets));
+        return dependsOnSecrets;
+    }
+
+    private boolean secretDependenciesPresent(ManagedKafka managedKafka) {
+        return securitySecretManager.secretKeysExist(managedKafka, getDependsOnSecrets(managedKafka));
+    }
+
+    private Map<String, String> buildAnnotations(ManagedKafka managedKafka) {
+        return Map.of(
+                SecuritySecretManager.ANNOTATION_SECRET_DEP_DIGEST,
+                securitySecretManager.digestSecretsVersions(managedKafka, getDependsOnSecrets(managedKafka)));
     }
 
     private Map<String, String> buildRouteLabels() {
