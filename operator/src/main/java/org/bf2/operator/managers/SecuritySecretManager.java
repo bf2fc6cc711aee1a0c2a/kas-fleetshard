@@ -135,7 +135,26 @@ public class SecuritySecretManager {
         }
     }
 
-    public String digestSecretsVersions(ManagedKafka managedKafka, List<String> secretNames) {
+    public boolean secretKeysExist(ManagedKafka managedKafka, Map<String, List<String>> secretKeys) {
+        for (Map.Entry<String, List<String>> entry : secretKeys.entrySet()) {
+            String secretName = entry.getKey();
+            Secret secret = cachedOrRemoteSecret(managedKafka, secretName);
+
+            if (secret == null) {
+                return false;
+            }
+
+            for (String key : entry.getValue()) {
+                if (secret.getData().get(key) == null) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public String digestSecretsVersions(ManagedKafka managedKafka, Map<String, List<String>> secretKeys) {
         final MessageDigest secretsDigest;
 
         try {
@@ -144,7 +163,7 @@ public class SecuritySecretManager {
             throw new RuntimeException(e);
         }
 
-        secretNames.stream()
+        secretKeys.keySet().stream()
             .map(name -> cachedOrRemoteSecret(managedKafka, name))
             .filter(Objects::nonNull)
             .map(Secret::getData)
