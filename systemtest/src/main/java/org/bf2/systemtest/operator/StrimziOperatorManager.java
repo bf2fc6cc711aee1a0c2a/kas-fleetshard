@@ -169,7 +169,7 @@ public class StrimziOperatorManager {
     }
 
     public static String getPreviousUpstreamStrimziVersion(String actualVersion) throws InterruptedException, ExecutionException {
-        if (!isNotTestSuiteStrimziOperatorInstalled(KubeClient.getInstance())) {
+        if (!isNotTestSuiteStrimziOperatorInstalled(KubeClient.getInstance()) && !isStrimziSubPresent()) {
             List<String> sortedReleases = Arrays.stream(GithubApiClient.getReleases("strimzi", "strimzi-kafka-operator"))
                     .filter(a -> !(a.prerelease || a.draft))
                     .sorted((a, b) -> {
