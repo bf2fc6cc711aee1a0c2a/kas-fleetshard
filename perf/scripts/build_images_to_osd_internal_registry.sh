@@ -54,7 +54,7 @@ if [[ "${HOST}" != "" ]]; then
     
     cd $REPO_ROOT
      
-    mvn clean -Pquickly package \
+    mvn clean -Pquickly -pl !perf package \
       -Dquarkus.container-image.registry=$HOST \
       -Dquarkus.container-image.group=openshift \
       -Dquarkus.container-image.tag=latest \

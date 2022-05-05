@@ -82,11 +82,16 @@ class AdminServerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "test-mk-q,     1, true,  false, /expected/adminserver.yml",
-        "test-mk-tls-q, 2, true,  true,  /expected/adminserver-tls.yml"
+        "test-mk-q,     1, true,  false, false, /expected/adminserver.yml",
+        "test-mk-tls-q, 2, true,  true, false, /expected/adminserver-tls.yml",
+        "test-mk-q,     2, true,  false, true, /expected/adminserver-affinity.yml"
     })
-    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, String expectedResource) throws Exception {
+    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, boolean useNodeAffinity, String expectedResource) throws Exception {
         ManagedKafka mk = buildBasicManagedKafka(name, versionString, tls ? new TlsKeyPair() : null);
+
+        if (useNodeAffinity) {
+            CanaryTest.useNodeAffinity(mk);
+        }
 
         OperandOverride override = new OperandOverride();
         override.setImage("quay.io/mk-ci-cd/kafka-admin-api:0.8.0");
@@ -211,4 +216,5 @@ class AdminServerTest {
         adminServer.createOrUpdate(mk);
         assertNotNull(deployment.get());
     }
+
 }

@@ -18,6 +18,7 @@ import io.javaoperatorsdk.operator.processing.event.source.controller.ResourceAc
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
@@ -63,6 +64,7 @@ public class InformerManager {
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
     private ResourceInformer<PersistentVolumeClaim> pvcInformer;
+    private ResourceInformer<ManagedKafkaAgent> managedKafkaAgentInformer;
 
     boolean isOpenShift() {
         return openShiftSupport.isOpenShift(kubernetesClient);
@@ -103,6 +105,11 @@ public class InformerManager {
         if (isOpenShift()) {
             routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
         }
+
+        managedKafkaAgentInformer = resourceInformerFactory.create(ManagedKafkaAgent.class,
+                kubernetesClient.resources(ManagedKafkaAgent.class)
+                        .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME),
+                eventSource);
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(
@@ -133,6 +140,11 @@ public class InformerManager {
 
     public Secret getLocalSecret(String namespace, String name) {
         return secretInformer.getByKey(Cache.namespaceKeyFunc(namespace, name));
+    }
+
+    public ManagedKafkaAgent getLocalAgent() {
+        // there should be just one, but we'll use a lookup just in case
+        return managedKafkaAgentInformer.getByKey(Cache.namespaceKeyFunc(kubernetesClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME));
     }
 
     public Route getLocalRoute(String namespace, String name) {

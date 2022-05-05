@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -139,6 +140,9 @@ public class AdminServer extends AbstractAdminServer {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
+        Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
+                this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper());
+
         builder
                 .editOrNewMetadata()
                     .withName(adminServerName)
@@ -159,21 +163,11 @@ public class AdminServer extends AbstractAdminServer {
                             .withContainers(buildContainers(managedKafka))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
+                            .withAffinity(affinity)
                         .endSpec()
                     .endTemplate()
                 .endSpec();
 
-
-        if(this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper()) {
-            builder
-                .editOrNewSpec()
-                    .editOrNewTemplate()
-                        .editOrNewSpec()
-                        .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
-                        .endSpec()
-                    .endTemplate()
-                .endSpec();
-        }
 
         Deployment deployment = builder.build();
 
