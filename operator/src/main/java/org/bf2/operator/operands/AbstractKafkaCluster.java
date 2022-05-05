@@ -34,7 +34,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -64,12 +63,6 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     @Inject
     protected InformerManager informerManager;
-
-    @ConfigProperty(name = "image.kafka")
-    protected Optional<String> kafkaImage;
-
-    @ConfigProperty(name = "image.zookeeper")
-    protected Optional<String> zookeeperImage;
 
     @Inject
     protected KafkaInstanceConfigurations configs;
