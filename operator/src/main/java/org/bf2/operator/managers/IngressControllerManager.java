@@ -1,5 +1,7 @@
 package org.bf2.operator.managers;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
@@ -20,12 +22,14 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerSpec;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
@@ -395,20 +399,45 @@ public class IngressControllerManager {
         }
     }
 
-    private void createOrEdit(IngressController expected, boolean exists) {
+    private void createOrEdit(IngressController expected, IngressController existing) {
         String name = expected.getMetadata().getName();
 
-        if (exists) {
-            openShiftClient.operator().ingressControllers()
+        if (existing != null) {
+            boolean needsApplied = shouldPatchIngressController(expected, existing);
+            if (needsApplied) {
+                openShiftClient.operator().ingressControllers()
                 .inNamespace(expected.getMetadata().getNamespace())
                 .withName(name)
                 .edit(i -> new IngressControllerBuilder(i)
                         .editMetadata().withLabels(expected.getMetadata().getLabels()).endMetadata()
                         .withSpec(expected.getSpec())
                         .build());
+            }
         } else {
             OperandUtils.createOrUpdate(openShiftClient.operator().ingressControllers(), expected);
         }
+    }
+
+    /**
+     * the creation of the expected is dropping the additionalFields (fixed in fabric8 5.10+)
+     * rather than patching all the time, we'll try to detect when the fields we care about have been changed / removed
+     */
+    boolean shouldPatchIngressController(IngressController expected, IngressController existing) {
+        ObjectMapper objectMapper = Serialization.yamlMapper();
+        JsonNode expectedJson = objectMapper.convertValue(expected, JsonNode.class);
+        JsonNode actualJson = objectMapper.convertValue(existing, JsonNode.class);
+        JsonNode patch = JsonDiff.asJson(expectedJson, actualJson);
+        if (patch.isArray()) {
+            int size = patch.size();
+            for (int i = 0; i < size; i++) {
+                JsonNode op = patch.get(i).get("op");
+                if (op != null && !"add".equals(op.asText())) {
+                    log.infof("Updating the existing IngressController %s/%s %s", expected.getMetadata().getNamespace(), expected.getMetadata().getName(), patch.toString());
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
@@ -489,7 +518,7 @@ public class IngressControllerManager {
                 .endSpec();
         }
 
-        createOrEdit(builder.build(), existing != null);
+        createOrEdit(builder.build(), existing);
     }
 
     int numReplicasForZone(String zone, List<Node> nodes, LongSummaryStatistics ingress, LongSummaryStatistics egress, long connectionDemand) {
