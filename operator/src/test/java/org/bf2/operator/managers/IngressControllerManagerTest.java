@@ -13,6 +13,7 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
+import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
@@ -44,6 +45,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -75,6 +77,15 @@ public class IngressControllerManagerTest {
         assertEquals(1, ingressControllers.size(), "Expected only one IngressController");
         assertEquals("kas", ingressControllers.get(0).getMetadata().getName(), "Expected the IngressController to be named kas");
         assertEquals(0, ingressControllers.get(0).getSpec().getReplicas(), "Expected 0 replicas because there are 0 nodes");
+
+        // check the patch logic
+        IngressController ic = ingressControllers.get(0);
+        assertFalse(ingressControllerManager.shouldPatchIngressController(ic, ic));
+        assertTrue(ingressControllerManager.shouldPatchIngressController(ic,
+                new IngressControllerBuilder(ic).editMetadata()
+                        .withLabels(Collections.emptyMap())
+                        .endMetadata()
+                        .build()));
     }
 
     @Test
