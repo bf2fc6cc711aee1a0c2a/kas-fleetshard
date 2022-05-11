@@ -267,3 +267,33 @@ data:
         labels:
           quota_type: "$1"
         type: GAUGE
+      - labels:
+          clientID: $1
+        name: kafka_producer_metrics_$2
+        pattern: >-
+          kafka.producer<type=producer-metrics, client-id=(.+)><>(outgoing-byte-rate|outgoing-byte-total)
+        type: GAUGE
+      - labels:
+          clientID: $1
+        name: kafka_producer_metrics_$2
+        pattern: >-
+          kafka.producer<type=producer-metrics, client-id=(.+)><>(connection-[\w-]*[\w])
+        type: GAUGE
+      - labels:
+          clientID: $1
+        name: kafka_consumer_metrics_$2
+        pattern: >-
+          kafka.consumer<type=consumer-metrics, client-id=(.+)><>(incoming-byte-rate|incoming-byte-total)
+        type: GAUGE
+      - labels:
+          clientID: $1
+        name: kafka_consumer_metrics_$2
+        pattern: >-
+          kafka.consumer<type=consumer-metrics, client-id=(.+)><>(connection-[\w-]*[\w])
+        type: GAUGE
+      - labels:
+          clientID: $1
+        name: kafka_adminclient_metrics_$2
+        pattern: >-
+          kafka.admin.client<type=admin-client-metrics, client-id=(.+)><>(connection-[\w-]*[\w])
+        type: GAUGE
