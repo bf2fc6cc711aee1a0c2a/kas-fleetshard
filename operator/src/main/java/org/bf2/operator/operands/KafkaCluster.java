@@ -617,7 +617,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // Configure the quota plugin so that the canary is not subjected to the quota checks.
         Optional<ServiceAccount> canaryServiceAccount = managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary);
-        canaryServiceAccount.ifPresent(serviceAccount -> config.put("client.quota.callback.static.excluded.principal.name.list", serviceAccount.getPrincipal()));
+        canaryServiceAccount.ifPresent(serviceAccount -> config.put("client.quota.callback.static.excluded.principal.name.list", secretManager.getServiceAccountPrincipal(managedKafka,canaryServiceAccount.get())));
 
         config.put("quota.window.num", "30");
         config.put("quota.window.size.seconds", "2");
@@ -846,7 +846,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 String aclKey = String.format(SERVICE_ACCOUNT_KEY, account.getName());
 
                 applicationConfig.getOptionalValue(aclKey, String.class)
-                    .ifPresent(acl -> addAcl(acl, account.getPrincipal(), aclKeyTemplate, aclCount, config));
+                    .ifPresent(acl -> addAcl(acl, secretManager.getServiceAccountPrincipal(managedKafka,account), aclKeyTemplate, aclCount, config));
             });
     }
 
