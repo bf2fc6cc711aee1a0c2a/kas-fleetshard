@@ -176,6 +176,13 @@ public class SecuritySecretManager {
         return String.format("%040x", new BigInteger(1, secretsDigest.digest()));
     }
 
+    public String getServiceAccountPrincipal(ManagedKafka managedKafka, ServiceAccount account) {
+        return getSecretValue(managedKafka,
+                account,
+                ServiceAccount::getPrincipalRef,
+                ServiceAccount::getPrincipal);
+    }
+
     public <T> String getSecretValue(ManagedKafka managedKafka, T model, Function<T, SecretKeySelector> selectorLookup, Function<T, String> valueLookup) {
         Secret masterSecret = cachedOrRemoteSecret(managedKafka, masterSecretName(managedKafka));
         return getSecretValue(masterSecret, model, selectorLookup, valueLookup);

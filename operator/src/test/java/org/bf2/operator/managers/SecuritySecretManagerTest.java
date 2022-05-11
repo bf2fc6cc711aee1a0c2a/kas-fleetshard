@@ -27,6 +27,7 @@ import javax.inject.Inject;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -100,7 +101,28 @@ class SecuritySecretManagerTest {
         String actualCanaryPassword = new String(Base64.getDecoder().decode(encodedCanaryPassword.getBytes(StandardCharsets.UTF_8)));
         assertEquals("canary-password", actualCanaryPassword);
 
+        //Testing for Updated Master Secret
 
+        client.secrets()
+                .inNamespace(client.getNamespace())
+                .withName("test-master-secret")
+                .edit(masterSecret -> {
+                    masterSecret.getData().put("canary-principal-key", "new-canary-principal");
+                    masterSecret.getData().put("canary-password-key", "new-canary-password");
+                    return masterSecret;
+                });
+
+        securitySecretManager.createOrUpdate(managedKafka);
+        Secret canaryNewSaslSecret = canarySaslSecretResource.get();
+        assertNotNull(canaryNewSaslSecret);
+
+        String encodedNewCanaryPrincipal = canaryNewSaslSecret.getData().get(SecuritySecretManager.SASL_PRINCIPAL);
+        String actualNewCanaryPrincipal = new String(Base64.getDecoder().decode(encodedNewCanaryPrincipal.getBytes(StandardCharsets.UTF_8)));
+        assertEquals("new-canary-principal", actualNewCanaryPrincipal);
+
+        String encodedNewCanaryPassword = canaryNewSaslSecret.getData().get(SecuritySecretManager.SASL_PASSWORD);
+        String actualNewCanaryPassword = new String(Base64.getDecoder().decode(encodedNewCanaryPassword.getBytes(StandardCharsets.UTF_8)));
+        assertEquals("new-canary-password", actualNewCanaryPassword);
     }
 
     @Test
@@ -152,6 +174,30 @@ class SecuritySecretManagerTest {
         String encodeKafkaTlsKey = kafkaTlsSecret.getData().get("tls.key");
         String actualKafkaTlsKey = new String(Base64.getDecoder().decode(encodeKafkaTlsKey.getBytes(StandardCharsets.UTF_8)));
         assertEquals("tls-key", actualKafkaTlsKey);
+
+        //Testing for Updated Master Secret
+
+        client.secrets()
+                .inNamespace(client.getNamespace())
+                .withName("test-master-secret")
+                .edit(masterSecret -> {
+                    masterSecret.getData().putAll(Map.of(
+                            "kafka-tls-cert", "new-tls-crt",
+                            "kafka-tls-key", "new-tls-key"));
+                    return masterSecret;
+                });
+
+        securitySecretManager.createOrUpdate(managedKafka);
+        Secret kafkaNewTlsSecret = kafkaTlsSecretResource.get();
+        assertNotNull(kafkaNewTlsSecret);
+
+        String encodedNewKafkaTlsCert = kafkaNewTlsSecret.getData().get("tls.crt");
+        String actualNewKafkaTlsCert = new String(Base64.getDecoder().decode(encodedNewKafkaTlsCert.getBytes(StandardCharsets.UTF_8)));
+        assertEquals("new-tls-crt", actualNewKafkaTlsCert);
+
+        String encodedNewKafkaTlsKey = kafkaNewTlsSecret.getData().get("tls.key");
+        String actualNewKafkaTlsKey = new String(Base64.getDecoder().decode(encodedNewKafkaTlsKey.getBytes(StandardCharsets.UTF_8)));
+        assertEquals("new-tls-key", actualNewKafkaTlsKey);
     }
 
     @Test
@@ -194,6 +240,81 @@ class SecuritySecretManagerTest {
         String encodedClientSecret = ssoClientSecret.getData().get("ssoClientSecret");
         String actualClientSecret = new String(Base64.getDecoder().decode(encodedClientSecret.getBytes(StandardCharsets.UTF_8)));
         assertEquals("sso-client-secret", actualClientSecret);
+
+        //Testing for Updated Master Secret
+
+        client.secrets()
+                .inNamespace(client.getNamespace())
+                .withName("test-master-secret")
+                .edit(masterSecret -> {
+                    masterSecret.getData().put("sso-client-secret", "new-sso-client-secret");
+                    return masterSecret;
+                });
+
+        securitySecretManager.createOrUpdate(managedKafka);
+        Secret ssoNewClientSecret = ssoSecretResource.get();
+        assertNotNull(ssoNewClientSecret);
+
+        String encodedNewClientSecret = ssoNewClientSecret.getData().get("ssoClientSecret");
+        String actualNewClientSecret = new String(Base64.getDecoder().decode(encodedNewClientSecret.getBytes(StandardCharsets.UTF_8)));
+        assertEquals("new-sso-client-secret", actualNewClientSecret);
     }
 
+    @Test
+    void testDeleteSecret(){
+        Map<String, String> data = new HashMap<>();
+        data.put("sso-client-secret", null);
+        client.secrets()
+                .inNamespace(client.getNamespace())
+                .create(new SecretBuilder()
+                        .withNewMetadata()
+                            .withName("test-master-secret")
+                        .endMetadata()
+                        .withData(data)
+                        .build());
+
+        ManagedKafka managedKafka = new ManagedKafkaBuilder()
+                .withNewMetadata()
+                    .withName("test")
+                .endMetadata()
+                .withSpec(new ManagedKafkaSpecBuilder()
+                        .withEndpoint(new ManagedKafkaEndpoint())
+                        .withOauth(new ManagedKafkaAuthenticationOAuthBuilder()
+                                .withClientSecretRef( new SecretKeySelectorBuilder()
+                                        .withName("test-master-secret")
+                                        .withKey("sso-client-secret")
+                                        .build())
+                                .withTlsTrustedCertificate("sso-keycloak-crt")
+                                .build())
+                        .build())
+                .build();
+
+        Resource<Secret> ssoSecretResource = client.secrets()
+                .inNamespace(client.getNamespace())
+                .withName(SecuritySecretManager.ssoClientSecretName(managedKafka));
+
+        securitySecretManager.createOrUpdate(managedKafka);
+        Assertions.assertNull(ssoSecretResource.get());
+    }
+
+   @Test
+    void testMasterSecretNull(){
+
+            ManagedKafka managedKafka = new ManagedKafkaBuilder()
+                    .withNewMetadata()
+                        .withName("test")
+                    .endMetadata()
+                    .withSpec(new ManagedKafkaSpecBuilder()
+                            .withEndpoint(new ManagedKafkaEndpoint())
+                                    .build())
+                            .build();
+
+            Resource<Secret> ssoSecretResource = client.secrets()
+                    .inNamespace(client.getNamespace())
+                    .withName(SecuritySecretManager.ssoClientSecretName(managedKafka));
+
+            securitySecretManager.createOrUpdate(managedKafka);
+            Assertions.assertNull(ssoSecretResource.get());
+
+    }
 }
