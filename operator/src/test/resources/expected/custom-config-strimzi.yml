@@ -163,6 +163,7 @@ spec:
         transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
+      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
     storage:
       volumes:
       - type: "persistent-claim"

@@ -545,6 +545,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
+        config.put("strimzi.authorization.custom-authorizer.partition-limit-enforced",
+                instanceConfig.getKafka().isPartitionLimitEnforced());
 
         ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
         var maximumSessionLifetime = oauth != null ? oauth.getMaximumSessionLifetime() : null;

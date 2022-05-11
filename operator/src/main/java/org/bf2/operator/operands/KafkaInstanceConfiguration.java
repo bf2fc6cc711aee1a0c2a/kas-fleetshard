@@ -161,6 +161,8 @@ public class KafkaInstanceConfiguration {
         protected int maxConnections;
         @JsonProperty("partition-capacity")
         protected int partitionCapacity;
+        @JsonProperty("partition-limit-enforced")
+        protected boolean partitionLimitEnforced = true;
         @JsonProperty("scaling-and-replication-factor")
         protected int scalingAndReplicationFactor;
         @JsonProperty("ingress-per-sec")
@@ -323,6 +325,14 @@ public class KafkaInstanceConfiguration {
 
         public void setPartitionCapacity(int partitionCapacity) {
             this.partitionCapacity = partitionCapacity;
+        }
+
+        public boolean isPartitionLimitEnforced() {
+            return partitionLimitEnforced;
+        }
+
+        public void setPartitionLimitEnforced(boolean partitionLimitEnforced) {
+            this.partitionLimitEnforced = partitionLimitEnforced;
         }
 
         public int getScalingAndReplicationFactor() {
