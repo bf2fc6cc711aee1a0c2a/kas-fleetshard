@@ -1,5 +1,6 @@
 package org.bf2.systemtest.framework;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 public class LogCollector {
     private static final Logger LOGGER = LogManager.getLogger(LogCollector.class);
@@ -58,6 +60,17 @@ public class LogCollector {
                 Files.writeString(logpath.resolve(pod.getMetadata().getName() + ".log"), kube.cmdClient().exec(false, false, "logs", pod.getMetadata().getName(), "--tail", "-1", "-n", pod.getMetadata().getNamespace()).out());
             } catch (Exception e) {
                 LOGGER.warn("Cannot get logs from pod {} in namespace {}", pod.getMetadata().getName(), pod.getMetadata().getNamespace());
+            }
+        });
+        FleetShardOperatorManager.getAllManagedKafkaInstances(kube).forEach(mk -> {
+            try {
+                Files.createDirectories(logpath.resolve(mk.getMetadata().getName()));
+                List<Pod> mkPods = kube.client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems();
+                for (Pod mkPod : mkPods) {
+                    Files.writeString(logpath.resolve(mkPod.getMetadata().getName()), kube.cmdClient().exec(false, false, "logs", mkPod.getMetadata().getName(), "-n", mkPod.getMetadata().getNamespace()).out());
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Exception during writing logs for mk {}: {}", mk.getMetadata().getName(), e.getMessage());
             }
         });
     }
