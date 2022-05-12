@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
@@ -39,6 +40,9 @@ public class ImagePullSecretManager {
     @Inject
     ManagedKafkaResourceClient managedKafkaResourceClient;
 
+    @Inject
+    InformerManager informerManager;
+
     private List<LocalObjectReference> imagePullSecretRefs;
 
     private volatile Map<String, Secret> secrets;
@@ -47,16 +51,33 @@ public class ImagePullSecretManager {
         return managedKafka.getMetadata().getName() + "-pull-" + name;
     }
 
-    static void propagateSecrets(KubernetesClient client, ManagedKafka mk, Collection<Secret> secrets) {
+    void propagateSecrets(KubernetesClient client, ManagedKafka mk, Collection<Secret> secrets) {
         secrets.stream()
                 .forEach(secret -> {
+                    final String namespace = mk.getMetadata().getNamespace();
+                    final String secretName = getSecretName(mk, secret.getMetadata().getName());
+
                     Secret s = new SecretBuilder(secret)
                         .withNewMetadata()
-                            .withNamespace(mk.getMetadata().getNamespace())
-                            .withName(getSecretName(mk, secret.getMetadata().getName()))
+                            .withNamespace(namespace)
+                            .withName(secretName)
                             .withLabels(OperandUtils.getDefaultLabels())
                         .endMetadata()
                         .build();
+
+                    Resource<Secret> secretResource = client.secrets().inNamespace(namespace).withName(secretName);
+                    Secret current = informerManager.getLocalSecret(namespace, secretName);
+
+                    if (current == null) {
+                        current = secretResource.get();
+                    }
+
+                    if (current != null && !Objects.equals(s.getType(), current.getType())) {
+                        log.infof("Type of secret %s/%s changed from %s to %s, deleting and recreating",
+                                namespace, secretName, current.getType(), s.getType());
+                        secretResource.delete();
+                    }
+
                     OperandUtils.setAsOwner(mk, s);
                     OperandUtils.createOrUpdate(client.secrets(), s);
                 });
