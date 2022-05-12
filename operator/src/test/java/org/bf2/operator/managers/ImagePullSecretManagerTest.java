@@ -2,6 +2,7 @@ package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -18,10 +19,13 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -120,4 +124,66 @@ public class ImagePullSecretManagerTest {
                         .collect(Collectors.toSet()));
     }
 
+    @Test
+    void testPullSecretTypeChangePropagatedAsNewSecret() {
+        String ns = "testPullSecretTypeChangePropagatedAsNewSecret";
+        Secret originalNamespacedSecret = client.secrets()
+            .inNamespace(ns)
+            .create(new SecretBuilder()
+                    .withNewMetadata()
+                        .withName("mk-pull-name")
+                    .endMetadata()
+                    .withType("kubernetes.io/dockercfg")
+                    .withData(Map.of("key", "value"))
+                    .build());
+
+        Secret replacement = new SecretBuilder()
+            .withNewMetadata()
+                .withName("name")
+            .endMetadata()
+            .withType("kubernetes.io/dockerconfigjson")
+            .withData(Map.of("key", "value"))
+            .build();
+
+        ManagedKafka managedKafka = new ManagedKafka();
+        managedKafka.setMetadata(new ObjectMetaBuilder().withName("mk").withNamespace(ns).build());
+
+        imagePullSecretManager.propagateSecrets(client, managedKafka, List.of(replacement));
+
+        Secret replacementNamespacedSecret = client.secrets().inNamespace(ns).withName("mk-pull-name").get();
+
+        assertNotEquals(originalNamespacedSecret.getMetadata().getUid(), replacementNamespacedSecret.getMetadata().getUid());
+    }
+
+    @Test
+    void testPullSecretTypeUnchangedUpdatesExistingSecret() {
+        String ns = "testPullSecretTypeUnchangedUpdatesExistingSecret";
+
+        Secret originalNamespacedSecret = client.secrets()
+            .inNamespace(ns)
+            .create(new SecretBuilder()
+                    .withNewMetadata()
+                        .withName("mk-pull-name")
+                    .endMetadata()
+                    .withType("kubernetes.io/dockercfg")
+                    .withData(Map.of("key", "value"))
+                    .build());
+
+        Secret replacement = new SecretBuilder()
+            .withNewMetadata()
+                .withName("name")
+            .endMetadata()
+            .withType("kubernetes.io/dockercfg")
+            .withData(Map.of("key", "value"))
+            .build();
+
+        ManagedKafka managedKafka = new ManagedKafka();
+        managedKafka.setMetadata(new ObjectMetaBuilder().withName("mk").withNamespace(ns).build());
+
+        imagePullSecretManager.propagateSecrets(client, managedKafka, List.of(replacement));
+
+        Secret replacementNamespacedSecret = client.secrets().inNamespace(ns).withName("mk-pull-name").get();
+
+        assertEquals(originalNamespacedSecret.getMetadata().getUid(), replacementNamespacedSecret.getMetadata().getUid());
+    }
 }
