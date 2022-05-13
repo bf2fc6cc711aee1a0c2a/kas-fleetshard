@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
@@ -39,6 +40,9 @@ public class ImagePullSecretManager {
     @Inject
     ManagedKafkaResourceClient managedKafkaResourceClient;
 
+    @Inject
+    InformerManager informerManager;
+
     private List<LocalObjectReference> imagePullSecretRefs;
 
     private volatile Map<String, Secret> secrets;
@@ -47,18 +51,35 @@ public class ImagePullSecretManager {
         return managedKafka.getMetadata().getName() + "-pull-" + name;
     }
 
-    static void propagateSecrets(KubernetesClient client, ManagedKafka mk, Collection<Secret> secrets) {
+    void propagateSecrets(KubernetesClient client, ManagedKafka mk, Collection<Secret> secrets) {
         secrets.stream()
                 .forEach(secret -> {
-                    Secret s = new SecretBuilder(secret)
+                    final String namespace = mk.getMetadata().getNamespace();
+                    final String secretName = getSecretName(mk, secret.getMetadata().getName());
+
+                    Secret updated = new SecretBuilder(secret)
                         .withNewMetadata()
-                            .withNamespace(mk.getMetadata().getNamespace())
-                            .withName(getSecretName(mk, secret.getMetadata().getName()))
+                            .withNamespace(namespace)
+                            .withName(secretName)
                             .withLabels(OperandUtils.getDefaultLabels())
                         .endMetadata()
                         .build();
-                    OperandUtils.setAsOwner(mk, s);
-                    OperandUtils.createOrUpdate(client.secrets(), s);
+
+                    Resource<Secret> secretClient = client.secrets().inNamespace(namespace).withName(secretName);
+                    Secret existing = informerManager.getLocalSecret(namespace, secretName);
+
+                    if (existing == null) {
+                        existing = secretClient.get();
+                    }
+
+                    if (existing != null && !Objects.equals(updated.getType(), existing.getType())) {
+                        log.infof("Type of secret %s/%s changed from %s to %s, deleting and recreating",
+                                namespace, secretName, existing.getType(), updated.getType());
+                        secretClient.delete();
+                    }
+
+                    OperandUtils.setAsOwner(mk, updated);
+                    OperandUtils.createOrUpdate(client.secrets(), updated);
                 });
     }
 

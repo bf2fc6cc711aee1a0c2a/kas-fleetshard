@@ -172,4 +172,9 @@ public class FleetShardOperatorManager {
             return CompletableFuture.completedFuture(null);
         }
     }
+
+    public static List<ManagedKafka> getAllManagedKafkaInstances(KubeClient kubeClient) {
+        var mkCli = kubeClient.client().resources(ManagedKafka.class);
+        return mkCli.inAnyNamespace().list().getItems();
+    }
 }

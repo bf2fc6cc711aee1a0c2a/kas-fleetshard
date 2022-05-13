@@ -27,13 +27,13 @@ import io.strimzi.api.kafka.model.status.KafkaStatus;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.KafkaManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -67,14 +67,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     @Inject
     protected SecuritySecretManager secretManager;
 
-    @ConfigProperty(name = "image.kafka")
-    protected Optional<String> kafkaImage;
-
-    @ConfigProperty(name = "image.zookeeper")
-    protected Optional<String> zookeeperImage;
-
     @Inject
     protected KafkaInstanceConfigurations configs;
+
+    @Inject
+    protected OperandOverrideManager overrideManager;
 
     public static String kafkaClusterName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName();

@@ -57,7 +57,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
         KafkaBuilder builder = current != null ? new KafkaBuilder(current) : new KafkaBuilder();
 
         int replicas = getReplicas(managedKafka);
-
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         Kafka kafka = builder
                 .editOrNewMetadata()
                     .withName(kafkaClusterName(managedKafka))
@@ -72,14 +72,14 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
                         .withStorage(buildStorage())
                         .withConfig(buildKafkaConfig(managedKafka))
                         .withTemplate(getKafkaTemplate(managedKafka))
-                        .withImage(kafkaImage.orElse(null))
+                        .withImage(this.overrideManager.getKafkaImage(strimzi).orElse(null))
                     .endKafka()
                     .editOrNewZookeeper()
                         .withReplicas(this.configs.getConfig(managedKafka).getZookeeper().getReplicas())
                         .withStorage((SingleVolumeStorage) buildStorage())
                         .withTemplate(getZookeeperTemplate(managedKafka))
-                        .withImage(zookeeperImage.orElse(null))
-                    .endZookeeper()
+                        .withImage(this.overrideManager.getZookeeperImage(strimzi).orElse(null))
+                .endZookeeper()
                 .endSpec()
                 .build();
 
