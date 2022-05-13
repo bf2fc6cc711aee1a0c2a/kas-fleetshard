@@ -127,6 +127,8 @@ public class ImagePullSecretManagerTest {
     @Test
     void testPullSecretTypeChangePropagatedAsNewSecret() {
         String ns = "testPullSecretTypeChangePropagatedAsNewSecret";
+
+        // Setup a "pre-existing" secret
         Secret originalNamespacedSecret = client.secrets()
             .inNamespace(ns)
             .create(new SecretBuilder()
@@ -137,6 +139,7 @@ public class ImagePullSecretManagerTest {
                     .withData(Map.of("key", "value"))
                     .build());
 
+        // Replacement secret changes `type`
         Secret replacement = new SecretBuilder()
             .withNewMetadata()
                 .withName("name")
@@ -152,7 +155,9 @@ public class ImagePullSecretManagerTest {
 
         Secret replacementNamespacedSecret = client.secrets().inNamespace(ns).withName("mk-pull-name").get();
 
+        // Following the propagation, the original was deleted and a new secret created (with a new UID)
         assertNotEquals(originalNamespacedSecret.getMetadata().getUid(), replacementNamespacedSecret.getMetadata().getUid());
+        assertEquals("kubernetes.io/dockerconfigjson", replacementNamespacedSecret.getType());
     }
 
     @Test
@@ -166,7 +171,7 @@ public class ImagePullSecretManagerTest {
                         .withName("mk-pull-name")
                     .endMetadata()
                     .withType("kubernetes.io/dockercfg")
-                    .withData(Map.of("key", "value"))
+                    .withData(Map.of("key", "value1"))
                     .build());
 
         Secret replacement = new SecretBuilder()
@@ -174,7 +179,7 @@ public class ImagePullSecretManagerTest {
                 .withName("name")
             .endMetadata()
             .withType("kubernetes.io/dockercfg")
-            .withData(Map.of("key", "value"))
+            .withData(Map.of("key", "value2"))
             .build();
 
         ManagedKafka managedKafka = new ManagedKafka();
@@ -185,5 +190,8 @@ public class ImagePullSecretManagerTest {
         Secret replacementNamespacedSecret = client.secrets().inNamespace(ns).withName("mk-pull-name").get();
 
         assertEquals(originalNamespacedSecret.getMetadata().getUid(), replacementNamespacedSecret.getMetadata().getUid());
+        assertEquals(originalNamespacedSecret.getMetadata().getCreationTimestamp(), replacementNamespacedSecret.getMetadata().getCreationTimestamp());
+        assertEquals("kubernetes.io/dockercfg", replacementNamespacedSecret.getType());
+        assertEquals("value2", replacementNamespacedSecret.getData().get("key"));
     }
 }

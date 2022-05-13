@@ -57,7 +57,7 @@ public class ImagePullSecretManager {
                     final String namespace = mk.getMetadata().getNamespace();
                     final String secretName = getSecretName(mk, secret.getMetadata().getName());
 
-                    Secret s = new SecretBuilder(secret)
+                    Secret updated = new SecretBuilder(secret)
                         .withNewMetadata()
                             .withNamespace(namespace)
                             .withName(secretName)
@@ -65,21 +65,21 @@ public class ImagePullSecretManager {
                         .endMetadata()
                         .build();
 
-                    Resource<Secret> secretResource = client.secrets().inNamespace(namespace).withName(secretName);
-                    Secret current = informerManager.getLocalSecret(namespace, secretName);
+                    Resource<Secret> secretClient = client.secrets().inNamespace(namespace).withName(secretName);
+                    Secret existing = informerManager.getLocalSecret(namespace, secretName);
 
-                    if (current == null) {
-                        current = secretResource.get();
+                    if (existing == null) {
+                        existing = secretClient.get();
                     }
 
-                    if (current != null && !Objects.equals(s.getType(), current.getType())) {
+                    if (existing != null && !Objects.equals(updated.getType(), existing.getType())) {
                         log.infof("Type of secret %s/%s changed from %s to %s, deleting and recreating",
-                                namespace, secretName, current.getType(), s.getType());
-                        secretResource.delete();
+                                namespace, secretName, existing.getType(), updated.getType());
+                        secretClient.delete();
                     }
 
-                    OperandUtils.setAsOwner(mk, s);
-                    OperandUtils.createOrUpdate(client.secrets(), s);
+                    OperandUtils.setAsOwner(mk, updated);
+                    OperandUtils.createOrUpdate(client.secrets(), updated);
                 });
     }
 
