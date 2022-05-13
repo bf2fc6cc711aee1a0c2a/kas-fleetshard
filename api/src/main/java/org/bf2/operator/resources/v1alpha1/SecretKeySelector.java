@@ -25,12 +25,8 @@ import lombok.ToString;
 @Buildable(editableEnabled = false, validationEnabled = false, lazyCollectionInitEnabled = false, builderPackage = "io.fabric8.kubernetes.api.builder")
 public class SecretKeySelector implements KubernetesResource
 {
-
-    @JsonProperty("key")
     private String key;
-    @JsonProperty("name")
     private String name;
-    @JsonProperty("optional")
     private Boolean optional;
 
 
