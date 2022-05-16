@@ -54,7 +54,9 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
+        <!-- Include quarkus.platform.test.version to allow different dependency build artifacts -->
         <quarkus.platform.version>2.7.5.Final</quarkus.platform.version>
+        <quarkus.platform.test.version>2.7.5.Final</quarkus.platform.test.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.26.0</strimzi.version>
@@ -70,6 +72,7 @@
         <buildhelper-plugin.version>3.2.0</buildhelper-plugin.version>
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
+        <jakarta.validation.version>2.0.2</jakarta.validation.version>
         
         <!-- Override version for maven-install-plugin because there is a bug in
              3.0.0-M1 preventing installing of modules with packaging of feature
@@ -103,6 +106,11 @@
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>openshift-model-operatorhub</artifactId>
+                <version>${fabric8.client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>openshift-model-common</artifactId>
                 <version>${fabric8.client.version}</version>
             </dependency>
             <dependency>
@@ -193,7 +201,7 @@
             <dependency>
                 <groupId>io.quarkus</groupId>
                 <artifactId>quarkus-junit5</artifactId>
-                <version>${quarkus.platform.version}</version>
+                <version>${quarkus.platform.test.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -215,6 +223,11 @@
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
                 <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta.validation.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
