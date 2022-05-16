@@ -4,7 +4,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -57,7 +57,7 @@ public class NoDeploymentCanary extends org.bf2.operator.operands.Canary {
     }
 
     @Override
-    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    public void delete(ManagedKafka managedKafka, Context context) {
         kubernetesClient.configMaps()
                 .inNamespace(canaryNamespace(managedKafka))
                 .withName(canaryName(managedKafka))

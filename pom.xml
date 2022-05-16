@@ -54,16 +54,16 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
-        <quarkus.platform.version>2.2.2.Final</quarkus.platform.version>
+        <quarkus.platform.version>2.7.5.Final</quarkus.platform.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.26.0</strimzi.version>
-        <fabric8.client.version>5.7.2</fabric8.client.version>
-        <quarkus.operator.extension>2.0.0.Beta5</quarkus.operator.extension>
+        <fabric8.client.version>5.12.2</fabric8.client.version>
+        <quarkus.operator.extension>3.0.7</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.2</junit.platform.version>
-        <sundrio.version>0.40.1</sundrio.version>
-        <lombok.version>1.18.20</lombok.version>
+        <sundrio.version>0.50.4</sundrio.version>
+        <lombok.version>1.18.22</lombok.version>
         <jandex-plugin.version>1.0.7</jandex-plugin.version>
         <properties-plugin.version>1.0.0</properties-plugin.version>
         <impsort-plugin.version>1.6.0</impsort-plugin.version>

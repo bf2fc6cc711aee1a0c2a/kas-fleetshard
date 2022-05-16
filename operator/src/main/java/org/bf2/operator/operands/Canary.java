@@ -23,7 +23,6 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.quarkus.arc.DefaultBean;
-import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -47,7 +46,6 @@ import java.util.Optional;
  * Provides same functionalities to get a Canary deployment from a ManagedKafka one
  * and checking the corresponding status
  */
-@Startup
 @ApplicationScoped
 @DefaultBean
 public class Canary extends AbstractCanary {

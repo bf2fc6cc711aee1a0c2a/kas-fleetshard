@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
-import io.fabric8.kubernetes.client.utils.Serialization;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -43,7 +42,7 @@ public class KafkaInstanceConfiguration {
     protected Storage storage = new Storage();
 
     public Map<String, String> toMap(boolean includeAll) {
-        ObjectMapper mapper = Serialization.jsonMapper();
+        ObjectMapper mapper = new ObjectMapper();
         if (!includeAll) {
             mapper = mapper.copy().setSerializationInclusion(Include.NON_NULL);
         }

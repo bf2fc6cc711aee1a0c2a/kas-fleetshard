@@ -1,7 +1,6 @@
 package org.bf2.sync.controlplane;
 
 import io.quarkus.arc.profile.UnlessBuildProfile;
-import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
@@ -33,7 +32,6 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@Startup
 @ApplicationScoped
 @UnlessBuildProfile("prod")
 @Path(ControlPlaneApi.BASE_PATH)

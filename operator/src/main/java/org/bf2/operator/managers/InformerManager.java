@@ -9,12 +9,12 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.openshift.api.model.Route;
+import io.javaoperatorsdk.operator.processing.event.source.controller.ResourceAction;
 import io.quarkus.runtime.Startup;
 import io.strimzi.api.kafka.KafkaList;
 import io.strimzi.api.kafka.model.Kafka;
@@ -84,7 +84,7 @@ public class InformerManager {
                 new ResourceEventSource() {
 
                     @Override
-                    protected void handleEvent(HasMetadata resource, Action action) {
+                    protected void handleEvent(HasMetadata resource, ResourceAction action) {
                         if (kafkaInformer != null) {
                             // TODO: could index by uid, or use namespace
                             String name =
@@ -93,7 +93,7 @@ public class InformerManager {
                                 Kafka kafka = kafkaInformer
                                         .getByKey(Cache.namespaceKeyFunc(resource.getMetadata().getNamespace(), name));
                                 if (kafka != null) {
-                                    handleEvent(kafka, Action.MODIFIED);
+                                    handleEvent(kafka, ResourceAction.UPDATED);
                                 }
                             }
                         }

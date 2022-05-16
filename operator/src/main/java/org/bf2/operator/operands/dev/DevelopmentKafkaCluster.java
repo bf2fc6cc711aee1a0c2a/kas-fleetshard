@@ -1,6 +1,6 @@
 package org.bf2.operator.operands.dev;
 
-import io.javaoperatorsdk.operator.api.Context;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
@@ -44,7 +44,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
     }
 
     @Override
-    public void delete(ManagedKafka managedKafka, Context<ManagedKafka> context) {
+    public void delete(ManagedKafka managedKafka, Context context) {
         super.delete(managedKafka, context);
         secretManager.delete(managedKafka);
     }

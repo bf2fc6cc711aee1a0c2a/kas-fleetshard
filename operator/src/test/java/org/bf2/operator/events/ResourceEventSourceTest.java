@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.EventHandler;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.quarkus.test.junit.QuarkusTest;
 import org.bf2.common.OperandUtils;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,7 @@ class ResourceEventSourceTest {
         ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
         Mockito.verify(mockEventHandler).handleEvent(eventCaptor.capture());
 
-        assertEquals("uid", eventCaptor.getValue().getRelatedCustomResourceUid());
+        assertEquals(new ResourceID("parent", "ns"), eventCaptor.getValue().getRelatedCustomResourceID());
     }
 
 }
