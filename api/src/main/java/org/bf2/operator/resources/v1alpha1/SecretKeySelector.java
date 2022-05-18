@@ -2,7 +2,6 @@
 package org.bf2.operator.resources.v1alpha1;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
@@ -50,35 +49,28 @@ public class SecretKeySelector implements KubernetesResource
         this.optional = optional;
     }
 
-    @JsonProperty("key")
     public String getKey() {
         return key;
     }
 
-    @JsonProperty("key")
     public void setKey(String key) {
         this.key = key;
     }
 
-    @JsonProperty("name")
     public String getName() {
         return name;
     }
 
-    @JsonProperty("name")
     public void setName(String name) {
         this.name = name;
     }
 
-    @JsonProperty("optional")
     public Boolean getOptional() {
         return optional;
     }
 
-    @JsonProperty("optional")
     public void setOptional(Boolean optional) {
         this.optional = optional;
     }
-
 
 }
