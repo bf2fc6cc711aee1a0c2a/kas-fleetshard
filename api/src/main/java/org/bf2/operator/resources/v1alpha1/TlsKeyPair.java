@@ -5,8 +5,6 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
-import javax.validation.constraints.NotNull;
-
 /**
  * Represents a TLS keys pair, both public (signed certificate) and private
  */
@@ -19,10 +17,11 @@ import javax.validation.constraints.NotNull;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TlsKeyPair {
 
-    @NotNull
+
     private String cert;
-    @NotNull
     private String key;
+    private SecretKeySelector certRef;
+    private SecretKeySelector keyRef;
 
     public String getCert() {
         return cert;
@@ -33,10 +32,26 @@ public class TlsKeyPair {
     }
 
     public String getKey() {
-        return key;
+            return key;
     }
 
     public void setKey(String key) {
         this.key = key;
+    }
+
+    public SecretKeySelector getCertRef() {
+        return certRef;
+    }
+
+    public void setCertRef(SecretKeySelector certRef) {
+        this.certRef = certRef;
+    }
+
+    public SecretKeySelector getKeyRef() {
+        return keyRef;
+    }
+
+    public void setKeyRef(SecretKeySelector keyRef) {
+        this.keyRef = keyRef;
     }
 }

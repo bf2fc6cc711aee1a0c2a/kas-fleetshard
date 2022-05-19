@@ -44,10 +44,10 @@ public class ServiceAccount {
     // opened GitHub issue for this: https://github.com/fabric8io/kubernetes-client/issues/3411
     @NotNull
     private String name;
-    @NotNull
     private String principal;
-    @NotNull
     private String password;
+    private SecretKeySelector principalRef;
+    private SecretKeySelector passwordRef;
 
     public String getName() {
         return name;
@@ -72,4 +72,21 @@ public class ServiceAccount {
     public void setPassword(String password) {
         this.password = password;
     }
+
+    public SecretKeySelector getPrincipalRef() {
+        return principalRef;
+    }
+
+    public void setPrincipalRef(SecretKeySelector principalRef) {
+        this.principalRef = principalRef;
+    }
+
+    public SecretKeySelector getPasswordRef() {
+        return passwordRef;
+    }
+
+    public void setPasswordRef(SecretKeySelector passwordRef) {
+        this.passwordRef = passwordRef;
+    }
+
 }

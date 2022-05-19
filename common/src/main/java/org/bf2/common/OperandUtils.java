@@ -21,8 +21,10 @@ public class OperandUtils {
 
     public static final String K8S_NAME_LABEL = "app.kubernetes.io/name";
     public static final String MANAGED_BY_LABEL = "app.kubernetes.io/managed-by";
+    public static final String COMPONENT_LABEL = "app.kubernetes.io/component";
     public static final String STRIMZI_OPERATOR_NAME = "strimzi-cluster-operator";
     public static final String FLEETSHARD_OPERATOR_NAME = "kas-fleetshard-operator";
+    public static final String MASTER_SECRET_NAME = "master-secret";
 
     /**
      * Set the provided resource as owner of the resource
@@ -43,6 +45,12 @@ public class OperandUtils {
     public static Map<String, String> getDefaultLabels() {
         LinkedHashMap<String, String> result = new LinkedHashMap<>(1);
         result.put(MANAGED_BY_LABEL, FLEETSHARD_OPERATOR_NAME);
+        return result;
+    }
+
+    public static Map<String, String> getMasterSecretLabel() {
+        LinkedHashMap<String, String> result = new LinkedHashMap<>(1);
+        result.put(COMPONENT_LABEL, MASTER_SECRET_NAME);
         return result;
     }
 

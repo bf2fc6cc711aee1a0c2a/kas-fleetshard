@@ -19,6 +19,8 @@ public class ManagedKafkaAuthenticationOAuth {
 
     private String clientId;
     private String clientSecret;
+    private SecretKeySelector clientIdRef;
+    private SecretKeySelector clientSecretRef;
     private String tokenEndpointURI;
     private String jwksEndpointURI;
     private String validIssuerEndpointURI;
@@ -106,5 +108,21 @@ public class ManagedKafkaAuthenticationOAuth {
 
     public void setMaximumSessionLifetime(Long maximumSessionLifetime) {
         this.maximumSessionLifetime = maximumSessionLifetime;
+    }
+
+    public SecretKeySelector getClientIdRef() {
+        return clientIdRef;
+    }
+
+    public void setClientIdRef(SecretKeySelector clientIdRef) {
+        this.clientIdRef = clientIdRef;
+    }
+
+    public SecretKeySelector getClientSecretRef() {
+        return clientSecretRef;
+    }
+
+    public void setClientSecretRef(SecretKeySelector clientSecretRef) {
+        this.clientSecretRef = clientSecretRef;
     }
 }

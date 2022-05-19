@@ -65,6 +65,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     protected InformerManager informerManager;
 
     @Inject
+    protected SecuritySecretManager secretManager;
+
+    @Inject
     protected KafkaInstanceConfigurations configs;
 
     @Inject
@@ -238,7 +241,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             CertSecretSource ssoTlsCertSecretSource = buildSsoTlsCertSecretSource(managedKafka);
 
             KafkaListenerAuthenticationOAuthBuilder plainOverOauthAuthenticationListenerBuilder = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withClientId(getOAuthClientId(managedKafka))
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withFallbackUserNameClaim(managedKafkaAuthenticationOAuth.getFallbackUserNameClaim())
@@ -254,7 +257,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             plainOverOauthAuthenticationListener = plainOverOauthAuthenticationListenerBuilder.build();
 
             KafkaListenerAuthenticationOAuthBuilder oauthAuthenticationListenerBuilder = new KafkaListenerAuthenticationOAuthBuilder()
-                    .withClientId(managedKafkaAuthenticationOAuth.getClientId())
+                    .withClientId(getOAuthClientId(managedKafka))
                     .withJwksEndpointUri(managedKafkaAuthenticationOAuth.getJwksEndpointURI())
                     .withUserNameClaim(managedKafkaAuthenticationOAuth.getUserNameClaim())
                     .withFallbackUserNameClaim(managedKafkaAuthenticationOAuth.getFallbackUserNameClaim())
@@ -341,7 +344,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected GenericSecretSource buildSsoClientGenericSecretSource(ManagedKafka managedKafka) {
-        if (managedKafka.getSpec().getOauth().getClientSecret() == null) {
+        if (managedKafka.getSpec().getOauth().getClientSecret() == null &&
+                managedKafka.getSpec().getOauth().getClientSecretRef() == null) {
             return null;
         }
 
@@ -397,6 +401,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public Quantity calculateRetentionSize(ManagedKafka managedKafka) {
         return managedKafka.getSpec().getCapacity().getMaxDataRetentionSize();
+    }
+
+    private String getOAuthClientId(ManagedKafka managedKafka) {
+        return secretManager.getSecretValue(managedKafka,
+                managedKafka.getSpec().getOauth(),
+                ManagedKafkaAuthenticationOAuth::getClientIdRef,
+                ManagedKafkaAuthenticationOAuth::getClientId);
     }
 
     public abstract int getReplicas(ManagedKafka managedKafka);
