@@ -41,7 +41,7 @@ public class CanaryTest {
     @ParameterizedTest(name = "createCanaryDeployment: {0}")
     @CsvSource({
             "shouldHaveNoDiffByDefault, test-mk-kafka-bootstrap, false, '[]'",
-            "shouldHaveNodeAffinity, test-mk-kafka-bootstrap, true, '[{\"op\":\"add\",\"path\":\"/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/spec/affinity/nodeAffinity\",\"value\":{\"requiredDuringSchedulingIgnoredDuringExecution\":{\"nodeSelectorTerms\":[{\"matchExpressions\":[{\"key\":\"bf2.org/kafkaInstanceProfileType\",\"operator\":\"In\",\"values\":[\"standard\"]}]}]}}}]'",
+            "shouldHaveNodeAffinity, test-mk-kafka-bootstrap, true, '[{\"op\":\"add\",\"path\":\"/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/spec/affinity/nodeAffinity\",\"value\":{\"requiredDuringSchedulingIgnoredDuringExecution\":{\"nodeSelectorTerms\":[{\"matchExpressions\":[{\"key\":\"bf2.org/kafkaInstanceProfileType\",\"operator\":\"In\",\"values\":[\"standard\"]}]}]}}},{\"op\":\"add\",\"path\":\"/spec/template/spec/tolerations\",\"value\":[{\"effect\":\"NoExecute\",\"key\":\"bf2.org/kafkaInstanceProfileType\",\"value\":\"standard\"}]}]'",
             "shouldNotHaveInitContainersIfDevCluster, bootstrap.kas.testing.domain.tld, false, '[{\"op\":\"remove\",\"path\":\"/spec/template/spec/initContainers\"},{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/env/0/value\",\"value\":\"bootstrap.kas.testing.domain.tld:443\"}]'",
     })
     void createCanaryDeployment(String name, String bootstrapServerHost, boolean useNodeAffinity, String expectedDiff) throws Exception {
@@ -60,8 +60,8 @@ public class CanaryTest {
                 new ObjectMetaBuilder(mk.getMetadata()).addToLabels(ManagedKafka.PROFILE_TYPE, "standard").build());
 
         ManagedKafkaAgent agent = ManagedKafkaAgentResourceClient.getDummyInstance();
-        agent.getSpec().setDeveloper(new Profile());
-        agent.getSpec().setStandard(new Profile());
+        agent.getSpec().getCapacity().put("developer", new Profile());
+        agent.getSpec().getCapacity().put("standard", new Profile());
         InformerManager manager = Mockito.mock(InformerManager.class);
         Mockito.when(manager.getLocalAgent()).thenReturn(agent);
         QuarkusMock.installMockForType(manager, InformerManager.class);

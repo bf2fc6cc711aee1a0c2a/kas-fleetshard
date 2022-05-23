@@ -5,9 +5,9 @@ metadata:
     org.bf2.operator/desired-broker-replicas: "1"
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    bf2.org/kafkaInstanceProfileType: "developer"
     ingressType: "sharded"
     managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-    bf2.org/kafkaInstanceProfileType: "developer"
     managedkafka.bf2.org/kas-zone2: "true"
     managedkafka.bf2.org/kas-zone1: "true"
     managedkafka.bf2.org/kas-zone0: "true"
@@ -96,8 +96,10 @@ spec:
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 1
+      client.quota.callback.quotaPolicy.check-interval: "15"
       client.quota.callback.static.fetch: "4194304"
       message.max.bytes: 1048588
+      client.quota.callback.kafka.clientIdPrefix: "__redhat_strimzi"
       transaction.state.log.replication.factor: 1
       log.message.format.version: "2.6"
       connections.max.reauth.ms: 299000
@@ -108,9 +110,6 @@ spec:
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.duration: "PT300S"
       strimzi.authorization.custom-authorizer.adminclient-listener.name: "controlplane-9090"
       client.quota.callback.static.storage.check-interval: "30"
-      client.quota.callback.usageMetrics.topic: __redhat_strimzi_volumeUsageMetrics
-      client.quota.callback.quotaPolicy.check-interval: "15"
-      client.quota.callback.kafka.clientIdPrefix: __redhat_strimzi
       strimzi.authorization.custom-authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
       strimzi.authorization.custom-authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
       strimzi.authorization.custom-authorizer.acl.003: "default=true;permission=allow;cluster=*;operations=describe"
@@ -125,6 +124,8 @@ spec:
       strimzi.authorization.custom-authorizer.acl.005: "permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls"
       strimzi.authorization.custom-authorizer.acl.006: "permission=deny;cluster=*;operations=describe;apis-except=describe_acls"
       strimzi.authorization.custom-authorizer.acl.007: "permission=allow;cluster=*;operations=idempotent_write"
+      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
+      client.quota.callback.usageMetrics.topic: "__redhat_strimzi_volumeUsageMetrics"
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.apis: "PRODUCE,FETCH"
       inter.broker.protocol.version: "2.6"
       strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: "__redhat_"
@@ -157,7 +158,6 @@ spec:
         transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
-      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
     storage:
       volumes:
       - type: "persistent-claim"
@@ -221,6 +221,9 @@ spec:
         - effect: "NoExecute"
           key: "org.bf2.operator/kafka-broker"
           operator: "Exists"
+        - effect: "NoExecute"
+          key: "bf2.org/kafkaInstanceProfileType"
+          value: "developer"
         topologySpreadConstraints:
         - labelSelector:
             matchExpressions:
@@ -265,6 +268,10 @@ spec:
           optional: false
     template:
       pod:
+        tolerations:
+        - effect: "NoExecute"
+          key: "bf2.org/kafkaInstanceProfileType"
+          value: "developer"
         topologySpreadConstraints:
         - labelSelector:
             matchExpressions:
@@ -297,3 +304,7 @@ spec:
                     - "test-mk-zookeeper"
                 topologyKey: "kubernetes.io/hostname"
               weight: 100
+        tolerations:
+        - effect: "NoExecute"
+          key: "bf2.org/kafkaInstanceProfileType"
+          value: "developer"

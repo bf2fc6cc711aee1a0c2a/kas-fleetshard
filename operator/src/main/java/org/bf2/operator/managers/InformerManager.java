@@ -106,10 +106,11 @@ public class InformerManager {
             routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
         }
 
+        // TODO: replace this with the resource cache maintained by the controller
         managedKafkaAgentInformer = resourceInformerFactory.create(ManagedKafkaAgent.class,
                 kubernetesClient.resources(ManagedKafkaAgent.class)
                         .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME),
-                eventSource);
+                null); // these events are not processed by the event source
     }
 
     static <T extends HasMetadata> FilterWatchListDeletable<T, ? extends KubernetesResourceList<T>> filter(

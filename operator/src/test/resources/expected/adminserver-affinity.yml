@@ -102,6 +102,10 @@ spec:
         volumeMounts:
         - mountPath: "/opt/kafka-admin-api/custom-config/"
           name: "custom-config"
+      tolerations:
+      - effect: "NoExecute"
+        key: "bf2.org/kafkaInstanceProfileType"
+        value: "standard"
       volumes:
       - configMap:
           name: "test-mk-q-admin-server"

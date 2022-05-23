@@ -8,6 +8,9 @@ import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Buildable(
         builderPackage = "io.fabric8.kubernetes.api.builder",
         editableEnabled = false
@@ -18,8 +21,7 @@ import javax.validation.constraints.NotNull;
 public class ManagedKafkaAgentSpec {
     @NotNull
     ObservabilityConfiguration observability;
-    Profile standard;
-    Profile developer;
+    Map<String, Profile> capacity = new LinkedHashMap<>();
 
     public ObservabilityConfiguration getObservability() {
         return observability;
@@ -29,20 +31,12 @@ public class ManagedKafkaAgentSpec {
         this.observability = observability;
     }
 
-    public Profile getDeveloper() {
-        return developer;
+    public Map<String, Profile> getCapacity() {
+        return capacity;
     }
 
-    public Profile getStandard() {
-        return standard;
-    }
-
-    public void setDeveloper(Profile developer) {
-        this.developer = developer;
-    }
-
-    public void setStandard(Profile standard) {
-        this.standard = standard;
+    public void setCapacity(Map<String, Profile> capacity) {
+        this.capacity = capacity;
     }
 
 }

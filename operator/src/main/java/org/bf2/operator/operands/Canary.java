@@ -121,6 +121,7 @@ public class Canary extends AbstractCanary {
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
                             .withAffinity(affinity)
+                            .withTolerations(OperandUtils.profileTolerations(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec();

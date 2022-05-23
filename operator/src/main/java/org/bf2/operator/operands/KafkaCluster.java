@@ -388,6 +388,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // some of them will have ZK, admin-server, canary and broker needs to be on its own
         podTemplateBuilder.addToTolerations(buildKafkaBrokerToleration());
 
+        podTemplateBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka));
+
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
 
@@ -463,6 +465,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
             addAffinity = true;
         }
 
+        podNestedBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka));
+
         if (addAffinity) {
             podNestedBuilder.withAffinity(affinityBuilder.build());
         }
@@ -526,12 +530,17 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka, config.getExporter().isColocateWithZookeeper());
 
-        if (affinity != null) {
+        List<Toleration> profileTolerations = OperandUtils.profileTolerations(managedKafka);
+        if (!profileTolerations.isEmpty()) {
             specBuilder.editOrNewTemplate()
                     .editOrNewPod()
-                    .withAffinity(affinity)
+                    .withTolerations(profileTolerations)
                     .endPod()
                     .endTemplate();
+        }
+
+        if (affinity != null) {
+            specBuilder.editOrNewTemplate().editOrNewPod().withAffinity(affinity).endPod().endTemplate();
         }
 
         return specBuilder.build();

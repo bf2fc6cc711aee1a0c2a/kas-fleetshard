@@ -4,14 +4,12 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
@@ -41,9 +39,6 @@ class AdminServerTest {
 
     @Inject
     KubernetesClient client;
-
-    @KubernetesTestServer
-    KubernetesServer server;
 
     @Inject
     AdminServer adminServer;
@@ -104,11 +99,6 @@ class AdminServerTest {
         QuarkusMock.installMockForType(overrideManager, OperandOverrideManager.class);
 
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
-        server.getClient().apps().deployments().create(adminServerDeployment);
-
-        assertNotNull(server.getClient().apps().deployments()
-                .inNamespace(adminServerDeployment.getMetadata().getNamespace())
-                .withName(adminServerDeployment.getMetadata().getName()).get());
 
         KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource);
     }
