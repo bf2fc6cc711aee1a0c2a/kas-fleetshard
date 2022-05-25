@@ -347,7 +347,7 @@ public class OMB {
         workload.validate();
 
         try (
-             Worker worker = workers.isEmpty()?new LocalWorker():new DistributedWorkersEnsemble(workers);
+             Worker worker = workers.isEmpty()?new LocalWorker():new DistributedWorkersEnsemble(workers, false);
              WorkloadGenerator generator = new WorkloadGenerator(driver.name, workload, worker);
         ) {
             LOGGER.info("--------------- WORKLOAD: {} --- DRIVER: {} ---------------", workload.name, driver.name);

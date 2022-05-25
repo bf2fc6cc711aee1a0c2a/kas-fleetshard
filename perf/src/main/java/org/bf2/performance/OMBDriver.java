@@ -12,7 +12,7 @@ public class OMBDriver extends Config {
         super();
         reset = true; // delete all test topics before each run
         name = "Kafka";
-        driverClass = "io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriver";
+        driverClass = "io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriverWithMetrics";
     }
 
     public String getName() {

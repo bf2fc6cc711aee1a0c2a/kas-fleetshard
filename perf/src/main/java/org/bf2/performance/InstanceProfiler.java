@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.openmessaging.benchmark.TestResult;
 import io.openmessaging.benchmark.Workload;
+import io.openmessaging.benchmark.driver.kafka.KafkaBenchmarkDriverWithMetrics;
 import io.openmessaging.benchmark.utils.distributor.KeyDistributorType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,6 +34,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -297,9 +299,9 @@ public class InstanceProfiler {
         }
     }
 
-    /*private void runLocalTest() throws Exception {
-        Profile profile = Profile.LATENCY;
-        sizeInstance();
+    private void runLocalTest() throws Exception {
+        Profile profile = LATENCY;
+        sizeAndUpdateConfig();
         deployIfNeeded("profile");
         OMBDriver driver = createDriver(instanceBootstrap, profile);
 
@@ -310,13 +312,13 @@ public class InstanceProfiler {
         OMBWorkload load = createBasicWorkload(profile.messageSize*900, 1, profile);
         load.warmupDurationMinutes = 2;
         load.testDurationMinutes = 3;
-        load.subscriptionsPerTopic = 0;
+        load.subscriptionsPerTopic = 1;
         load.producersPerTopic = 2;
-        load.consumerPerSubscription = 0;
-        load.producerRate = 1;
+        load.consumerPerSubscription = 2;
+        load.producerRate = 10;
         // could bypass omb altogether
         omb.runWorkload(new File("target"), driver, Collections.emptyList(), load);
-    }*/
+    }
 
     private void teardown() throws Exception {
         if (omb != null) {
@@ -558,7 +560,7 @@ public class InstanceProfiler {
             result.medianEndToEndLatency99pct = TestUtils.getMedian(loadTestResult.endToEndLatency99pct);
             result.aggregatedPublishLatency50pct = loadTestResult.aggregatedPublishLatency50pct;
             result.aggregatedPublishLatency99pct = loadTestResult.aggregatedPublishLatency99pct;
-            result.maxConnectionCount = loadTestResult.connectionCount.stream().max(Double::compareTo).get();
+            result.maxConnectionCount = loadTestResult.additionalMetrics.get(KafkaBenchmarkDriverWithMetrics.CONNECTION_COUNT).stream().max(Double::compareTo).get();
 
             if (resultConsumer != null) {
                 resultConsumer.accept(profile, loadTestResult);
@@ -727,7 +729,7 @@ public class InstanceProfiler {
             maxVmBytes -= 1 * ONE_GB;
         }
 
-        KafkaInstanceConfiguration toUse = Serialization.clone(testParameters.config);
+        KafkaInstanceConfiguration toUse = Serialization.jsonMapper().convertValue(testParameters.config, KafkaInstanceConfiguration.class);
 
         LOGGER.info("Calculated kafka sizing {} container memory, {} container cpu, and {} vm memory", memoryBytes,
                 cpuMillis, maxVmBytes);
