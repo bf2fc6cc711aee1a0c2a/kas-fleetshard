@@ -1,25 +1,18 @@
 package org.bf2.operator.operands;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
-import org.bf2.common.ManagedKafkaAgentResourceClient;
-import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
-import org.bf2.operator.resources.v1alpha1.Profile;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
@@ -48,23 +41,11 @@ public class CanaryTest {
         ManagedKafka mk = createManagedKafka(bootstrapServerHost);
 
         if (useNodeAffinity) {
-            useNodeAffinity(mk);
+            OperandTestUtils.useNodeAffinity(mk);
         }
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
         KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml", expectedDiff);
-    }
-
-    static void useNodeAffinity(ManagedKafka mk) {
-        mk.setMetadata(
-                new ObjectMetaBuilder(mk.getMetadata()).addToLabels(ManagedKafka.PROFILE_TYPE, "standard").build());
-
-        ManagedKafkaAgent agent = ManagedKafkaAgentResourceClient.getDummyInstance();
-        agent.getSpec().getCapacity().put("developer", new Profile());
-        agent.getSpec().getCapacity().put("standard", new Profile());
-        InformerManager manager = Mockito.mock(InformerManager.class);
-        Mockito.when(manager.getLocalAgent()).thenReturn(agent);
-        QuarkusMock.installMockForType(manager, InformerManager.class);
     }
 
     private ManagedKafka createManagedKafka(String bootstrapServerHost) {

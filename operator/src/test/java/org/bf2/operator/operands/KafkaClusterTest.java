@@ -125,7 +125,7 @@ class KafkaClusterTest {
     void testNodeAffinity() throws IOException {
         final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
 
-        CanaryTest.useNodeAffinity(managedKafka);
+        OperandTestUtils.useNodeAffinity(managedKafka);
 
         //When
         Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);

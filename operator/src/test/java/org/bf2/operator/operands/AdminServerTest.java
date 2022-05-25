@@ -85,7 +85,7 @@ class AdminServerTest {
         ManagedKafka mk = buildBasicManagedKafka(name, versionString, tls ? new TlsKeyPair() : null);
 
         if (useNodeAffinity) {
-            CanaryTest.useNodeAffinity(mk);
+            OperandTestUtils.useNodeAffinity(mk);
         }
 
         OperandOverride override = new OperandOverride();
