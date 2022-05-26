@@ -4,17 +4,26 @@ import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.AffinityBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
+import io.fabric8.kubernetes.api.model.NodeAffinity;
+import io.fabric8.kubernetes.api.model.NodeAffinityBuilder;
+import io.fabric8.kubernetes.api.model.NodeSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.api.model.PodAffinity;
+import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinityTerm;
 import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
+import io.fabric8.kubernetes.api.model.Toleration;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class OperandUtils {
@@ -79,15 +88,74 @@ public class OperandUtils {
         return withName.createOrReplace(resource);
     }
 
-    public static Affinity buildZookeeperPodAffinity(ManagedKafka managedKafka) {
+    /**
+     * Will likely always be a single toleration, but returns a list to gracefully handle null as empty
+     */
+    public static List<Toleration> profileTolerations(ManagedKafka managedKafka) {
+        String type =
+                OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.PROFILE_TYPE, null);
+
+        if (type == null) {
+            return Collections.emptyList();
+        }
+
+        return Collections.singletonList(new TolerationBuilder()
+                .withKey(ManagedKafka.PROFILE_TYPE)
+                .withValue(type)
+                .withEffect("NoExecute")
+                .build());
+    }
+
+    public static NodeAffinity nodeAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka) {
+        if (agent == null || agent.getSpec().getCapacity().size() <= 1) {
+            return null; // not expected to use a node label
+        }
+        String type =
+                OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.PROFILE_TYPE, null);
+        if (type == null) {
+            return null;
+        }
+        return new NodeAffinityBuilder().withNewRequiredDuringSchedulingIgnoredDuringExecution()
+                .addNewNodeSelectorTerm()
+                .addToMatchExpressions(new NodeSelectorRequirementBuilder()
+                        .withKey(ManagedKafka.PROFILE_TYPE)
+                        .withOperator("In")
+                        .withValues(type)
+                        .build())
+                .endNodeSelectorTerm()
+                .endRequiredDuringSchedulingIgnoredDuringExecution()
+                .build();
+    }
+
+    /**
+     * Create the Affinity based upon the Agent/profile and if it should be collocated with the zookeeper
+     */
+    public static Affinity buildAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka, boolean collocateWithZookeeper) {
+        AffinityBuilder affinityBuilder = new AffinityBuilder();
+        boolean useAffinity = false;
+        NodeAffinity nodeAffinity = nodeAffinity(agent, managedKafka);
+        if (nodeAffinity != null) {
+            affinityBuilder.withNodeAffinity(nodeAffinity);
+            useAffinity = true;
+        }
+        if(collocateWithZookeeper) {
+            affinityBuilder.withPodAffinity(buildZookeeperPodAffinity(managedKafka));
+            useAffinity = true;
+        }
+        if (useAffinity) {
+            return affinityBuilder.build();
+        }
+        return null;
+    }
+
+    public static PodAffinity buildZookeeperPodAffinity(ManagedKafka managedKafka) {
         // place where zookeeper is placed
-        return new AffinityBuilder().withNewPodAffinity()
-                .addNewPreferredDuringSchedulingIgnoredDuringExecution()
-                    .withWeight(100)
-                    .withPodAffinityTerm(affinityTerm("strimzi.io/name", managedKafka.getMetadata().getName()+"-zookeeper"))
+        return new PodAffinityBuilder().addNewPreferredDuringSchedulingIgnoredDuringExecution()
+                .withWeight(100)
+                .withPodAffinityTerm(
+                        affinityTerm("strimzi.io/name", managedKafka.getMetadata().getName() + "-zookeeper"))
                 .endPreferredDuringSchedulingIgnoredDuringExecution()
-            .endPodAffinity()
-        .build();
+                .build();
     }
 
     public static PodAffinityTerm affinityTerm(String key, String value) {

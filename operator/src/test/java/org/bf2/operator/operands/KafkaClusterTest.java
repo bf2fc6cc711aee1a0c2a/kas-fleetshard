@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -118,6 +119,46 @@ class KafkaClusterTest {
         KafkaInstanceConfigurations mock = Mockito.mock(KafkaInstanceConfigurations.class);
         Mockito.when(mock.getConfig(Mockito.<ManagedKafka>any())).thenReturn(clone);
         QuarkusMock.installMockForType(mock, KafkaInstanceConfigurations.class);
+    }
+
+    @Test
+    void testNodeAffinity() throws IOException {
+        final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
+
+        OperandTestUtils.useNodeAffinity(managedKafka);
+
+        //When
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        //Then
+        Affinity affinity = kafka.getSpec().getKafka().getTemplate().getPod().getAffinity();
+        String expected = "---\n"
+                + "nodeAffinity:\n"
+                + "  requiredDuringSchedulingIgnoredDuringExecution:\n"
+                + "    nodeSelectorTerms:\n"
+                + "    - matchExpressions:\n"
+                + "      - key: \"bf2.org/kafkaInstanceProfileType\"\n"
+                + "        operator: \"In\"\n"
+                + "        values:\n"
+                + "        - \"standard\"\n"
+                + "podAffinity:\n"
+                + "  preferredDuringSchedulingIgnoredDuringExecution:\n"
+                + "  - podAffinityTerm:\n"
+                + "      labelSelector:\n"
+                + "        matchExpressions:\n"
+                + "        - key: \"strimzi.io/name\"\n"
+                + "          operator: \"In\"\n"
+                + "          values:\n"
+                + "          - \"test-mk-zookeeper\"\n"
+                + "      topologyKey: \"kubernetes.io/hostname\"\n"
+                + "    weight: 100\n";
+        assertEquals(expected, Serialization.asYaml(affinity));
+
+        affinity = kafka.getSpec().getKafkaExporter().getTemplate().getPod().getAffinity();
+        assertEquals(expected, Serialization.asYaml(affinity));
+
+        assertEquals(affinity.getNodeAffinity(),
+                kafka.getSpec().getZookeeper().getTemplate().getPod().getAffinity().getNodeAffinity());
     }
 
     @Test

@@ -4,14 +4,12 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
-import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
@@ -41,9 +39,6 @@ class AdminServerTest {
 
     @Inject
     KubernetesClient client;
-
-    @KubernetesTestServer
-    KubernetesServer server;
 
     @Inject
     AdminServer adminServer;
@@ -82,11 +77,16 @@ class AdminServerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "test-mk-q,     1, true,  false, /expected/adminserver.yml",
-        "test-mk-tls-q, 2, true,  true,  /expected/adminserver-tls.yml"
+        "test-mk-q,     1, true,  false, false, /expected/adminserver.yml",
+        "test-mk-tls-q, 2, true,  true, false, /expected/adminserver-tls.yml",
+        "test-mk-q,     2, true,  false, true, /expected/adminserver-affinity.yml"
     })
-    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, String expectedResource) throws Exception {
+    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, boolean useNodeAffinity, String expectedResource) throws Exception {
         ManagedKafka mk = buildBasicManagedKafka(name, versionString, tls ? new TlsKeyPair() : null);
+
+        if (useNodeAffinity) {
+            OperandTestUtils.useNodeAffinity(mk);
+        }
 
         OperandOverride override = new OperandOverride();
         override.setImage("quay.io/mk-ci-cd/kafka-admin-api:0.8.0");
@@ -99,11 +99,6 @@ class AdminServerTest {
         QuarkusMock.installMockForType(overrideManager, OperandOverrideManager.class);
 
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
-        server.getClient().apps().deployments().create(adminServerDeployment);
-
-        assertNotNull(server.getClient().apps().deployments()
-                .inNamespace(adminServerDeployment.getMetadata().getNamespace())
-                .withName(adminServerDeployment.getMetadata().getName()).get());
 
         KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource);
     }
@@ -211,4 +206,5 @@ class AdminServerTest {
         adminServer.createOrUpdate(mk);
         assertNotNull(deployment.get());
     }
+
 }

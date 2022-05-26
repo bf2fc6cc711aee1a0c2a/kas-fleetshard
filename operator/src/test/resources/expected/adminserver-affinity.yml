@@ -1,0 +1,113 @@
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+    app: "test-mk-q-admin-server"
+    bf2.org/kafkaInstanceProfileType: "standard"
+    app.kubernetes.io/component: "adminserver"
+  name: "test-mk-q-admin-server"
+  namespace: "test"
+  ownerReferences:
+  - apiVersion: "managedkafka.bf2.org/v1alpha1"
+    kind: "ManagedKafka"
+    name: "test-mk-q"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      app: "test-mk-q-admin-server"
+  template:
+    metadata:
+      annotations:
+        managedkafka.bf2.org/secret-dependency-digest: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+      labels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        app: "test-mk-q-admin-server"
+        bf2.org/kafkaInstanceProfileType: "standard"
+        app.kubernetes.io/component: "adminserver"
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "bf2.org/kafkaInstanceProfileType"
+                operator: "In"
+                values:
+                - "standard"
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                  - "test-mk-q-zookeeper"
+              topologyKey: "kubernetes.io/hostname"
+            weight: 100
+      containers:
+      - env:
+        - name: "KAFKA_ADMIN_REPLICATION_FACTOR"
+          value: "3"
+        - name: "KAFKA_ADMIN_BOOTSTRAP_SERVERS"
+          value: "test-mk-q-kafka-bootstrap:9095"
+        - name: "KAFKA_ADMIN_BROKER_TLS_ENABLED"
+          value: "true"
+        - name: "KAFKA_ADMIN_BROKER_TRUSTED_CERT"
+          valueFrom:
+            secretKeyRef:
+              key: "ca.crt"
+              name: "test-mk-q-cluster-ca-cert"
+              optional: false
+        - name: "KAFKA_ADMIN_ACL_RESOURCE_OPERATIONS"
+          value: "{ \"cluster\": [ \"describe\", \"alter\" ], \"group\": [ \"all\"\
+            , \"delete\", \"describe\", \"read\" ], \"topic\": [ \"all\", \"alter\"\
+            , \"alter_configs\", \"create\", \"delete\", \"describe\", \"describe_configs\"\
+            , \"read\", \"write\" ], \"transactional_id\": [ \"all\", \"describe\"\
+            , \"write\" ] }"
+        - name: "KAFKA_ADMIN_NUM_PARTITIONS_MAX"
+          value: "1000"
+        - name: "KAFKA_ADMIN_OAUTH_ENABLED"
+          value: "false"
+        image: "quay.io/mk-ci-cd/kafka-admin-api:0.8.0"
+        livenessProbe:
+          httpGet:
+            path: "/health/live"
+            port: "http"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        name: "admin-server"
+        ports:
+        - containerPort: 8080
+          name: "http"
+        - containerPort: 8080
+          name: "management"
+        readinessProbe:
+          httpGet:
+            path: "/health/ready"
+            port: "http"
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - mountPath: "/opt/kafka-admin-api/custom-config/"
+          name: "custom-config"
+      tolerations:
+      - effect: "NoExecute"
+        key: "bf2.org/kafkaInstanceProfileType"
+        value: "standard"
+      volumes:
+      - configMap:
+          name: "test-mk-q-admin-server"
+          optional: true
+        name: "custom-config"

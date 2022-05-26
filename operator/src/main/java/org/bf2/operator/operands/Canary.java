@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -96,6 +97,9 @@ public class Canary extends AbstractCanary {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
+        Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
+                this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper());
+
         builder
                 .editOrNewMetadata()
                     .withName(canaryName)
@@ -116,20 +120,11 @@ public class Canary extends AbstractCanary {
                             .withContainers(buildContainers(managedKafka, current))
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
+                            .withAffinity(affinity)
+                            .withTolerations(OperandUtils.profileTolerations(managedKafka))
                         .endSpec()
                     .endTemplate()
                 .endSpec();
-
-        if (this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper()) {
-            builder
-                .editOrNewSpec()
-                    .editOrNewTemplate()
-                        .editOrNewSpec()
-                        .withAffinity(OperandUtils.buildZookeeperPodAffinity(managedKafka))
-                        .endSpec()
-                    .endTemplate()
-                .endSpec();
-        }
 
         if (initEnabled && !hasClusterSpecificBootstrapDomain(managedKafka)) {
             builder

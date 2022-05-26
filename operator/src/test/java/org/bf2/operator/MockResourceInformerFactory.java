@@ -2,7 +2,9 @@ package org.bf2.operator;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
+import io.fabric8.kubernetes.client.dsl.Gettable;
+import io.fabric8.kubernetes.client.dsl.Informable;
+import io.fabric8.kubernetes.client.dsl.Listable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.quarkus.test.Mock;
 import org.bf2.common.ResourceInformer;
@@ -13,8 +15,10 @@ import org.mockito.stubbing.Answer;
 
 import javax.enterprise.context.ApplicationScoped;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Mock
@@ -22,15 +26,20 @@ import java.util.stream.Collectors;
 public class MockResourceInformerFactory extends ResourceInformerFactory {
 
     @Override
-    public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type,
-            WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
+    public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type, Informable<T> informable,
             ResourceEventHandler<? super T> eventHandler) {
         ResourceInformer<T> mock = Mockito.mock(ResourceInformer.class);
+        Supplier<List<T>> lister = () -> {
+            if (informable instanceof Listable) {
+                return ((Listable<KubernetesResourceList<T>>) informable).list().getItems();
+            }
+            return Collections.singletonList(((Gettable<T>) informable).get());
+        };
         Mockito.when(mock.getList()).then(new Answer<List<T>>() {
 
             @Override
             public List<T> answer(InvocationOnMock invocation) throws Throwable {
-                return watchListDeletable.list().getItems();
+                return lister.get();
             }
 
         });
@@ -49,8 +58,7 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
                     name = metaNamespaceKey;
                     namespace = null;
                 }
-                return watchListDeletable.list()
-                        .getItems()
+                return lister.get()
                         .stream()
                         .filter(i -> Objects.equals(name, i.getMetadata().getName())
                                 && Objects.equals(namespace, i.getMetadata().getNamespace()))
@@ -63,8 +71,7 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
             @Override
             public List<T> answer(InvocationOnMock invocation) throws Throwable {
                 String namespace = (String)invocation.getArgument(0);
-                return watchListDeletable.list()
-                        .getItems()
+                return lister.get()
                         .stream()
                         .filter(i -> Objects.equals(namespace, i.getMetadata().getNamespace()))
                         .collect(Collectors.toList());

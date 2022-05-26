@@ -1,8 +1,7 @@
 package org.bf2.common;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.client.dsl.WatchListDeletable;
+import io.fabric8.kubernetes.client.dsl.Informable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
@@ -16,9 +15,9 @@ public class ResourceInformerFactory {
     private ConcurrentLinkedQueue<SharedIndexInformer<?>> startedInformers = new ConcurrentLinkedQueue<>();
 
     public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type,
-            WatchListDeletable<T, ? extends KubernetesResourceList<T>> watchListDeletable,
+            Informable<T> informable,
             ResourceEventHandler<? super T> eventHandler) {
-        SharedIndexInformer<T> informer = watchListDeletable.inform((ResourceEventHandler) eventHandler);
+        SharedIndexInformer<T> informer = informable.inform((ResourceEventHandler) eventHandler);
         startedInformers.add(informer);
         return new ResourceInformer<>(informer);
     }
