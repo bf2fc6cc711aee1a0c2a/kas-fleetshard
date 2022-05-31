@@ -562,6 +562,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("ssl.protocol", "TLS");
         config.put("strimzi.authorization.custom-authorizer.partition-limit-enforced",
                 instanceConfig.getKafka().isPartitionLimitEnforced());
+        config.put("kas.policy.create-topic.partition-limit-enforced",
+                instanceConfig.getKafka().isPartitionLimitEnforced());
 
         ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
         var maximumSessionLifetime = oauth != null ? oauth.getMaximumSessionLifetime() : null;
@@ -588,7 +590,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         // custom authorizer configuration
-        addKafkaAuthorizerConfig(managedKafka, config);
+        AccessControl aclConfig = getAclConfig(managedKafka);
+        addKafkaAuthorizerConfig(managedKafka, config, aclConfig::getBrokerPluginsConfigPrefix);
+        addKafkaAuthorizerConfig(managedKafka, config, aclConfig::getConfigPrefix);
 
         if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
             config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
@@ -602,6 +606,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("strimzi.authorization.custom-authorizer.adminclient-listener.name", "controlplane-9090");
         config.put("strimzi.authorization.custom-authorizer.adminclient-listener.port", 9090);
         config.put("strimzi.authorization.custom-authorizer.adminclient-listener.protocol", "SSL");
+
+        config.put("kas.policy.create-topic.partition-counter.private-topic-prefix", instanceConfig.kafka.acl.privatePrefix);
+        config.put("kas.policy.create-topic.partition-counter.schedule-interval-seconds", 15);
+        config.put("kas.policy.create-topic.partition-counter.timeout-seconds", 10);
+
+        config.put("kas.policy.shared-admin.adminclient-listener.name", "controlplane-9090");
+        config.put("kas.policy.shared-admin.adminclient-listener.port", 9090);
+        config.put("kas.policy.shared-admin.adminclient-listener.protocol", "SSL");
 
         return config;
     }
@@ -820,13 +832,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config) {
+    private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config, Supplier<String> getConfigPrefix) {
         List<String> owners = managedKafka.getSpec().getOwners();
         AtomicInteger aclCount = new AtomicInteger(0);
         AtomicInteger aclLoggingCount = new AtomicInteger(0);
         AccessControl aclConfig = getAclConfig(managedKafka);
 
-        final String configPrefix = aclConfig.getConfigPrefix();
+        final String configPrefix = getConfigPrefix.get();
         final String allowedListenersKey = configPrefix + "allowed-listeners";
         final String resourceOperationsKey = configPrefix + "resource-operations";
         final String aclKeyPrefix = configPrefix + "acl";
