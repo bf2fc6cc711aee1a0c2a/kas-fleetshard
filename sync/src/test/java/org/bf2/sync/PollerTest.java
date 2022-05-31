@@ -84,6 +84,7 @@ public class PollerTest {
         managedKafkaSync.syncKafkaClusters();
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
+        assertTrue(items.get(0).getAnnotation(SecretManager.ANNOTATION_MASTER_SECRET_DIGEST).isPresent());
 
         // make sure the remote tracking is there and not marked as deleted
         assertFalse(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
