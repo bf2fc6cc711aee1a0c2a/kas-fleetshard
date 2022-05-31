@@ -34,7 +34,7 @@ public class SecretManager {
     private static final String OAUTH_SSO_CLIENT_SECRET = "oauth.ssoClientSecret";
     private static final String CANARY_SASL_PRINCIPAL = "canary.sasl.principal";
     private static final String CANARY_SASL_PASSWORD = "canary.sasl.password";
-    private static final String ANNOTATION_MASTER_SECRET_DIGEST = "managedkafka.bf2.org/master-secret-digest";
+    static final String ANNOTATION_MASTER_SECRET_DIGEST = "managedkafka.bf2.org/master-secret-digest";
 
     @Inject
     KubernetesClient kubernetesClient;
