@@ -388,6 +388,9 @@ public class KafkaInstanceConfiguration {
         protected String finalVersion = "0.0.0"; // Default, disables `acl-legacy` configurations
         @JsonProperty("authorizer-class")
         protected String authorizerClass = null;
+        @JsonProperty("broker-plugins-config-prefix")
+        protected String brokerPluginsConfigPrefix = null;
+        @Deprecated
         @JsonProperty("config-prefix")
         protected String configPrefix = null;
         @JsonProperty("global")
@@ -457,10 +460,20 @@ public class KafkaInstanceConfiguration {
             this.authorizerClass = authorizerClass;
         }
 
+        public String getBrokerPluginsConfigPrefix() {
+            return brokerPluginsConfigPrefix;
+        }
+
+        public void setBrokerPluginsConfigPrefix(String brokerPluginsConfigPrefix) {
+            this.brokerPluginsConfigPrefix = brokerPluginsConfigPrefix;
+        }
+
+        @Deprecated
         public String getConfigPrefix() {
             return configPrefix;
         }
 
+        @Deprecated
         public void setConfigPrefix(String configPrefix) {
             this.configPrefix = configPrefix;
         }
