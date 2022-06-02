@@ -60,6 +60,10 @@ public class StrimziOperatorManager {
                         .noneMatch(deployment -> deployment.getMetadata().getName().contains(DEPLOYMENT_PREFIX + ".v" + version)) &&
                 !isStrimziSubPresent()) {
             return doInstall(kubeClient);
+        } else {
+            if (!kubeClient.isGenericKubernetes()) {
+                FleetShardOperatorManager.createRhoasPullSecret(kubeClient, getStrimziSubNamespace());
+            }
         }
         LOGGER.info("Strimzi operator is installed no need to install it");
         return CompletableFuture.completedFuture(null);
@@ -161,6 +165,13 @@ public class StrimziOperatorManager {
                         .operatorHub().subscriptions().inAnyNamespace()
                         .list().getItems().stream().anyMatch(subscription ->
                                 subscription.getMetadata().getLabels().containsValue("strimzi-bundle"));
+    }
+
+    private static String getStrimziSubNamespace() {
+        return KubeClient.getInstance().client().adapt(OpenShiftClient.class)
+                .operatorHub().subscriptions().inAnyNamespace()
+                .list().getItems().stream().filter(s ->
+                        s.getMetadata().getLabels().containsValue("strimzi-bundle")).findFirst().get().getMetadata().getNamespace();
     }
 
     public static List<Pod> getStrimziOperatorPods() {
