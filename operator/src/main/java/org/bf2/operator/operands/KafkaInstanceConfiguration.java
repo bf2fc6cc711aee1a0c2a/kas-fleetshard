@@ -390,6 +390,7 @@ public class KafkaInstanceConfiguration {
         protected String authorizerClass = null;
         @JsonProperty("broker-plugins-config-prefix")
         protected String brokerPluginsConfigPrefix = null;
+        @Deprecated
         @JsonProperty("config-prefix")
         protected String configPrefix = null;
         @JsonProperty("global")
