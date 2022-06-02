@@ -43,7 +43,7 @@ public class SecuritySecretManager {
     InformerManager informerManager;
 
     interface SecretSource {
-        Secret apply(ManagedKafka managedKafka, Secret current, Secret masterSecret);
+        Secret apply(ManagedKafka managedKafka, Secret current);
     }
 
     public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
@@ -59,10 +59,6 @@ public class SecuritySecretManager {
             .map(sa -> Stream.of(sa.getPrincipalRef(), sa.getPasswordRef()).allMatch(Objects::nonNull)
                     || Stream.of(sa.getPrincipal(), sa.getPassword()).allMatch(Objects::nonNull))
             .orElse(false);
-    }
-
-    public static String masterSecretName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-master-secret";
     }
 
     public static String kafkaTlsSecretName(ManagedKafka managedKafka) {
@@ -104,16 +100,15 @@ public class SecuritySecretManager {
     }
 
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Secret currentMasterSecret = cachedOrRemoteSecret(managedKafka, masterSecretName(managedKafka));
-        reconcile(managedKafka, kafkaTlsSecretName(managedKafka), currentMasterSecret, SecuritySecretManager::kafkaTlsSecretFrom);
-        reconcile(managedKafka, ssoClientSecretName(managedKafka), currentMasterSecret, SecuritySecretManager::ssoClientSecretFrom);
-        reconcile(managedKafka, ssoTlsSecretName(managedKafka), currentMasterSecret, SecuritySecretManager::ssoTlsSecretFrom);
-        reconcile(managedKafka, canarySaslSecretName(managedKafka), currentMasterSecret, SecuritySecretManager::canarySaslSecretFrom);
+        reconcile(managedKafka, kafkaTlsSecretName(managedKafka), this::kafkaTlsSecretFrom);
+        reconcile(managedKafka, ssoClientSecretName(managedKafka), this::ssoClientSecretFrom);
+        reconcile(managedKafka, ssoTlsSecretName(managedKafka), this::ssoTlsSecretFrom);
+        reconcile(managedKafka, canarySaslSecretName(managedKafka), this::canarySaslSecretFrom);
     }
 
-    void reconcile(ManagedKafka managedKafka, String secretName, Secret masterSecret, SecretSource builder) {
+    void reconcile(ManagedKafka managedKafka, String secretName, SecretSource builder) {
         Secret currentSecret = cachedSecret(managedKafka, secretName);
-        Secret updated = builder.apply(managedKafka, currentSecret, masterSecret);
+        Secret updated = builder.apply(managedKafka, currentSecret);
 
         if (updated != null) {
             createOrUpdate(updated);
@@ -184,22 +179,18 @@ public class SecuritySecretManager {
     }
 
     public <T> String getSecretValue(ManagedKafka managedKafka, T model, Function<T, SecretKeySelector> selectorLookup, Function<T, String> valueLookup) {
-        Secret masterSecret = cachedOrRemoteSecret(managedKafka, masterSecretName(managedKafka));
-        return getSecretValue(masterSecret, model, selectorLookup, valueLookup);
-    }
-
-    static <T> String getSecretValue(Secret masterSecret, T model, Function<T, SecretKeySelector> selectorLookup, Function<T, String> valueLookup) {
         if (model == null) {
             return null;
         }
 
         SecretKeySelector selector = selectorLookup.apply(model);
+        Secret secret;
 
         if (selector != null
                 && selector.getKey() != null
-                && masterSecret != null
-                && masterSecret.getData().containsKey(selector.getKey())) {
-            return masterSecret.getData().get(selector.getKey());
+                && (secret = cachedOrRemoteSecret(managedKafka, selector.getName())) != null
+                && secret.getData().containsKey(selector.getKey())) {
+            return decode(secret.getData().get(selector.getKey()));
         }
 
         return valueLookup.apply(model);
@@ -254,14 +245,14 @@ public class SecuritySecretManager {
         return secret;
     }
 
-    private static Secret kafkaTlsSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret) {
+    private Secret kafkaTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         String tlsCert = getSecretValue(
-                currentMasterSecret,
+                managedKafka,
                 managedKafka.getSpec().getEndpoint().getTls(),
                 TlsKeyPair::getCertRef,
                 TlsKeyPair::getCert);
         String tlsKey = getSecretValue(
-                currentMasterSecret,
+                managedKafka,
                 managedKafka.getSpec().getEndpoint().getTls(),
                 TlsKeyPair::getKeyRef,
                 TlsKeyPair::getKey);
@@ -278,9 +269,9 @@ public class SecuritySecretManager {
                        "tls.key", tlsKey));
     }
 
-    private static Secret ssoClientSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret) {
+    private Secret ssoClientSecretFrom(ManagedKafka managedKafka, Secret current) {
         String clientSecret = getSecretValue(
-                currentMasterSecret,
+                managedKafka,
                 managedKafka.getSpec().getOauth(),
                 ManagedKafkaAuthenticationOAuth::getClientSecretRef,
                 ManagedKafkaAuthenticationOAuth::getClientSecret);
@@ -296,7 +287,7 @@ public class SecuritySecretManager {
                 Map.of("ssoClientSecret", clientSecret));
     }
 
-    private static Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret) {
+    private Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
         if (!isKafkaAuthenticationEnabled(managedKafka)) {
             return null;
         }
@@ -308,14 +299,14 @@ public class SecuritySecretManager {
                 Map.of("keycloak.crt", managedKafka.getSpec().getOauth().getTlsTrustedCertificate()));
     }
 
-    private static Secret canarySaslSecretFrom(ManagedKafka managedKafka, Secret current, Secret currentMasterSecret) {
+    private Secret canarySaslSecretFrom(ManagedKafka managedKafka, Secret current) {
         return managedKafka.getServiceAccount(ServiceAccount.ServiceAccountName.Canary)
             .map(canary -> {
-                String saslPrincipal = getSecretValue(currentMasterSecret,
+                String saslPrincipal = getSecretValue(managedKafka,
                         canary,
                         ServiceAccount::getPrincipalRef,
                         ServiceAccount::getPrincipal);
-                String saslPassword = getSecretValue(currentMasterSecret,
+                String saslPassword = getSecretValue(managedKafka,
                         canary,
                         ServiceAccount::getPasswordRef,
                         ServiceAccount::getPassword);
@@ -334,7 +325,11 @@ public class SecuritySecretManager {
             .orElse(null);
     }
 
-    private static String encode(String value) {
-        return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+    static String encode(String value) {
+        return value != null ? Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)) : null;
+    }
+
+    static String decode(String value) {
+        return value != null ? new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8) : null;
     }
 }
