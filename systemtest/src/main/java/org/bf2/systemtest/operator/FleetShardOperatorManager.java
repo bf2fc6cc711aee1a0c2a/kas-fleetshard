@@ -1,6 +1,10 @@
 package org.bf2.systemtest.operator;
 
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.base.PatchContext;
 import io.fabric8.kubernetes.client.dsl.base.PatchType;
@@ -18,9 +22,11 @@ import org.bf2.test.k8s.KubeClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class FleetShardOperatorManager {
 
@@ -62,7 +68,23 @@ public class FleetShardOperatorManager {
         if (!SystemTestEnvironment.FLEET_SHARD_PULL_SECRET_PATH.isBlank()) {
             deployPullSecrets(kubeClient);
         }
+        createRhoasPullSecret(kubeClient, OPERATOR_NS);
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_OPERATOR_BUNDLE_PATH);
+
+        if (!SystemTestEnvironment.RHOAS_DOCKER_CONFIG_BASE64.isEmpty()) {
+            Deployment operator = kubeClient.client().apps().deployments().inNamespace(OPERATOR_NS).withName(OPERATOR_NAME).get();
+            operator.getSpec().getTemplate().getSpec().setImagePullSecrets(
+                    Stream.concat(
+                            operator.getSpec().getTemplate().getSpec().getImagePullSecrets().stream(),
+                            Collections.singletonList(new LocalObjectReferenceBuilder()
+                                    .withName("rhoas-image-pull-secret").build()).stream()).collect(Collectors.toList())
+            );
+            kubeClient.client().apps().deployments()
+                    .inNamespace(operator.getMetadata().getNamespace())
+                    .withName(operator.getMetadata().getName())
+                    .patch(operator);
+        }
+
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS, () -> isOperatorInstalled(kubeClient));
     }
@@ -112,6 +134,20 @@ public class FleetShardOperatorManager {
             return String.format("%s://%s:%d", r.getSpec().getPort().getTargetPort().getStrVal(),
                     r.getSpec().getHost(),
                     r.getSpec().getPort().getTargetPort().getStrVal().equals("http") ? 80 : 443);
+        }
+    }
+
+    public static void createRhoasPullSecret(KubeClient kubeClient, String namespace) {
+        if (!SystemTestEnvironment.RHOAS_DOCKER_CONFIG_BASE64.isEmpty()) {
+            Secret pullSecret = new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("rhoas-image-pull-secret")
+                    .endMetadata()
+                    .withType("kubernetes.io/dockerconfigjson")
+                    .withData(
+                            Collections.singletonMap(".dockerconfigjson", SystemTestEnvironment.RHOAS_DOCKER_CONFIG_BASE64))
+                    .build();
+            kubeClient.client().secrets().inNamespace(namespace).createOrReplace(pullSecret);
         }
     }
 

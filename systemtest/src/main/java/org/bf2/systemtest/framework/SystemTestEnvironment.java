@@ -22,6 +22,8 @@ public class SystemTestEnvironment extends Environment {
     private static final String OAUTH_TLS_CERT_ENV = "OAUTH_TLS_CERT";
     private static final String ENDPOINT_TLS_CERT_ENV = "ENDPOINT_TLS_CERT";
     private static final String ENDPOINT_TLS_KEY_ENV = "ENDPOINT_TLS_KEY";
+
+    private static final String RHOAS_DOCKER_CONFIG_BASE64_ENV = "RHOAS_DOCKER_CONFIG_BASE64";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
 
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
@@ -45,6 +47,8 @@ public class SystemTestEnvironment extends Environment {
     public static final String OAUTH_TLS_CERT = getOrDefault(OAUTH_TLS_CERT_ENV, DUMMY_CERT);
     public static final String ENDPOINT_TLS_CERT = getOrDefault(ENDPOINT_TLS_CERT_ENV, DUMMY_CERT);
     public static final String ENDPOINT_TLS_KEY = getOrDefault(ENDPOINT_TLS_KEY_ENV, "key");
+
+    public static final String RHOAS_DOCKER_CONFIG_BASE64 = getOrDefault(RHOAS_DOCKER_CONFIG_BASE64_ENV, "");
     public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, Objects.requireNonNullElse(System.getProperty("strimziVersion"), versionFromMetaInf("io.strimzi/api")));
 
     public static final boolean SKIP_TEARDOWN = getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, false);
