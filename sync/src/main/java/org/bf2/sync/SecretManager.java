@@ -4,7 +4,6 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -23,6 +22,7 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -50,8 +50,10 @@ public class SecretManager {
         return managedKafka.getMetadata().getNamespace();
     }
 
-    public static boolean isKafkaAuthenticationEnabled(ManagedKafka managedKafka) {
-        return managedKafka.getSpec().getOauth() != null;
+    public static boolean isKafkaOAuthClientPresent(ManagedKafka managedKafka) {
+        return Optional.ofNullable(managedKafka.getSpec().getOauth())
+            .map(oauth -> oauth.getClientId() != null && oauth.getClientSecret() != null)
+            .orElse(false);
     }
 
     public static boolean isKafkaExternalCertificateEnabled(ManagedKafka managedKafka) {
@@ -103,7 +105,7 @@ public class SecretManager {
     private Map<String,String> buildSecretData(ManagedKafka managedKafka) {
         // Add to
         Map<String, String> data = new HashMap<>();
-        if (isKafkaAuthenticationEnabled(managedKafka)) {
+        if (isKafkaOAuthClientPresent(managedKafka)) {
             data.putAll(Map.of(OAUTH_SSO_CLIENT_ID, managedKafka.getSpec().getOauth().getClientId(),
                     OAUTH_SSO_CLIENT_SECRET, managedKafka.getSpec().getOauth().getClientSecret()));
         }
@@ -134,7 +136,7 @@ public class SecretManager {
                 .endEndpoint();
         }
 
-        if (isKafkaAuthenticationEnabled(managedKafka)) {
+        if (isKafkaOAuthClientPresent(managedKafka)) {
             replacement.editOauth()
                     .withNewClientIdRef(OAUTH_SSO_CLIENT_ID, masterSecretName, null)
                     .withClientId(null)
@@ -202,11 +204,5 @@ public class SecretManager {
 
     private Secret cachedSecret(ManagedKafka managedKafka, String name) {
         return informerManager.getLocalSecret(kafkaClusterNamespace(managedKafka), name);
-    }
-
-    private Resource<Secret> secretResource(ManagedKafka managedKafka, String name) {
-        return kubernetesClient.secrets()
-                .inNamespace(kafkaClusterNamespace(managedKafka))
-                .withName(name);
     }
 }
