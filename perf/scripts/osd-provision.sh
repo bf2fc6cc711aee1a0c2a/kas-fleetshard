@@ -24,6 +24,7 @@ function usage() {
     Option
         --set-storageclass                          change storageclass to unencrypted esb
         --install-addon ADDON_ID                    install selected addon id
+        --addon-json-config FILE                    specify addon json input file
         --remove-addon ADDON_ID                     uninstall selected addon id
         --set-ingress-controller                    setup ingresscontroller
         --set-display-name DISPLAY_NAME             change display name of the cluster (it does not change name or id of cluster)
@@ -121,6 +122,11 @@ while [[ $# -gt 0 ]]; do
     --install-addon)
         OPERATION="install-addon"
         ADDON_ID="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --addon-json-config)
+        ADDON_JSON_CONFIG="$2"
         shift # past argument
         shift # past value
         ;;
@@ -270,6 +276,7 @@ function print_vars() {
     echo "AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}"
     echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
     echo "ADDON_ID: ${ADDON_ID}"
+    echo "ADDON_JSON_CONFIG: ${ADDON_JSON_CONFIG}"
     echo "DISPLAY_NAME: ${DISPLAY_NAME}"
 }
 
@@ -416,9 +423,12 @@ function install_addon() {
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
+    if [[ "${ADDON_JSON_CONFIG}" == "" ]]; then
+        build_addon_template "$name"
+        ADDON_JSON_CONFIG="${REPO_ROOT}/addon-${name}.json"
+    fi
     id=$(get_cluster_id $CLUSTER_NAME)
-    build_addon_template "$name"
-    $OCM post "/api/clusters_mgmt/v1/clusters/${id}/addons" --body "${REPO_ROOT}/addon-${name}.json"
+    $OCM post "/api/clusters_mgmt/v1/clusters/${id}/addons" --body "${ADDON_JSON_CONFIG}"
 }
 
 function remove_addon() {
