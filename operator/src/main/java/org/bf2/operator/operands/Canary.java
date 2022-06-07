@@ -39,9 +39,11 @@ import javax.inject.Inject;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Provides same functionalities to get a Canary deployment from a ManagedKafka one
@@ -267,9 +269,11 @@ public class Canary extends AbstractCanary {
     }
 
     private List<EnvVar> buildInitEnvVar(ManagedKafka managedKafka) {
-        return List.of(
+        List<EnvVar> envVars = List.of(
                 new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(getBootstrapURL(managedKafka)).build(),
                 new EnvVarBuilder().withName("INIT_TIMEOUT_SECONDS").withValue(String.valueOf(initTimeoutSeconds)).build());
+
+        return applyEnvironmentOverride(envVars, this.overrideManager.getCanaryOverride(managedKafka.getSpec().getVersions().getStrimzi()).init.getEnv());
     }
 
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka, Deployment current) {
@@ -343,11 +347,32 @@ public class Canary extends AbstractCanary {
             addEnvVarFromSecret(envVars, "SASL_PASSWORD",SecuritySecretManager.canarySaslSecretName(managedKafka) , SecuritySecretManager.SASL_PASSWORD);
         }
         envVars.add(new EnvVarBuilder().withName("STATUS_TIME_WINDOW_MS").withValue(String.valueOf(statusTimeWindowMs)).build());
-        return envVars;
+        return applyEnvironmentOverride(envVars, this.overrideManager.getCanaryOverride(managedKafka.getSpec().getVersions().getStrimzi()).getEnv());
     }
 
     private List<ContainerPort> buildContainerPorts() {
         return Collections.singletonList(new ContainerPortBuilder().withName(METRICS_PORT_NAME).withContainerPort(METRICS_PORT).build());
+    }
+
+    private List<EnvVar> applyEnvironmentOverride(List<EnvVar> originals, List<EnvVar> overrides) {
+        Map<String, EnvVar> originalsOrderedMap = originals.stream().collect(Collectors.toMap(
+                EnvVar::getName,
+                v -> v,
+                (e1, e2) -> e1,
+                LinkedHashMap::new));
+
+        Optional<List<EnvVar>> overrideEnv = Optional.ofNullable(overrides);
+        overrideEnv.ifPresent(vars -> {
+            vars.forEach(envVar -> {
+                if (envVar.getValue() == null && envVar.getValueFrom() == null) {
+                    originalsOrderedMap.remove(envVar.getName());
+                } else {
+                    originalsOrderedMap.put(envVar.getName(), envVar);
+                }
+            });
+        });
+        return List.copyOf(originalsOrderedMap.values());
+
     }
 
     private List<VolumeMount> buildVolumeMounts(ManagedKafka managedKafka) {
