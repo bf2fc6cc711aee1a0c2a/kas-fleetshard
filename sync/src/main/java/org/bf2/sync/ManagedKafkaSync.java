@@ -30,10 +30,14 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.net.HttpURLConnection;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -50,6 +54,10 @@ public class ManagedKafkaSync {
     private static final String MANAGEDKAFKA_ID_LABEL = "bf2.org/id";
     private static final String MANAGEDKAFKA_ID_NAMESPACE_LABEL = "bf2.org/managedkafka-id";
     private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
+
+    // expand as needed to account for annotations managed by the data plane
+    private static final Set<String> DATA_PLANE_ANNOTATIONS =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SecretManager.ANNOTATION_MASTER_SECRET_DIGEST)));
 
     @Inject
     ManagedKafkaResourceClient client;
@@ -81,6 +89,7 @@ public class ManagedKafkaSync {
         Map<String, ManagedKafka> remotes = new HashMap<>();
 
         for (ManagedKafka remoteManagedKafka : controlPlane.getKafkaClusters()) {
+            // these are basically assertions - there's not expected to fail in a real environment
             Objects.requireNonNull(remoteManagedKafka.getId());
             Objects.requireNonNull(remoteManagedKafka.getMetadata().getNamespace());
 
@@ -167,7 +176,12 @@ public class ManagedKafkaSync {
             return true;
         }
         ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
-        return !remoteCopy.getSpec().equals(existing.getSpec()) || !Objects.equals(existing.getMetadata(), remoteCopy.getMetadata());
+        // will always be non-null due to the id/placement requirements
+        Map<String, String> annotations = new HashMap<>(existing.getMetadata().getAnnotations());
+        annotations.keySet().removeAll(DATA_PLANE_ANNOTATIONS);
+        return !remoteCopy.getSpec().equals(existing.getSpec())
+                || !Objects.equals(existing.getMetadata().getLabels(), remoteCopy.getMetadata().getLabels())
+                || !Objects.equals(annotations, remoteCopy.getMetadata().getAnnotations());
     }
 
     /**
@@ -231,7 +245,12 @@ public class ManagedKafkaSync {
                     ObjectMeta meta = remoteCopy.getMetadata();
                     client.edit(local.getMetadata().getNamespace(), local.getMetadata().getName(), mk -> {
                             mk.getMetadata().setLabels(meta.getLabels());
+                            Map<String, String> existingAnnotations = mk.getMetadata().getAnnotations();
                             mk.getMetadata().setAnnotations(meta.getAnnotations());
+                            if (existingAnnotations != null) {
+                                existingAnnotations.keySet().retainAll(DATA_PLANE_ANNOTATIONS);
+                                mk.getMetadata().getAnnotations().putAll(existingAnnotations);
+                            }
                             secretManager.calculateMasterSecretDigest(mk, masterSecret);
                             mk.setSpec(spec);
                             return mk;
