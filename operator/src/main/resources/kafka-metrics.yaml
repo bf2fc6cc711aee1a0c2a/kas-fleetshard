@@ -297,7 +297,10 @@ data:
         pattern: >-
           kafka.admin.client<type=admin-client-metrics, client-id=(.+)><>(connection-[\w-]*[\w])
         type: GAUGE
-      - name: kafka_broker_state
+      - labels:
+          state_ordinal: $1
+        name: kafka_broker_state
         pattern: >-
-          kafka.server<type=KafkaServer, name=BrokerState>
+          kafka.server<type=KafkaServer, name=BrokerState><>Value: (\d+)
         type: GAUGE
+        value: 1
