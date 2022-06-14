@@ -214,6 +214,7 @@ spec:
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
 
       max.partitions: 3000
+      cruise.control.metrics.topic.min.insync.replicas: 2
     storage:
       volumes:
       - type: "persistent-claim"
@@ -331,3 +332,29 @@ spec:
       requests:
         memory: "256Mi"
         cpu: "500m"
+  cruiseControl:
+    resources:
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+      requests:
+        memory: "2Gi"
+        cpu: "250m"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j2.properties
+          name: test-mk-cruise-control-logging
+          optional: true
+    template:
+      pod:
+        imagePullSecrets:
+          - name: "myimage:0.0.1"
+    config:
+      default.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      hard.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      sample.store.topic.replication.factor: 3
+      partition.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.partitionmetricsamples"
+      broker.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.modeltrainingsamples"
+      metric.reporter.topic: "__redhat_strimzi.cruisecontrol.metrics"

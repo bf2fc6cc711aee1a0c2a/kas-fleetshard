@@ -140,6 +140,35 @@ class KafkaClusterTest {
         diffToExpected(kafka, "/expected/strimzi_su2.yml");
     }
 
+    @Test
+    void testManagedKafkaToKafka_StreamingUnitsTwoWithCruiseControl() throws IOException {
+        alternativeConfig(config -> {
+            config.getKafka().setOneInstancePerNode(false);
+            config.getKafka().setColocateWithZookeeper(false);
+            config.getExporter().setColocateWithZookeeper(false);
+            config.getCruiseControl().setEnabled(true);
+        });
+
+        ManagedKafka mk = exampleManagedKafka("2Ti");
+        mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("100Mi"));
+        mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("200Mi"));
+        mk.getSpec().getCapacity().setMaxPartitions(3000);
+        mk.getSpec().getCapacity().setTotalMaxConnections(6000);
+        mk.getSpec().getCapacity().setTotalMaxConnections(200);
+        mk.getSpec().getVersions().setStrimzi(Versions.STRIMZI_CLUSTER_OPERATOR_V0_26_0_9);
+
+
+        ImagePullSecretManager imagePullSecretManager = Mockito.mock(ImagePullSecretManager.class);
+        Mockito.when(imagePullSecretManager.getOperatorImagePullSecrets(Mockito.any())).thenReturn(
+                List.of(new LocalObjectReferenceBuilder().withName("myimage:0.0.1").build()));
+
+        QuarkusMock.installMockForType(imagePullSecretManager, ImagePullSecretManager.class);
+
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        diffToExpected(kafka, "/expected/strimzi_su2_cc.yml");
+    }
+
     private void alternativeConfig(Consumer<KafkaInstanceConfiguration> configModifier) throws JsonProcessingException, JsonMappingException {
         KafkaInstanceConfiguration config = configs.getConfig(InstanceType.STANDARD);
 

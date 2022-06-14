@@ -669,7 +669,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private boolean isCruiseControlEnabled(ManagedKafka managedKafka, int desiredReplicas) {
         var config = this.configs.getConfig(managedKafka).cruiseControl;
-        return managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_26_0_9) >= 0 && desiredReplicas >= config.getMinBrokers();
+        if (config.enabled) {
+            return managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_26_0_9) >= 0 && desiredReplicas >= config.getMinBrokers();
+        } else {
+            return false;
+        }
     }
 
     public static String getProduceQuota(Kafka kafka) {

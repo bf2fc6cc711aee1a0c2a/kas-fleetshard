@@ -786,6 +786,9 @@ public class KafkaInstanceConfiguration {
     }
 
     public static class CruiseControl extends Container {
+        @JsonProperty("enabled")
+        protected boolean enabled = false;
+
         @JsonProperty("colocate-with-zookeeper")
         protected boolean colocateWithZookeeper = false;
 
@@ -813,6 +816,13 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("metric-sample-store-topic-replication-factor")
         protected int metricSampleStoreTopicReplicationFactor;
 
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
 
         public boolean isColocateWithZookeeper() {
             return colocateWithZookeeper;
