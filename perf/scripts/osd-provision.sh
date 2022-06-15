@@ -598,18 +598,16 @@ if [[ "${OPERATION}" == "create" ]]; then
             exit 1
         fi
     else
-        RESPONSE=$($OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}" 2>&1)
-        if [[ $? -ne 0 ]]; then
-            ERROR_MESSAGE=$(echo $RESPONSE | jq -r .details[].Error_Key)
-            if [[ "$ERROR_MESSAGE" != "DuplicateClusterName" ]]; then
+        CLUSTER_EXIST=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $2}')
+        if [[ -z "${CLUSTER_EXIST}" ]]; then
+            $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"
+            if [[ $? -ne 0 ]]; then
                 echo "Something went wrong when creating the cluster. Exit!!!!"
-                echo $RESPONSE | jq .
                 exit 1
-            else
-                echo "'${CLUSTER_NAME}' cluster already exists"
             fi
+        else
+            echo "'${CLUSTER_NAME}' cluster already exists"
         fi
-        echo $RESPONSE | jq .
     fi
 
     if [[ "${WAIT}" == "true" ]]; then
