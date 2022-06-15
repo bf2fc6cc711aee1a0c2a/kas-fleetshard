@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     app: "test-mk-canary"
     app.kubernetes.io/component: "canary"
+    bf2.org/kafkaInstanceProfileType: "standard"
   name: "test-mk-canary"
   namespace: "test"
   ownerReferences:
@@ -24,8 +25,17 @@ spec:
         app.kubernetes.io/managed-by: "kas-fleetshard-operator"
         app: "test-mk-canary"
         app.kubernetes.io/component: "canary"
+        bf2.org/kafkaInstanceProfileType: "standard"
     spec:
       affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "bf2.org/kafkaInstanceProfileType"
+                    operator: "In"
+                    values:
+                      - "standard"
         podAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
             - podAffinityTerm:
@@ -135,6 +145,10 @@ spec:
               name: "test-mk-tls-ca-cert"
             - mountPath: "/opt/etc"
               name: "config-volume"
+      tolerations:
+        - effect: "NoExecute"
+          key: "bf2.org/kafkaInstanceProfileType"
+          value: "standard"
       volumes:
         - name: "test-mk-tls-ca-cert"
           secret:

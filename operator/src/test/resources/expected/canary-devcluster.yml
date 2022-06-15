@@ -37,27 +37,10 @@ spec:
                         - "test-mk-zookeeper"
                 topologyKey: "kubernetes.io/hostname"
               weight: 100
-      initContainers:
-        - name: init
-          image: "quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833"
-          command:
-            - /opt/strimzi-canary-tool/canary-dns-init.sh
-          env:
-            - name: "KAFKA_BOOTSTRAP_SERVERS"
-              value: "test-mk-kafka-bootstrap:443"
-            - name: "INIT_TIMEOUT_SECONDS"
-              value: "600"
-          resources:
-            limits:
-              memory: "64Mi"
-              cpu: "75m"
-            requests:
-              memory: "64Mi"
-              cpu: "75m"
       containers:
         - env:
             - name: "KAFKA_BOOTSTRAP_SERVERS"
-              value: "test-mk-kafka-bootstrap:443"
+              value: "bootstrap.kas.testing.domain.tld:443"
             - name: "RECONCILE_INTERVAL_MS"
               value: "5000"
             - name: "EXPECTED_CLUSTER_SIZE"

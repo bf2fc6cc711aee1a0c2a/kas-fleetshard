@@ -47,6 +47,8 @@ spec:
               value: "test-mk-kafka-bootstrap:443"
             - name: "INIT_TIMEOUT_SECONDS"
               value: "600"
+            - name: "FOO"
+              value: "init"
           resources:
             limits:
               memory: "64Mi"
@@ -90,8 +92,6 @@ spec:
                   optional: true
             - name: "TOPIC"
               value: "__redhat_strimzi_canary"
-            - name: "TOPIC_CONFIG"
-              value: "retention.ms=600000;segment.bytes=16384"
             - name: "CLIENT_ID"
               value: "__redhat_strimzi_canary_client"
             - name: "CONSUMER_GROUP_ID"
@@ -106,6 +106,8 @@ spec:
               value: "/opt/etc/canary-config.json"
             - name: "STATUS_TIME_WINDOW_MS"
               value: "300000"
+            - name: "FOO"
+              value: "main"
           image: "quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833"
           livenessProbe:
             httpGet:

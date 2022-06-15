@@ -42,13 +42,12 @@ public class CanaryTest {
 
     @ParameterizedTest(name = "createCanaryDeployment: {0}")
     @CsvSource({
-            "shouldHaveNoDiffByDefault, test-mk-kafka-bootstrap, false, '[]', '[]', '[]'",
-            "overrideContainerEnvNewAndRemove, test-mk-kafka-bootstrap, false, '[{\"name\": \"FOO\", \"value\": \"bar\"}, {\"name\": \"TOPIC_CONFIG\"}]', '[]', '[{\"op\":\"remove\",\"path\":\"/spec/template/spec/containers/0/env/11\"},{\"op\":\"add\",\"path\":\"/spec/template/spec/containers/0/env/18\",\"value\":{\"name\":\"FOO\",\"value\":\"bar\"}}]'",
-            "overrideInitContainerEnvVarOverride, test-mk-kafka-bootstrap, false, '[]', '[{\"name\": \"FOO\", \"value\": \"bar\"}]', '[{\"op\":\"add\",\"path\":\"/spec/template/spec/initContainers/0/env/2\",\"value\":{\"name\":\"FOO\",\"value\":\"bar\"}}]'",
-            "shouldHaveNodeAffinity, test-mk-kafka-bootstrap, true, '[]', '[]', '[{\"op\":\"add\",\"path\":\"/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/metadata/labels/bf2.org~1kafkaInstanceProfileType\",\"value\":\"standard\"},{\"op\":\"add\",\"path\":\"/spec/template/spec/affinity/nodeAffinity\",\"value\":{\"requiredDuringSchedulingIgnoredDuringExecution\":{\"nodeSelectorTerms\":[{\"matchExpressions\":[{\"key\":\"bf2.org/kafkaInstanceProfileType\",\"operator\":\"In\",\"values\":[\"standard\"]}]}]}}},{\"op\":\"add\",\"path\":\"/spec/template/spec/tolerations\",\"value\":[{\"effect\":\"NoExecute\",\"key\":\"bf2.org/kafkaInstanceProfileType\",\"value\":\"standard\"}]}]'",
-            "shouldNotHaveInitContainersIfDevCluster, bootstrap.kas.testing.domain.tld, false, '[]', '[]', '[{\"op\":\"remove\",\"path\":\"/spec/template/spec/initContainers\"},{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/env/0/value\",\"value\":\"bootstrap.kas.testing.domain.tld:443\"}]'",
+            "shouldHaveNoDiffByDefault, test-mk-kafka-bootstrap, false, '[]', '[]', /expected/canary.yml",
+            "overrideContainerEnvNewAndRemove, test-mk-kafka-bootstrap, false, '[{\"name\": \"FOO\", \"value\": \"main\"}, {\"name\": \"TOPIC_CONFIG\"}]','[{\"name\": \"FOO\", \"value\": \"init\"}]', /expected/canary-envoverride.yml",
+            "shouldHaveNodeAffinity, test-mk-kafka-bootstrap, true, '[]', '[]', /expected/canary-nodeaffinity.yml",
+            "shouldNotHaveInitContainersIfDevCluster, bootstrap.kas.testing.domain.tld, false, '[]', '[]', /expected/canary-devcluster.yml"
     })
-    void createCanaryDeployment(String name, String bootstrapServerHost, boolean useNodeAffinity, @ConvertWith(JsonArgumentConverter.class) List<EnvVar> overrideContainerEnvVars, @ConvertWith(JsonArgumentConverter.class) List<EnvVar> overrideInitContainerEnvVars, String expectedDiff) throws Exception {
+    void createCanaryDeployment(String name, String bootstrapServerHost, boolean useNodeAffinity, @ConvertWith(JsonArgumentConverter.class) List<EnvVar> overrideContainerEnvVars, @ConvertWith(JsonArgumentConverter.class) List<EnvVar> overrideInitContainerEnvVars, String expectedResource) throws Exception {
         ManagedKafka mk = createManagedKafka(bootstrapServerHost);
         configureMockOverrideManager(mk, overrideContainerEnvVars, overrideInitContainerEnvVars);
 
@@ -57,7 +56,7 @@ public class CanaryTest {
         }
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
-        KafkaClusterTest.diffToExpected(canaryDeployment, "/expected/canary.yml", expectedDiff);
+        KafkaClusterTest.diffToExpected(canaryDeployment, expectedResource);
     }
 
     private ManagedKafka createManagedKafka(String bootstrapServerHost) {
