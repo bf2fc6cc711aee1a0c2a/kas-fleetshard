@@ -241,10 +241,10 @@ spec:
         ExitOnOutOfMemoryError: "true"
     resources:
       limits:
-        memory: "18.1Gi"
+        memory: "17.3Gi"
         cpu: "4900m"
       requests:
-        memory: "18.1Gi"
+        memory: "17.3Gi"
         cpu: "4900m"
     metricsConfig:
       type: "jmxPrometheusExporter"
