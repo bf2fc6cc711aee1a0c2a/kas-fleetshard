@@ -20,10 +20,12 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -62,8 +64,29 @@ public class OperandOverrideManager {
         public void setAdditionalProperty(String name, Object value) {
             this.additionalProperties.put(name, value);
         }
-    }
 
+        public List<EnvVar> applyEnvironmentTo(List<EnvVar> originals) {
+            Map<String, EnvVar> originalsOrderedMap = originals.stream().collect(Collectors.toMap(
+                    EnvVar::getName,
+                    v -> v,
+                    (e1, e2) -> e1,
+                    LinkedHashMap::new));
+
+            Optional<List<EnvVar>> overrideEnv = Optional.ofNullable(env);
+            overrideEnv.ifPresent(vars -> {
+                vars.forEach(envVar -> {
+                    if (envVar.getValue() == null && envVar.getValueFrom() == null) {
+                        originalsOrderedMap.remove(envVar.getName());
+                    } else {
+                        originalsOrderedMap.put(envVar.getName(), envVar);
+                    }
+                });
+            });
+
+
+            return List.copyOf(originalsOrderedMap.values());
+        }
+    }
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Canary extends OperandOverride {
         public OperandOverride init = new OperandOverride();
