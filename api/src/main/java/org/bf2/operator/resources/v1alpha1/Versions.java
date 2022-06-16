@@ -27,7 +27,6 @@ public class Versions {
     private static final Comparator<String> strimziComparator = new StrimziVersionComparator();
 
     public static final String STRIMZI_CLUSTER_OPERATOR_V0_23_0_4 = "strimzi-cluster-operator.v0.23.0-4";
-    public static final String STRIMZI_CLUSTER_OPERATOR_V0_26_0_9 = "strimzi-cluster-operator.v0.26.0-9";
 
     @NotNull
     private String kafka;

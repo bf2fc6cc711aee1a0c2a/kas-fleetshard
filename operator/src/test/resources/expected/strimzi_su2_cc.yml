@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
-    managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.26.0-9"
+    managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
     managedkafka.bf2.org/kas-multi-zone: "true"
     managedkafka.bf2.org/kas-zone0: "true"
     managedkafka.bf2.org/kas-zone1: "true"
@@ -231,6 +231,8 @@ spec:
     jvmOptions:
       javaSystemProperties:
       - name: "com.sun.management.jmxremote.port"
+        value: "9999"
+      - name: "com.sun.management.jmxremote.rmi.port"
         value: "9999"
       - name: "com.sun.management.jmxremote.host"
         value: "127.0.0.1"
