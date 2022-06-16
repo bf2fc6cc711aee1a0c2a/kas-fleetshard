@@ -95,6 +95,8 @@ import java.util.function.Supplier;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
+    private static final String JMX_PORT = "9999";
+
     private static final String QUOTA_FETCH = "client.quota.callback.static.fetch";
 
     private static final String QUOTA_PRODUCE = "client.quota.callback.static.produce";
@@ -495,7 +497,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private List<SystemProperty> buildJavaSystemProperties() {
         return List.of(
-                new SystemPropertyBuilder().withName("com.sun.management.jmxremote.port").withValue("9999").build(),
+                new SystemPropertyBuilder().withName("com.sun.management.jmxremote.port").withValue(JMX_PORT).build(),
+                new SystemPropertyBuilder().withName("com.sun.management.jmxremote.rmi.port").withValue(JMX_PORT).build(),
                 new SystemPropertyBuilder().withName("com.sun.management.jmxremote.host").withValue("127.0.0.1").build(),
                 new SystemPropertyBuilder().withName("java.rmi.server.hostname").withValue("127.0.0.1").build());
     }

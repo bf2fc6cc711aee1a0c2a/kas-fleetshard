@@ -221,6 +221,8 @@ spec:
       javaSystemProperties:
       - name: "com.sun.management.jmxremote.port"
         value: "9999"
+      - name: "com.sun.management.jmxremote.rmi.port"
+        value: "9999"
       - name: "com.sun.management.jmxremote.host"
         value: "127.0.0.1"
       - name: "java.rmi.server.hostname"
