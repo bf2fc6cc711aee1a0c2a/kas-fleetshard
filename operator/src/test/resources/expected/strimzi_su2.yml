@@ -2,7 +2,7 @@
 kind: "Kafka"
 metadata:
   annotations:
-    org.bf2.operator/desired-broker-replicas: "3"
+    org.bf2.operator/desired-broker-replicas: "6"
   labels:
     app.kubernetes.io/managed-by: "kas-fleetshard-operator"
     ingressType: "sharded"
@@ -20,7 +20,7 @@ metadata:
 spec:
   kafka:
     version: "2.6.0"
-    replicas: 3
+    replicas: 6
     listeners:
     - name: "external"
       port: 9094
@@ -57,8 +57,14 @@ spec:
           host: "broker-1-xxx.yyy.zzz"
         - broker: 2
           host: "broker-2-xxx.yyy.zzz"
-        maxConnections: 1000
-        maxConnectionCreationRate: 33
+        - broker: 3
+          host: "broker-3-xxx.yyy.zzz"
+        - broker: 4
+          host: "broker-4-xxx.yyy.zzz"
+        - broker: 5
+          host: "broker-5-xxx.yyy.zzz"
+        maxConnections: 33
+        maxConnectionCreationRate: 16
     - name: "oauth"
       port: 9095
       type: "internal"
@@ -99,7 +105,7 @@ spec:
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 3
-      client.quota.callback.static.fetch: "1398101"
+      client.quota.callback.static.fetch: "34952533"
       message.max.bytes: 1048588
       transaction.state.log.replication.factor: 3
       log.message.format.version: "2.6"
@@ -123,14 +129,14 @@ spec:
       transaction.state.log.min.isr: 2
       strimzi.authorization.custom-authorizer.acl.004: "permission=deny;cluster=*;operations-except=alter,describe,idempotent_write"
       strimzi.authorization.custom-authorizer.adminclient-listener.protocol: "SSL"
-      client.quota.callback.static.storage.soft: "21474836480"
+      client.quota.callback.static.storage.soft: "366503875925"
       strimzi.authorization.custom-authorizer.acl.005: "permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls"
       strimzi.authorization.custom-authorizer.acl.006: "permission=deny;cluster=*;operations=describe;apis-except=describe_acls"
       strimzi.authorization.custom-authorizer.acl.007: "permission=allow;cluster=*;operations=idempotent_write"
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.apis: "PRODUCE,FETCH"
       inter.broker.protocol.version: "2.6"
       strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: "__redhat_"
-      client.quota.callback.static.produce: "699050"
+      client.quota.callback.static.produce: "17476266"
       strimzi.authorization.custom-authorizer.acl.011: "priority=1;permission=deny;group=__redhat_*;operations=all"
       strimzi.authorization.custom-authorizer.acl.logging.004: "priority=1;topic=__redhat_*;operations=describe,read,write;level=DEBUG"
       ssl.protocol: "TLS"
@@ -150,7 +156,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.017: "priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.logging.001: "cluster=*;apis=fetch,list_groups,describe_configs;level=DEBUG"
       strimzi.authorization.custom-authorizer.acl.018: "priority=1;permission=allow;principal=canary-123;cluster=*;operations=describe;apis=list_partition_reassignments"
-      client.quota.callback.static.storage.hard: "21474836480"
+      client.quota.callback.static.storage.hard: "366503875925"
       strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds: 15
       strimzi.authorization.custom-authorizer.resource-operations: "{ \"cluster\"\
         : [ \"describe\", \"alter\" ], \"group\": [ \"all\", \"delete\", \"describe\"\
@@ -206,10 +212,12 @@ spec:
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
+
+      max.partitions: 3000
     storage:
       volumes:
       - type: "persistent-claim"
-        size: "33866907606"
+        size: "397204363631"
         class: "gp2"
         deleteClaim: true
         id: 0
@@ -255,6 +263,8 @@ spec:
           optional: false
     template:
       pod:
+        imagePullSecrets:
+        - name: "myimage:0.0.1"
         tolerations:
         - effect: "NoExecute"
           key: "org.bf2.operator/kafka-broker"
@@ -303,6 +313,8 @@ spec:
           optional: false
     template:
       pod:
+        imagePullSecrets:
+        - name: "myimage:0.0.1"
         topologySpreadConstraints:
         - labelSelector:
             matchExpressions:

@@ -40,6 +40,8 @@ public class KafkaInstanceConfiguration {
     protected Canary canary = new Canary();
     @JsonUnwrapped(prefix = "managedkafka.storage.")
     protected Storage storage = new Storage();
+    @JsonUnwrapped(prefix = "managedkafka.cruisecontrol.")
+    protected CruiseControl cruiseControl = new CruiseControl();
 
     public Map<String, String> toMap(boolean includeAll) {
         ObjectMapper mapper = new ObjectMapper();
@@ -768,9 +770,131 @@ public class KafkaInstanceConfiguration {
         this.storage = storage;
     }
 
+    public CruiseControl getCruiseControl() {
+        return cruiseControl;
+    }
+
+    public void setCruiseControl(CruiseControl cruiseControl) {
+        this.cruiseControl = cruiseControl;
+    }
+
     public void setColocateWithZookeeper(boolean colocate) {
         getCanary().setColocateWithZookeeper(colocate);
         getExporter().setColocateWithZookeeper(colocate);
         getAdminserver().setColocateWithZookeeper(colocate);
+        getCruiseControl().setColocateWithZookeeper(colocate);
     }
+
+    public static class CruiseControl extends Container {
+        @JsonProperty("enabled")
+        protected boolean enabled = false;
+
+        @JsonProperty("colocate-with-zookeeper")
+        protected boolean colocateWithZookeeper = false;
+
+        @JsonProperty("default-goals")
+        protected String defaultGoals;
+
+        @JsonProperty("hard-goals")
+        protected String hardGoals;
+
+        @JsonProperty("min-brokers")
+        protected int minBrokers;
+
+        @JsonProperty("metric-reporter-topic")
+        protected String metricReporterTopic;
+
+        @JsonProperty("metric-reporter-topic-min-insync-replicas")
+        protected int metricReporterTopicMinInsyncReplicas;
+
+        @JsonProperty("partition-metric-sample-store-topic")
+        protected String partitionMetricSampleStoreTopic;
+
+        @JsonProperty("broker-metric-sample-store-topic")
+        protected String brokerMetricSampleStoreTopic;
+
+        @JsonProperty("metric-sample-store-topic-replication-factor")
+        protected int metricSampleStoreTopicReplicationFactor;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public boolean isColocateWithZookeeper() {
+            return colocateWithZookeeper;
+        }
+
+        public void setColocateWithZookeeper(boolean colocateWithZookeeper) {
+            this.colocateWithZookeeper = colocateWithZookeeper;
+        }
+
+        public String getDefaultGoals() {
+            return defaultGoals;
+        }
+
+        public void setDefaultGoals(String defaultGoals) {
+            this.defaultGoals = defaultGoals;
+        }
+
+        public String getHardGoals() {
+            return hardGoals;
+        }
+
+        public void setHardGoals(String hardGoals) {
+            this.hardGoals = hardGoals;
+        }
+
+        public int getMinBrokers() {
+            return minBrokers;
+        }
+
+        public void setMinBrokers(int minBrokers) {
+            this.minBrokers = minBrokers;
+        }
+
+        public String getMetricReporterTopic() {
+            return metricReporterTopic;
+        }
+
+        public void setMetricReporterTopic(String metricReporterTopic) {
+            this.metricReporterTopic = metricReporterTopic;
+        }
+
+        public String getPartitionMetricSampleStoreTopic() {
+            return partitionMetricSampleStoreTopic;
+        }
+
+        public void setPartitionMetricSampleStoreTopic(String partitionMetricSampleStoreTopic) {
+            this.partitionMetricSampleStoreTopic = partitionMetricSampleStoreTopic;
+        }
+
+        public String getBrokerMetricSampleStoreTopic() {
+            return brokerMetricSampleStoreTopic;
+        }
+
+        public void setBrokerMetricSampleStoreTopic(String brokerMetricSampleStoreTopic) {
+            this.brokerMetricSampleStoreTopic = brokerMetricSampleStoreTopic;
+        }
+
+        public int getMetricReporterTopicMinInsyncReplicas() {
+            return metricReporterTopicMinInsyncReplicas;
+        }
+
+        public void setMetricReporterTopicMinInsyncReplicas(int metricReporterTopicMinInsyncReplicas) {
+            this.metricReporterTopicMinInsyncReplicas = metricReporterTopicMinInsyncReplicas;
+        }
+
+        public int getMetricSampleStoreTopicReplicationFactor() {
+            return metricSampleStoreTopicReplicationFactor;
+        }
+
+        public void setMetricSampleStoreTopicReplicationFactor(int metricSampleStoreTopicReplicationFactor) {
+            this.metricSampleStoreTopicReplicationFactor = metricSampleStoreTopicReplicationFactor;
+        }
+    }
+
 }

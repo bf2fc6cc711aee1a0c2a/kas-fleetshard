@@ -1,0 +1,19 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cruise-control-logging
+  labels:
+    app: strimzi
+data:
+  log4j2.properties: |
+    status = warn
+    name = Cruise Control
+
+    # Console appender configuration
+    appender.console.type = Console
+    appender.console.name = consoleLogger
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss}{GMT+0} %-5p %c{1}:%L - %m%n
+
+    rootLogger.level = info
+    rootLogger.appenderRef.stdout.ref = consoleLogger

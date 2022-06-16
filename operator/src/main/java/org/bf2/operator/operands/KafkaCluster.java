@@ -21,6 +21,8 @@ import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
+import io.strimzi.api.kafka.model.CruiseControlSpec;
+import io.strimzi.api.kafka.model.CruiseControlSpecBuilder;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
 import io.strimzi.api.kafka.model.ExternalLogging;
 import io.strimzi.api.kafka.model.ExternalLoggingBuilder;
@@ -167,6 +169,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap zookeeperLoggingConfigMap = configMapFrom(managedKafka, zookeeperLoggingConfigMapName(managedKafka));
         createOrUpdateIfNecessary(currentZookeeperLoggingConfigMap, zookeeperLoggingConfigMap);
 
+        ConfigMap currentCruiseControlLoggingConfigMap = cachedConfigMap(managedKafka, cruiseControlLoggingConfigMapName(managedKafka));
+        ConfigMap cruiseControlLoggingConfigMap = configMapFrom(managedKafka, cruiseControlLoggingConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentCruiseControlLoggingConfigMap, cruiseControlLoggingConfigMap);
+
         super.createOrUpdate(managedKafka);
     }
 
@@ -193,6 +199,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         long storagePerBroker = getPerBrokerBytes(managedKafka.getSpec().getCapacity().getMaxDataRetentionSize(), () -> this.configs.getConfig(managedKafka).getKafka().getVolumeSize(), actualReplicas);
 
+        var cruiseControlEnabled = isCruiseControlEnabled(managedKafka, desiredReplicas);
+        log.debugf("Cruise Control is enabled set to: %s", cruiseControlEnabled);
+
         KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         KafkaBuilder kafkaBuilder = builder
@@ -206,7 +215,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .editOrNewSpec()
                     .editOrNewKafka()
                         .withVersion(this.kafkaManager.currentKafkaVersion(managedKafka))
-                        .withConfig(buildKafkaConfig(managedKafka, current, storagePerBroker))
+                        .withConfig(buildKafkaConfig(managedKafka, current, storagePerBroker, cruiseControlEnabled))
                         .withReplicas(actualReplicas)
                         .withResources(config.kafka.buildResources())
                         .withJvmOptions(buildKafkaJvmOptions(managedKafka))
@@ -230,6 +239,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withExternalLogging(buildZookeeperExternalLogging(managedKafka))
                     .endZookeeper()
                     .withKafkaExporter(buildKafkaExporter(managedKafka))
+                    .withCruiseControl(cruiseControlEnabled ? buildCruiseControl(managedKafka) : null)
                 .endSpec();
 
         Kafka kafka = this.upgrade(managedKafka, kafkaBuilder);
@@ -549,7 +559,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return specBuilder.build();
     }
 
-    private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current, long storagePerBroker) {
+    private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current, long storagePerBroker, boolean cruiseControlEnabled) {
         Map<String, Object> config = new HashMap<>();
         KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
         int scalingAndReplicationFactor = instanceConfig.getKafka().getScalingAndReplicationFactor();
@@ -618,7 +628,48 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("kas.policy.shared-admin.adminclient-listener.port", 9090);
         config.put("kas.policy.shared-admin.adminclient-listener.protocol", "SSL");
 
+        if (cruiseControlEnabled) {
+            config.put("cruise.control.metrics.topic.min.insync.replicas", this.configs.getConfig(managedKafka).cruiseControl.getMetricReporterTopicMinInsyncReplicas());
+        }
         return config;
+    }
+
+    private CruiseControlSpec buildCruiseControl(ManagedKafka managedKafka) {
+        var cruiseControl = this.configs.getConfig(managedKafka).cruiseControl;
+        String loggingConfigMapName = cruiseControlLoggingConfigMapName(managedKafka);
+        CruiseControlSpecBuilder specBuilder = new CruiseControlSpecBuilder()
+                .withResources(cruiseControl.buildResources())
+                .withConfig(Map.of(
+                        "sample.store.topic.replication.factor", cruiseControl.getMetricSampleStoreTopicReplicationFactor(),
+                        "default.goals", cruiseControl.getDefaultGoals(),
+                        "hard.goals", cruiseControl.getHardGoals(),
+                        "metric.reporter.topic", cruiseControl.getMetricReporterTopic(),
+                        "partition.metric.sample.store.topic", cruiseControl.getPartitionMetricSampleStoreTopic(),
+                        "broker.metric.sample.store.topic", cruiseControl.getBrokerMetricSampleStoreTopic())
+                )
+                .withNewExternalLogging()
+                .withNewValueFrom()
+                .withNewConfigMapKeyRef("log4j2.properties", loggingConfigMapName, true)
+                .endValueFrom()
+                .endExternalLogging();
+
+        Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
+                cruiseControl.isColocateWithZookeeper());
+
+        specBuilder.editOrNewTemplate()
+                .editOrNewPod()
+                    .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
+                    .withAffinity(affinity)
+                    .withTolerations(OperandUtils.profileTolerations(managedKafka))
+                .endPod()
+            .endTemplate();
+
+        return specBuilder.build();
+    }
+
+    private boolean isCruiseControlEnabled(ManagedKafka managedKafka, int desiredReplicas) {
+        var config = this.configs.getConfig(managedKafka).cruiseControl;
+        return config.isEnabled() && desiredReplicas >= config.getMinBrokers();
     }
 
     public static String getProduceQuota(Kafka kafka) {
@@ -965,6 +1016,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String kafkaExporterLoggingConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-kafka-exporter-logging";
+    }
+
+    public static String cruiseControlLoggingConfigMapName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-cruise-control-logging";
     }
 
     public static String zookeeperLoggingConfigMapName(ManagedKafka managedKafka) {
