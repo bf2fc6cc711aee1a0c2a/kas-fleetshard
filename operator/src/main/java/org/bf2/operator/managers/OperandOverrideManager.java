@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -19,9 +20,12 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Startup
 @ApplicationScoped
@@ -29,6 +33,8 @@ public class OperandOverrideManager {
 
     public static class OperandOverride {
         public String image;
+
+        public List<EnvVar> env;
 
         @JsonIgnore
         private Map<String, Object> additionalProperties = new HashMap<>();
@@ -41,6 +47,14 @@ public class OperandOverrideManager {
             this.image = image;
         }
 
+        public List<EnvVar> getEnv() {
+            return env;
+        }
+
+        public void setEnv(List<EnvVar> env) {
+            this.env = env;
+        }
+
         @JsonAnyGetter
         public Map<String, Object> getAdditionalProperties() {
             return this.additionalProperties;
@@ -50,8 +64,29 @@ public class OperandOverrideManager {
         public void setAdditionalProperty(String name, Object value) {
             this.additionalProperties.put(name, value);
         }
-    }
 
+        public List<EnvVar> applyEnvironmentTo(List<EnvVar> originals) {
+            Map<String, EnvVar> originalsOrderedMap = originals.stream().collect(Collectors.toMap(
+                    EnvVar::getName,
+                    v -> v,
+                    (e1, e2) -> e1,
+                    LinkedHashMap::new));
+
+            Optional<List<EnvVar>> overrideEnv = Optional.ofNullable(env);
+            overrideEnv.ifPresent(vars -> {
+                vars.forEach(envVar -> {
+                    if (envVar.getValue() == null && envVar.getValueFrom() == null) {
+                        originalsOrderedMap.remove(envVar.getName());
+                    } else {
+                        originalsOrderedMap.put(envVar.getName(), envVar);
+                    }
+                });
+            });
+
+
+            return List.copyOf(originalsOrderedMap.values());
+        }
+    }
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Canary extends OperandOverride {
         public OperandOverride init = new OperandOverride();
@@ -132,12 +167,16 @@ public class OperandOverrideManager {
         return overrides.getOrDefault(strimzi == null ? "" : strimzi, EMPTY);
     }
 
+    public Canary getCanaryOverride(String strimzi) {
+        return getOverrides(strimzi).canary;
+    }
+
     public String getCanaryImage(String strimzi) {
-        return getImage(getOverrides(strimzi).canary, strimzi, "canary").orElse(canaryImage);
+        return getImage(getCanaryOverride(strimzi), strimzi, "canary").orElse(canaryImage);
     }
 
     public String getCanaryInitImage(String strimzi) {
-        return getImage(getOverrides(strimzi).canary.init, strimzi, "canary-init").orElse(canaryInitImage);
+        return getImage(getCanaryOverride(strimzi).init, strimzi, "canary-init").orElse(canaryInitImage);
     }
 
     public OperandOverride getAdminServerOverride(String strimzi) {

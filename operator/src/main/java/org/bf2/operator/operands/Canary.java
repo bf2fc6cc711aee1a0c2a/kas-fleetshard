@@ -267,9 +267,11 @@ public class Canary extends AbstractCanary {
     }
 
     private List<EnvVar> buildInitEnvVar(ManagedKafka managedKafka) {
-        return List.of(
+        List<EnvVar> envVars = List.of(
                 new EnvVarBuilder().withName("KAFKA_BOOTSTRAP_SERVERS").withValue(getBootstrapURL(managedKafka)).build(),
                 new EnvVarBuilder().withName("INIT_TIMEOUT_SECONDS").withValue(String.valueOf(initTimeoutSeconds)).build());
+
+        return this.overrideManager.getCanaryOverride(managedKafka.getSpec().getVersions().getStrimzi()).init.applyEnvironmentTo(envVars);
     }
 
     private List<EnvVar> buildEnvVar(ManagedKafka managedKafka, Deployment current) {
@@ -343,7 +345,7 @@ public class Canary extends AbstractCanary {
             addEnvVarFromSecret(envVars, "SASL_PASSWORD",SecuritySecretManager.canarySaslSecretName(managedKafka) , SecuritySecretManager.SASL_PASSWORD);
         }
         envVars.add(new EnvVarBuilder().withName("STATUS_TIME_WINDOW_MS").withValue(String.valueOf(statusTimeWindowMs)).build());
-        return envVars;
+        return this.overrideManager.getCanaryOverride(managedKafka.getSpec().getVersions().getStrimzi()).applyEnvironmentTo(envVars);
     }
 
     private List<ContainerPort> buildContainerPorts() {

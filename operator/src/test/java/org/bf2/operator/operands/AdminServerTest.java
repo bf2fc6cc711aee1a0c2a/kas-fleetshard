@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -20,6 +21,7 @@ import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 
@@ -77,11 +79,12 @@ class AdminServerTest {
 
     @ParameterizedTest
     @CsvSource({
-        "test-mk-q,     1, true,  false, false, /expected/adminserver.yml",
-        "test-mk-tls-q, 2, true,  true, false, /expected/adminserver-tls.yml",
-        "test-mk-q,     2, true,  false, true, /expected/adminserver-affinity.yml"
+        "test-mk-q,     1, true,  false, false, '[]', /expected/adminserver.yml",
+        "test-mk-tls-q, 2, true,  true, false, '[]', /expected/adminserver-tls.yml",
+        "test-mk-q,     2, true,  false, true, '[]', /expected/adminserver-affinity.yml",
+        "test-mk-q,     1, true,  false, false, '[{\"name\": \"FOO\", \"value\": \"bar\"}]', /expected/adminserver-envoverride.yml",
     })
-    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, boolean useNodeAffinity, String expectedResource) throws Exception {
+    void createAdminServerDeployment(String name, String versionString, boolean quarkusBased, boolean tls, boolean useNodeAffinity, @ConvertWith(JsonArgumentConverter.class) List<EnvVar> overrideContainerEnvVars, String expectedResource) throws Exception {
         ManagedKafka mk = buildBasicManagedKafka(name, versionString, tls ? new TlsKeyPair() : null);
 
         if (useNodeAffinity) {
@@ -90,6 +93,7 @@ class AdminServerTest {
 
         OperandOverride override = new OperandOverride();
         override.setImage("quay.io/mk-ci-cd/kafka-admin-api:0.8.0");
+        override.setEnv(overrideContainerEnvVars);
 
         OperandOverrideManager overrideManager = Mockito.mock(OperandOverrideManager.class);
         Mockito.when(overrideManager.getAdminServerOverride(versionString))

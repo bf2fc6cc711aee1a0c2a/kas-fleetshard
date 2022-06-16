@@ -435,11 +435,8 @@ public class AdminServer extends AbstractAdminServer {
             addEnvVar(envVars, "KAFKA_ADMIN_OAUTH_ENABLED", "false");
         }
 
-        if (corsAllowList.isPresent()) {
-            addEnvVar(envVars, "CORS_ALLOW_LIST_REGEX", corsAllowList.get());
-        }
-
-        return envVars;
+        corsAllowList.ifPresent(s -> addEnvVar(envVars, "CORS_ALLOW_LIST_REGEX", s));
+        return this.overrideManager.getAdminServerOverride(managedKafka.getSpec().getVersions().getStrimzi()).applyEnvironmentTo(envVars);
     }
 
     private void addEnvVar(List<EnvVar> envVars, String name, String value) {
