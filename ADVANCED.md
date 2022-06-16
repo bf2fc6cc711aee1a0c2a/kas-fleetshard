@@ -194,6 +194,8 @@ It is possible to query Kafka's JMX mbeans from within the kafka pods using the 
 ./bin/kafka-run-class.sh kafka.tools.JmxTool --jmx-url service:jmx:rmi:///jndi/rmi://127.0.0.1:9999/jmxrmi --object-name kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec
 ```
 
+It is also possible to use JConsole.  To do this use a `kubectl port-forward <broker-pod> 9999:9999` then connect JConsole to `localhost:9999`.  No authentication is required.
+
 ## Overriding Kafka/Zookeeper metrics
 
 The kafka/zookeeper metrics configurations (stored in the `<kafka-cluster-name>-kafka-metrics` and `kafka-cluster-name>-zookeeper-metrics` configmaps respectively) can be overridden by editing
