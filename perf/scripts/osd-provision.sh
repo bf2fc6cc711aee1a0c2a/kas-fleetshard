@@ -340,6 +340,50 @@ function wait_for_cluster_install() {
     done
 }
 
+function wait_for_cluster_hibernate() {
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Waiting for cluster hibernate"
+    READY="false"
+    while [ $READY == "false" ]; do
+        current=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $8}')
+        ver=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $4}')
+        echo "Status of cluster ${CLUSTER_NAME} is ${current} and version ${ver}"
+        if [[ $current == "ERROR" ]] || [[ $current == "error" ]]; then
+            echo "Cluster state is error, stopping script"
+            echo "Getting ocm cluster logs"
+            : "${RESULTS_DIR:="${REPO_ROOT}"}"
+            mkdir -p ${RESULTS_DIR}
+            touch "${RESULTS_DIR}/${CLUSTER_NAME}"_install_logs.json
+            $OCM get "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)/logs/install" | tee "${RESULTS_DIR}/${CLUSTER_NAME}"_install_logs.json
+            exit 1
+        fi
+        if [[ $current == "hibernating" ]]; then
+            READY="true"
+        else
+            sleep 60
+        fi
+    done
+}
+
+function wait_for_cluster_delete() {
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    echo "Waiting for cluster delete"
+    READY="false"
+    while [ $READY == "false" ]; do
+        current=$($OCM list cluster --parameter search="name = '${CLUSTER_NAME}'" --no-headers | awk '{print $8}')
+        echo "Status of cluster ${CLUSTER_NAME} is ${current}"
+        if [[ $current == "" ]]; then
+            READY="true"
+        else
+            sleep 60
+        fi
+    done
+}
+
 function read_aws_csv() {
     if [[ "${AWS_CSV_PATH}" != "" ]]; then
         cred=$($SED '2q;d' "${AWS_CSV_PATH}")
@@ -541,6 +585,9 @@ if [[ "${OPERATION}" == "hibernate" ]]; then
     fi
     echo "Hibernate cluster ${CLUSTER_NAME}"
     $OCM hibernate cluster "$(get_cluster_id $CLUSTER_NAME)"
+    if [[ "${WAIT}" == "true" ]]; then
+        wait_for_cluster_hibernate
+    fi
     exit
 fi
 
@@ -550,6 +597,9 @@ if [[ "${OPERATION}" == "resume" ]]; then
     fi
     echo "Resume cluster ${CLUSTER_NAME}"
     $OCM resume cluster "$(get_cluster_id $CLUSTER_NAME)"
+    if [[ "${WAIT}" == "true" ]]; then
+        wait_for_cluster_install
+    fi
     exit
 fi
 
@@ -619,6 +669,9 @@ elif [[ "${OPERATION}" == "delete" ]]; then
     fi
     echo "Delete cluster ${CLUSTER_NAME}"
     $OCM delete "/api/clusters_mgmt/v1/clusters/$(get_cluster_id $CLUSTER_NAME)"
+    if [[ "${WAIT}" == "true" ]]; then
+        wait_for_cluster_delete
+    fi
 elif [[ "${WAIT}" == "true" ]]; then
     wait_for_cluster_install
 else
