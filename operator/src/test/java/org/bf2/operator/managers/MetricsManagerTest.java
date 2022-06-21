@@ -13,6 +13,7 @@ import io.strimzi.api.kafka.model.KafkaBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerBuilder;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_CONNECTION_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_PARTITION_LIMIT;
+import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_QUOTA_CONSUMED;
 import static org.bf2.operator.managers.MetricsManager.KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT;
 import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_BROKER_ID;
 import static org.bf2.operator.managers.MetricsManager.TAG_LABEL_INSTANCE_NAME;
@@ -59,11 +61,13 @@ public class MetricsManagerTest {
         int expectedReplicas = 3;
         int expectedPartitionLimit = 1000;
         int expectedMaxMessageSizeLimit = 2048;
+        int expectedQuotaConsumed = 2;
         Kafka kafka = new KafkaBuilder()
                 .withNewMetadata()
                 .withNamespace(NAMESPACE)
                 .withName(info.getTestMethod().get().getName())
                 .withLabels(OperandUtils.getDefaultLabels())
+                .addToLabels(ManagedKafka.PROFILE_QUOTA_CONSUMED, String.valueOf(expectedQuotaConsumed))
                 .endMetadata()
                 .withNewSpec()
                 .withNewKafka()
@@ -74,7 +78,7 @@ public class MetricsManagerTest {
                 .endSpec()
                 .build();
 
-        int expectedNumberOfMeters = 3;
+        int expectedNumberOfMeters = 4;
         metricsManager.onAdd(kafka);
         assertMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
@@ -87,6 +91,7 @@ public class MetricsManagerTest {
         assertMeter(expectedReplicas, namespaceNameTags, KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT);
         assertMeter(expectedPartitionLimit, namespaceNameTags, KAFKA_INSTANCE_PARTITION_LIMIT);
         assertMeter(expectedMaxMessageSizeLimit, namespaceNameTags, KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT);
+        assertMeter(expectedQuotaConsumed, namespaceNameTags, KAFKA_INSTANCE_QUOTA_CONSUMED);
     }
 
     @Test
@@ -115,7 +120,7 @@ public class MetricsManagerTest {
                 .endSpec()
                 .build();
 
-        int expectedNumberOfMeters = 5;
+        int expectedNumberOfMeters = 6;
         metricsManager.onAdd(kafka);
         assertMetersMatchingTags(Tags.of(MetricsManager.OWNER), expectedNumberOfMeters, "unexpected number of meters overall");
 
@@ -163,7 +168,7 @@ public class MetricsManagerTest {
         Tags kafka1tags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, kafka1.getMetadata().getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka1.getMetadata().getName()));
         Tags kafka2tags = Tags.of(Tag.of(TAG_LABEL_NAMESPACE, kafka2.getMetadata().getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, kafka2.getMetadata().getName()));
 
-        int metersPerKafka = 3;
+        int metersPerKafka = 4;
         metricsManager.onAdd(kafka1);
         metricsManager.onAdd(kafka2);
         assertMetersMatchingTags(kafka1tags, metersPerKafka, "unexpected number of meters for kafka 1");
