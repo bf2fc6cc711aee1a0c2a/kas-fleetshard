@@ -52,6 +52,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -563,14 +564,13 @@ public class IngressControllerManager {
         return Math.min(nodesInZone, Math.max(2, Math.max(connectionReplicaCount, replicaCount)));
     }
 
-    static LongSummaryStatistics summarize(List<Kafka> managedKafkas, Function<Kafka, String> quantity,
+    static LongSummaryStatistics summarize(List<Kafka> kafkas, Function<Kafka, String> quantity,
             Supplier<String> defaultValue) {
-        return managedKafkas.stream()
-                .map(m -> {
+        return kafkas.stream()
+                .flatMap(m -> {
                     KafkaClusterSpec s = m.getSpec().getKafka();
                     String value = Optional.of(quantity.apply(m)).orElseGet(defaultValue);
-                    return Quantity.getAmountInBytes(Quantity.parse(value))
-                            .multiply(BigDecimal.valueOf(s.getReplicas()));
+                    return Collections.nCopies(s.getReplicas(), Quantity.getAmountInBytes(Quantity.parse(value))).stream();
                 })
                 .mapToLong(BigDecimal::longValue)
                 .summaryStatistics();
