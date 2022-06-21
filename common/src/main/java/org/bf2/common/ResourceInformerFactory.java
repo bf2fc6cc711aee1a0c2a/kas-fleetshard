@@ -17,7 +17,9 @@ public class ResourceInformerFactory {
     public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type,
             Informable<T> informable,
             ResourceEventHandler<? super T> eventHandler) {
-        SharedIndexInformer<T> informer = informable.inform((ResourceEventHandler) eventHandler);
+        SharedIndexInformer<T> informer = informable.inform();
+        // https://github.com/fabric8io/kubernetes-client/issues/4082 add the handler after it's started so that we see the full state of the cache
+        informer.addEventHandler((ResourceEventHandler) eventHandler);
         startedInformers.add(informer);
         return new ResourceInformer<>(informer);
     }
