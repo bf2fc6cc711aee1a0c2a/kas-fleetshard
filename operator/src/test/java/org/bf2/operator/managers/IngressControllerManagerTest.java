@@ -95,7 +95,8 @@ public class IngressControllerManagerTest {
             ManagedKafka mk = ManagedKafka.getDummyInstance(1);
             mk.getMetadata().setName("ingressTest" + i);
             mk.getMetadata().setNamespace("ingressTest");
-            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("125Mi"));
+            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("300Mi"));
+            mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("300Mi"));
             Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
             openShiftClient.resource(kafka).createOrReplace();
         });
@@ -143,6 +144,32 @@ public class IngressControllerManagerTest {
     }
 
     @Test
+    public void testIngressControllerCreationWithMultiUnitInstances() {
+        buildNodes(99).stream().forEach(n -> openShiftClient.nodes().create(n));
+
+        for (int i = 0; i < 25; i++) {
+            int size = (i%5) + 1;
+            ManagedKafka mk = ManagedKafka.getDummyInstance(i);
+            mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse(100*size+"Mi"));
+            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse(50*size+"Mi"));
+            mk.getSpec().getCapacity().setTotalMaxConnections(3000*size);
+            mk.getSpec().getCapacity().setMaxPartitions(1500*size);
+            Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+            openShiftClient.resource(kafka).createOrReplace();
+        }
+
+        informerManager.createKafkaInformer();
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        assertEquals(4, ingressControllers.size(), "Expected 4 IngressControllers: one per zone, and one multi-zone");
+
+        // should just be 3 for 75 units
+        ingressControllers.stream().map(ic -> ic.getSpec().getReplicas()).forEach(r -> assertEquals(3, r));
+    }
+
+    @Test
     public void testSummarize() {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
@@ -152,9 +179,9 @@ public class IngressControllerManagerTest {
         LongSummaryStatistics egress = IngressControllerManager.summarize(Collections.nCopies(instances, kafka),
                 KafkaCluster::getFetchQuota, () -> {throw new AssertionError();});
         long singleEgress = Quantity.getAmountInBytes(mk.getSpec().getCapacity().getEgressPerSec()).longValue()
-                / replicas * replicas;
+                / replicas;
         assertEquals(singleEgress, egress.getMax());
-        assertEquals(singleEgress * instances, egress.getSum());
+        assertEquals(singleEgress * instances * replicas, egress.getSum());
     }
 
     @Test
@@ -175,6 +202,14 @@ public class IngressControllerManagerTest {
         long ingress = 50000000;
         assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
         assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
+    }
+
+    @Test
+    public void testIngressControllerReplicaCounts1() {
+        List<Node> nodes = buildNodes(99);
+
+        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000*24));
+        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0));
     }
 
     private List<Node> buildNodes(int nodeCount) {
@@ -287,5 +322,7 @@ public class IngressControllerManagerTest {
     @AfterEach
     void cleanup() {
         ingressControllerManager.getRouteMatchLabels().clear();
+        openShiftClient.resources(Node.class).delete();
+        openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
     }
 }
