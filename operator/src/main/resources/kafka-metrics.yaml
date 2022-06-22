@@ -303,4 +303,3 @@ data:
         pattern: >-
           kafka.server<type=KafkaServer, name=BrokerState><>Value: (\d+)
         type: GAUGE
-        value: 1
