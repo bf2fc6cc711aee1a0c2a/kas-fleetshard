@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -288,15 +289,14 @@ public class SecuritySecretManager {
     }
 
     private Secret ssoTlsSecretFrom(ManagedKafka managedKafka, Secret current) {
-        if (!isKafkaAuthenticationEnabled(managedKafka)) {
-            return null;
-        }
-
-        return buildSecretFrom(ssoTlsSecretName(managedKafka),
-                "Opaque",
-                managedKafka,
-                current,
-                Map.of("keycloak.crt", managedKafka.getSpec().getOauth().getTlsTrustedCertificate()));
+        return Optional.ofNullable(managedKafka.getSpec().getOauth())
+            .map(ManagedKafkaAuthenticationOAuth::getTlsTrustedCertificate)
+            .map(trustedCertificate -> buildSecretFrom(ssoTlsSecretName(managedKafka),
+                        "Opaque",
+                        managedKafka,
+                        current,
+                        Map.of("keycloak.crt", trustedCertificate)))
+            .orElse(null);
     }
 
     private Secret canarySaslSecretFrom(ManagedKafka managedKafka, Secret current) {
