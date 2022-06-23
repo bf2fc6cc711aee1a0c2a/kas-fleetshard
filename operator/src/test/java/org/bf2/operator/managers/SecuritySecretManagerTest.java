@@ -19,9 +19,10 @@ import org.bf2.operator.resources.v1alpha1.SecretKeySelectorBuilder;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.resources.v1alpha1.ServiceAccountBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPairBuilder;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.inject.Inject;
 
@@ -32,6 +33,7 @@ import static org.bf2.operator.managers.SecuritySecretManager.decode;
 import static org.bf2.operator.managers.SecuritySecretManager.encode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @TestProfile(MockProfile.class)
@@ -86,7 +88,7 @@ class SecuritySecretManagerTest {
                 .inNamespace(client.getNamespace())
                 .withName(SecuritySecretManager.canarySaslSecretName(managedKafka));
 
-        Assertions.assertNull(canarySaslSecretResource.get());
+        assertNull(canarySaslSecretResource.get());
 
         securitySecretManager.createOrUpdate(managedKafka);
 
@@ -161,7 +163,7 @@ class SecuritySecretManagerTest {
         Resource<Secret> kafkaTlsSecretResource = client.secrets()
                 .inNamespace(client.getNamespace())
                 .withName(SecuritySecretManager.kafkaTlsSecretName(managedKafka));
-        Assertions.assertNull(kafkaTlsSecretResource.get());
+        assertNull(kafkaTlsSecretResource.get());
 
         securitySecretManager.createOrUpdate(managedKafka);
         Secret kafkaTlsSecret = kafkaTlsSecretResource.get();
@@ -200,8 +202,9 @@ class SecuritySecretManagerTest {
         assertEquals("new-tls-key", actualNewKafkaTlsKey);
     }
 
-    @Test
-    void testSsoClientSecretFromMasterSecret(){
+    @ParameterizedTest
+    @ValueSource(strings = { "sso-keycloak-crt", "-" })
+    void testSsoClientSecretFromMasterSecret(String ssoTrustedCert){
         client.secrets()
              .inNamespace(client.getNamespace())
              .create(new SecretBuilder()
@@ -223,7 +226,7 @@ class SecuritySecretManagerTest {
                                         .withName("test-master-secret")
                                         .withKey("sso-client-secret")
                                         .build())
-                                .withTlsTrustedCertificate("sso-keycloak-crt")
+                                .withTlsTrustedCertificate("-".equals(ssoTrustedCert) ? null : ssoTrustedCert)
                                 .build())
                         .build())
                 .build();
@@ -231,7 +234,12 @@ class SecuritySecretManagerTest {
         Resource<Secret> ssoSecretResource = client.secrets()
                 .inNamespace(client.getNamespace())
                 .withName(SecuritySecretManager.ssoClientSecretName(managedKafka));
-        Assertions.assertNull(ssoSecretResource.get());
+        assertNull(ssoSecretResource.get());
+
+        Resource<Secret> ssoTrustedCertResource = client.secrets()
+                .inNamespace(client.getNamespace())
+                .withName(SecuritySecretManager.ssoTlsSecretName(managedKafka));
+        assertNull(ssoTrustedCertResource.get());
 
         securitySecretManager.createOrUpdate(managedKafka);
         Secret ssoClientSecret = ssoSecretResource.get();
@@ -240,6 +248,16 @@ class SecuritySecretManagerTest {
         String encodedClientSecret = ssoClientSecret.getData().get("ssoClientSecret");
         String actualClientSecret = decode(encodedClientSecret);
         assertEquals("sso-client-secret", actualClientSecret);
+
+        Secret ssoTrustedCertSecret = ssoTrustedCertResource.get();
+        if ("-".equals(ssoTrustedCert)) {
+            assertNull(ssoTrustedCertSecret);
+        } else {
+            assertNotNull(ssoTrustedCertSecret);
+            String encodedCertSecret = ssoTrustedCertSecret.getData().get("keycloak.crt");
+            String actualCertSecret = decode(encodedCertSecret);
+            assertEquals(ssoTrustedCert, actualCertSecret);
+        }
 
         //Testing for Updated Master Secret
 
@@ -258,7 +276,19 @@ class SecuritySecretManagerTest {
         String encodedNewClientSecret = ssoNewClientSecret.getData().get("ssoClientSecret");
         String actualNewClientSecret = decode(encodedNewClientSecret);
         assertEquals("new-sso-client-secret", actualNewClientSecret);
+
+        Secret ssoNewTrustedCertSecret = ssoTrustedCertResource.get();
+        if ("-".equals(ssoTrustedCert)) {
+            assertNull(ssoNewTrustedCertSecret);
+        } else {
+            assertNotNull(ssoNewTrustedCertSecret);
+            String encodedCertSecret = ssoNewTrustedCertSecret.getData().get("keycloak.crt");
+            String actualCertSecret = decode(encodedCertSecret);
+            assertEquals(ssoTrustedCert, actualCertSecret);
+        }
+
     }
+
 
     @Test
     void testDeleteSecret(){
@@ -294,7 +324,7 @@ class SecuritySecretManagerTest {
                 .withName(SecuritySecretManager.ssoClientSecretName(managedKafka));
 
         securitySecretManager.createOrUpdate(managedKafka);
-        Assertions.assertNull(ssoSecretResource.get());
+        assertNull(ssoSecretResource.get());
     }
 
    @Test
@@ -314,7 +344,7 @@ class SecuritySecretManagerTest {
                     .withName(SecuritySecretManager.ssoClientSecretName(managedKafka));
 
             securitySecretManager.createOrUpdate(managedKafka);
-            Assertions.assertNull(ssoSecretResource.get());
+            assertNull(ssoSecretResource.get());
 
     }
 }
