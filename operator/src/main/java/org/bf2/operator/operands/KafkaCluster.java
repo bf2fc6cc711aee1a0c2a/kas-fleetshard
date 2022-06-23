@@ -524,10 +524,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     private KafkaExporterSpec buildKafkaExporter(ManagedKafka managedKafka) {
         ConfigMap configMap = cachedConfigMap(managedKafka, kafkaExporterLoggingConfigMapName(managedKafka));
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
         KafkaExporterSpecBuilder specBuilder = new KafkaExporterSpecBuilder()
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
+                .withImage(this.overrideManager.getKafkaExporterImage(strimzi).orElse(null))
                 .withResources(config.getExporter().buildResources());
 
         if (configMap != null) {

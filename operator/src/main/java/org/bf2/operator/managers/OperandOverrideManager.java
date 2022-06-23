@@ -103,6 +103,9 @@ public class OperandOverrideManager {
 
         @JsonProperty(value = "zookeeper")
         public OperandOverride zookeeper = new OperandOverride();
+
+        @JsonProperty(value = "kafka-exporter")
+        public OperandOverride kafkaExporter = new OperandOverride();
     }
 
     static final OperandOverrides EMPTY = new OperandOverrides();
@@ -125,6 +128,9 @@ public class OperandOverrideManager {
 
     @ConfigProperty(name = "image.zookeeper")
     Optional<String> zookeeperImage;
+
+    @ConfigProperty(name = "image.kafka-exporter")
+    Optional<String> kafkaExporterImage;
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -201,6 +207,12 @@ public class OperandOverrideManager {
 
     public Optional<String> getZookeeperImage(String strimzi) {
         return getImage(getZookeeperOverride(strimzi), strimzi, "zookeeper").or(() -> zookeeperImage);
+    }
+
+    public OperandOverride getKafkaExporterOverride(String strimzi) { return getOverrides(strimzi).kafkaExporter; }
+
+    public Optional<String> getKafkaExporterImage(String strimzi) {
+        return getImage(getKafkaExporterOverride(strimzi), strimzi, "kafka-exporter").or(() -> kafkaExporterImage);
     }
 
     Optional<String> getImage(OperandOverride override, String strimzi, String componentName) {
