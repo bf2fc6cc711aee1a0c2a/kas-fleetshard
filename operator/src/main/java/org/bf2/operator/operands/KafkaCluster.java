@@ -588,6 +588,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4) >= 0) {
             // extension to manage the create topic to ensure valid Replication Factor and ISR
             config.put("create.topic.policy.class.name", "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy");
+            config.put("alter.config.policy.class.name", "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy");
         }
 
         // forcing the preferred leader election as soon as possible
