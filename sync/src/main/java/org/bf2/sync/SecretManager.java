@@ -42,10 +42,6 @@ public class SecretManager {
     @Inject
     InformerManager informerManager;
 
-    public static String masterSecretName(ManagedKafka managedKafka) {
-        return managedKafka.getMetadata().getName() + "-master-secret";
-    }
-
     public static String kafkaClusterNamespace(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getNamespace();
     }
@@ -67,7 +63,7 @@ public class SecretManager {
     }
 
     public Secret buildSecret(ManagedKafka managedKafka) {
-        Secret secret = buildSecret(masterSecretName(managedKafka),
+        Secret secret = buildSecret(OperandUtils.masterSecretName(managedKafka),
                             "Opaque",
                              managedKafka,
                              buildSecretData(managedKafka));
@@ -80,7 +76,7 @@ public class SecretManager {
     }
 
     private Secret buildSecret(String name, String type, ManagedKafka managedKafka, Map<String, String> dataSource) {
-        Secret current = cachedSecret(managedKafka, masterSecretName(managedKafka));
+        Secret current = cachedSecret(managedKafka, OperandUtils.masterSecretName(managedKafka));
         SecretBuilder builder = current != null ? new SecretBuilder(current) : new SecretBuilder();
 
         Map<String, String> data = dataSource.entrySet()
@@ -124,7 +120,7 @@ public class SecretManager {
     }
 
     public ManagedKafka removeSecretsFromManagedKafka(ManagedKafka managedKafka) {
-        final String masterSecretName = masterSecretName(managedKafka);
+        final String masterSecretName = OperandUtils.masterSecretName(managedKafka);
         final ManagedKafkaSpecBuilder replacement = new ManagedKafkaSpecBuilder(managedKafka.getSpec());
 
         if (isKafkaExternalCertificateEnabled(managedKafka)) {

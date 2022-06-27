@@ -3,6 +3,7 @@ package org.bf2.operator.operands;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -15,6 +16,8 @@ import javax.inject.Inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -30,6 +33,9 @@ public class KafkaInstanceTest {
 
     @InjectMock
     AdminServer adminServer;
+
+    @InjectMock
+    SecuritySecretManager securitySecretManager;
 
     @Inject
     KafkaInstance kafkaInstance;
@@ -93,5 +99,29 @@ public class KafkaInstanceTest {
         InOrder inOrder = inOrder(canary, kafkaCluster);
         inOrder.verify(canary).delete(DUMMY_MANAGED_KAFKA, context);
         inOrder.verify(kafkaCluster).delete(DUMMY_MANAGED_KAFKA, context);
+    }
+
+    @Test
+    void operandsNotCreatedWhenMasterSecretMissing() {
+        when(securitySecretManager.masterSecretExists(DUMMY_MANAGED_KAFKA)).thenReturn(false);
+
+        kafkaInstance.createOrUpdate(DUMMY_MANAGED_KAFKA);
+
+        InOrder inOrder = inOrder(kafkaCluster, canary, adminServer);
+        inOrder.verify(kafkaCluster, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(canary, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(adminServer, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+    }
+
+    @Test
+    void operandsCreatedWhenMasterSecretPresent() {
+        when(securitySecretManager.masterSecretExists(DUMMY_MANAGED_KAFKA)).thenReturn(true);
+
+        kafkaInstance.createOrUpdate(DUMMY_MANAGED_KAFKA);
+
+        InOrder inOrder = inOrder(kafkaCluster, canary, adminServer);
+        inOrder.verify(kafkaCluster, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(canary, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(adminServer, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
     }
 }
