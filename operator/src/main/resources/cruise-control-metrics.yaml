@@ -160,3 +160,87 @@ data:
         pattern: >-
           kafka.cruisecontrol<name=Executor.leadership-movements-global-cap><>Value
         type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=GoalOptimizer.proposal-computation-timer><>Count
+        name: kafka_cruisecontrol_goaloptimizer_proposal_computation_timer_seconds
+        help: Proposal computation time in seconds
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=KafkaCruiseControlServlet.(\w+)-request-rate><>Count
+        name: kafka_cruisecontrol_kafkacruisecontrolservlet_requests_total
+        labels:
+          endpoint: $1 # Possible values: add_broker, demote_broker, remove_broker, admin, bootstrap, fix_offline_replicas, kafka_cluster_state, load, partition_load, pause_sampling, resume_sampling, proposals, stop_proposal_execution, rebalance, review_board, review, rightsize, state, topic_configuration, train, user_tasks
+        help: Current total of incoming HTTP requests served by different API endpoints.
+        type: COUNTER
+        lowercaseOutputLabelNames: true
+      - pattern: >-
+          kafka.cruisecontrol<name=KafkaCruiseControlServlet.(\w+)-successful-request-execution-timer><>Count
+        name: kafka_cruisecontrol_kafkacruisecontrolservlet_successful_request_execution_duration_seconds
+        labels:
+          endpoint: $1 # Possible values: add_broker, demote_broker, remove_broker, admin, bootstrap, fix_offline_replicas, kafka_cluster_state, load, partition_load, pause_sampling, resume_sampling, proposals, stop_proposal_execution, rebalance, review_board, review, rightsize, state, topic_configuration, train, user_tasks
+        help: Service time of a successful request in seconds for each endpoint
+        type: GAUGE
+        valueFactor: 0.000000001
+        lowercaseOutputLabelNames: true
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.cluster-model-creation-timer><>Count
+        name: kafka_cruisecontrol_loadmonitor_cluster_model_creation_duration_seconds
+        help: Cluster model creation time in seconds
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.metadata-factor><>Value
+        name: kafka_cruisecontrol_loadmonitor_metadata_factor
+        help: The metadata factor, which corresponds to (number of replicas) * (number of brokers with replicas) ^ exponent
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.monitored-partitions-percentage><>Value
+        name: kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage
+        help: The monitored partition percentage
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.num-partitions-with-extrapolations><>Value
+        name: kafka_cruisecontrol_loadmonitor_num_partitions_with_extrapolations
+        help: The number of partitions that is valid but require extrapolations
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.has-partitions-with-isr-greater-than-replicas><>Value
+        name: kafka_cruisecontrol_loadmonitor_has_partitions_with_isr_greater_than_replicas
+        help: "The cluster has partitions with ISR > replicas (0: No such partitions, 1: Has such partitions)"
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.num-topics><>Value
+        name: kafka_cruisecontrol_loadmonitor_num_topics
+        help: The number of topics
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.total-monitored-windows><>Value
+        name: kafka_cruisecontrol_loadmonitor_total_monitored_windows
+        help: The number of monitored windows
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.valid-windows><>Value
+        name: kafka_cruisecontrol_loadmonitor_valid_windows
+        help: The number of valid windows
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=MetricFetcherManager.partition-samples-fetcher-failure-rate><>Count
+        name: kafka_cruisecontrol_metricfetchermanager_partition_samples_fetcher_failure_total
+        help: The number of partition metric sample fetch failures
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=MetricFetcherManager.partition-samples-fetcher-timer><>Count
+        name: kafka_cruisecontrol_metricfetchermanager_partition_samples_fetcher_duration_seconds
+        help: The time taken by each round of partition sample fetch
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=UserTaskManager.num-active-user-tasks><>Value
+        name: kafka_cruisecontrol_usertaskmanager_num_active_user_tasks
+        help: The number of active user tasks
+        type: GAUGE
+      - pattern: kafka.cruisecontrol<name=(.+)><>(\w+)
+        name: kafka_cruisecontrol_$1_$2
+        type: GAUGE
+        lowercaseOutputLabelNames: true
