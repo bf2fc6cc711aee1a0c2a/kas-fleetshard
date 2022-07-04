@@ -89,7 +89,7 @@ public class OperandOverrideManager {
     }
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Kafka extends OperandOverride {
-        public Map<String, Object> brokerConfig = Map.of();
+        private Map<String, Object> brokerConfig = Map.of();
 
         public Map<String, Object> getBrokerConfig() {
             return brokerConfig;
