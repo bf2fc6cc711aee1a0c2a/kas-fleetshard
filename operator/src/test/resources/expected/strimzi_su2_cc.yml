@@ -103,6 +103,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
+      alter.config.policy.class.name: "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 3
       client.quota.callback.static.fetch: "34952533"
