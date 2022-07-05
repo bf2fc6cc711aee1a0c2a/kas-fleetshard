@@ -145,7 +145,7 @@ kubectl edit cm strimzi-cluster-operator -n <namespace>
 
 ## Configure Kafka Components logging
 
-The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper and exporter are configured individually in separate ConfigMaps in the namespace where the Kafka cluster is installed.
+The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper, exporter and cruise control are configured individually in separate ConfigMaps in the namespace where the Kafka cluster is installed.
 
 ### Kafka Broker logging configuration
 
@@ -185,6 +185,31 @@ A sample configmap looks as below, make necessary edits as required
 ```
 
 supported log levels: [debug, info, warn, error, fatal]
+
+### Cruise Control logging configuration
+
+To change the logging configuration of the Cruise Control component execute the following
+
+```shell
+oc edit cm <kafka-cluster-name>-cruise-control-logging -n <tenant-kafka-cluster-namespace>
+```
+
+A sample configmap looks as below, make necessary edits as required
+
+
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cluster-cruise-control-logging
+  data:
+    log4j2.properties: >
+      ...
+      rootLogger.level = info
+      ...
+```
+
+supported log levels: [all, trace, debug, info, warn, error, fatal, off]
 
 ## Querying Kafka JMX Mbeans
 

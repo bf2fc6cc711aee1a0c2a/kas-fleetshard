@@ -63,6 +63,10 @@ public class OperandUtils {
         return result;
     }
 
+    public static String masterSecretName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-" + MASTER_SECRET_NAME;
+    }
+
     /**
      * Similar to the fabric8 createOrReplace operation, but assumes replacement is the dominant operation
      *

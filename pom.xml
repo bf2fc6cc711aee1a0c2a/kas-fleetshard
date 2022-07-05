@@ -17,7 +17,7 @@
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>0.24.3-SNAPSHOT</version>
+    <version>0.24.4-SNAPSHOT</version>
 
     <properties>
         <!-- things we don't need from basepom -->
