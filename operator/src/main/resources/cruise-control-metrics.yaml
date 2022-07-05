@@ -154,7 +154,7 @@ data:
           action: $1 # List includes: intra-broker-replica (within same broker), leadership, replica
           state: $2 # List includes: aborted, aborting, completed, dead, in-progress, pending
         help: The number of $1 action in $2 state
-        type: COUNTER
+        type: GAUGE
       - help: Global cap on leadership movements
         name: kafka_cruisecontrol_executor_leadership_movements_global_cap
         pattern: >-
