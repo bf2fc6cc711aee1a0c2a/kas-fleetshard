@@ -16,6 +16,7 @@ import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
@@ -33,6 +34,7 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -48,6 +50,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -61,6 +64,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -80,6 +84,9 @@ class KafkaClusterTest {
 
     @Inject
     KafkaInstanceConfigurations configs;
+
+    @InjectMock
+    OperandOverrideManager overrideManager;
 
     @BeforeEach
     void beforeEach() {
@@ -341,6 +348,11 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
+        Map<String, Object> brokerConfig = new HashMap<>();
+        brokerConfig.put("broker.foo", "bar");
+        brokerConfig.put("auto.create.topics.enable", null);
+        configureMockOverrideManager(mk, brokerConfig);
+
         mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());
 
         alternativeConfig(clone -> {
@@ -630,5 +642,16 @@ class KafkaClusterTest {
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientId());
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
     }
+
+
+    private void configureMockOverrideManager(ManagedKafka mk, Map<String, Object> brokerConfigOverride) {
+        String strimzi = mk.getSpec().getVersions().getStrimzi();
+        OperandOverrideManager.Kafka canary = new OperandOverrideManager.Kafka();
+        canary.setBrokerConfig(brokerConfigOverride);
+        when(overrideManager.getKafkaOverride(strimzi)).thenReturn(canary);
+        when(overrideManager.getCanaryImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+        when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+    }
+
 
 }

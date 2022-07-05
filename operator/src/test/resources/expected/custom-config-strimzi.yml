@@ -98,7 +98,6 @@ spec:
       strimzi.authorization.custom-authorizer.acl.022: "priority=1;permission=deny;principal=canary-123;topic=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.023: "priority=1;permission=deny;principal=canary-123;group=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.024: "priority=1;permission=deny;principal=canary-123;transactional_id=*;operations=all"
-      auto.create.topics.enable: "false"
       strimzi.authorization.custom-authorizer.acl.020: "priority=0;permission=allow;principal=canary-123;topic=__redhat_strimzi_canary;operations=create,describe,read,write,alter,alter_configs"
       strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 2
@@ -213,6 +212,7 @@ spec:
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
+      broker.foo: bar
     storage:
       volumes:
       - type: "persistent-claim"

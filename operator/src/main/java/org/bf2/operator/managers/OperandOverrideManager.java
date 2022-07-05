@@ -88,6 +88,19 @@ public class OperandOverrideManager {
         }
     }
     @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Kafka extends OperandOverride {
+        private Map<String, Object> brokerConfig = Map.of();
+
+        public Map<String, Object> getBrokerConfig() {
+            return brokerConfig;
+        }
+
+        public void setBrokerConfig(Map<String, Object> kafkaConfig) {
+            this.brokerConfig = kafkaConfig;
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Canary extends OperandOverride {
         public OperandOverride init = new OperandOverride();
     }
@@ -99,7 +112,7 @@ public class OperandOverrideManager {
         public OperandOverride adminServer = new OperandOverride();
 
         @JsonProperty(value = "kafka")
-        public OperandOverride kafka = new OperandOverride();
+        public Kafka kafka = new Kafka();
 
         @JsonProperty(value = "zookeeper")
         public OperandOverride zookeeper = new OperandOverride();
@@ -187,7 +200,7 @@ public class OperandOverrideManager {
         return getImage(getAdminServerOverride(strimzi), strimzi, "admin-server").orElse(adminApiImage);
     }
 
-    public OperandOverride getKafkaOverride(String strimzi) {
+    public Kafka getKafkaOverride(String strimzi) {
         return getOverrides(strimzi).kafka;
     }
 
