@@ -32,7 +32,7 @@ environment variable.  It also provides an additional configuration item to the 
         kas.policy.topic-config.topic-config-policy-enforced: true
 ```
 
-This can used to override items of configuration.
+This can be used to override items of configuration.
 
 # Logging / Metrics
 
