@@ -3,6 +3,7 @@ package org.bf2.performance;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -169,7 +170,7 @@ public class InstanceProfiler {
 
     public static class TestParameters {
         // sizing
-        public int density = 2;
+        public int density = 1;
         // if !autoSize, use the default configuration values
         public boolean autoSize = true;
 
@@ -190,7 +191,7 @@ public class InstanceProfiler {
 
         public String outputDirectory = "target";
 
-        public String alternativeProfile;
+        public String profile = "standard";
 
         public Map<String, String> override;
 
@@ -350,10 +351,7 @@ public class InstanceProfiler {
                 p1.load(is);
                 p1.forEach((k, v) -> p.put("managedkafka." + k, v));
             }
-            String name = "standard";
-            if (testParameters.alternativeProfile != null) {
-                name = testParameters.alternativeProfile;
-            }
+            String name = testParameters.profile;
             try (InputStream is = InstanceProfiler.class.getResourceAsStream(
                     String.format("/instances/%s.properties", name))) {
                 Properties p1 = new Properties();
@@ -518,7 +516,11 @@ public class InstanceProfiler {
                 kafkaProvisioner.install();
             }
             kafkaProvisioner.removeClusters(true);
-            kd = kafkaProvisioner.deployCluster(name, profilingResult.capacity, profilingResult.config);
+            ObjectMetaBuilder builder = new ObjectMetaBuilder();
+            builder.withName(name);
+            builder.addToLabels(ManagedKafka.PROFILE_TYPE, this.testParameters.profile);
+            //builder.addToLabels(ManagedKafka.DEPLOYMENT_TYPE, "reserved");
+            kd = kafkaProvisioner.deployCluster(builder.build(), profilingResult.capacity, profilingResult.config);
         } else {
             // TODO validate config / capacity
             kd = new ManagedKafkaDeployment(mk, kafkaCluster);

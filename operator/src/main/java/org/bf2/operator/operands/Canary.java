@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -170,6 +171,22 @@ public class Canary extends AbstractCanary {
         OperandUtils.setAsOwner(managedKafka, service);
 
         return service;
+    }
+
+    @Override
+    public void createOrUpdate(ManagedKafka managedKafka) {
+        if (managedKafka.isReserveDeployment()) {
+            Deployment current = cachedDeployment(managedKafka);
+            Deployment deployment = deploymentFrom(managedKafka, null);
+
+            deployment = PausePodConverter.asPauseDeployment(current, deployment, managedKafka);
+
+            if (!Objects.equals(current, deployment)) {
+                createOrUpdate(deployment);
+            }
+            return;
+        }
+        super.createOrUpdate(managedKafka);
     }
 
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {

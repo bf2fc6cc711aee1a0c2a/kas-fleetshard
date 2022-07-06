@@ -27,6 +27,8 @@ import java.util.UUID;
 @Version("v1alpha1")
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 
+    public static final String RESERVED_DEPLOYMENT_TYPE = "reserved";
+
     private static final String CERT = "cert";
 
     public static final String BF2_DOMAIN = "bf2.org/";
@@ -35,6 +37,8 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
 
     public static final String PROFILE_TYPE = BF2_DOMAIN + "kafkaInstanceProfileType";
     public static final String PROFILE_QUOTA_CONSUMED = BF2_DOMAIN + "kafkaInstanceProfileQuotaConsumed";
+
+    public static final String DEPLOYMENT_TYPE = BF2_DOMAIN + "deployment";
 
     @Override
     protected ManagedKafkaSpec initSpec() {
@@ -172,6 +176,14 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public static ManagedKafka getDummyInstance(int name) {
         return getDefault("mk-" + name, "mk-" + name, "xyz.com", CERT, CERT, "clientId", CERT, "secret",
                 "claim", "fallbackClaim", "http://jwks", "https://token", "http://issuer", "strimzi-cluster-operator.v0.23.0", "2.7.0");
+    }
+
+    @JsonIgnore
+    public boolean isReserveDeployment() {
+        if (getMetadata().getLabels() == null) {
+            return false;
+        }
+        return RESERVED_DEPLOYMENT_TYPE.equals(getMetadata().getLabels().get(DEPLOYMENT_TYPE));
     }
 
 }

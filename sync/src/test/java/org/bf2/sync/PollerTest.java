@@ -65,6 +65,25 @@ public class PollerTest {
     }
 
     @Test
+    public void testAddDeleteReserved() {
+        ManagedKafka managedKafka = exampleManagedKafka();
+        managedKafka.getMetadata().setLabels(Map.of(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE));
+
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Collections.singletonList(managedKafka)));
+        managedKafkaSync.syncKafkaClusters();
+
+        List<ManagedKafka> items = lookup.getLocalManagedKafkas();
+        assertEquals(1, items.size());
+        assertFalse(items.get(0).getSpec().isDeleted());
+        assertTrue(items.get(0).isReserveDeployment());
+
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Collections.emptyList()));
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        assertTrue(items.isEmpty());
+    }
+
+    @Test
     public void testAddDelete() {
         ManagedKafka managedKafka = exampleManagedKafka();
 
@@ -79,7 +98,7 @@ public class PollerTest {
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
         assertFalse(items.get(0).getSpec().isDeleted());
-        
+
         // even though an annotation and other kube metadata have changed, the rest has not
         assertFalse(managedKafkaSync.changed(managedKafka, items.get(0)));
         // should detect a modified label
@@ -90,7 +109,7 @@ public class PollerTest {
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
         assertTrue(items.get(0).getAnnotation(SecretManager.ANNOTATION_MASTER_SECRET_DIGEST).isPresent());
-        
+
         // make sure the remote tracking is there and not marked as deleted
         assertFalse(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());
 
