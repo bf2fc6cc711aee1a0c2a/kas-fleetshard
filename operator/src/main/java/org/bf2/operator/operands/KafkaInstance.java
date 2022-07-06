@@ -90,6 +90,10 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         }
         List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 
+        return combineReadiness(readiness);
+    }
+
+    public static OperandReadiness combineReadiness(List<OperandReadiness> readiness) {
         // default to the first reason, with can come from the kafka by the order of the operands
         Reason reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
         // default the status to false or unknown if any are unknown

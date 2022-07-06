@@ -1,0 +1,310 @@
+- apiVersion: "apps/v1"
+  kind: "Deployment"
+  metadata:
+    generation: 1
+    labels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      bf2.org/deployment: "reserved"
+      ingressType: "sharded"
+      managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+      managedkafka.bf2.org/kas-multi-zone: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone2: "true"
+    name: "test-mk-cruisecontrol"
+    namespace: "reserved"
+    ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        bf2.org/deployment: "reserved"
+        ingressType: "sharded"
+        managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+        managedkafka.bf2.org/kas-multi-zone: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone2: "true"
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+          bf2.org/deployment: "reserved"
+          ingressType: "sharded"
+          managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+          managedkafka.bf2.org/kas-multi-zone: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone2: "true"
+          strimzi.io/name: "test-mk-cruisecontrol"
+        name: "test-mk-cruisecontrol"
+      spec:
+        affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: "strimzi.io/name"
+                    operator: "In"
+                    values:
+                    - "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 100
+        containers:
+        - image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          name: "pause"
+          resources:
+            limits:
+              memory: "17.3Gi"
+              cpu: "4900m"
+            requests:
+              memory: "17.3Gi"
+              cpu: "4900m"
+        priorityClassName: "kas-fleetshard-reservation"
+        tolerations:
+        - effect: "NoExecute"
+          key: "org.bf2.operator/kafka-broker"
+          operator: "Exists"
+        topologySpreadConstraints:
+        - labelSelector:
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-kafka"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "DoNotSchedule"
+- apiVersion: "apps/v1"
+  kind: "Deployment"
+  metadata:
+    generation: 1
+    labels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      bf2.org/deployment: "reserved"
+      ingressType: "sharded"
+      managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+      managedkafka.bf2.org/kas-multi-zone: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone2: "true"
+    name: "test-mk-exporter"
+    namespace: "reserved"
+    ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        bf2.org/deployment: "reserved"
+        ingressType: "sharded"
+        managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+        managedkafka.bf2.org/kas-multi-zone: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone2: "true"
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+          bf2.org/deployment: "reserved"
+          ingressType: "sharded"
+          managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+          managedkafka.bf2.org/kas-multi-zone: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone2: "true"
+          strimzi.io/name: "test-mk-exporter"
+        name: "test-mk-exporter"
+      spec:
+        affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: "strimzi.io/name"
+                    operator: "In"
+                    values:
+                    - "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 100
+        containers:
+        - image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          name: "pause"
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "1000m"
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+        priorityClassName: "kas-fleetshard-reservation"
+- apiVersion: "apps/v1"
+  kind: "Deployment"
+  metadata:
+    generation: 1
+    labels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      bf2.org/deployment: "reserved"
+      ingressType: "sharded"
+      managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+      managedkafka.bf2.org/kas-multi-zone: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone2: "true"
+    name: "test-mk-kafka"
+    namespace: "reserved"
+    ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        bf2.org/deployment: "reserved"
+        ingressType: "sharded"
+        managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+        managedkafka.bf2.org/kas-multi-zone: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone2: "true"
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+          bf2.org/deployment: "reserved"
+          ingressType: "sharded"
+          managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+          managedkafka.bf2.org/kas-multi-zone: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone2: "true"
+          strimzi.io/name: "test-mk-kafka"
+        name: "test-mk-kafka"
+      spec:
+        affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: "strimzi.io/name"
+                    operator: "In"
+                    values:
+                    - "test-mk-zookeeper"
+                topologyKey: "kubernetes.io/hostname"
+              weight: 100
+        containers:
+        - image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          name: "pause"
+          resources:
+            limits:
+              memory: "17.3Gi"
+              cpu: "4900m"
+            requests:
+              memory: "17.3Gi"
+              cpu: "4900m"
+        priorityClassName: "kas-fleetshard-reservation"
+        tolerations:
+        - effect: "NoExecute"
+          key: "org.bf2.operator/kafka-broker"
+          operator: "Exists"
+        topologySpreadConstraints:
+        - labelSelector:
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-kafka"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "DoNotSchedule"
+- apiVersion: "apps/v1"
+  kind: "Deployment"
+  metadata:
+    generation: 1
+    labels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      bf2.org/deployment: "reserved"
+      ingressType: "sharded"
+      managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+      managedkafka.bf2.org/kas-multi-zone: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone2: "true"
+    name: "test-mk-zookeeper"
+    namespace: "reserved"
+    ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        bf2.org/deployment: "reserved"
+        ingressType: "sharded"
+        managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+        managedkafka.bf2.org/kas-multi-zone: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone2: "true"
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+          bf2.org/deployment: "reserved"
+          ingressType: "sharded"
+          managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+          managedkafka.bf2.org/kas-multi-zone: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone2: "true"
+          strimzi.io/name: "test-mk-zookeeper"
+        name: "test-mk-zookeeper"
+      spec:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: "zookeeper"
+              namespaceSelector: {}
+              topologyKey: "kubernetes.io/hostname"
+        containers:
+        - image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          name: "pause"
+          resources:
+            limits:
+              memory: "4Gi"
+              cpu: "1000m"
+            requests:
+              memory: "4Gi"
+              cpu: "1000m"
+        priorityClassName: "kas-fleetshard-reservation"
+        topologySpreadConstraints:
+        - labelSelector:
+            matchExpressions:
+            - key: "strimzi.io/name"
+              operator: "In"
+              values:
+              - "test-mk-zookeeper"
+          maxSkew: 1
+          topologyKey: "topology.kubernetes.io/zone"
+          whenUnsatisfiable: "DoNotSchedule"
