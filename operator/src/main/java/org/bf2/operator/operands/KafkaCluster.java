@@ -61,6 +61,7 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.KafkaManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -638,6 +639,18 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (cruiseControlEnabled) {
             config.put("cruise.control.metrics.topic.min.insync.replicas", this.configs.getConfig(managedKafka).cruiseControl.getMetricReporterTopicMinInsyncReplicas());
         }
+
+        // Override broker config from operand override
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+        Optional.ofNullable(this.overrideManager.getKafkaOverride(strimzi)).map(OperandOverrideManager.Kafka::getBrokerConfig).orElse(Map.of()).forEach((key, value) -> {
+            if (value != null) {
+                config.put(key, value);
+            } else {
+                config.remove(key);
+            } ;
+        });
+
+
         return config;
     }
 

@@ -14,86 +14,86 @@ metadata:
   name: "test-mk"
   namespace: "test"
   ownerReferences:
-  - apiVersion: "managedkafka.bf2.org/v1alpha1"
-    kind: "ManagedKafka"
-    name: "test-mk"
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
 spec:
   kafka:
     version: "2.6.0"
     replicas: 6
     listeners:
-    - name: "external"
-      port: 9094
-      type: "ingress"
-      tls: true
-      authentication:
-        clientId: "clientId"
-        clientSecret:
-          secretName: "test-mk-sso-secret"
-          key: "ssoClientSecret"
-        validIssuerUri: "https://validIssuerEndpointURI"
-        checkIssuer: true
-        jwksEndpointUri: "https://jwksEndpointURI"
-        userNameClaim: "userNameClaim"
-        fallbackUserNameClaim: "fallbackUserNameClaim"
-        checkAccessTokenType: true
-        accessTokenIsJwt: true
-        tlsTrustedCertificates:
-        - secretName: "test-mk-sso-cert"
-          certificate: "keycloak.crt"
-        enablePlain: true
-        tokenEndpointUri: "https://tokenEndpointURI"
-        enableOauthBearer: true
-        type: "oauth"
-      configuration:
-        bootstrap:
-          host: "xxx.yyy.zzz"
-          annotations:
-            haproxy.router.openshift.io/balance: "leastconn"
-        brokers:
-        - broker: 0
-          host: "broker-0-xxx.yyy.zzz"
-        - broker: 1
-          host: "broker-1-xxx.yyy.zzz"
-        - broker: 2
-          host: "broker-2-xxx.yyy.zzz"
-        - broker: 3
-          host: "broker-3-xxx.yyy.zzz"
-        - broker: 4
-          host: "broker-4-xxx.yyy.zzz"
-        - broker: 5
-          host: "broker-5-xxx.yyy.zzz"
-        maxConnections: 33
-        maxConnectionCreationRate: 16
-    - name: "oauth"
-      port: 9095
-      type: "internal"
-      tls: true
-      authentication:
-        clientId: "clientId"
-        clientSecret:
-          secretName: "test-mk-sso-secret"
-          key: "ssoClientSecret"
-        validIssuerUri: "https://validIssuerEndpointURI"
-        checkIssuer: true
-        jwksEndpointUri: "https://jwksEndpointURI"
-        userNameClaim: "userNameClaim"
-        fallbackUserNameClaim: "fallbackUserNameClaim"
-        checkAccessTokenType: true
-        accessTokenIsJwt: true
-        tlsTrustedCertificates:
-        - secretName: "test-mk-sso-cert"
-          certificate: "keycloak.crt"
-        enableOauthBearer: true
-        type: "oauth"
-      networkPolicyPeers:
-      - podSelector:
-          matchLabels:
-            app: "test-mk-admin-server"
-    - name: "sre"
-      port: 9096
-      type: "internal"
-      tls: false
+      - name: "external"
+        port: 9094
+        type: "ingress"
+        tls: true
+        authentication:
+          clientId: "clientId"
+          clientSecret:
+            secretName: "test-mk-sso-secret"
+            key: "ssoClientSecret"
+          validIssuerUri: "https://validIssuerEndpointURI"
+          checkIssuer: true
+          jwksEndpointUri: "https://jwksEndpointURI"
+          userNameClaim: "userNameClaim"
+          fallbackUserNameClaim: "fallbackUserNameClaim"
+          checkAccessTokenType: true
+          accessTokenIsJwt: true
+          tlsTrustedCertificates:
+            - secretName: "test-mk-sso-cert"
+              certificate: "keycloak.crt"
+          enablePlain: true
+          tokenEndpointUri: "https://tokenEndpointURI"
+          enableOauthBearer: true
+          type: "oauth"
+        configuration:
+          bootstrap:
+            host: "xxx.yyy.zzz"
+            annotations:
+              haproxy.router.openshift.io/balance: "leastconn"
+          brokers:
+            - broker: 0
+              host: "broker-0-xxx.yyy.zzz"
+            - broker: 1
+              host: "broker-1-xxx.yyy.zzz"
+            - broker: 2
+              host: "broker-2-xxx.yyy.zzz"
+            - broker: 3
+              host: "broker-3-xxx.yyy.zzz"
+            - broker: 4
+              host: "broker-4-xxx.yyy.zzz"
+            - broker: 5
+              host: "broker-5-xxx.yyy.zzz"
+          maxConnections: 33
+          maxConnectionCreationRate: 16
+      - name: "oauth"
+        port: 9095
+        type: "internal"
+        tls: true
+        authentication:
+          clientId: "clientId"
+          clientSecret:
+            secretName: "test-mk-sso-secret"
+            key: "ssoClientSecret"
+          validIssuerUri: "https://validIssuerEndpointURI"
+          checkIssuer: true
+          jwksEndpointUri: "https://jwksEndpointURI"
+          userNameClaim: "userNameClaim"
+          fallbackUserNameClaim: "fallbackUserNameClaim"
+          checkAccessTokenType: true
+          accessTokenIsJwt: true
+          tlsTrustedCertificates:
+            - secretName: "test-mk-sso-cert"
+              certificate: "keycloak.crt"
+          enableOauthBearer: true
+          type: "oauth"
+        networkPolicyPeers:
+          - podSelector:
+              matchLabels:
+                app: "test-mk-admin-server"
+      - name: "sre"
+        port: 9096
+        type: "internal"
+        tls: false
     config:
       strimzi.authorization.custom-authorizer.acl.022: "priority=1;permission=deny;principal=canary-123;topic=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.023: "priority=1;permission=deny;principal=canary-123;group=*;operations=all"
@@ -214,13 +214,14 @@ spec:
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
 
       max.partitions: 3000
+      cruise.control.metrics.topic.min.insync.replicas: 2
     storage:
       volumes:
-      - type: "persistent-claim"
-        size: "397204363631"
-        class: "gp2"
-        deleteClaim: true
-        id: 0
+        - type: "persistent-claim"
+          size: "397204363631"
+          class: "gp2"
+          deleteClaim: true
+          id: 0
       type: "jbod"
     authorization:
       type: "custom"
@@ -229,14 +230,14 @@ spec:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
       javaSystemProperties:
-      - name: "com.sun.management.jmxremote.port"
-        value: "9999"
-      - name: "com.sun.management.jmxremote.rmi.port"
-        value: "9999"
-      - name: "com.sun.management.jmxremote.host"
-        value: "127.0.0.1"
-      - name: "java.rmi.server.hostname"
-        value: "127.0.0.1"
+        - name: "com.sun.management.jmxremote.port"
+          value: "9999"
+        - name: "com.sun.management.jmxremote.rmi.port"
+          value: "9999"
+        - name: "com.sun.management.jmxremote.host"
+          value: "127.0.0.1"
+        - name: "java.rmi.server.hostname"
+          value: "127.0.0.1"
       "-Xmx": "6442450944"
       "-Xms": "6442450944"
       "-XX":
@@ -264,21 +265,21 @@ spec:
     template:
       pod:
         imagePullSecrets:
-        - name: "myimage:0.0.1"
+          - name: "myimage:0.0.1"
         tolerations:
-        - effect: "NoExecute"
-          key: "org.bf2.operator/kafka-broker"
-          operator: "Exists"
+          - effect: "NoExecute"
+            key: "org.bf2.operator/kafka-broker"
+            operator: "Exists"
         topologySpreadConstraints:
-        - labelSelector:
-            matchExpressions:
-            - key: "strimzi.io/name"
-              operator: "In"
-              values:
-              - "test-mk-kafka"
-          maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "DoNotSchedule"
+          - labelSelector:
+              matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                    - "test-mk-kafka"
+            maxSkew: 1
+            topologyKey: "topology.kubernetes.io/zone"
+            whenUnsatisfiable: "DoNotSchedule"
   zookeeper:
     replicas: 3
     storage:
@@ -314,17 +315,17 @@ spec:
     template:
       pod:
         imagePullSecrets:
-        - name: "myimage:0.0.1"
+          - name: "myimage:0.0.1"
         topologySpreadConstraints:
-        - labelSelector:
-            matchExpressions:
-            - key: "strimzi.io/name"
-              operator: "In"
-              values:
-              - "test-mk-zookeeper"
-          maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "DoNotSchedule"
+          - labelSelector:
+              matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                    - "test-mk-zookeeper"
+            maxSkew: 1
+            topologyKey: "topology.kubernetes.io/zone"
+            whenUnsatisfiable: "DoNotSchedule"
   kafkaExporter:
     resources:
       limits:
@@ -333,3 +334,29 @@ spec:
       requests:
         memory: "256Mi"
         cpu: "500m"
+  cruiseControl:
+    resources:
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+      requests:
+        memory: "2Gi"
+        cpu: "250m"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j2.properties
+          name: test-mk-cruise-control-logging
+          optional: true
+    template:
+      pod:
+        imagePullSecrets:
+          - name: "myimage:0.0.1"
+    config:
+      default.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      hard.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      sample.store.topic.replication.factor: 3
+      partition.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.partitionmetricsamples"
+      broker.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.modeltrainingsamples"
+      metric.reporter.topic: "__redhat_strimzi.cruisecontrol.metrics"
