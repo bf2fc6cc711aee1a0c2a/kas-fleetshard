@@ -531,12 +531,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
                 .withImage(this.overrideManager.getKafkaExporterImage(strimzi).orElse(null))
-                .withNewTemplate()
-                    .withNewPod()
-                        .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                    .endPod()
-                .endTemplate()
                 .withResources(config.getExporter().buildResources());
+        var pullSecrets = imagePullSecretManager.getOperatorImagePullSecrets(managedKafka);
+        if (!pullSecrets.isEmpty()) {
+            specBuilder.editOrNewTemplate()
+                    .editOrNewPod()
+                    .withImagePullSecrets(pullSecrets)
+                    .endPod()
+                    .endTemplate();
+        }
 
         if (configMap != null) {
             String logLevel = configMap.getData().get(KAFKA_EXPORTER_LOG_LEVEL);
