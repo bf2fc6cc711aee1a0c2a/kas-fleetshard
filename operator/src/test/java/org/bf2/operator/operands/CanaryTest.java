@@ -1,7 +1,9 @@
 package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.SecretVolumeSource;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -13,6 +15,7 @@ import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.TlsKeyPairBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
@@ -20,11 +23,14 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import javax.inject.Inject;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -112,4 +118,43 @@ public class CanaryTest {
         when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "some-cert, some-key, /tmp/tls-ca-cert/tls.crt, test-mk-tls-secret",
+            "         ,         , /tmp/tls-ca-cert/ca.crt , test-mk-cluster-ca-cert"
+    })
+    void canaryTlsConfigurationTest(String tlsCert, String tlsKey, String expectedCertPath, String expectedSecretName) throws Exception {
+        ManagedKafka mk = createManagedKafka("bootstrap:443");
+        if (tlsCert != null && tlsKey != null) {
+            mk.getSpec().getEndpoint().setTls(new TlsKeyPairBuilder().withCert(tlsCert).withKey(tlsKey).build());
+        }
+        configureMockOverrideManager(mk, Collections.emptyList(), Collections.emptyList());
+        Deployment canaryDeployment = canary.deploymentFrom(mk, null);
+
+        Optional<String> actualCertPath = canaryDeployment.getSpec()
+            .getTemplate()
+            .getSpec()
+            .getContainers()
+            .stream()
+            .flatMap(container -> container.getEnv().stream())
+            .filter(env -> "TLS_CA_CERT".equals(env.getName()))
+            .map(EnvVar::getValue)
+            .findFirst();
+
+        assertTrue(actualCertPath.isPresent());
+        assertEquals(expectedCertPath, actualCertPath.get());
+
+        Optional<String> actualSecretName = canaryDeployment.getSpec()
+            .getTemplate()
+            .getSpec()
+            .getVolumes()
+            .stream()
+            .filter(vol -> Canary.canaryTlsVolumeName(mk).equals(vol.getName()))
+            .map(Volume::getSecret)
+            .map(SecretVolumeSource::getSecretName)
+            .findFirst();
+
+        assertTrue(actualSecretName.isPresent());
+        assertEquals(expectedSecretName, actualSecretName.get());
+    }
 }
