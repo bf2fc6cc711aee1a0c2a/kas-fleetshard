@@ -1,0 +1,246 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cruise-control-metrics
+  labels:
+    app.kubernetes.io/managed-by: kas-fleetshard-operator
+data:
+  jmx-exporter-config: |
+    lowercaseOutputName: true
+    rules:
+      - help: Balancedness score (100 = fully-balanced, 0 = fully-unbalanced, -1 = has dead-brokers / disks in cluster)
+        name: kafka_cruisecontrol_anomalydetector_balancedness_score
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.balancedness-score><>Value
+        type: GAUGE
+      - help: The number of executed automated rightsizing with actions
+        name: kafka_cruisecontrol_anomalydetector_automated_rightsizing_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.automated-rightsizing-rate><>Count
+        type: COUNTER
+      - help: Broker failures detected via the anomaly detector
+        name: kafka_cruisecontrol_anomalydetector_broker_failure_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.broker-failure-rate><>Count
+        type: COUNTER
+      - help: Whether broker failure self-healing is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_broker_failure_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.broker_failure-self-healing-enabled><>Value
+        type: GAUGE
+      - help: Disk failures detected via the anomaly detector
+        name: kafka_cruisecontrol_anomalydetector_disk_failure_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.disk-failure-rate><>Count
+        type: COUNTER
+      - help: Whether disk failure self-healing is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_disk_failure_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.disk_failure-self-healing-enabled><>Value
+        type: GAUGE
+      - help: The time taken by goal violation detection in seconds
+        name: kafka_cruisecontrol_anomalydetector_goal_violation_detection_duration_seconds
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.goal-violation-detection-timer><>Count
+        type: GAUGE
+        valueFactor: 0.000000001
+      - help: Whether goal violation detector identified goals that require human intervention (e.g. cluster expansion)
+        name: kafka_cruisecontrol_anomalydetector_goal_violation_has_unfixable_goals
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.GOAL_VIOLATION-has-unfixable-goals><>Value
+        type: GAUGE
+      - help: Goal violation count
+        name: kafka_cruisecontrol_anomalydetector_goal_violation_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.goal-violation-rate><>Count
+        type: COUNTER
+      - help: Whether goal violation self-healing is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_goal_violation_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.goal_violation-self-healing-enabled><>Value
+        type: GAUGE
+      - help: The cluster has partitions with RF > the number of eligible racks (0= No such partitions, 1= Has such partitions)
+        name: kafka_cruisecontrol_anomalydetector_has_partitions_with_replication_factor_greater_than_num_racks
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.has-partitions-with-replication-factor-greater-than-num-racks><>Value
+        type: GAUGE
+      - help: Whether self healing due to a maintance event is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_maintenance_event_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.maintenance_event-self-healing-enabled><>Value
+        type: GAUGE
+      - help: Metrics anomaly count
+        name: kafka_cruisecontrol_anomalydetector_metric_anomaly_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.metric-anomaly-rate><>Count
+        type: COUNTER
+      - help: Whether metric anomaly self-healing is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_metric_anomaly_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.metric_anomaly-self-healing-enabled><>Value
+        type: GAUGE
+      - name: kafka_cruisecontrol_anomalydetector_broker_metric_anomalies_state
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.num-(\w+)-metric-anomalies><>Value
+        labels:
+          state: $1 # Possible values: persistent, recent, suspect
+        help: "The number of brokers with detected metric anomalies (metric values outside the normal range). A broker can be classified into three states; suspect, recent, persistent. suspect: brokers that are suspected to have metric anomalies, pending more evidence to conclude either way. recent: brokers that have recently been identified with a metric anomaly. persistent: brokers that continue to be identified with a metric anomaly for a prolonged period."
+        type: COUNTER
+      - help: The ongoing anomaly duration in seconds
+        name: kafka_cruisecontrol_anomalydetector_ongoing_anomaly_duration_seconds
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.ongoing-anomaly-duration-ms><>Value
+        type: GAUGE
+        valueFactor: 0.001
+      - help: Whether the cluster is over-provisioned or not
+        name: kafka_cruisecontrol_anomalydetector_over_provisioned
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.over-provisioned><>Value
+        type: GAUGE
+      - help: Whether the cluster is under-provisioned or not
+        name: kafka_cruisecontrol_anomalydetector_under_provisioned
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.under-provisioned><>Value
+        type: GAUGE
+      - help: Whether the cluster is right-sized or not
+        name: kafka_cruisecontrol_anomalydetector_right_sized
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.right-sized><>Value
+        type: GAUGE
+      - help: Topic anomaly count
+        name: kafka_cruisecontrol_anomalydetector_topic_anomaly_total
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.topic-anomaly-rate><>Count
+        type: COUNTER
+      - help: Whether topic anomaly self-healing is enabled or not
+        name: kafka_cruisecontrol_anomalydetector_topic_anomaly_self_healing_enabled
+        pattern: >-
+          kafka.cruisecontrol<name=AnomalyDetector.topic_anomaly-self-healing-enabled><>Value
+        type: GAUGE
+      - help: "The number of execution started in non-kafka_assigner mode (In kafka assigner mode, Cruise Control behaves like the kafka assigner tool https://github.com/linkedin/kafka-tools/wiki/Kafka-Assigner )"
+        name: kafka_cruisecontrol_executor_execution_started_non_kafka_assigner
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.execution-started-non-kafka_assigner><>Value
+        type: GAUGE
+      - help: The number of (all) execution stopped
+        name: kafka_cruisecontrol_executor_execution_stopped_total
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.execution-stopped><>Value
+        type: COUNTER
+      - help: The number of execution stopped by user
+        name: kafka_cruisecontrol_executor_execution_stopped_by_user_total
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.execution-stopped-by-user><>Value
+        type: COUNTER
+      - help: Has an ongoing execution in non-kafka_assigner mode
+        name: kafka_cruisecontrol_executor_ongoing_execution_non_kafka_assigner
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.ongoing-execution-non_kafka_assigner><>Value
+        type: GAUGE
+      - help: Per broker cap on inter-broker (between different brokers) partition movements
+        name: kafka_cruisecontrol_executor_inter_broker_partition_movements_per_broker_cap
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.inter-broker-partition-movements-per-broker-cap><>Value
+        type: GAUGE
+      - help: Per broker cap on intra-broker (within the same broker) partition movements
+        name: kafka_cruisecontrol_executor_intra_broker_partition_movements_per_broker_cap
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.intra-broker-partition-movements-per-broker-cap><>Value
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=Executor.(\w+)-action-(\w+)><>Value
+        name: kafka_cruisecontrol_executor_action_total
+        labels:
+          action: $1 # List includes: intra-broker-replica (within same broker), leadership, replica
+          state: $2 # List includes: aborted, aborting, completed, dead, in-progress, pending
+        help: The number of $1 action in $2 state
+        type: GAUGE
+      - help: Global cap on leadership movements
+        name: kafka_cruisecontrol_executor_leadership_movements_global_cap
+        pattern: >-
+          kafka.cruisecontrol<name=Executor.leadership-movements-global-cap><>Value
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=GoalOptimizer.proposal-computation-timer><>Count
+        name: kafka_cruisecontrol_goaloptimizer_proposal_computation_timer_seconds
+        help: Proposal computation time in seconds
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=KafkaCruiseControlServlet.(\w+)-request-rate><>Count
+        name: kafka_cruisecontrol_kafkacruisecontrolservlet_requests_total
+        labels:
+          endpoint: $1 # Possible values: add_broker, demote_broker, remove_broker, admin, bootstrap, fix_offline_replicas, kafka_cluster_state, load, partition_load, pause_sampling, resume_sampling, proposals, stop_proposal_execution, rebalance, review_board, review, rightsize, state, topic_configuration, train, user_tasks
+        help: Current total of incoming HTTP requests served by different API endpoints.
+        type: COUNTER
+        lowercaseOutputLabelNames: true
+      - pattern: >-
+          kafka.cruisecontrol<name=KafkaCruiseControlServlet.(\w+)-successful-request-execution-timer><>Count
+        name: kafka_cruisecontrol_kafkacruisecontrolservlet_successful_request_execution_duration_seconds
+        labels:
+          endpoint: $1 # Possible values: add_broker, demote_broker, remove_broker, admin, bootstrap, fix_offline_replicas, kafka_cluster_state, load, partition_load, pause_sampling, resume_sampling, proposals, stop_proposal_execution, rebalance, review_board, review, rightsize, state, topic_configuration, train, user_tasks
+        help: Service time of a successful request in seconds for each endpoint
+        type: GAUGE
+        valueFactor: 0.000000001
+        lowercaseOutputLabelNames: true
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.cluster-model-creation-timer><>Count
+        name: kafka_cruisecontrol_loadmonitor_cluster_model_creation_duration_seconds
+        help: Cluster model creation time in seconds
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.metadata-factor><>Value
+        name: kafka_cruisecontrol_loadmonitor_metadata_factor
+        help: The metadata factor, which corresponds to (number of replicas) * (number of brokers with replicas) ^ exponent
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.monitored-partitions-percentage><>Value
+        name: kafka_cruisecontrol_loadmonitor_monitored_partitions_percentage
+        help: The monitored partition percentage
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.num-partitions-with-extrapolations><>Value
+        name: kafka_cruisecontrol_loadmonitor_num_partitions_with_extrapolations
+        help: The number of partitions that is valid but require extrapolations
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.has-partitions-with-isr-greater-than-replicas><>Value
+        name: kafka_cruisecontrol_loadmonitor_has_partitions_with_isr_greater_than_replicas
+        help: "The cluster has partitions with ISR > replicas (0: No such partitions, 1: Has such partitions)"
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.num-topics><>Value
+        name: kafka_cruisecontrol_loadmonitor_num_topics
+        help: The number of topics
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.total-monitored-windows><>Value
+        name: kafka_cruisecontrol_loadmonitor_total_monitored_windows
+        help: The number of monitored windows
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=LoadMonitor.valid-windows><>Value
+        name: kafka_cruisecontrol_loadmonitor_valid_windows
+        help: The number of valid windows
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=MetricFetcherManager.partition-samples-fetcher-failure-rate><>Count
+        name: kafka_cruisecontrol_metricfetchermanager_partition_samples_fetcher_failure_total
+        help: The number of partition metric sample fetch failures
+        type: GAUGE
+      - pattern: >-
+          kafka.cruisecontrol<name=MetricFetcherManager.partition-samples-fetcher-timer><>Count
+        name: kafka_cruisecontrol_metricfetchermanager_partition_samples_fetcher_duration_seconds
+        help: The time taken by each round of partition sample fetch
+        type: GAUGE
+        valueFactor: 0.000000001
+      - pattern: >-
+          kafka.cruisecontrol<name=UserTaskManager.num-active-user-tasks><>Value
+        name: kafka_cruisecontrol_usertaskmanager_num_active_user_tasks
+        help: The number of active user tasks
+        type: GAUGE
+      - pattern: kafka.cruisecontrol<name=(.+)><>(\w+)
+        name: kafka_cruisecontrol_$1_$2
+        type: GAUGE
+        lowercaseOutputLabelNames: true

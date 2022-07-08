@@ -158,6 +158,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap zooKeeperMetricsConfigMap = configMapFrom(managedKafka, zookeeperMetricsConfigMapName(managedKafka));
         createOrUpdateIfNecessary(currentZooKeeperMetricsConfigMap, zooKeeperMetricsConfigMap);
 
+        ConfigMap currentCruiseControlMetricsConfigMap = cachedConfigMap(managedKafka, cruiseControlMetricsConfigMapName(managedKafka));
+        ConfigMap cruiseControlMetricsConfigMap = configMapFrom(managedKafka, cruiseControlMetricsConfigMapName(managedKafka));
+        createOrUpdateIfNecessary(currentCruiseControlMetricsConfigMap, cruiseControlMetricsConfigMap);
+
         ConfigMap currentKafkaLoggingConfigMap = cachedConfigMap(managedKafka, kafkaLoggingConfigMapName(managedKafka));
         ConfigMap kafkaLoggingConfigMap = configMapFrom(managedKafka, kafkaLoggingConfigMapName(managedKafka));
         createOrUpdateIfNecessary(currentKafkaLoggingConfigMap, kafkaLoggingConfigMap);
@@ -172,6 +176,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         ConfigMap currentCruiseControlLoggingConfigMap = cachedConfigMap(managedKafka, cruiseControlLoggingConfigMapName(managedKafka));
         ConfigMap cruiseControlLoggingConfigMap = configMapFrom(managedKafka, cruiseControlLoggingConfigMapName(managedKafka));
+
         createOrUpdateIfNecessary(currentCruiseControlLoggingConfigMap, cruiseControlLoggingConfigMap);
 
         super.createOrUpdate(managedKafka);
@@ -349,6 +354,17 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private MetricsConfig buildKafkaMetricsConfig(ManagedKafka managedKafka) {
         ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
                 .withName(kafkaMetricsConfigMapName(managedKafka))
+                .withKey("jmx-exporter-config")
+                .build();
+
+        return new JmxPrometheusExporterMetricsBuilder()
+                .withValueFrom(new ExternalConfigurationReferenceBuilder().withConfigMapKeyRef(cmSelector).build())
+                .build();
+    }
+
+    private MetricsConfig buildCruiseControlMetricsConfig(ManagedKafka managedKafka) {
+        ConfigMapKeySelector cmSelector = new ConfigMapKeySelectorBuilder()
+                .withName(cruiseControlMetricsConfigMapName(managedKafka))
                 .withKey("jmx-exporter-config")
                 .build();
 
@@ -664,7 +680,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withNewValueFrom()
                 .withNewConfigMapKeyRef("log4j2.properties", loggingConfigMapName, true)
                 .endValueFrom()
-                .endExternalLogging();
+                .endExternalLogging()
+                .withMetricsConfig(buildCruiseControlMetricsConfig(managedKafka));
 
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
                 cruiseControl.isColocateWithZookeeper());
@@ -1017,6 +1034,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     public static String kafkaMetricsConfigMapName(ManagedKafka managedKafka) {
         return managedKafka.getMetadata().getName() + "-kafka-metrics";
+    }
+    public static String cruiseControlMetricsConfigMapName(ManagedKafka managedKafka) {
+        return managedKafka.getMetadata().getName() + "-cruise-control-metrics";
     }
 
     public static String zookeeperMetricsConfigMapName(ManagedKafka managedKafka) {
