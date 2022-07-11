@@ -334,6 +334,10 @@ spec:
       requests:
         memory: "256Mi"
         cpu: "500m"
+    template:
+      pod:
+        imagePullSecrets:
+          - name: "myimage:0.0.1"
   cruiseControl:
     resources:
       limits:
