@@ -173,11 +173,19 @@ public class Canary extends AbstractCanary {
     }
 
     private List<Volume> buildVolumes(ManagedKafka managedKafka) {
+        final String tlsSecretName;
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            tlsSecretName = SecuritySecretManager.kafkaTlsSecretName(managedKafka);
+        } else {
+            tlsSecretName = SecuritySecretManager.strimziClusterCaCertSecret(managedKafka);
+        }
+
         return List.of(
                 new VolumeBuilder()
                         .withName(canaryTlsVolumeName(managedKafka))
                         .editOrNewSecret()
-                        .withSecretName(SecuritySecretManager.strimziClusterCaCertSecret(managedKafka))
+                        .withSecretName(tlsSecretName)
                         .endSecret()
                         .build(),
                 new VolumeBuilder()
@@ -260,10 +268,8 @@ public class Canary extends AbstractCanary {
         return labels;
     }
 
-    private String getBootstrapURL(ManagedKafka managedKafka) {
-        return this.configs.getConfig(managedKafka).getCanary().isProbeExternalBootstrapServerHost()
-                ? managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443"
-                : managedKafka.getMetadata().getName() + "-kafka-bootstrap:9093";
+    private static String getBootstrapURL(ManagedKafka managedKafka) {
+        return managedKafka.getSpec().getEndpoint().getBootstrapServerHost() + ":443";
     }
 
     private List<EnvVar> buildInitEnvVar(ManagedKafka managedKafka) {
@@ -296,7 +302,12 @@ public class Canary extends AbstractCanary {
         envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(kafkaVersion).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());
         envVars.add(new EnvVarBuilder().withName("TLS_ENABLED").withValue("true").build());
-        envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
+
+        if (SecuritySecretManager.isKafkaExternalCertificateEnabled(managedKafka)) {
+            envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/tls.crt").build());
+        } else {
+            envVars.add(new EnvVarBuilder().withName("TLS_CA_CERT").withValue("/tmp/tls-ca-cert/ca.crt").build());
+        }
 
         // Deprecated
         EnvVarSource saramaLogEnabled =
