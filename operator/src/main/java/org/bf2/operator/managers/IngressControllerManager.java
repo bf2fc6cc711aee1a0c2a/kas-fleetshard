@@ -86,6 +86,7 @@ public class IngressControllerManager {
 
     private static final int MIN_REPLICA_REDUCTION = 1;
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
+    protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
 
@@ -158,6 +159,8 @@ public class IngressControllerManager {
     Quantity maxIngressThroughput;
     @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
     int maxIngressConnections;
+    @ConfigProperty(name = "ingresscontroller.hard-stop-after")
+    Optional<String> hardStopAfter;
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
 
@@ -410,7 +413,10 @@ public class IngressControllerManager {
                 .inNamespace(expected.getMetadata().getNamespace())
                 .withName(name)
                 .edit(i -> new IngressControllerBuilder(i)
-                        .editMetadata().withLabels(expected.getMetadata().getLabels()).endMetadata()
+                        .editMetadata()
+                        .withLabels(expected.getMetadata().getLabels())
+                        .withAnnotations(expected.getMetadata().getAnnotations())
+                        .endMetadata()
                         .withSpec(expected.getSpec())
                         .build());
             }
@@ -483,11 +489,15 @@ public class IngressControllerManager {
             replicas = Math.max(existingReplicas, replicas);
         }
 
+        Map<String, String> annotations = new HashMap<>();
+        hardStopAfter.ifPresent(value -> annotations.put(HARD_STOP_AFTER_ANNOTATION, value));
+
         builder
             .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(INGRESS_OPERATOR_NAMESPACE)
                 .withLabels(OperandUtils.getDefaultLabels())
+                .withAnnotations(annotations.isEmpty() ? null : annotations)
             .endMetadata()
             .editOrNewSpec()
                 .withDomain(domain)
