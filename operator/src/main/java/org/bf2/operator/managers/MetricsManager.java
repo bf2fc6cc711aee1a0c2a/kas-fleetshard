@@ -16,6 +16,7 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
@@ -38,6 +39,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     static final String KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT = "kafka_instance_max_message_size_limit";
     static final String KAFKA_INSTANCE_CONNECTION_LIMIT = "kafka_instance_connection_limit";
     static final String KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT = "kafka_instance_connection_creation_rate_limit";
+    static final String KAFKA_INSTANCE_QUOTA_CONSUMED = "kafka_instance_profile_quota_consumed";
 
     static final String TAG_LABEL_OWNER = "owner";
     static final String TAG_LABEL_BROKER_ID = "broker_id";
@@ -85,6 +87,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
         Tags tags = buildKafkaInstanceTags(kafka);
 
         meterRegistry.gauge(KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT, tags, ref, this::replicas);
+        meterRegistry.gauge(KAFKA_INSTANCE_QUOTA_CONSUMED, tags, ref, this::getQuotaConsumed);
         meterRegistry.gauge(KAFKA_INSTANCE_PARTITION_LIMIT, tags, ref, k -> kafkaConfigValue(k, KafkaCluster.MAX_PARTITIONS));
         meterRegistry.gauge(KAFKA_INSTANCE_MAX_MESSAGE_SIZE_LIMIT, tags, ref, k -> kafkaConfigValue(k, KafkaCluster.MESSAGE_MAX_BYTES));
 
@@ -140,6 +143,14 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
         return Optional.ofNullable(k.get())
                 .map(Kafka::getSpec)
                 .map(KafkaSpec::getKafka);
+    }
+
+    private Double getQuotaConsumed(AtomicReference<Kafka> k) {
+        return Optional.ofNullable(k.get())
+                .map(Kafka::getMetadata)
+                .map(ObjectMeta::getLabels)
+                .map(m -> m.get(ManagedKafka.PROFILE_QUOTA_CONSUMED))
+                .map(Double::parseDouble).orElse(Double.NaN);
     }
 
 }
