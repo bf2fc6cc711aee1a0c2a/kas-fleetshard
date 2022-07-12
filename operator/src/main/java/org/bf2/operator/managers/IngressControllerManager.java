@@ -163,6 +163,10 @@ public class IngressControllerManager {
     Optional<String> hardStopAfter;
     @ConfigProperty(name = "ingresscontroller.ingress-container-command")
     Optional<List<String>> ingressContainerCommand;
+    @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
+    Optional<Long> ingressReloadIntervalSeconds;
+
+
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
 
@@ -532,6 +536,14 @@ public class IngressControllerManager {
                     .endNodePlacement()
                 .endSpec();
         }
+
+        ingressReloadIntervalSeconds.ifPresent(value -> {
+            builder.editSpec()
+                    .withNewConfigUnsupportedConfigOverrides()
+                    .withAdditionalProperties(Map.of("reloadInterval", value))
+                    .endConfigUnsupportedConfigOverrides()
+                    .endSpec();
+        });
 
         createOrEdit(builder.build(), existing);
     }
