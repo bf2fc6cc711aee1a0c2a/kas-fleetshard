@@ -13,6 +13,7 @@ import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.GenericSecretSource;
 import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.StrimziPodSet;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
@@ -159,15 +160,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         if (isStrimziUpdating(managedKafka)) {
             // the status here is actually unknown
-            return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
+            return new OperandReadiness(Status.True, Reason.StrimziUpdating, "Updating Strimzi version");
         }
 
         if (isKafkaUpdating(managedKafka) || isKafkaUpgradeStabilityChecking(managedKafka)) {
-            return new OperandReadiness(Status.True, Reason.KafkaUpdating, null);
+            return new OperandReadiness(Status.True, Reason.KafkaUpdating, "Updating Kafka version");
         }
 
         if (isKafkaIbpUpdating(managedKafka)) {
-            return new OperandReadiness(Status.True, Reason.KafkaIbpUpdating, null);
+            return new OperandReadiness(Status.True, Reason.KafkaIbpUpdating, "Updating Kafka IBP version");
         }
 
         Optional<Condition> ready = kafkaCondition(kafka, c -> "Ready".equals(c.getType()));
@@ -177,6 +178,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         }
 
         if (isReconciliationPaused(managedKafka)) {
+            if (managedKafka.isSuspended()) {
+                return new OperandReadiness(Status.False, Reason.Suspended, null);
+            }
             // strimzi may in the future report the status even when paused, but for now we don't know
             return new OperandReadiness(Status.Unknown, Reason.Paused, String.format("Kafka %s is paused for an unknown reason", kafkaClusterName(managedKafka)));
         }
@@ -227,6 +231,42 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         Kafka current = cachedKafka(managedKafka);
         Kafka kafka = kafkaFrom(managedKafka, current);
         createOrUpdate(kafka);
+
+        boolean reconciliationPaused = isReconciliationPaused(managedKafka);
+
+        if (managedKafka.isSuspended() && reconciliationPaused && !updatesInProgress(managedKafka)) {
+            String namespace = kafkaClusterNamespace(managedKafka);
+
+            kubernetesClient.apps()
+                .deployments()
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName() + "-kafka-exporter")
+                .delete();
+
+            // Remove when migration to StrimziPodSets complete
+            kubernetesClient.apps()
+                .statefulSets()
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName() + "-kafka")
+                .delete();
+
+            kubernetesClient.resources(StrimziPodSet.class)
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName() + "-kafka")
+                .delete();
+
+            // Remove when migration to StrimziPodSets complete
+            kubernetesClient.apps()
+                .statefulSets()
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName() + "-zookeeper")
+                .delete();
+
+            kubernetesClient.resources(StrimziPodSet.class)
+                .inNamespace(namespace)
+                .withName(managedKafka.getMetadata().getName() + "-zookeeper")
+                .delete();
+        }
     }
 
     public abstract Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current);
@@ -422,4 +462,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public abstract int getReplicas(ManagedKafka managedKafka);
 
+    public boolean updatesInProgress(ManagedKafka managedKafka) {
+        boolean strimziUpdating = isStrimziUpdating(managedKafka);
+        boolean kafkaUpdating = isKafkaUpdating(managedKafka);
+        boolean kafkaIbpUpdating = isKafkaIbpUpdating(managedKafka);
+        boolean kafkaStabilityChecking = isKafkaUpgradeStabilityChecking(managedKafka);
+
+        return strimziUpdating || kafkaUpdating || kafkaIbpUpdating || kafkaStabilityChecking;
+    }
 }

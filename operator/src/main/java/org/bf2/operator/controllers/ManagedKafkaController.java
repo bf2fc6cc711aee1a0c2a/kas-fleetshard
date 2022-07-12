@@ -141,15 +141,18 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
      * @param invalid
      */
     private void updateManagedKafkaStatus(ManagedKafka managedKafka, Optional<OperandReadiness> invalid) {
+        ManagedKafkaStatus originalStatus = null;
+        if (managedKafka.getStatus() != null) {
+            originalStatus = new ManagedKafkaStatusBuilder(managedKafka.getStatus()).build();
+        }
+
         // add status if not already available on the ManagedKafka resource
         ManagedKafkaStatus status = Objects.requireNonNullElse(managedKafka.getStatus(),
                 new ManagedKafkaStatusBuilder()
                 .build());
-        status.setUpdatedTimestamp(ConditionUtils.iso8601Now());
-        managedKafka.setStatus(status);
 
         // add conditions if not already available
-        List<ManagedKafkaCondition> managedKafkaConditions = managedKafka.getStatus().getConditions();
+        List<ManagedKafkaCondition> managedKafkaConditions = status.getConditions();
         if (managedKafkaConditions == null) {
             managedKafkaConditions = new ArrayList<>();
             status.setConditions(managedKafkaConditions);
@@ -191,7 +194,7 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
             }
         }
 
-        if (Status.True.equals(readiness.getStatus())) {
+        if (Status.True.equals(readiness.getStatus()) || Reason.Suspended.equals(readiness.getReason())) {
             status.setCapacity(new ManagedKafkaCapacityBuilder(managedKafka.getSpec().getCapacity())
                     .withMaxDataRetentionSize(kafkaInstance.getKafkaCluster().calculateRetentionSize(managedKafka))
                     .build());
@@ -214,6 +217,11 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
             status.setAdminServerURI(kafkaInstance.getAdminServer().uri(managedKafka));
             status.setServiceAccounts(managedKafka.getSpec().getServiceAccounts());
         }
+
+        if (!Objects.equals(originalStatus, status)) {
+            status.setUpdatedTimestamp(ConditionUtils.iso8601Now());
+            managedKafka.setStatus(status);
+        }
     }
 
     /**
@@ -232,16 +240,15 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
         StrimziVersionStatus strimziVersion = this.strimziManager.getStrimziVersion(managedKafka.getSpec().getVersions().getStrimzi());
         if (strimziVersion == null) {
             message = String.format("The requested Strimzi version %s is not supported", managedKafka.getSpec().getVersions().getStrimzi());
-        } else {
-            if (!strimziVersion.getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
+        } else if (!strimziVersion.getKafkaVersions().contains(managedKafka.getSpec().getVersions().getKafka())) {
                 message = String.format("The requested Kafka version %s is not supported by the Strimzi version %s",
                         managedKafka.getSpec().getVersions().getKafka(), strimziVersion.getVersion());
-            } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
-                    !strimziVersion.getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
-                message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
-                        managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.getVersion());
-            }
+        } else if (managedKafka.getSpec().getVersions().getKafkaIbp() != null &&
+                !strimziVersion.getKafkaIbpVersions().contains(managedKafka.getSpec().getVersions().getKafkaIbp())) {
+            message = String.format("The requested Kafka inter broker protocol version %s is not supported by the Strimzi version %s",
+                    managedKafka.getSpec().getVersions().getKafkaIbp(), strimziVersion.getVersion());
         }
+
         if (message != null) {
             log.error(message);
             return Optional.of(new OperandReadiness(Status.False, Reason.Error, message));

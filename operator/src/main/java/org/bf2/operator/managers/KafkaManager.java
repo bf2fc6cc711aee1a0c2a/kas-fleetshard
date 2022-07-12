@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.canary.CanaryService;
 import org.bf2.operator.clients.canary.Status;
@@ -63,6 +64,9 @@ public class KafkaManager {
 
     @ConfigProperty(name = "managedkafka.upgrade.consuming-percentage-threshold")
     Integer consumingPercentageThreshold;
+
+    @ConfigProperty(name = "managedkafka.upgrade.stability-check-enabled", defaultValue = "true")
+    boolean stabilityCheckEnabled;
 
     private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> managedKafkaClient;
 
@@ -350,6 +354,21 @@ public class KafkaManager {
      * @param managedKafka ManagedKafka instance
      */
     void doKafkaUpgradeStabilityCheck(ManagedKafka managedKafka) {
+        if (!stabilityCheckEnabled) {
+            log.warnf("Skipping [%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+            managedKafkaClient
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(managedKafka.getMetadata().getName())
+                    .edit(mk -> new ManagedKafkaBuilder(mk)
+                            .editMetadata()
+                                .removeFromAnnotations(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
+                                .removeFromAnnotations(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                            .endMetadata()
+                            .build());
+            informerManager.resyncManagedKafka(managedKafka);
+            return;
+        }
+
         log.infof("[%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
 
         CanaryService canaryService = RestClientBuilder.newBuilder()

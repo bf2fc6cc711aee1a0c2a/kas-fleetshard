@@ -151,6 +151,14 @@ public class AdminServer extends AbstractAdminServer {
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
                 this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper(), dynamicScalingScheduling);
 
+        int replicas;
+
+        if (managedKafka.isSuspended()) {
+            replicas = 0;
+        } else {
+            replicas = 1;
+        }
+
         builder
                 .editOrNewMetadata()
                     .withName(adminServerName)
@@ -158,7 +166,7 @@ public class AdminServer extends AbstractAdminServer {
                     .withLabels(buildLabels(adminServerName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withReplicas(1)
+                    .withReplicas(replicas)
                     .editOrNewSelector()
                         .withMatchLabels(buildSelectorLabels(adminServerName))
                     .endSelector()

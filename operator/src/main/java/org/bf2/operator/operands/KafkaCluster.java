@@ -61,6 +61,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateFluent.PodNested;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -1112,7 +1113,16 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (annotations == null) {
             annotations = new HashMap<>();
         }
-        //this.strimziManager.togglePauseReconciliation(managedKafka, this, annotations);
+
+        boolean updatesInProgress = updatesInProgress(managedKafka);
+
+        if (managedKafka.isSuspended() && !updatesInProgress) {
+            annotations.put(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true");
+            annotations.remove(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON);
+        } else if (!annotations.containsKey(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON)) {
+            annotations.remove(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION);
+        }
+
         log.debugf("Kafka %s/%s annotations: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotations);
         return annotations;

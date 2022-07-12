@@ -101,6 +101,14 @@ public class Canary extends AbstractCanary {
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
                 this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper(), dynamicScalingScheduling);
 
+        int replicas;
+
+        if (managedKafka.isSuspended() && !kafkaCluster.updatesInProgress(managedKafka)) {
+            replicas = 0;
+        } else {
+            replicas = 1;
+        }
+
         builder
                 .editOrNewMetadata()
                     .withName(canaryName)
@@ -108,7 +116,7 @@ public class Canary extends AbstractCanary {
                     .withLabels(buildLabels(canaryName, managedKafka))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withReplicas(1)
+                    .withReplicas(replicas)
                     .editOrNewSelector()
                         .withMatchLabels(buildSelectorLabels(canaryName))
                     .endSelector()

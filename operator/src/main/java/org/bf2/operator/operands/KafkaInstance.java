@@ -108,6 +108,10 @@ public class KafkaInstance implements Operand<ManagedKafka> {
             // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
         }
+        if (managedKafka.isSuspended()) {
+            OperandReadiness kafkaReadiness = kafkaCluster.getReadiness(managedKafka);
+            return new OperandReadiness(Status.False, Reason.Suspended, kafkaReadiness.getMessage());
+        }
         if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
             return new OperandReadiness(Status.Unknown, Reason.Paused, "Reconciliation paused via annotation");
         }
