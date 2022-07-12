@@ -161,6 +161,8 @@ public class IngressControllerManager {
     int maxIngressConnections;
     @ConfigProperty(name = "ingresscontroller.hard-stop-after")
     Optional<String> hardStopAfter;
+    @ConfigProperty(name = "ingresscontroller.ingress-container-command")
+    Optional<List<String>> ingressContainerCommand;
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
 
@@ -344,17 +346,19 @@ public class IngressControllerManager {
             log.errorf("Wrong number of containers for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
             return false;
         }
-        return !containers.get(0).getResources().equals(deploymentResourceRequirements);
+        Container ingressContainer = containers.get(0);
+        return !(ingressContainer.getResources().equals(deploymentResourceRequirements) && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand.orElse(null)));
     }
 
     private void doIngressPatch(Deployment d) {
-        log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+        log.infof("Updating the resource limits/container command for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
         openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
             .withName(d.getMetadata().getName()).edit(
                 new TypedVisitor<ContainerBuilder>() {
                     @Override
                     public void visit(ContainerBuilder element) {
                         element.withResources(deploymentResourceRequirements);
+                        element.withCommand(ingressContainerCommand.orElse(null));
                     }
                 });
     }
@@ -554,7 +558,7 @@ public class IngressControllerManager {
                 - replicationThroughput - throughput / 2 - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
 
         if (throughputPerIngressReplica < 0) {
-            throw new AssertionError("Cannot appropirately scale ingress as collocating with a broker takes more than the availalbe node bandwidth");
+            throw new AssertionError("Cannot appropriately scale ingress as collocating with a broker takes more than the available node bandwidth");
         }
 
         // average of total ingress/egress in this zone
