@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
+import io.fabric8.openshift.api.model.operator.v1.Config;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
@@ -45,6 +46,7 @@ import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -318,11 +320,61 @@ public class IngressControllerManagerTest {
         assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
     }
 
+    @Test
+    public void testIngressControllerHaProxyOptions() {
+        QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        var ingressController = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).withName("kas").get();
+        assertNotNull(ingressController);
+
+        assertEquals("5s", ingressController.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
+        assertEquals(60, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("reloadInterval"));
+    }
+
+    @Test
+    public void testIngressControllerPreservesOtherAnnotationsAndUnsupportedConfigOverrides() {
+        QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        var ingressController = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).withName("kas").get();
+        assertNotNull(ingressController);
+
+        IngressController edit = new IngressControllerBuilder(ingressController)
+                .editMetadata()
+                .addToAnnotations("foo", "far")
+                .endMetadata()
+                .editSpec()
+                .withNewConfigUnsupportedConfigOverrides()
+                .addToAdditionalProperties("boo", "bar")
+                .endConfigUnsupportedConfigOverrides()
+                .endSpec()
+                .build();
+        openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).replace(edit);
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        var updated = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).withName("kas").get();
+        var updatedConfig = (Config) updated.getSpec().getUnsupportedConfigOverrides();
+
+        // Expect that controller preserves the additions
+        assertEquals("far", updated.getMetadata().getAnnotations().get("foo"));
+        assertEquals("bar", updatedConfig.getAdditionalProperties().get("boo"));
+
+        // and the expected options are present too.
+        assertEquals("5s", updated.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
+        assertEquals(60, updatedConfig.getAdditionalProperties().get("reloadInterval"));
+    }
+
+
     @BeforeEach
     @AfterEach
     void cleanup() {
         ingressControllerManager.getRouteMatchLabels().clear();
         openShiftClient.resources(Node.class).delete();
         openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
+        openShiftClient.resources(IngressController.class).inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).delete();
     }
 }

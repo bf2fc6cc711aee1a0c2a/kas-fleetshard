@@ -24,6 +24,7 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.operator.v1.Config;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
@@ -160,11 +161,11 @@ public class IngressControllerManager {
     @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
     int maxIngressConnections;
     @ConfigProperty(name = "ingresscontroller.hard-stop-after")
-    Optional<String> hardStopAfter;
+    String hardStopAfter;
     @ConfigProperty(name = "ingresscontroller.ingress-container-command")
-    Optional<List<String>> ingressContainerCommand;
+    List<String> ingressContainerCommand;
     @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
-    Optional<Long> ingressReloadIntervalSeconds;
+    Long ingressReloadIntervalSeconds;
 
 
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
@@ -351,7 +352,7 @@ public class IngressControllerManager {
             return false;
         }
         Container ingressContainer = containers.get(0);
-        return !(ingressContainer.getResources().equals(deploymentResourceRequirements) && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand.orElse(null)));
+        return !(ingressContainer.getResources().equals(deploymentResourceRequirements) && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand));
     }
 
     private void doIngressPatch(Deployment d) {
@@ -362,7 +363,7 @@ public class IngressControllerManager {
                     @Override
                     public void visit(ContainerBuilder element) {
                         element.withResources(deploymentResourceRequirements);
-                        element.withCommand(ingressContainerCommand.orElse(null));
+                        element.withCommand(ingressContainerCommand);
                     }
                 });
     }
@@ -497,15 +498,11 @@ public class IngressControllerManager {
             replicas = Math.max(existingReplicas, replicas);
         }
 
-        Map<String, String> annotations = new HashMap<>();
-        hardStopAfter.ifPresent(value -> annotations.put(HARD_STOP_AFTER_ANNOTATION, value));
-
         builder
             .editOrNewMetadata()
                 .withName(name)
                 .withNamespace(INGRESS_OPERATOR_NAMESPACE)
                 .withLabels(OperandUtils.getDefaultLabels())
-                .withAnnotations(annotations.isEmpty() ? null : annotations)
             .endMetadata()
             .editOrNewSpec()
                 .withDomain(domain)
@@ -537,13 +534,26 @@ public class IngressControllerManager {
                 .endSpec();
         }
 
-        ingressReloadIntervalSeconds.ifPresent(value -> {
-            builder.editSpec()
-                    .withNewConfigUnsupportedConfigOverrides()
-                    .withAdditionalProperties(Map.of("reloadInterval", value))
-                    .endConfigUnsupportedConfigOverrides()
-                    .endSpec();
-        });
+        if (hardStopAfter != null && !hardStopAfter.isBlank()) {
+            builder.editMetadata().addToAnnotations(HARD_STOP_AFTER_ANNOTATION, hardStopAfter).endMetadata();
+        } else {
+            builder.editMetadata().removeFromAdditionalProperties(HARD_STOP_AFTER_ANNOTATION).endMetadata();
+        }
+
+
+        // intent here is to preserve any other UnsupportedConfigOverrides and just add/remove reloadInterval as necessary.
+        // Surely there a better way to express this?
+        var specNestedConfigUnsupportedConfigOverridesNested = builder.editSpec().withNewConfigUnsupportedConfigOverrides();
+        HasMetadata current = builder.editSpec().buildUnsupportedConfigOverrides();
+        if (current instanceof Config) {
+            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties(((Config) current).getAdditionalProperties());
+        }
+        if (ingressReloadIntervalSeconds > 0) {
+            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties("reloadInterval", ingressReloadIntervalSeconds);
+        } else {
+            specNestedConfigUnsupportedConfigOverridesNested.removeFromAdditionalProperties("reloadInterval");
+        }
+        specNestedConfigUnsupportedConfigOverridesNested.endConfigUnsupportedConfigOverrides().endSpec();
 
         createOrEdit(builder.build(), existing);
     }
