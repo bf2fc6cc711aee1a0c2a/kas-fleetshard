@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @ApplicationScoped
 public class ObservabilityManager {
@@ -36,11 +37,7 @@ public class ObservabilityManager {
 
     static Base64.Encoder encoder = Base64.getEncoder();
 
-    static Secret createObservabilitySecret(String namespace, ObservabilityConfiguration observability) {
-        return createObservabilitySecretBuilder(namespace, observability).build();
-    }
-
-    static SecretBuilder createObservabilitySecretBuilder(String namespace, ObservabilityConfiguration observability) {
+    static void createObservabilitySecret(String namespace, ObservabilityConfiguration observability, SecretBuilder builder) {
         Map<String, String> data = new HashMap<>(2);
         data.put(OBSERVABILITY_ACCESS_TOKEN, encoder.encodeToString(observability.getAccessToken().getBytes(StandardCharsets.UTF_8)));
         data.put(OBSERVABILITY_REPOSITORY, encoder.encodeToString(observability.getRepository().getBytes(StandardCharsets.UTF_8)));
@@ -50,14 +47,13 @@ public class ObservabilityManager {
         if (observability.getTag() != null) {
             data.put(OBSERVABILITY_TAG, encoder.encodeToString(observability.getTag().getBytes(StandardCharsets.UTF_8)));
         }
-        return new SecretBuilder()
-                .withNewMetadata()
-                    .withNamespace(namespace)
-                    .withName(OBSERVABILITY_SECRET_NAME)
-                    .addToLabels("configures", "observability-operator")
-                    .addToLabels(OperandUtils.getDefaultLabels())
-                .endMetadata()
-                .addToData(data);
+        builder.editOrNewMetadata()
+                   .withNamespace(namespace)
+                   .withName(OBSERVABILITY_SECRET_NAME)
+                   .addToLabels("configures", "observability-operator")
+                   .addToLabels(OperandUtils.getDefaultLabels())
+               .endMetadata()
+               .addToData(data);
     }
 
     static boolean isObservabilityStatusAccepted(Secret cm) {
@@ -76,16 +72,12 @@ public class ObservabilityManager {
     }
 
     public void createOrUpdateObservabilitySecret(ObservabilityConfiguration observability, HasMetadata owner) {
-        Secret secret = createObservabilitySecret(this.client.getNamespace(), observability);
+        Secret cached = cachedObservabilitySecret();
+        SecretBuilder builder = Optional.ofNullable(cached).map(s -> new SecretBuilder(s)).orElse(new SecretBuilder());
+        createObservabilitySecret(this.client.getNamespace(), observability, builder);
+        Secret secret = builder.build();
         OperandUtils.setAsOwner(owner, secret);
-        if (cachedObservabilitySecret() == null) {
-            observabilitySecretResource().create(secret);
-        } else {
-            observabilitySecretResource().edit(s -> {
-                s.setData(secret.getData());
-                return s;
-            });
-        }
+        OperandUtils.createOrUpdate(this.client.secrets(), secret);
     }
 
     public boolean isObservabilityRunning() {
