@@ -24,6 +24,7 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.operator.v1.Config;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
@@ -86,6 +87,7 @@ public class IngressControllerManager {
 
     private static final int MIN_REPLICA_REDUCTION = 1;
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
+    protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
 
@@ -158,6 +160,14 @@ public class IngressControllerManager {
     Quantity maxIngressThroughput;
     @ConfigProperty(name = "ingresscontroller.max-ingress-connections")
     int maxIngressConnections;
+    @ConfigProperty(name = "ingresscontroller.hard-stop-after")
+    String hardStopAfter;
+    @ConfigProperty(name = "ingresscontroller.ingress-container-command")
+    List<String> ingressContainerCommand;
+    @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
+    Long ingressReloadIntervalSeconds;
+
+
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakPercentage;
 
@@ -341,17 +351,19 @@ public class IngressControllerManager {
             log.errorf("Wrong number of containers for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
             return false;
         }
-        return !containers.get(0).getResources().equals(deploymentResourceRequirements);
+        Container ingressContainer = containers.get(0);
+        return !(ingressContainer.getResources().equals(deploymentResourceRequirements) && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand));
     }
 
     private void doIngressPatch(Deployment d) {
-        log.infof("Updating the resource limits for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
+        log.infof("Updating the resource limits/container command for Deployment %s/%s", d.getMetadata().getNamespace(), d.getMetadata().getName());
         openShiftClient.apps().deployments().inNamespace(d.getMetadata().getNamespace())
             .withName(d.getMetadata().getName()).edit(
                 new TypedVisitor<ContainerBuilder>() {
                     @Override
                     public void visit(ContainerBuilder element) {
                         element.withResources(deploymentResourceRequirements);
+                        element.withCommand(ingressContainerCommand);
                     }
                 });
     }
@@ -410,7 +422,10 @@ public class IngressControllerManager {
                 .inNamespace(expected.getMetadata().getNamespace())
                 .withName(name)
                 .edit(i -> new IngressControllerBuilder(i)
-                        .editMetadata().withLabels(expected.getMetadata().getLabels()).endMetadata()
+                        .editMetadata()
+                        .withLabels(expected.getMetadata().getLabels())
+                        .withAnnotations(expected.getMetadata().getAnnotations())
+                        .endMetadata()
                         .withSpec(expected.getSpec())
                         .build());
             }
@@ -519,6 +534,27 @@ public class IngressControllerManager {
                 .endSpec();
         }
 
+        if (hardStopAfter != null && !hardStopAfter.isBlank()) {
+            builder.editMetadata().addToAnnotations(HARD_STOP_AFTER_ANNOTATION, hardStopAfter).endMetadata();
+        } else {
+            builder.editMetadata().removeFromAdditionalProperties(HARD_STOP_AFTER_ANNOTATION).endMetadata();
+        }
+
+
+        // intent here is to preserve any other UnsupportedConfigOverrides and just add/remove reloadInterval as necessary.
+        // Surely there a better way to express this?
+        var specNestedConfigUnsupportedConfigOverridesNested = builder.editSpec().withNewConfigUnsupportedConfigOverrides();
+        HasMetadata current = builder.editSpec().buildUnsupportedConfigOverrides();
+        if (current instanceof Config) {
+            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties(((Config) current).getAdditionalProperties());
+        }
+        if (ingressReloadIntervalSeconds > 0) {
+            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties("reloadInterval", ingressReloadIntervalSeconds);
+        } else {
+            specNestedConfigUnsupportedConfigOverridesNested.removeFromAdditionalProperties("reloadInterval");
+        }
+        specNestedConfigUnsupportedConfigOverridesNested.endConfigUnsupportedConfigOverrides().endSpec();
+
         createOrEdit(builder.build(), existing);
     }
 
@@ -544,7 +580,7 @@ public class IngressControllerManager {
                 - replicationThroughput - throughput / 2 - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
 
         if (throughputPerIngressReplica < 0) {
-            throw new AssertionError("Cannot appropirately scale ingress as collocating with a broker takes more than the availalbe node bandwidth");
+            throw new AssertionError("Cannot appropriately scale ingress as collocating with a broker takes more than the available node bandwidth");
         }
 
         // average of total ingress/egress in this zone
