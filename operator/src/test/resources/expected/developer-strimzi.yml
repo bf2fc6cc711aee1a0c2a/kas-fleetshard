@@ -124,7 +124,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.005: "permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls"
       strimzi.authorization.custom-authorizer.acl.006: "permission=deny;cluster=*;operations=describe;apis-except=describe_acls"
       strimzi.authorization.custom-authorizer.acl.007: "permission=allow;cluster=*;operations=idempotent_write"
-      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
+      strimzi.authorization.custom-authorizer.partition-limit-enforced: true
       client.quota.callback.usageMetrics.topic: "__redhat_strimzi_volumeUsageMetrics"
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.apis: "PRODUCE,FETCH"
       inter.broker.protocol.version: "2.6"
@@ -200,7 +200,7 @@ spec:
       kas.policy.create-topic.partition-counter.private-topic-prefix: "__redhat_"
       kas.policy.create-topic.partition-counter.schedule-interval-seconds: 15
       kas.policy.create-topic.partition-counter.timeout-seconds: 10
-      kas.policy.create-topic.partition-limit-enforced: false
+      kas.policy.create-topic.partition-limit-enforced: true
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"

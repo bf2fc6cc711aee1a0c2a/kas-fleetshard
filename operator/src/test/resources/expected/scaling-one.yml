@@ -68,7 +68,7 @@ strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: 
 strimzi.authorization.custom-authorizer.adminclient-listener.name: controlplane-9090
 strimzi.authorization.custom-authorizer.adminclient-listener.port: 9090
 strimzi.authorization.custom-authorizer.adminclient-listener.protocol: SSL
-strimzi.authorization.custom-authorizer.partition-limit-enforced: false
+strimzi.authorization.custom-authorizer.partition-limit-enforced: true
 
 kas.authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
 kas.authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
@@ -111,7 +111,7 @@ kas.authorizer.resource-operations: "{ \"cluster\": [ \"\
 kas.policy.create-topic.partition-counter.private-topic-prefix: __redhat_
 kas.policy.create-topic.partition-counter.schedule-interval-seconds: 15
 kas.policy.create-topic.partition-counter.timeout-seconds: 10
-kas.policy.create-topic.partition-limit-enforced: false
+kas.policy.create-topic.partition-limit-enforced: true
 kas.policy.shared-admin.adminclient-listener.name: controlplane-9090
 kas.policy.shared-admin.adminclient-listener.port: 9090
 kas.policy.shared-admin.adminclient-listener.protocol: SSL
