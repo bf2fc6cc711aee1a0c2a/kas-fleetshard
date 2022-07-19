@@ -14,6 +14,9 @@ import org.jboss.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +39,9 @@ public class StrimziClusterRoleBindingManager implements Scheduled.SkipPredicate
     @ConfigProperty(name = "strimzi.clusterrolebinding-scan.enabled", defaultValue = "true")
     boolean scanEnabled;
 
+    @ConfigProperty(name = "strimzi.clusterrolebinding-scan.interval")
+    Duration scanInterval;
+
     @Scheduled(
             every = "{strimzi.clusterrolebinding-scan.interval}",
             delay = 1,
@@ -50,14 +56,21 @@ public class StrimziClusterRoleBindingManager implements Scheduled.SkipPredicate
                 .map(ObjectMeta::getName)
                 .collect(Collectors.toSet());
 
+        /*
+         * Allow any CRBs that appear abandoned due to timing of the namespace
+         * and role binding to remain until the next scan is processed.
+         */
+        final Instant gracePeriodBegin = Instant.now().minus(scanInterval);
+
         List<ClusterRoleBinding> abandonedBindings = client.rbac()
                 .clusterRoleBindings()
                 .withLabels(STRIMZI_CRB_LABELS)
                 .list()
                 .getItems()
                 .stream()
-                .filter(crb -> STRIMZI_KAFKA_ROLEREF.equals(crb.getRoleRef().getName()))
-                .filter(crb -> crb.getSubjects().stream().map(Subject::getNamespace).noneMatch(namespaces::contains))
+                .filter(StrimziClusterRoleBindingManager::referencesStrimziKafkaRole)
+                .filter(crb -> noSubjectNamespaceExists(crb, namespaces))
+                .filter(crb -> createdBeforeGracePeriod(crb, gracePeriodBegin))
                 .collect(Collectors.toList());
 
         if (abandonedBindings.isEmpty()) {
@@ -76,8 +89,26 @@ public class StrimziClusterRoleBindingManager implements Scheduled.SkipPredicate
         }
     }
 
+    static boolean referencesStrimziKafkaRole(ClusterRoleBinding binding) {
+        return STRIMZI_KAFKA_ROLEREF.equals(binding.getRoleRef().getName());
+    }
+
+    static boolean noSubjectNamespaceExists(ClusterRoleBinding binding, Set<String> namespaces) {
+        return binding.getSubjects().stream().map(Subject::getNamespace).noneMatch(namespaces::contains);
+    }
+
+    static boolean createdBeforeGracePeriod(ClusterRoleBinding binding, Instant gracePeriodBegin) {
+        Instant creationInstant = OffsetDateTime.parse(binding.getMetadata().getCreationTimestamp()).toInstant();
+        return creationInstant.isBefore(gracePeriodBegin);
+    }
+
     @Override
     public boolean test(ScheduledExecution execution) {
         return !scanEnabled;
+    }
+
+    /* test */
+    void setScanInterval(Duration scanInterval) {
+        this.scanInterval = scanInterval;
     }
 }
