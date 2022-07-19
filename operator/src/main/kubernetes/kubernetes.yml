@@ -135,7 +135,7 @@ rules:
       - pods
       # the operator reads nodes to get AZ information
       - nodes
-      # the operator reads namespaces for event monitoring
+      # the operator reads namespaces for event monitoring and to determine if a CRB has been adandoned
       - namespaces
     verbs:
       - get
@@ -162,6 +162,14 @@ rules:
       - delete
       - patch
       - update
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      # StrimziClusterRoleBindingManager lists and potentially deletes abandoned CRBs
+      - clusterrolebindings
+    verbs:
+      - list
+      - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
