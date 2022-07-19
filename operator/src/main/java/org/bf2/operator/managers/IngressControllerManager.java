@@ -165,7 +165,7 @@ public class IngressControllerManager {
     @ConfigProperty(name = "ingresscontroller.ingress-container-command")
     List<String> ingressContainerCommand;
     @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
-    Long ingressReloadIntervalSeconds;
+    Integer ingressReloadIntervalSeconds;
 
 
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
