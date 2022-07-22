@@ -128,6 +128,19 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaToReserved() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        validateReserved(mk, "/expected/reserved.yml");
+    }
+
+    @Test
+    void testManagedKafkaToReservedWithCruiseControl() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getCapacity().setMaxPartitions(3000);
+
+        validateReserved(mk, "/expected/reserved-cruisecontrol.yml");
+    }
+
+    private void validateReserved(ManagedKafka mk, String expected) throws IOException, JsonProcessingException, JsonMappingException {
         mk.getMetadata().setNamespace("reserved");
         mk = new ManagedKafkaBuilder(mk).editMetadata()
                 .addToLabels(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE)
@@ -149,7 +162,7 @@ class KafkaClusterTest {
                         .endMetadata()
                         .build())
                 .sorted((d1, d2) -> d1.getMetadata().getName().compareTo(d2.getMetadata().getName()))
-                .toArray(), "/expected/reserved.yml");
+                .toArray(), expected);
 
         // after a status update or other change we'll attempt to reconcile
         // again.  make sure that we end up in the same state

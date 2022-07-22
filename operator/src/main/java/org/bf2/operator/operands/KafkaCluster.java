@@ -211,7 +211,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 s -> s.getTemplate().getPod(), s -> 1, s -> s.getResources());
         createOrUpdateReservedDeployment(managedKafka, kafka, KAFKA_SUFFIX, k -> k.getSpec().getKafka(),
                 s -> s.getTemplate().getPod(), s -> s.getReplicas(), s -> s.getResources());
-        createOrUpdateReservedDeployment(managedKafka, kafka, CRUISECONTROL_SUFFIX, k -> k.getSpec().getKafka(),
+        createOrUpdateReservedDeployment(managedKafka, kafka, CRUISECONTROL_SUFFIX, k -> k.getSpec().getCruiseControl(),
                 s -> s.getTemplate().getPod(), s -> 1, s -> s.getResources());
     }
 

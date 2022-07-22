@@ -8,9 +8,66 @@
       bf2.org/deployment: "reserved"
       ingressType: "sharded"
       managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-      managedkafka.bf2.org/kas-zone0: "true"
-      managedkafka.bf2.org/kas-zone1: "true"
       managedkafka.bf2.org/kas-zone2: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
+      managedkafka.bf2.org/kas-multi-zone: "true"
+    name: "test-mk-cruisecontrol"
+    namespace: "reserved"
+    ownerReferences:
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+        bf2.org/deployment: "reserved"
+        ingressType: "sharded"
+        managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+        managedkafka.bf2.org/kas-zone2: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
+        managedkafka.bf2.org/kas-multi-zone: "true"
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+          bf2.org/deployment: "reserved"
+          ingressType: "sharded"
+          managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+          managedkafka.bf2.org/kas-zone2: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
+          managedkafka.bf2.org/kas-multi-zone: "true"
+          strimzi.io/name: "test-mk-cruisecontrol"
+        name: "test-mk-cruisecontrol"
+      spec:
+        containers:
+        - image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          name: "pause"
+          resources:
+            limits:
+              memory: "2Gi"
+              cpu: "500m"
+            requests:
+              memory: "2Gi"
+              cpu: "250m"
+        priorityClassName: "kas-fleetshard-reservation"
+- apiVersion: "apps/v1"
+  kind: "Deployment"
+  metadata:
+    generation: 1
+    labels:
+      app.kubernetes.io/managed-by: "kas-fleetshard-operator"
+      bf2.org/deployment: "reserved"
+      ingressType: "sharded"
+      managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
+      managedkafka.bf2.org/kas-zone2: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
       managedkafka.bf2.org/kas-multi-zone: "true"
     name: "test-mk-exporter"
     namespace: "reserved"
@@ -26,9 +83,9 @@
         bf2.org/deployment: "reserved"
         ingressType: "sharded"
         managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-        managedkafka.bf2.org/kas-zone0: "true"
-        managedkafka.bf2.org/kas-zone1: "true"
         managedkafka.bf2.org/kas-zone2: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
         managedkafka.bf2.org/kas-multi-zone: "true"
     template:
       metadata:
@@ -37,9 +94,9 @@
           bf2.org/deployment: "reserved"
           ingressType: "sharded"
           managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-          managedkafka.bf2.org/kas-zone0: "true"
-          managedkafka.bf2.org/kas-zone1: "true"
           managedkafka.bf2.org/kas-zone2: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
           managedkafka.bf2.org/kas-multi-zone: "true"
           strimzi.io/name: "test-mk-exporter"
         name: "test-mk-exporter"
@@ -77,9 +134,9 @@
       bf2.org/deployment: "reserved"
       ingressType: "sharded"
       managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-      managedkafka.bf2.org/kas-zone0: "true"
-      managedkafka.bf2.org/kas-zone1: "true"
       managedkafka.bf2.org/kas-zone2: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
       managedkafka.bf2.org/kas-multi-zone: "true"
     name: "test-mk-kafka"
     namespace: "reserved"
@@ -88,16 +145,16 @@
       kind: "ManagedKafka"
       name: "test-mk"
   spec:
-    replicas: 3
+    replicas: 6
     selector:
       matchLabels:
         app.kubernetes.io/managed-by: "kas-fleetshard-operator"
         bf2.org/deployment: "reserved"
         ingressType: "sharded"
         managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-        managedkafka.bf2.org/kas-zone0: "true"
-        managedkafka.bf2.org/kas-zone1: "true"
         managedkafka.bf2.org/kas-zone2: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
         managedkafka.bf2.org/kas-multi-zone: "true"
     template:
       metadata:
@@ -106,9 +163,9 @@
           bf2.org/deployment: "reserved"
           ingressType: "sharded"
           managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-          managedkafka.bf2.org/kas-zone0: "true"
-          managedkafka.bf2.org/kas-zone1: "true"
           managedkafka.bf2.org/kas-zone2: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
           managedkafka.bf2.org/kas-multi-zone: "true"
           strimzi.io/name: "test-mk-kafka"
         name: "test-mk-kafka"
@@ -160,9 +217,9 @@
       bf2.org/deployment: "reserved"
       ingressType: "sharded"
       managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-      managedkafka.bf2.org/kas-zone0: "true"
-      managedkafka.bf2.org/kas-zone1: "true"
       managedkafka.bf2.org/kas-zone2: "true"
+      managedkafka.bf2.org/kas-zone1: "true"
+      managedkafka.bf2.org/kas-zone0: "true"
       managedkafka.bf2.org/kas-multi-zone: "true"
     name: "test-mk-zookeeper"
     namespace: "reserved"
@@ -178,9 +235,9 @@
         bf2.org/deployment: "reserved"
         ingressType: "sharded"
         managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-        managedkafka.bf2.org/kas-zone0: "true"
-        managedkafka.bf2.org/kas-zone1: "true"
         managedkafka.bf2.org/kas-zone2: "true"
+        managedkafka.bf2.org/kas-zone1: "true"
+        managedkafka.bf2.org/kas-zone0: "true"
         managedkafka.bf2.org/kas-multi-zone: "true"
     template:
       metadata:
@@ -189,9 +246,9 @@
           bf2.org/deployment: "reserved"
           ingressType: "sharded"
           managedkafka.bf2.org/strimziVersion: "strimzi-cluster-operator.v0.23.0-4"
-          managedkafka.bf2.org/kas-zone0: "true"
-          managedkafka.bf2.org/kas-zone1: "true"
           managedkafka.bf2.org/kas-zone2: "true"
+          managedkafka.bf2.org/kas-zone1: "true"
+          managedkafka.bf2.org/kas-zone0: "true"
           managedkafka.bf2.org/kas-multi-zone: "true"
           strimzi.io/name: "test-mk-zookeeper"
         name: "test-mk-zookeeper"
