@@ -16,7 +16,7 @@
         "compute":##COMPUTE_NODES##
     },
     "cloud_provider": {
-        "id":"aws"
+        "id":"##CLOUD_PROVIDER##"
     },
     "node_drain_grace_period": {
         "value":60,
@@ -29,9 +29,3 @@
         "enabled":true,
         "disable_scp_checks":false
     },
-    "aws": {
-        "access_key_id":"##AWS_ACCESS_KEY##",
-        "account_id":"##AWS_ACCOUNT_ID##",
-        "secret_access_key":"##AWS_SECRET_ACCESS_KEY##"
-    }
-}
