@@ -158,6 +158,9 @@ public class ManagedKafkaSync {
             return false; // not a managed instance
         }
         if (!local.getSpec().isDeleted()) {
+            if (local.isReserveDeployment()) {
+                return true;
+            }
             if (local.getStatus() != null
                     && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Ready)
                             .filter(c -> Reason.Rejected.name().equals(c.getReason())).isPresent()) {

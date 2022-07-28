@@ -6,8 +6,11 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -24,6 +27,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -282,6 +286,17 @@ public class ManagedKafkaProvisioner {
      */
     public ManagedKafkaDeployment deployCluster(String name, ManagedKafkaCapacity managedKafkaCapacity,
             KafkaInstanceConfiguration profile) throws Exception {
+        return deployCluster(new ObjectMetaBuilder().withName(name).build(), managedKafkaCapacity, profile);
+    }
+
+    /**
+     * TODO: if/when this will need to test bin packing, then we'll separate the profile setting from deployCluster
+     *
+     * Deploy a Kafka cluster using this provisioner.
+     * @param profile
+     */
+    public ManagedKafkaDeployment deployCluster(ObjectMeta meta, ManagedKafkaCapacity managedKafkaCapacity,
+            KafkaInstanceConfiguration profile) throws Exception {
         // set and validate the strimzi version
         String strimziVersion = PerformanceEnvironment.STRIMZI_VERSION;
         if (strimziVersion == null) {
@@ -308,13 +323,12 @@ public class ManagedKafkaProvisioner {
         String namespace = Constants.KAFKA_NAMESPACE;
 
         ManagedKafka managedKafka = new ManagedKafkaBuilder()
-                .withNewMetadata()
-                .withName(name)
+                .withMetadata(meta).editMetadata()
                 .withNamespace(namespace)
                 .endMetadata()
                 .withSpec(new ManagedKafkaSpecBuilder().withCapacity(managedKafkaCapacity)
                         .withNewEndpoint()
-                        .withBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", name, namespace, domain))
+                        .withBootstrapServerHost(String.format("%s-kafka-bootstrap-%s.%s", meta.getName(), namespace, domain))
                         .withNewTls()
                         .withCert(tlsConfig.getCert())
                         .withKey(tlsConfig.getKey())
@@ -495,6 +509,16 @@ public class ManagedKafkaProvisioner {
         var managedKakfaClient = cluster.kubeClient().client().resources(ManagedKafka.class);
 
         managedKafka = managedKakfaClient.inNamespace(namespace).createOrReplace(managedKafka);
+
+        // create a dummy master secret - normally this is the syncs job
+        cluster.kubeClient()
+                .client()
+                .secrets()
+                .inNamespace(namespace)
+                .createOrReplace(new SecretBuilder().withNewMetadata()
+                        .withName(OperandUtils.masterSecretName(managedKafka))
+                        .endMetadata()
+                        .build());
 
         var kafkaClient = cluster.kubeClient()
                 .client()

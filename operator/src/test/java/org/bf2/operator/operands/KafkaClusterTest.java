@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -38,6 +40,7 @@ import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +54,7 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -101,6 +105,9 @@ class KafkaClusterTest {
                 "managedkafka.bf2.org/kas-zone2", "true"));
 
         QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
+
+        // clean out all deployments
+        client.apps().deployments().inAnyNamespace().delete();
     }
 
     @Test
@@ -116,6 +123,56 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         diffToExpected(kafka, "/expected/strimzi.yml");
+    }
+
+    @Test
+    void testManagedKafkaToReserved() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        validateReserved(mk, "/expected/reserved.yml");
+    }
+
+    @Test
+    void testManagedKafkaToReservedWithCruiseControl() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getCapacity().setMaxPartitions(3000);
+
+        validateReserved(mk, "/expected/reserved-cruisecontrol.yml");
+    }
+
+    private void validateReserved(ManagedKafka mk, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        mk.getMetadata().setNamespace("reserved");
+        mk = new ManagedKafkaBuilder(mk).editMetadata()
+                .addToLabels(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE)
+                .endMetadata()
+                .build();
+
+        kafkaCluster.createOrUpdate(mk);
+        List<Deployment> deployments = client.apps()
+                .deployments()
+                .inNamespace(mk.getMetadata().getNamespace())
+                .list()
+                .getItems();
+
+        diffToExpected(deployments.stream()
+                .map(d -> new DeploymentBuilder(d).editMetadata()
+                        .withCreationTimestamp(null)
+                        .withUid(null)
+                        .withResourceVersion(null)
+                        .endMetadata()
+                        .build())
+                .sorted((d1, d2) -> d1.getMetadata().getName().compareTo(d2.getMetadata().getName()))
+                .toArray(), expected);
+
+        // after a status update or other change we'll attempt to reconcile
+        // again.  make sure that we end up in the same state
+        kafkaCluster.createOrUpdate(mk);
+        List<Deployment> deployments1 = client.apps()
+                .deployments()
+                .inNamespace(mk.getMetadata().getNamespace())
+                .list()
+                .getItems();
+        assertEquals(new HashSet<>(deployments), new HashSet<>(deployments1));
     }
 
     @Test
@@ -397,14 +454,14 @@ class KafkaClusterTest {
         diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
     }
 
-    static JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
-        return diffToExpected(kafka, expected, "[]");
+    static JsonNode diffToExpected(Object obj, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        return diffToExpected(obj, expected, "[]");
     }
 
-    static JsonNode diffToExpected(Object kafka, String expected, String diff) throws IOException, JsonProcessingException, JsonMappingException {
+    static JsonNode diffToExpected(Object obj, String expected, String diff) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = Serialization.yamlMapper();
         JsonNode expectedJson = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
-        String yaml = Serialization.asYaml(kafka);
+        String yaml = Serialization.asYaml(obj);
         JsonNode actualJson = objectMapper.readTree(yaml);
         JsonNode patch = JsonDiff.asJson(expectedJson, actualJson);
         assertEquals(diff, patch.toString(), yaml);

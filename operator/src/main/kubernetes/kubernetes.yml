@@ -239,3 +239,10 @@ spec:
     matchLabels:
       app: kas-fleetshard-operator
 ---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kas-fleetshard-reservation
+value: -4
+globalDefault: false
+---

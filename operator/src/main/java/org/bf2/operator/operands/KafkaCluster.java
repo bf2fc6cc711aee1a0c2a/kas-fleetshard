@@ -14,10 +14,12 @@ import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
 import io.fabric8.kubernetes.api.model.PodAntiAffinity;
 import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
@@ -52,6 +54,7 @@ import io.strimzi.api.kafka.model.storage.Storage;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodDisruptionBudgetTemplateBuilder;
+import io.strimzi.api.kafka.model.template.PodTemplate;
 import io.strimzi.api.kafka.model.template.PodTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
@@ -81,6 +84,7 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -88,6 +92,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -97,6 +102,14 @@ import java.util.function.Supplier;
 @ApplicationScoped
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
+
+    private static final String CRUISECONTROL_SUFFIX = "-cruisecontrol";
+
+    private static final String ZOOKEEPER_SUFFIX = "-zookeeper";
+
+    private static final String EXPORTER_SUFFIX = "-exporter";
+
+    private static final String KAFKA_SUFFIX = "-kafka";
 
     private static final String JMX_PORT = "9999";
 
@@ -148,6 +161,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        if (managedKafka.isReserveDeployment()) {
+            asReserveDeployments(managedKafka);
+            return;
+        }
+
         secretManager.createOrUpdate(managedKafka);
 
         ConfigMap currentKafkaMetricsConfigMap = cachedConfigMap(managedKafka, kafkaMetricsConfigMapName(managedKafka));
@@ -182,8 +200,47 @@ public class KafkaCluster extends AbstractKafkaCluster {
         super.createOrUpdate(managedKafka);
     }
 
+    private void asReserveDeployments(ManagedKafka managedKafka) {
+        // start with the desired kafka state - there will be no existing instance
+        Kafka kafka = kafkaFrom(managedKafka, null);
+
+        // we need to use a bunch of lambdas as there's no interfaces for the common functionality
+        createOrUpdateReservedDeployment(managedKafka, kafka, ZOOKEEPER_SUFFIX, k -> k.getSpec().getZookeeper(),
+                s -> s.getTemplate().getPod(), s -> s.getReplicas(), s -> s.getResources());
+        createOrUpdateReservedDeployment(managedKafka, kafka, EXPORTER_SUFFIX, k -> k.getSpec().getKafkaExporter(),
+                s -> s.getTemplate().getPod(), s -> 1, s -> s.getResources());
+        createOrUpdateReservedDeployment(managedKafka, kafka, KAFKA_SUFFIX, k -> k.getSpec().getKafka(),
+                s -> s.getTemplate().getPod(), s -> s.getReplicas(), s -> s.getResources());
+        createOrUpdateReservedDeployment(managedKafka, kafka, CRUISECONTROL_SUFFIX, k -> k.getSpec().getCruiseControl(),
+                s -> s.getTemplate().getPod(), s -> 1, s -> s.getResources());
+    }
+
+    private <T> void createOrUpdateReservedDeployment(ManagedKafka managedKafka, Kafka kafka, String nameSuffix,
+            Function<Kafka, T> specExtractor, Function<T, PodTemplate> templateExtractor,
+            Function<T, Integer> replicasExtractor,
+            Function<T, ResourceRequirements> resourceExtractor) {
+        T spec = specExtractor.apply(kafka);
+        String name = managedKafka.getMetadata().getName() + nameSuffix;
+        if (spec == null) {
+            kubernetesClient.apps().deployments().inNamespace(managedKafka.getMetadata().getNamespace()).withName(name).delete();
+            return;
+        }
+        PodTemplate template = templateExtractor.apply(spec);
+        Deployment current = informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), name);
+        Deployment reserved = ReservedDeploymentConverter.asReservedDeployment(current, managedKafka, name, kafka.getMetadata(),
+                replicasExtractor.apply(spec), template,
+                resourceExtractor.apply(spec));
+
+        if (!Objects.equals(current, reserved)) {
+            OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), reserved);
+        }
+    }
+
     @Override
     public void delete(ManagedKafka managedKafka, Context context) {
+        if (managedKafka.isReserveDeployment()) {
+            log.warnf("Deleted flag is not expected to be used with a reserved deployment %s/%s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        }
         super.delete(managedKafka, context);
         secretManager.delete(managedKafka);
 
@@ -404,7 +461,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // this only comes into picture when there are more number of nodes than the brokers
         PodTemplateBuilder podTemplateBuilder = new PodTemplateBuilder()
                 .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-kafka", DO_NOT_SCHEDULE));
+                .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + KAFKA_SUFFIX, DO_NOT_SCHEDULE));
 
         Affinity affinity = OperandUtils.buildAffinity(this.informerManager.getLocalAgent(), managedKafka,
                 this.configs.getConfig(managedKafka).getKafka().isColocateWithZookeeper());
@@ -471,7 +528,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         PodNested<ZookeeperClusterTemplateBuilder> podNestedBuilder = new ZookeeperClusterTemplateBuilder()
                 .withNewPod()
                         .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
-                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + "-zookeeper", DO_NOT_SCHEDULE));
+                        .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + ZOOKEEPER_SUFFIX, DO_NOT_SCHEDULE));
 
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         boolean addAffinity = false;
@@ -1086,6 +1143,33 @@ public class KafkaCluster extends AbstractKafkaCluster {
         String currentDigest = currentCM.getMetadata().getAnnotations() == null ? null : currentCM.getMetadata().getAnnotations().get(DIGEST);
         String newDigest = newCM.getMetadata().getAnnotations() == null ? null : newCM.getMetadata().getAnnotations().get(DIGEST);
         return !Objects.equals(currentDigest, newDigest);
+    }
+
+    @Override
+    public OperandReadiness getReadiness(ManagedKafka managedKafka) {
+        if (managedKafka.isReserveDeployment()) {
+            List<OperandReadiness> readiness = new ArrayList<>();
+            readiness.add(Operand.getDeploymentReadiness(
+                    informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName() + KAFKA_SUFFIX),
+                    managedKafka.getMetadata().getName() + KAFKA_SUFFIX));
+            readiness.add(Operand.getDeploymentReadiness(
+                    informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName() + EXPORTER_SUFFIX),
+                    managedKafka.getMetadata().getName() + EXPORTER_SUFFIX));
+
+            Kafka kafka = kafkaFrom(managedKafka, null);
+            if (kafka.getSpec().getCruiseControl() != null) {
+                readiness.add(Operand.getDeploymentReadiness(
+                        informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName() + CRUISECONTROL_SUFFIX),
+                        managedKafka.getMetadata().getName() + CRUISECONTROL_SUFFIX));
+            }
+            if (kafka.getSpec().getZookeeper() != null) {
+                readiness.add(Operand.getDeploymentReadiness(
+                        informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName() + ZOOKEEPER_SUFFIX),
+                        managedKafka.getMetadata().getName() + ZOOKEEPER_SUFFIX));
+            }
+            return KafkaInstance.combineReadiness(readiness);
+        }
+        return super.getReadiness(managedKafka);
     }
 
 }
