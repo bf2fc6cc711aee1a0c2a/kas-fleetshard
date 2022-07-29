@@ -15,6 +15,7 @@ import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.events.ResourceEventSource;
+import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.StrimziManager;
@@ -75,6 +76,9 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
     @Inject
     KafkaInstanceConfigurations configs;
 
+    @Inject
+    CapacityManager capacityManager;
+
     /**
      * This logic handles events (edge triggers) using level logic.
      * On any modification to the ManagedKafka or it's owned resources,
@@ -97,9 +101,15 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
                     log.infof("Deleting Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
                     kafkaInstance.delete(managedKafka, context);
                 }
+
+                capacityManager.releaseResources(managedKafka);
             } else if (invalid.isEmpty()) {
-                log.infof("Updating Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
-                kafkaInstance.createOrUpdate(managedKafka);
+                invalid = capacityManager.validateResources(managedKafka);
+
+                if (invalid.isEmpty()) {
+                    log.infof("Updating Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
+                    kafkaInstance.createOrUpdate(managedKafka);
+                }
             }
             updateManagedKafkaStatus(managedKafka, invalid);
             if (!managedKafka.getMetadata().getFinalizers().isEmpty()) {

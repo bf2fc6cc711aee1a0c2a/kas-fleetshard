@@ -32,13 +32,27 @@ public class KafkaInstanceConfigurations {
     private static final String MANAGEDKAFKA = "managedkafka";
 
     public enum InstanceType {
-        STANDARD,
-        DEVELOPER;
+        STANDARD(3),
+        DEVELOPER(.1);
 
         final String lowerName;
+        final double nodesPerUnit;
 
-        private InstanceType() {
+        private InstanceType(double nodesPerUnit) {
             lowerName = name().toLowerCase();
+            this.nodesPerUnit = nodesPerUnit;
+        }
+
+        public double getNodesPerUnit() {
+            return nodesPerUnit;
+        }
+
+        public static InstanceType fromLowerName(String name) {
+            return InstanceType.valueOf(name.toUpperCase());
+        }
+
+        public String getLowerName() {
+            return lowerName;
         }
     }
 

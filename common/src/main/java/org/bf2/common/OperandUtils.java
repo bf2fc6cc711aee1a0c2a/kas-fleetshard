@@ -111,7 +111,8 @@ public class OperandUtils {
     }
 
     public static NodeAffinity nodeAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka) {
-        if (agent == null || agent.getSpec().getCapacity().size() <= 1) {
+        if (agent == null || agent.getSpec().getCapacity().size() == 0 || (agent.getSpec().getCapacity().size() == 1
+                && agent.getSpec().getCapacity().values().iterator().next().getMaxNodes() == null)) {
             return null; // not expected to use a node label
         }
         String type =

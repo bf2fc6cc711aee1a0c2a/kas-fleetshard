@@ -12,6 +12,8 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.managers.CapacityManager;
+import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.ObservabilityManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
@@ -26,6 +28,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Type;
 import org.bf2.operator.resources.v1alpha1.NodeCounts;
 import org.bf2.operator.resources.v1alpha1.NodeCountsBuilder;
+import org.bf2.operator.resources.v1alpha1.ProfileCapacity;
 import org.bf2.operator.resources.v1alpha1.StrimziVersionStatus;
 import org.jboss.logging.Logger;
 
@@ -35,6 +38,7 @@ import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The controller for {@link ManagedKafkaAgent}.  However there is currently
@@ -60,11 +64,21 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
     @Inject
     StrimziManager strimziManager;
 
+    @Inject
+    CapacityManager capacityManager;
+
+    @Inject
+    InformerManager informerManager;
+
     @Timed(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "Time spent processing createOrUpdate calls")
     @Counted(value = "controller.update", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of createOrUpdate calls processed")
     @Override
     public UpdateControl<ManagedKafkaAgent> reconcile(ManagedKafkaAgent resource, Context context) {
+        capacityManager.getOrCreateResourceConfigMap(resource);
         this.observabilityManager.createOrUpdateObservabilitySecret(resource.getSpec().getObservability(), resource);
+        // since we don't know the prior state, we have to just reconcile everything
+        // in case the spec profile information has changed
+        informerManager.resyncManagedKafka();
         if (!resource.getMetadata().getFinalizers().isEmpty()) {
             resource.getMetadata().setFinalizers(Collections.emptyList());
             return UpdateControl.updateResource(resource);
@@ -86,10 +100,6 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
         }
     }
 
-    /**
-     * TODO: this needs to be replaced with actual metrics
-     * @return
-     */
     private ManagedKafkaAgentStatus buildStatus(ManagedKafkaAgent resource) {
         ManagedKafkaAgentStatus status = resource.getStatus();
         ManagedKafkaCondition readyCondition = null;
@@ -109,6 +119,9 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
         }
 
+        Map<String, ProfileCapacity> capacity = capacityManager.buildCapacity(resource);
+
+        // dummy capacity information - to be removed
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
                 .withDataRetentionSize(Quantity.parse("40Gi"))
@@ -150,6 +163,8 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
                 .withResizeInfo(resize)
                 .withUpdatedTimestamp(ConditionUtils.iso8601Now())
                 .withStrimzi(strimziVersions)
+                .withCapacity(capacity)
                 .build();
     }
+
 }
