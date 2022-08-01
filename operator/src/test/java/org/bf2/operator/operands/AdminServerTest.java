@@ -96,6 +96,7 @@ class AdminServerTest {
         override.setEnv(overrideContainerEnvVars);
 
         OperandOverrideManager overrideManager = Mockito.mock(OperandOverrideManager.class);
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString())).thenReturn(useNodeAffinity);
         Mockito.when(overrideManager.getAdminServerOverride(versionString))
             .thenReturn(override);
         Mockito.when(overrideManager.getAdminServerImage(versionString))

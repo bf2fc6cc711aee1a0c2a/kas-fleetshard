@@ -98,8 +98,10 @@ public class Canary extends AbstractCanary {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper());
+                this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper(), overrideManager.useDynamicScalingScheduling(strimzi));
 
         builder
                 .editOrNewMetadata()

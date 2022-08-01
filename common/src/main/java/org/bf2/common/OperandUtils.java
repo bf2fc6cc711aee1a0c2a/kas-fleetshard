@@ -135,13 +135,15 @@ public class OperandUtils {
     /**
      * Create the Affinity based upon the Agent/profile and if it should be collocated with the zookeeper
      */
-    public static Affinity buildAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka, boolean collocateWithZookeeper) {
+    public static Affinity buildAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka, boolean collocateWithZookeeper, boolean useNodeAffinity) {
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         boolean useAffinity = false;
-        NodeAffinity nodeAffinity = nodeAffinity(agent, managedKafka);
-        if (nodeAffinity != null) {
-            affinityBuilder.withNodeAffinity(nodeAffinity);
-            useAffinity = true;
+        if (useNodeAffinity) {
+            NodeAffinity nodeAffinity = nodeAffinity(agent, managedKafka);
+            if (nodeAffinity != null) {
+                affinityBuilder.withNodeAffinity(nodeAffinity);
+                useAffinity = true;
+            }
         }
         if(collocateWithZookeeper) {
             affinityBuilder.withPodAffinity(buildZookeeperPodAffinity(managedKafka));

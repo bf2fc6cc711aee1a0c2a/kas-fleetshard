@@ -463,8 +463,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                 .withTopologySpreadConstraints(azAwareTopologySpreadConstraint(managedKafka.getMetadata().getName() + KAFKA_SUFFIX, DO_NOT_SCHEDULE));
 
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+
         Affinity affinity = OperandUtils.buildAffinity(this.informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getKafka().isColocateWithZookeeper());
+                this.configs.getConfig(managedKafka).getKafka().isColocateWithZookeeper(), this.overrideManager.useDynamicScalingScheduling(strimzi));
 
         podTemplateBuilder.withAffinity(affinity);
 
@@ -625,7 +627,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
         }
 
-        Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka, config.getExporter().isColocateWithZookeeper());
+        Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
+                config.getExporter().isColocateWithZookeeper(),
+                this.overrideManager.useDynamicScalingScheduling(strimzi));
 
         List<Toleration> profileTolerations = OperandUtils.profileTolerations(managedKafka);
         if (!profileTolerations.isEmpty()) {
@@ -750,8 +754,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endExternalLogging()
                 .withMetricsConfig(buildCruiseControlMetricsConfig(managedKafka));
 
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                cruiseControl.isColocateWithZookeeper());
+                cruiseControl.isColocateWithZookeeper(), this.overrideManager.useDynamicScalingScheduling(strimzi));
 
         specBuilder.editOrNewTemplate()
                 .editOrNewPod()

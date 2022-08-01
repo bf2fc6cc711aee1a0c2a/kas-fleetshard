@@ -220,6 +220,8 @@ class KafkaClusterTest {
 
         OperandTestUtils.useNodeAffinity(managedKafka);
 
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString())).thenReturn(true);
+
         //When
         Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
 
@@ -252,6 +254,26 @@ class KafkaClusterTest {
 
         assertEquals(affinity.getNodeAffinity(),
                 kafka.getSpec().getZookeeper().getTemplate().getPod().getAffinity().getNodeAffinity());
+
+        // try with the value disabled as well
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString())).thenReturn(false);
+
+        kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        affinity = kafka.getSpec().getKafka().getTemplate().getPod().getAffinity();
+        expected = "---\n"
+                + "podAffinity:\n"
+                + "  preferredDuringSchedulingIgnoredDuringExecution:\n"
+                + "  - podAffinityTerm:\n"
+                + "      labelSelector:\n"
+                + "        matchExpressions:\n"
+                + "        - key: \"strimzi.io/name\"\n"
+                + "          operator: \"In\"\n"
+                + "          values:\n"
+                + "          - \"test-mk-zookeeper\"\n"
+                + "      topologyKey: \"kubernetes.io/hostname\"\n"
+                + "    weight: 100\n";
+        assertEquals(expected, Serialization.asYaml(affinity));
     }
 
     @Test

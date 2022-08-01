@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
@@ -57,6 +58,7 @@ public class CanaryTest {
         ManagedKafka mk = createManagedKafka(bootstrapServerHost);
         configureMockOverrideManager(mk, overrideContainerEnvVars, overrideInitContainerEnvVars);
 
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString())).thenReturn(useNodeAffinity);
         if (useNodeAffinity) {
             OperandTestUtils.useNodeAffinity(mk);
         }

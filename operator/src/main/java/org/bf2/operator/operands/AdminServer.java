@@ -152,8 +152,10 @@ public class AdminServer extends AbstractAdminServer {
 
         DeploymentBuilder builder = current != null ? new DeploymentBuilder(current) : new DeploymentBuilder();
 
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper());
+                this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper(), overrideManager.useDynamicScalingScheduling(strimzi));
 
         builder
                 .editOrNewMetadata()
