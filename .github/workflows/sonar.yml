@@ -2,7 +2,7 @@ name: "SonarCloud"
 
 on:
   workflow_run:
-    workflows: [ Build ]
+    workflows: [ Build and Unit tests ]
     types: [ completed ]
 
 jobs:
@@ -81,7 +81,7 @@ jobs:
       - name: Setup JDK
         uses: actions/setup-java@v1
         with:
-          java-version: 17
+          java-version: 11
 
       - name: Cache SonarCloud packages
         uses: actions/cache@v3
@@ -107,7 +107,7 @@ jobs:
           mvn -B --no-transfer-progress org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=bf2fc6cc711aee1a0c2a_kas-fleetshard  \
             -Dsonar.login=${SONAR_TOKEN} \
-            -Dsonar.coverage.jacoco.xmlReportPaths=$(pwd)/target/site/jacoco-aggregate/jacoco.xml \
+            -Dsonar.coverage.jacoco.xmlReportPaths=$(pwd)/operator/target/site/jacoco-aggregate/jacoco.xml,$(pwd)/operator/target/site/jacoco/jacoco.xml,$(pwd)/sync/target/site/jacoco/jacoco.xml \
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
             -Dsonar.pullrequest.key=${{ fromJson(steps.build_context.outputs.content).event.number }} \
             -Dsonar.pullrequest.branch=${{ fromJson(steps.build_context.outputs.content).head_ref }} \
@@ -122,6 +122,6 @@ jobs:
           mvn -B --no-transfer-progress org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=bf2fc6cc711aee1a0c2a_kas-fleetshard \
             -Dsonar.login=${SONAR_TOKEN} \
-            -Dsonar.coverage.jacoco.xmlReportPaths=$(pwd)/target/site/jacoco-aggregate/jacoco.xml \
+            -Dsonar.coverage.jacoco.xmlReportPaths=$(pwd)/operator/target/site/jacoco-aggregate/jacoco.xml,$(pwd)/operator/target/site/jacoco/jacoco.xml,$(pwd)/sync/target/site/jacoco/jacoco.xml \
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
             -Dsonar.branch.name=${{ github.event.workflow_run.head_branch }}

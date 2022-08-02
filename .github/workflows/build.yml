@@ -32,11 +32,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Build and run Unit tests
-      env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        SONAR_ORG: ${{secrets.SONAR_ORG}}
-        SONAR_PROJECT: ${{secrets.SONAR_PROJECT}}
-        SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
       run: mvn install --file pom.xml --no-transfer-progress -Dno-format
     - name: Save Build Context
       run: echo "$GITHUB_CONTEXT" > target/build-context.json
