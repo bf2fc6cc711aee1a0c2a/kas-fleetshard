@@ -54,8 +54,8 @@ spec:
         brokers:
         - broker: 0
           host: "broker-0-xxx.yyy.zzz"
-        maxConnections: 3000
-        maxConnectionCreationRate: 100
+        maxConnections: 100
+        maxConnectionCreationRate: 50
     - name: "oauth"
       port: 9095
       type: "internal"
