@@ -327,7 +327,7 @@
 	                        <goal>check</goal>
 	                    </goals>
 	                    <configuration>
-	                        <!-- overall coverage rules, this just checks there is some test per 
+	                        <!-- overall coverage rules, this just checks there is some test per
 	                            package -->
 	                        <rules>
 	                            <rule>
