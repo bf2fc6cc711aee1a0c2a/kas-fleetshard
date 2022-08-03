@@ -43,4 +43,4 @@ jobs:
         name: target
         path: |
           **/target/
-          !**/target/**/.jar
+          !**/target/**/*.jar
