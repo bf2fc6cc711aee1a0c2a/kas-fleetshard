@@ -85,6 +85,7 @@
 
         <!-- Sonar Setting -->
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.organization>bf2fc6cc711aee1a0c2a</sonar.organization>
     </properties>
 
     <modules>
