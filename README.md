@@ -5,6 +5,7 @@
 
 [![Build and Unit tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/build.yml/badge.svg)](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/build.yml)
 [![Smoke tests](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/smoke.yaml/badge.svg)](https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/actions/workflows/smoke.yaml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=bf2fc6cc711aee1a0c2a_kas-fleetshard&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=bf2fc6cc711aee1a0c2a_kas-fleetshard)
 
 ## Running
 
