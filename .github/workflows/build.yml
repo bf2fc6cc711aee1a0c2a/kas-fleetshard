@@ -42,8 +42,5 @@ jobs:
       with:
         name: target
         path: |
-          target/
-          api/target/
-          common/target/
-          operator/target/
-          sync/target/
+          **/target/
+          !**/target/**/.jar
