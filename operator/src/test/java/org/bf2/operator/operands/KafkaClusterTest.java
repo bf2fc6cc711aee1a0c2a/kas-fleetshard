@@ -409,6 +409,7 @@ class KafkaClusterTest {
     void testScalingAndReplicationFactor() throws IOException {
         alternativeConfig(config -> {
             config.getKafka().setScalingAndReplicationFactor(1);
+            config.getKafka().setTopicConfigPolicyEnforced(false);
         });
 
         ManagedKafka mk = exampleManagedKafka("60Gi");
