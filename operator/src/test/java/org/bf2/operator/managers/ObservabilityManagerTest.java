@@ -53,9 +53,23 @@ public class ObservabilityManagerTest {
 
         this.observabilityManager.createOrUpdateObservabilitySecret(config, owner);
 
-        // lets call event handler
+        // make sure the owner reference exists
         Secret secret = observabilityManager.observabilitySecretResource().get();
         assertNotNull(secret);
+        assertNotNull(secret.getMetadata().getOwnerReferences().get(0));
+
+        // now remove and make sure it comes back
+        this.observabilityManager.observabilitySecretResource().edit(s -> {
+            s.getMetadata().setOwnerReferences(null);
+            return s;
+        });
+
+        this.observabilityManager.createOrUpdateObservabilitySecret(config, owner);
+
+        // lets call event handler
+        secret = observabilityManager.observabilitySecretResource().get();
+        assertNotNull(secret);
+        assertNotNull(secret.getMetadata().getOwnerReferences().get(0));
 
         // the mock informermanager should be immediately updated, but it should
         // not be seen as running
@@ -75,7 +89,9 @@ public class ObservabilityManagerTest {
         assertEquals("observability-operator", secret.getMetadata().getLabels().get("configures"));
 
         // status verification, the Informers do not work in test framework thus direct verification
-        secret = ObservabilityManager.createObservabilitySecretBuilder(client.getNamespace(), config).editMetadata()
+        SecretBuilder builder = new SecretBuilder();
+        ObservabilityManager.createObservabilitySecret(client.getNamespace(), config, builder);
+        secret = builder.editMetadata()
                 .addToAnnotations(ObservabilityManager.OBSERVABILITY_OPERATOR_STATUS, ObservabilityManager.ACCEPTED).endMetadata().build();
         observabilityManager.observabilitySecretResource().createOrReplace(secret);
 
