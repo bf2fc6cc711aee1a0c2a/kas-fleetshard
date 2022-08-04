@@ -98,11 +98,11 @@ spec:
       strimzi.authorization.custom-authorizer.acl.022: "priority=1;permission=deny;principal=canary-123;topic=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.023: "priority=1;permission=deny;principal=canary-123;group=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.024: "priority=1;permission=deny;principal=canary-123;transactional_id=*;operations=all"
-      auto.create.topics.enable: "false"
       strimzi.authorization.custom-authorizer.acl.020: "priority=0;permission=allow;principal=canary-123;topic=__redhat_strimzi_canary;operations=create,describe,read,write,alter,alter_configs"
       strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
+      alter.config.policy.class.name: "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 3
       client.quota.callback.static.fetch: "699050"
@@ -166,7 +166,7 @@ spec:
         transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
-      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
+      strimzi.authorization.custom-authorizer.partition-limit-enforced: true
 
       kas.authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
       kas.authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
@@ -209,10 +209,15 @@ spec:
       kas.policy.create-topic.partition-counter.private-topic-prefix: "__redhat_"
       kas.policy.create-topic.partition-counter.schedule-interval-seconds: 15
       kas.policy.create-topic.partition-counter.timeout-seconds: 10
-      kas.policy.create-topic.partition-limit-enforced: false
+      kas.policy.create-topic.partition-limit-enforced: true
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
+      kas.policy.topic-config.topic-config-policy-enforced: true
+      kas.policy.topic-config.enforced: "flush.ms:9223372036854775807,index.interval.bytes:4096,compression.type:producer,flush.messages:9223372036854775807,min.cleanable.dirty.ratio:0.5,file.delete.delay.ms:60000,segment.index.bytes:10485760,preallocate:false,unclean.leader.election.enable:false,min.insync.replicas:2"
+      kas.policy.topic-config.range: "max.message.bytes::1048588,segment.bytes:52428800:,segment.ms:600000:"
+      kas.policy.topic-config.mutable: "message.timestamp.difference.max.ms,message.timestamp.type,retention.bytes,min.compaction.lag.ms,cleanup.policy,max.compaction.lag.ms,delete.retention.ms,message.downconversion.enable"
+      broker.foo: bar
     storage:
       volumes:
       - type: "persistent-claim"

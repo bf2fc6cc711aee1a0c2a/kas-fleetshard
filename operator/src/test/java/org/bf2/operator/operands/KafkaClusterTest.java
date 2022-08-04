@@ -9,6 +9,8 @@ import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -16,6 +18,7 @@ import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
@@ -33,9 +36,11 @@ import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +53,8 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -61,6 +68,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -81,6 +89,9 @@ class KafkaClusterTest {
     @Inject
     KafkaInstanceConfigurations configs;
 
+    @InjectMock
+    OperandOverrideManager overrideManager;
+
     @BeforeEach
     void beforeEach() {
         informerManager.createKafkaInformer();
@@ -94,6 +105,9 @@ class KafkaClusterTest {
                 "managedkafka.bf2.org/kas-zone2", "true"));
 
         QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
+
+        // clean out all deployments
+        client.apps().deployments().inAnyNamespace().delete();
     }
 
     @Test
@@ -109,6 +123,56 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         diffToExpected(kafka, "/expected/strimzi.yml");
+    }
+
+    @Test
+    void testManagedKafkaToReserved() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        validateReserved(mk, "/expected/reserved.yml");
+    }
+
+    @Test
+    void testManagedKafkaToReservedWithCruiseControl() throws IOException {
+        ManagedKafka mk = exampleManagedKafka("60Gi");
+        mk.getSpec().getCapacity().setMaxPartitions(3000);
+
+        validateReserved(mk, "/expected/reserved-cruisecontrol.yml");
+    }
+
+    private void validateReserved(ManagedKafka mk, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        mk.getMetadata().setNamespace("reserved");
+        mk = new ManagedKafkaBuilder(mk).editMetadata()
+                .addToLabels(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE)
+                .endMetadata()
+                .build();
+
+        kafkaCluster.createOrUpdate(mk);
+        List<Deployment> deployments = client.apps()
+                .deployments()
+                .inNamespace(mk.getMetadata().getNamespace())
+                .list()
+                .getItems();
+
+        diffToExpected(deployments.stream()
+                .map(d -> new DeploymentBuilder(d).editMetadata()
+                        .withCreationTimestamp(null)
+                        .withUid(null)
+                        .withResourceVersion(null)
+                        .endMetadata()
+                        .build())
+                .sorted((d1, d2) -> d1.getMetadata().getName().compareTo(d2.getMetadata().getName()))
+                .toArray(), expected);
+
+        // after a status update or other change we'll attempt to reconcile
+        // again.  make sure that we end up in the same state
+        kafkaCluster.createOrUpdate(mk);
+        List<Deployment> deployments1 = client.apps()
+                .deployments()
+                .inNamespace(mk.getMetadata().getNamespace())
+                .list()
+                .getItems();
+        assertEquals(new HashSet<>(deployments), new HashSet<>(deployments1));
     }
 
     @Test
@@ -136,34 +200,6 @@ class KafkaClusterTest {
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
 
         diffToExpected(kafka, "/expected/strimzi_su2.yml");
-    }
-
-    @Test
-    void testManagedKafkaToKafka_StreamingUnitsTwoWithCruiseControl() throws IOException {
-        alternativeConfig(config -> {
-            config.getKafka().setOneInstancePerNode(false);
-            config.getKafka().setColocateWithZookeeper(false);
-            config.getExporter().setColocateWithZookeeper(false);
-            config.getCruiseControl().setEnabled(true);
-        });
-
-        ManagedKafka mk = exampleManagedKafka("2Ti");
-        mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("100Mi"));
-        mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("200Mi"));
-        mk.getSpec().getCapacity().setMaxPartitions(3000);
-        mk.getSpec().getCapacity().setTotalMaxConnections(6000);
-        mk.getSpec().getCapacity().setTotalMaxConnections(200);
-
-
-        ImagePullSecretManager imagePullSecretManager = Mockito.mock(ImagePullSecretManager.class);
-        Mockito.when(imagePullSecretManager.getOperatorImagePullSecrets(Mockito.any())).thenReturn(
-                List.of(new LocalObjectReferenceBuilder().withName("myimage:0.0.1").build()));
-
-        QuarkusMock.installMockForType(imagePullSecretManager, ImagePullSecretManager.class);
-
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-        diffToExpected(kafka, "/expected/strimzi_su2_cc.yml");
     }
 
     private void alternativeConfig(Consumer<KafkaInstanceConfiguration> configModifier) throws JsonProcessingException, JsonMappingException {
@@ -341,6 +377,11 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
+        Map<String, Object> brokerConfig = new HashMap<>();
+        brokerConfig.put("broker.foo", "bar");
+        brokerConfig.put("auto.create.topics.enable", null);
+        configureMockOverrideManager(mk, brokerConfig);
+
         mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());
 
         alternativeConfig(clone -> {
@@ -355,6 +396,8 @@ class KafkaClusterTest {
             clone.getKafka().setOneInstancePerNode(false);
             clone.getKafka().setColocateWithZookeeper(false);
             clone.getExporter().setColocateWithZookeeper(false);
+
+            clone.getCruiseControl().setEnabled(false);
         });
 
         Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
@@ -366,6 +409,7 @@ class KafkaClusterTest {
     void testScalingAndReplicationFactor() throws IOException {
         alternativeConfig(config -> {
             config.getKafka().setScalingAndReplicationFactor(1);
+            config.getKafka().setTopicConfigPolicyEnforced(false);
         });
 
         ManagedKafka mk = exampleManagedKafka("60Gi");
@@ -411,14 +455,14 @@ class KafkaClusterTest {
         diffToExpected(kafka.getSpec().getZookeeper().getTemplate(), "/expected/broker-per-node-zookeeper.yml");
     }
 
-    static JsonNode diffToExpected(Object kafka, String expected) throws IOException, JsonProcessingException, JsonMappingException {
-        return diffToExpected(kafka, expected, "[]");
+    static JsonNode diffToExpected(Object obj, String expected) throws IOException, JsonProcessingException, JsonMappingException {
+        return diffToExpected(obj, expected, "[]");
     }
 
-    static JsonNode diffToExpected(Object kafka, String expected, String diff) throws IOException, JsonProcessingException, JsonMappingException {
+    static JsonNode diffToExpected(Object obj, String expected, String diff) throws IOException, JsonProcessingException, JsonMappingException {
         ObjectMapper objectMapper = Serialization.yamlMapper();
         JsonNode expectedJson = objectMapper.readTree(KafkaClusterTest.class.getResourceAsStream(expected));
-        String yaml = Serialization.asYaml(kafka);
+        String yaml = Serialization.asYaml(obj);
         JsonNode actualJson = objectMapper.readTree(yaml);
         JsonNode patch = JsonDiff.asJson(expectedJson, actualJson);
         assertEquals(diff, patch.toString(), yaml);
@@ -630,5 +674,16 @@ class KafkaClusterTest {
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientId());
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
     }
+
+
+    private void configureMockOverrideManager(ManagedKafka mk, Map<String, Object> brokerConfigOverride) {
+        String strimzi = mk.getSpec().getVersions().getStrimzi();
+        OperandOverrideManager.Kafka canary = new OperandOverrideManager.Kafka();
+        canary.setBrokerConfig(brokerConfigOverride);
+        when(overrideManager.getKafkaOverride(strimzi)).thenReturn(canary);
+        when(overrideManager.getCanaryImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+        when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+    }
+
 
 }

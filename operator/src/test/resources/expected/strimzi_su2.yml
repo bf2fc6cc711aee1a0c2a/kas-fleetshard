@@ -14,86 +14,86 @@ metadata:
   name: "test-mk"
   namespace: "test"
   ownerReferences:
-  - apiVersion: "managedkafka.bf2.org/v1alpha1"
-    kind: "ManagedKafka"
-    name: "test-mk"
+    - apiVersion: "managedkafka.bf2.org/v1alpha1"
+      kind: "ManagedKafka"
+      name: "test-mk"
 spec:
   kafka:
     version: "2.6.0"
     replicas: 6
     listeners:
-    - name: "external"
-      port: 9094
-      type: "ingress"
-      tls: true
-      authentication:
-        clientId: "clientId"
-        clientSecret:
-          secretName: "test-mk-sso-secret"
-          key: "ssoClientSecret"
-        validIssuerUri: "https://validIssuerEndpointURI"
-        checkIssuer: true
-        jwksEndpointUri: "https://jwksEndpointURI"
-        userNameClaim: "userNameClaim"
-        fallbackUserNameClaim: "fallbackUserNameClaim"
-        checkAccessTokenType: true
-        accessTokenIsJwt: true
-        tlsTrustedCertificates:
-        - secretName: "test-mk-sso-cert"
-          certificate: "keycloak.crt"
-        enablePlain: true
-        tokenEndpointUri: "https://tokenEndpointURI"
-        enableOauthBearer: true
-        type: "oauth"
-      configuration:
-        bootstrap:
-          host: "xxx.yyy.zzz"
-          annotations:
-            haproxy.router.openshift.io/balance: "leastconn"
-        brokers:
-        - broker: 0
-          host: "broker-0-xxx.yyy.zzz"
-        - broker: 1
-          host: "broker-1-xxx.yyy.zzz"
-        - broker: 2
-          host: "broker-2-xxx.yyy.zzz"
-        - broker: 3
-          host: "broker-3-xxx.yyy.zzz"
-        - broker: 4
-          host: "broker-4-xxx.yyy.zzz"
-        - broker: 5
-          host: "broker-5-xxx.yyy.zzz"
-        maxConnections: 33
-        maxConnectionCreationRate: 16
-    - name: "oauth"
-      port: 9095
-      type: "internal"
-      tls: true
-      authentication:
-        clientId: "clientId"
-        clientSecret:
-          secretName: "test-mk-sso-secret"
-          key: "ssoClientSecret"
-        validIssuerUri: "https://validIssuerEndpointURI"
-        checkIssuer: true
-        jwksEndpointUri: "https://jwksEndpointURI"
-        userNameClaim: "userNameClaim"
-        fallbackUserNameClaim: "fallbackUserNameClaim"
-        checkAccessTokenType: true
-        accessTokenIsJwt: true
-        tlsTrustedCertificates:
-        - secretName: "test-mk-sso-cert"
-          certificate: "keycloak.crt"
-        enableOauthBearer: true
-        type: "oauth"
-      networkPolicyPeers:
-      - podSelector:
-          matchLabels:
-            app: "test-mk-admin-server"
-    - name: "sre"
-      port: 9096
-      type: "internal"
-      tls: false
+      - name: "external"
+        port: 9094
+        type: "ingress"
+        tls: true
+        authentication:
+          clientId: "clientId"
+          clientSecret:
+            secretName: "test-mk-sso-secret"
+            key: "ssoClientSecret"
+          validIssuerUri: "https://validIssuerEndpointURI"
+          checkIssuer: true
+          jwksEndpointUri: "https://jwksEndpointURI"
+          userNameClaim: "userNameClaim"
+          fallbackUserNameClaim: "fallbackUserNameClaim"
+          checkAccessTokenType: true
+          accessTokenIsJwt: true
+          tlsTrustedCertificates:
+            - secretName: "test-mk-sso-cert"
+              certificate: "keycloak.crt"
+          enablePlain: true
+          tokenEndpointUri: "https://tokenEndpointURI"
+          enableOauthBearer: true
+          type: "oauth"
+        configuration:
+          bootstrap:
+            host: "xxx.yyy.zzz"
+            annotations:
+              haproxy.router.openshift.io/balance: "leastconn"
+          brokers:
+            - broker: 0
+              host: "broker-0-xxx.yyy.zzz"
+            - broker: 1
+              host: "broker-1-xxx.yyy.zzz"
+            - broker: 2
+              host: "broker-2-xxx.yyy.zzz"
+            - broker: 3
+              host: "broker-3-xxx.yyy.zzz"
+            - broker: 4
+              host: "broker-4-xxx.yyy.zzz"
+            - broker: 5
+              host: "broker-5-xxx.yyy.zzz"
+          maxConnections: 33
+          maxConnectionCreationRate: 16
+      - name: "oauth"
+        port: 9095
+        type: "internal"
+        tls: true
+        authentication:
+          clientId: "clientId"
+          clientSecret:
+            secretName: "test-mk-sso-secret"
+            key: "ssoClientSecret"
+          validIssuerUri: "https://validIssuerEndpointURI"
+          checkIssuer: true
+          jwksEndpointUri: "https://jwksEndpointURI"
+          userNameClaim: "userNameClaim"
+          fallbackUserNameClaim: "fallbackUserNameClaim"
+          checkAccessTokenType: true
+          accessTokenIsJwt: true
+          tlsTrustedCertificates:
+            - secretName: "test-mk-sso-cert"
+              certificate: "keycloak.crt"
+          enableOauthBearer: true
+          type: "oauth"
+        networkPolicyPeers:
+          - podSelector:
+              matchLabels:
+                app: "test-mk-admin-server"
+      - name: "sre"
+        port: 9096
+        type: "internal"
+        tls: false
     config:
       strimzi.authorization.custom-authorizer.acl.022: "priority=1;permission=deny;principal=canary-123;topic=*;operations=all"
       strimzi.authorization.custom-authorizer.acl.023: "priority=1;permission=deny;principal=canary-123;group=*;operations=all"
@@ -103,6 +103,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
+      alter.config.policy.class.name: "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 3
       client.quota.callback.static.fetch: "34952533"
@@ -165,7 +166,7 @@ spec:
         transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
       strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
-      strimzi.authorization.custom-authorizer.partition-limit-enforced: false
+      strimzi.authorization.custom-authorizer.partition-limit-enforced: true
 
       kas.authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
       kas.authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
@@ -208,19 +209,24 @@ spec:
       kas.policy.create-topic.partition-counter.private-topic-prefix: "__redhat_"
       kas.policy.create-topic.partition-counter.schedule-interval-seconds: 15
       kas.policy.create-topic.partition-counter.timeout-seconds: 10
-      kas.policy.create-topic.partition-limit-enforced: false
+      kas.policy.create-topic.partition-limit-enforced: true
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
+      kas.policy.topic-config.topic-config-policy-enforced: true
+      kas.policy.topic-config.enforced: "flush.ms:9223372036854775807,index.interval.bytes:4096,compression.type:producer,flush.messages:9223372036854775807,min.cleanable.dirty.ratio:0.5,file.delete.delay.ms:60000,segment.index.bytes:10485760,preallocate:false,unclean.leader.election.enable:false,min.insync.replicas:2"
+      kas.policy.topic-config.range: "max.message.bytes::1048588,segment.bytes:52428800:,segment.ms:600000:"
+      kas.policy.topic-config.mutable: "message.timestamp.difference.max.ms,message.timestamp.type,retention.bytes,min.compaction.lag.ms,cleanup.policy,max.compaction.lag.ms,delete.retention.ms,message.downconversion.enable"
 
       max.partitions: 3000
+      cruise.control.metrics.topic.min.insync.replicas: 2
     storage:
       volumes:
-      - type: "persistent-claim"
-        size: "397204363631"
-        class: "gp2"
-        deleteClaim: true
-        id: 0
+        - type: "persistent-claim"
+          size: "397204363631"
+          class: "gp2"
+          deleteClaim: true
+          id: 0
       type: "jbod"
     authorization:
       type: "custom"
@@ -229,14 +235,14 @@ spec:
       topologyKey: "topology.kubernetes.io/zone"
     jvmOptions:
       javaSystemProperties:
-      - name: "com.sun.management.jmxremote.port"
-        value: "9999"
-      - name: "com.sun.management.jmxremote.rmi.port"
-        value: "9999"
-      - name: "com.sun.management.jmxremote.host"
-        value: "127.0.0.1"
-      - name: "java.rmi.server.hostname"
-        value: "127.0.0.1"
+        - name: "com.sun.management.jmxremote.port"
+          value: "9999"
+        - name: "com.sun.management.jmxremote.rmi.port"
+          value: "9999"
+        - name: "com.sun.management.jmxremote.host"
+          value: "127.0.0.1"
+        - name: "java.rmi.server.hostname"
+          value: "127.0.0.1"
       "-Xmx": "6442450944"
       "-Xms": "6442450944"
       "-XX":
@@ -264,21 +270,21 @@ spec:
     template:
       pod:
         imagePullSecrets:
-        - name: "myimage:0.0.1"
+          - name: "myimage:0.0.1"
         tolerations:
-        - effect: "NoExecute"
-          key: "org.bf2.operator/kafka-broker"
-          operator: "Exists"
+          - effect: "NoExecute"
+            key: "org.bf2.operator/kafka-broker"
+            operator: "Exists"
         topologySpreadConstraints:
-        - labelSelector:
-            matchExpressions:
-            - key: "strimzi.io/name"
-              operator: "In"
-              values:
-              - "test-mk-kafka"
-          maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "DoNotSchedule"
+          - labelSelector:
+              matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                    - "test-mk-kafka"
+            maxSkew: 1
+            topologyKey: "topology.kubernetes.io/zone"
+            whenUnsatisfiable: "DoNotSchedule"
   zookeeper:
     replicas: 3
     storage:
@@ -314,17 +320,17 @@ spec:
     template:
       pod:
         imagePullSecrets:
-        - name: "myimage:0.0.1"
+          - name: "myimage:0.0.1"
         topologySpreadConstraints:
-        - labelSelector:
-            matchExpressions:
-            - key: "strimzi.io/name"
-              operator: "In"
-              values:
-              - "test-mk-zookeeper"
-          maxSkew: 1
-          topologyKey: "topology.kubernetes.io/zone"
-          whenUnsatisfiable: "DoNotSchedule"
+          - labelSelector:
+              matchExpressions:
+                - key: "strimzi.io/name"
+                  operator: "In"
+                  values:
+                    - "test-mk-zookeeper"
+            maxSkew: 1
+            topologyKey: "topology.kubernetes.io/zone"
+            whenUnsatisfiable: "DoNotSchedule"
   kafkaExporter:
     resources:
       limits:
@@ -333,3 +339,39 @@ spec:
       requests:
         memory: "256Mi"
         cpu: "500m"
+    template:
+      pod:
+        imagePullSecrets:
+          - name: "myimage:0.0.1"
+  cruiseControl:
+    resources:
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+      requests:
+        memory: "2Gi"
+        cpu: "250m"
+    logging:
+      type: external
+      valueFrom:
+        configMapKeyRef:
+          key: log4j2.properties
+          name: test-mk-cruise-control-logging
+          optional: true
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: test-mk-cruise-control-metrics
+          key: jmx-exporter-config
+    template:
+      pod:
+        imagePullSecrets:
+          - name: "myimage:0.0.1"
+    config:
+      default.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      hard.goals: com.linkedin.kafka.cruisecontrol.analyzer.goals.RackAwareGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskUsageDistributionGoal
+      sample.store.topic.replication.factor: 3
+      partition.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.partitionmetricsamples"
+      broker.metric.sample.store.topic: "__redhat_strimzi.cruisecontrol.modeltrainingsamples"
+      metric.reporter.topic: "__redhat_strimzi.cruisecontrol.metrics"

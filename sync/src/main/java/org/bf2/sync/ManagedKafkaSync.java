@@ -1,5 +1,7 @@
 package org.bf2.sync;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -7,6 +9,8 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.zjsonpatch.JsonDiff;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import io.quarkus.scheduler.Scheduled;
@@ -154,6 +158,9 @@ public class ManagedKafkaSync {
             return false; // not a managed instance
         }
         if (!local.getSpec().isDeleted()) {
+            if (local.isReserveDeployment()) {
+                return true;
+            }
             if (local.getStatus() != null
                     && ConditionUtils.findManagedKafkaCondition(local.getStatus().getConditions(), Type.Ready)
                             .filter(c -> Reason.Rejected.name().equals(c.getReason())).isPresent()) {
@@ -173,15 +180,42 @@ public class ManagedKafkaSync {
             return false;
         }
         if (secretManager.isMasterSecretChanged(remote, existing)) {
+            log.debugf("Remote master secret data changed");
             return true;
         }
+
         ManagedKafka remoteCopy = secretManager.removeSecretsFromManagedKafka(remote);
+
+        if (!remoteCopy.getSpec().equals(existing.getSpec())) {
+            logChange("Remote spec changed: %s", remoteCopy.getSpec(), existing.getSpec());
+            return true;
+        }
+
+        if (!Objects.equals(existing.getMetadata().getLabels(), remoteCopy.getMetadata().getLabels())) {
+            logChange("Remote labels changed: %s", remoteCopy.getMetadata().getLabels(), existing.getMetadata().getLabels());
+            return true;
+        }
+
         // will always be non-null due to the id/placement requirements
         Map<String, String> annotations = new HashMap<>(existing.getMetadata().getAnnotations());
         annotations.keySet().removeAll(DATA_PLANE_ANNOTATIONS);
-        return !remoteCopy.getSpec().equals(existing.getSpec())
-                || !Objects.equals(existing.getMetadata().getLabels(), remoteCopy.getMetadata().getLabels())
-                || !Objects.equals(annotations, remoteCopy.getMetadata().getAnnotations());
+
+        if (!Objects.equals(annotations, remoteCopy.getMetadata().getAnnotations())) {
+            logChange("Remote annotations changed: %s", remoteCopy.getMetadata().getAnnotations(), annotations);
+            return true;
+        }
+
+        return false;
+    }
+
+    void logChange(String format, Object remote, Object local) {
+        if (log.isDebugEnabled()) {
+            ObjectMapper objectMapper = Serialization.yamlMapper();
+            JsonNode localJson = objectMapper.convertValue(local, JsonNode.class);
+            JsonNode remoteJson = objectMapper.convertValue(remote, JsonNode.class);
+            JsonNode patch = JsonDiff.asJson(localJson, remoteJson);
+            log.debugf(format, patch.toPrettyString());
+        }
     }
 
     /**

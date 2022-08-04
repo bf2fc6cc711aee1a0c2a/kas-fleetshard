@@ -131,6 +131,10 @@ public class SecuritySecretManager {
         }
     }
 
+    public boolean masterSecretExists(ManagedKafka managedKafka) {
+        return cachedOrRemoteSecret(managedKafka, OperandUtils.masterSecretName(managedKafka)) != null;
+    }
+
     public boolean secretKeysExist(ManagedKafka managedKafka, Map<String, List<String>> secretKeys) {
         for (Map.Entry<String, List<String>> entry : secretKeys.entrySet()) {
             String secretName = entry.getKey();

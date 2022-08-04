@@ -21,7 +21,7 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
     @Override
     public void onAdd(HasMetadata resource) {
         log.debugf("Add event received for %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-        handleEvent(resource, ResourceAction.ADDED);
+        handleEvent(resource, ResourceAction.UPDATED);
     }
 
     @Override
@@ -38,7 +38,7 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
     public void onDelete(HasMetadata resource, boolean deletedFinalStateUnknown) {
         log.debugf("Delete event received for %s %s/%s with deletedFinalStateUnknown %s", resource.getKind(),
                 resource.getMetadata().getNamespace(), resource.getMetadata().getName(), deletedFinalStateUnknown);
-        handleEvent(resource, ResourceAction.DELETED);
+        handleEvent(resource, ResourceAction.UPDATED);
     }
 
     protected void handleEvent(HasMetadata resource, ResourceAction action) {

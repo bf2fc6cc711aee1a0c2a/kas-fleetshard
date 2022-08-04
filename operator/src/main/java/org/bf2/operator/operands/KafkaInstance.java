@@ -2,9 +2,11 @@ package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.operator.managers.ImagePullSecretManager;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Inject
+    Logger log;
+    @Inject
     AbstractKafkaCluster kafkaCluster;
     @Inject
     Canary canary;
@@ -31,6 +35,8 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     AdminServer adminServer;
     @Inject
     ImagePullSecretManager imagePullSecretManager;
+    @Inject
+    SecuritySecretManager securitySecretManager;
 
     private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
@@ -43,7 +49,11 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     public void createOrUpdate(ManagedKafka managedKafka) {
         imagePullSecretManager.propagateSecrets(managedKafka);
 
-        operands.forEach(o -> o.createOrUpdate(managedKafka));
+        if (securitySecretManager.masterSecretExists(managedKafka)) {
+            operands.forEach(o -> o.createOrUpdate(managedKafka));
+        } else {
+            log.infof("Master secret not yet created, skipping create/update processing");
+        }
     }
 
     @Override
@@ -80,6 +90,10 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         }
         List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 
+        return combineReadiness(readiness);
+    }
+
+    public static OperandReadiness combineReadiness(List<OperandReadiness> readiness) {
         // default to the first reason, with can come from the kafka by the order of the operands
         Reason reason = readiness.stream().map(OperandReadiness::getReason).filter(Objects::nonNull).findFirst().orElse(null);
         // default the status to false or unknown if any are unknown

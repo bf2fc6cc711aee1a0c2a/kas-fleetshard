@@ -4,6 +4,38 @@ OLM deployment
 
 Refining operands
 
+# Operand Override
+
+When a kafka instance is being provisioned, fleetshard looks for a configmap named after the requested
+version of strimzi to provide a source of additional configuration.  The configmap must have the label
+`app=strimzi` and must have a name starts with the prefix `strimzi-cluster-operator`.  The config
+map must have a data-item `fleetshard_operands.yaml`.
+
+If such a configmap exists, it may provide:
+
+1. alternative operand image.
+1. environment variables (supported by canary and admin operand).
+1. additional kafka broker configuration options (supported by the kafka operand).
+
+For instance, here's an example override the canary operand image, and passing an additional
+environment variable.  It also provides an additional configuration item to the broker.
+
+```yaml
+ fleetshard_operands.yaml: |
+    canary:
+      image: quay.io/k_wall/strimzi-canary:0.5.0-122333444455555
+      env:
+      - name: FOO
+        value "true"
+    kafka:
+      brokerConfig:
+        kas.policy.topic-config.topic-config-policy-enforced: true
+```
+
+This can be used to override items of configuration.
+
+# Logging / Metrics
+
 ## Configure fleetshard operator and synchronizer logging
 
 If you wish to change the logging behavior of a component at runtime, you should create a configmap with an application.properties file in the operator namespace named *component*_logging_config_override.  The application.properties file should contain logging properties of the form quarkus.log.category.*something*.level.
@@ -145,7 +177,7 @@ kubectl edit cm strimzi-cluster-operator -n <namespace>
 
 ## Configure Kafka Components logging
 
-The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper and exporter are configured individually in separate ConfigMaps in the namespace where the Kafka cluster is installed.
+The fleetshard operator when it installs Kafka cluster, it configures Kafka cluster with custom logging configuration that be changed by the user at runtime. The logging configuration for brokers, zookeeper, exporter and cruise control are configured individually in separate ConfigMaps in the namespace where the Kafka cluster is installed.
 
 ### Kafka Broker logging configuration
 
@@ -186,6 +218,31 @@ A sample configmap looks as below, make necessary edits as required
 
 supported log levels: [debug, info, warn, error, fatal]
 
+### Cruise Control logging configuration
+
+To change the logging configuration of the Cruise Control component execute the following
+
+```shell
+oc edit cm <kafka-cluster-name>-cruise-control-logging -n <tenant-kafka-cluster-namespace>
+```
+
+A sample configmap looks as below, make necessary edits as required
+
+
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: cluster-cruise-control-logging
+  data:
+    log4j2.properties: >
+      ...
+      rootLogger.level = info
+      ...
+```
+
+supported log levels: [all, trace, debug, info, warn, error, fatal, off]
+
 ## Querying Kafka JMX Mbeans
 
 It is possible to query Kafka's JMX mbeans from within the kafka pods using the JmxTool utility.
@@ -203,4 +260,6 @@ the resource.  The operator won't overwrite the changes until the digest of the 
 annotation on the target configmap.
 
 Note that after overridding the metric configuration it is currently necessary to roll the kafka or zookeeper pods to have the changes picked up.
+
+
 

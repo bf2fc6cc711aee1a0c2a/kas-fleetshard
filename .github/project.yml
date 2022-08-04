@@ -1,4 +1,4 @@
 name: kas-fleetshard
 release:
-  current-version: 0.24.2
-  next-version: 0.24.3-SNAPSHOT
+  current-version: 0.26.0
+  next-version: 0.26.1-SNAPSHOT

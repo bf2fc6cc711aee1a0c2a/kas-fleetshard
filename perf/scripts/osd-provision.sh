@@ -3,6 +3,7 @@
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 MULTI_AZ="true"
 ALLOW_EXISTING_CLUSTER="false"
+CLOUD_PROVIDER="aws"
 REPO_ROOT="${DIR}/../"
 SED=sed
 DATE=date
@@ -39,6 +40,7 @@ function usage() {
         --token TOKEN                               cloud redhat ocm token
         -f|--cluster-conf-file FILE                 configuration file in json format
         --aws-sec-credentials-file FILE             aws security credentials csv
+        --gcp-service-account-file FILE             gcp service account json file
         --aws-account-id ID                         id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
@@ -50,6 +52,7 @@ function usage() {
         --aws-access-key AWS_ACCESS_KEY             aws credentials access key
         --aws-secret-access-key AWS_SECRET_ACCESS_KEY  aws credentials secret access key
         --allow-existing-cluster                    allow to use an already provisioned cluster for debugging purposes
+        --cloud-provider                            cluster cloud provider (aws | gcp) (default ${CLOUD_PROVIDER})
 
         [USAGE]
         Get info:
@@ -58,14 +61,20 @@ function usage() {
             ./osd-provision.sh --get kubeconfig --name test-cluster --output kafka-config
 
         Install cluster:
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
+        AWS:
+        ./osd-provision.sh --create --cloud-provider aws --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
 
-            ./osd-provision.sh --create --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
+        ./osd-provision.sh --create --cloud-provider aws --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
+
+        GCP:
+        ./osd-provision.sh --create --cloud-provider gcp --gcp-service-account-file ~/gcp-service-account.json --name test-cluster --region us-central1 --flavor custom-4-16384 --count 3 --wait
+
+        ./osd-provision.sh --create --cloud-provider gcp --cloud-token-file ~/cloud-token.txt --cluster-conf-file ~/cluster-config.json --wait
 
         Delete cluster
-            ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --name test-cluster
+        ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --name test-cluster
 
-            ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --f ~/cluster-config.json
+        ./osd-provision.sh --delete --cloud-token-file ~/cloud-token.txt --f ~/cluster-config.json
 
         Set storageclass
             ./scripts/osd-provision.sh --set-storageclass --name cluster-name
@@ -170,6 +179,11 @@ while [[ $# -gt 0 ]]; do
         OPERATION="delete"
         shift # past argument
         ;;
+    --cloud-provider)
+    	CLOUD_PROVIDER="$2"
+    	shift # past argument
+    	shift # past value
+    	;;
     --cloud-token-file)
         TOKEN_FILE="$2"
         shift # past argument
@@ -194,6 +208,11 @@ while [[ $# -gt 0 ]]; do
         AWS_ACCOUNT_ID="$2"
         shift # past argument
         shift # past value
+        ;;
+    --gcp-service-account-file)
+        GCP_SERVICE_ACCOUNT_PATH="$2"
+    	shift # past argument
+    	shift # past value
         ;;
     -n | --name)
         CLUSTER_NAME="$2"
@@ -266,18 +285,27 @@ function print_vars() {
         TOKEN=$(cat ${TOKEN_FILE})
     fi
     echo "TOKEN: ${TOKEN}"
-    echo "AWS_CSV_PATH: ${AWS_CSV_PATH}"
-    echo "AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}"
+    echo "CLOUD_PROVIDER: ${CLOUD_PROVIDER}"
     echo "CLUSTER_NAME: ${CLUSTER_NAME}"
     echo "VERSION ${VERSION}"
     echo "REGION: ${REGION}"
     echo "FLAVOR: ${FLAVOR}"
     echo "MULTI_AZ: ${MULTI_AZ}"
-    echo "AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}"
-    echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
     echo "ADDON_ID: ${ADDON_ID}"
     echo "ADDON_JSON_CONFIG: ${ADDON_JSON_CONFIG}"
     echo "DISPLAY_NAME: ${DISPLAY_NAME}"
+
+    if [ "${CLOUD_PROVIDER}" == "aws" ]; then
+        echo "AWS_CSV_PATH: ${AWS_CSV_PATH}"
+        echo "AWS_ACCOUNT_ID: ${AWS_ACCOUNT_ID}"
+        echo "AWS_ACCESS_KEY: ${AWS_ACCESS_KEY}"
+        echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}"
+    elif [ "${CLOUD_PROVIDER}" == "gcp" ]; then
+        echo "GCP_SERVICE_ACCOUNT_PATH: ${GCP_SERVICE_ACCOUNT_PATH}"
+    else
+        echo "The cloud provider ${CLOUD_PROVIDER} is unsupported. Exit!"
+        exit 1
+    fi
 }
 
 function set_default() {
@@ -395,22 +423,48 @@ function read_aws_csv() {
 }
 
 function build_config_json() {
-    set_default
-    config_file="${REPO_ROOT}/cluster_config.json"
-    template_file="${DIR}/../templates/CCS_DEFINITION.template"
-    rm -rf "${config_file}"
-    cp -n "${template_file}" "${config_file}"
-    $SED -i -e "s@##CLUSTER_NAME##@${CLUSTER_NAME}@g" "${config_file}"
-    $SED -i -e "s@##REGION##@${REGION}@g" "${config_file}"
-    $SED -i -e "s@##COMPUTE_NODES##@${NODE_COUNT}@g" "${config_file}"
-    $SED -i -e "s@##AWS_ACCOUNT_ID##@${AWS_ACCOUNT_ID}@g" "${config_file}"
-    $SED -i -e "s@##MACHINE_FLAVOR##@${FLAVOR}@g" "${config_file}"
-    $SED -i -e "s@##AWS_ACCESS_KEY##@${AWS_ACCESS_KEY}@g" "${config_file}"
-    $SED -i -e "s@##VERSION##@${VERSION}@g" "${config_file}"
-    $SED -i -e "s@##AWS_SECRET_ACCESS_KEY##@${AWS_SECRET_ACCESS_KEY}@g" "${config_file}"
-    $SED -i -e "s@##MULTI_AZ##@${MULTI_AZ}@g" "${config_file}"
+	set_default
+	config_file="${REPO_ROOT}/cluster_config.json"
+	template_file="${DIR}/../templates/CCS_DEFINITION.template"
+	rm -rf "${config_file}"
+	cp -n "${template_file}" "${config_file}"
+	$SED -i -e "s@##CLUSTER_NAME##@${CLUSTER_NAME}@g" "${config_file}"
+	$SED -i -e "s@##REGION##@${REGION}@g" "${config_file}"
+	$SED -i -e "s@##COMPUTE_NODES##@${NODE_COUNT}@g" "${config_file}"
+	$SED -i -e "s@##MACHINE_FLAVOR##@${FLAVOR}@g" "${config_file}"
+	$SED -i -e "s@##VERSION##@${VERSION}@g" "${config_file}"
+	$SED -i -e "s@##MULTI_AZ##@${MULTI_AZ}@g" "${config_file}"
+	$SED -i -e "s@##CLOUD_PROVIDER##@${CLOUD_PROVIDER}@g" "${config_file}"
+
+    ## Append the cloud provider spec to the config file (aws | gcp)
+    echo "${CLOUD_PROVIDER_SPEC}" >> "${config_file}"
+
     cat "${config_file}"
     CLUSTER_JSON="${config_file}"
+}
+
+function build_aws_cloud_provider_spec(){
+CLOUD_PROVIDER_SPEC='   "'"$CLOUD_PROVIDER"'": {
+	    "access_key_id":"'"$AWS_ACCESS_KEY"'",
+	    "account_id":"'"$AWS_ACCOUNT_ID"'",
+	    "secret_access_key":"'"$AWS_SECRET_ACCESS_KEY"'"
+   }
+}'
+}
+
+function build_gcp_cloud_provider_spec(){
+   CLOUD_PROVIDER_SPEC='   "'"$CLOUD_PROVIDER"'": {
+    	"type":'$(jq '.type' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "private_key_id":'$(jq '.private_key_id' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "private_key":'$(jq '.private_key' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "client_id":'$(jq '.client_id' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "client_email":'$(jq '.client_email' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "auth_uri":'$(jq '.auth_uri' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "token_uri":'$(jq '.token_uri' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "auth_provider_x509_cert_url":'$(jq '.auth_provider_x509_cert_url' ${GCP_SERVICE_ACCOUNT_PATH})',
+   	    "project_id":'$(jq '.project_id' ${GCP_SERVICE_ACCOUNT_PATH})'
+   }
+}'
 }
 
 function build_addon_template() {
@@ -634,12 +688,17 @@ if [[ "${OPERATION}" == "set-display-name" ]]; then
 fi
 
 if [[ "${OPERATION}" == "create" ]]; then
-    read_aws_csv
+    if [[ "${CLOUD_PROVIDER}" == "aws" && "${CLUSTER_JSON}" == "" ]]; then
+    		read_aws_csv
+    		build_aws_cloud_provider_spec
+    	elif [[ "${CLOUD_PROVIDER}" == "gcp" && "${CLUSTER_JSON}" == "" ]]; then
+    		build_gcp_cloud_provider_spec
+    	fi
 
-    if [[ "${CLUSTER_JSON}" == "" ]]; then
-        echo "Cluster json is not provided -> going to build own with provided arguments"
-        build_config_json
-    fi
+   if [[ "${CLUSTER_JSON}" == "" ]]; then
+   		echo "Cluster json is not provided -> going to build own with provided arguments"
+   		build_config_json
+   	fi
 
     if [[ "${ALLOW_EXISTING_CLUSTER}" == "false" ]]; then
         $OCM post /api/clusters_mgmt/v1/clusters --body="${CLUSTER_JSON}"

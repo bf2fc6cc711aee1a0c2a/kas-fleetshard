@@ -17,7 +17,7 @@
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>0.24.3-SNAPSHOT</version>
+    <version>0.26.1-SNAPSHOT</version>
 
     <properties>
         <!-- things we don't need from basepom -->
@@ -55,8 +55,8 @@
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
         <!-- Include quarkus.platform.test.version to allow different dependency build artifacts -->
-        <quarkus.platform.version>2.7.5.Final</quarkus.platform.version>
-        <quarkus.platform.test.version>2.7.5.Final</quarkus.platform.test.version>
+        <quarkus.platform.version>2.7.6.Final</quarkus.platform.version>
+        <quarkus.platform.test.version>2.7.6.Final</quarkus.platform.test.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.26.0</strimzi.version>
