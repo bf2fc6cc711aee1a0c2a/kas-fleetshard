@@ -285,7 +285,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(buildKafkaStorage(managedKafka, current, storagePerBroker))
                         .withListeners(buildListeners(managedKafka, actualReplicas))
                         .withRack(buildKafkaRack(managedKafka))
-                        .withTemplate(buildKafkaTemplate(managedKafka))
+                        .withTemplate(buildKafkaTemplate(managedKafka, actualReplicas))
                         .withMetricsConfig(buildKafkaMetricsConfig(managedKafka))
                         .withAuthorization(buildKafkaAuthorization(managedKafka))
                         .withImage(this.overrideManager.getKafkaImage(strimzi).orElse(null))
@@ -296,7 +296,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage((SingleVolumeStorage) buildZooKeeperStorage(current, config))
                         .withResources(config.zookeeper.buildResources())
                         .withJvmOptions(buildZooKeeperJvmOptions(managedKafka))
-                        .withTemplate(buildZookeeperTemplate(managedKafka))
+                        .withTemplate(buildZookeeperTemplate(managedKafka, config.getZookeeper().getReplicas()))
                         .withMetricsConfig(buildZooKeeperMetricsConfig(managedKafka))
                         .withImage(this.overrideManager.getZookeeperImage(strimzi).orElse(null))
                         .withExternalLogging(buildZookeeperExternalLogging(managedKafka))
@@ -455,7 +455,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka) {
+    private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka, int replicas) {
         // ensures even distribution of the Kafka pods in a given cluster across the availability zones
         // the previous affinity make sure single per node or not
         // this only comes into picture when there are more number of nodes than the brokers
@@ -479,7 +479,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
 
-        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+        if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
                 new PodDisruptionBudgetTemplateBuilder()
                     .withMaxUnavailable(0)
@@ -520,7 +520,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endLabelSelector().build();
     }
 
-    private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
+    private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka, int replicas) {
         // onePerNode = true - one zk per node across all namespaces
         // onePerNode = false - one zk per node per managedkafka
         boolean onePerNode = this.configs.getConfig(managedKafka).getKafka().isOneInstancePerNode();
@@ -559,7 +559,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         ZookeeperClusterTemplateBuilder templateBuilder = podNestedBuilder.endPod();
 
-        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+        if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
                 new PodDisruptionBudgetTemplateBuilder()
                     .withMaxUnavailable(0)
