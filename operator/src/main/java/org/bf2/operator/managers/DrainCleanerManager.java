@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.quarkus.runtime.Startup;
+import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -13,6 +14,8 @@ import org.jboss.logging.Logger;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Startup
 @ApplicationScoped
@@ -35,10 +38,10 @@ public class DrainCleanerManager {
     @ConfigProperty(name = "drain.cleaner.webhook.label.value")
     String drainCleanerWebhookLabelValue;
 
-    private volatile boolean drainCleanerWebhookFound;
+    private AtomicBoolean drainCleanerWebhookFound = new AtomicBoolean();
 
     public boolean isDrainCleanerWebhookFound() {
-        return drainCleanerWebhookFound;
+        return drainCleanerWebhookFound.get();
     }
 
     @PostConstruct
@@ -49,21 +52,16 @@ public class DrainCleanerManager {
                 .validatingWebhookConfigurations()
                 .withLabel(drainCleanerWebhookLabelKey, drainCleanerWebhookLabelValue);
 
-        resourceInformerFactory.create(ValidatingWebhookConfiguration.class,
-            withLabel,
-            new ResourceEventHandler<ValidatingWebhookConfiguration>() {
+        ResourceInformer<ValidatingWebhookConfiguration> informer = resourceInformerFactory.create(ValidatingWebhookConfiguration.class, withLabel, null);
+        informer.addEventHandler(new ResourceEventHandler<ValidatingWebhookConfiguration>() {
                 @Override
                 public void onAdd(ValidatingWebhookConfiguration obj) {
-                    log.debugf("Add event received for webhook %s", obj.getMetadata().getName());
-                    drainCleanerWebhookFound = true;
-                    informerManager.resyncKafkas();
+                    added(obj);
                 }
 
                 @Override
                 public void onDelete(ValidatingWebhookConfiguration obj, boolean deletedFinalStateUnknown) {
-                    log.debugf("Delete event received for webhook %s", obj.getMetadata().getName());
-                    drainCleanerWebhookFound = false;
-                    informerManager.resyncKafkas();
+                    deleted(informer.getList().isEmpty(), obj);
                 }
 
                 @Override
@@ -71,5 +69,23 @@ public class DrainCleanerManager {
                     // do nothing (the OLM manages this resource)
                 }
             });
+    }
+
+    void added(ValidatingWebhookConfiguration obj) {
+        log.debugf("Add event received for webhook %s", obj.getMetadata().getName());
+        if (drainCleanerWebhookFound.compareAndSet(false, true)) {
+            log.infof("Drain cleaner webhook %s found, kafkas will be updated to have maxUnavailable=0", obj.getMetadata().getName());
+            informerManager.resyncKafkas();
+        }
+    }
+
+    void deleted(boolean allRemoved,
+            ValidatingWebhookConfiguration obj) {
+        log.debugf("Delete event received for webhook %s", obj.getMetadata().getName());
+        // during an upgrade there may be more than 1 at a time, make sure there are none before toggling
+        if (allRemoved && drainCleanerWebhookFound.compareAndSet(true, false)) {
+            log.warnf("All drain cleaner webhooks removed, kafkas will be updated to have maxUnavailable=0 removed", obj.getMetadata().getName());
+            informerManager.resyncKafkas();
+        }
     }
 }
