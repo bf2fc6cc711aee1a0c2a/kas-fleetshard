@@ -222,7 +222,6 @@ spec:
       volumes:
       - type: "persistent-claim"
         size: "22570598379"
-        class: "gp2"
         deleteClaim: true
         id: 0
       type: "jbod"
@@ -288,7 +287,6 @@ spec:
     storage:
       type: "persistent-claim"
       size: "10Gi"
-      class: "gp2"
       deleteClaim: true
     jvmOptions:
       "-Xmx": "1G"

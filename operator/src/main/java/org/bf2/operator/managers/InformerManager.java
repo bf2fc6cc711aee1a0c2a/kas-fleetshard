@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.openshift.api.model.Infrastructure;
 import io.fabric8.openshift.api.model.Route;
 import io.javaoperatorsdk.operator.processing.event.source.controller.ResourceAction;
 import io.quarkus.runtime.Startup;
@@ -35,6 +36,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Startup
@@ -63,6 +65,7 @@ public class InformerManager {
     private ResourceInformer<ConfigMap> configMapInformer;
     private ResourceInformer<Secret> secretInformer;
     private ResourceInformer<Route> routeInformer;
+    private ResourceInformer<Infrastructure> infrastructureInformer;
     private ResourceInformer<PersistentVolumeClaim> pvcInformer;
     private ResourceInformer<ManagedKafkaAgent> managedKafkaAgentInformer;
 
@@ -104,6 +107,7 @@ public class InformerManager {
 
         if (isOpenShift()) {
             routeInformer = resourceInformerFactory.create(Route.class, filterManagedByFleetshardOrStrimzi(openShiftSupport.adapt(kubernetesClient).routes()), eventSource);
+            infrastructureInformer = resourceInformerFactory.create(Infrastructure.class, openShiftSupport.adapt(kubernetesClient).config().infrastructures().withName("cluster"), eventSource);
         }
 
         // TODO: replace this with the resource cache maintained by the controller
@@ -146,6 +150,15 @@ public class InformerManager {
     public ManagedKafkaAgent getLocalAgent() {
         // there should be just one, but we'll use a lookup just in case
         return managedKafkaAgentInformer.getByKey(Cache.namespaceKeyFunc(kubernetesClient.getNamespace(), ManagedKafkaAgentResourceClient.RESOURCE_NAME));
+    }
+
+    public Optional<Infrastructure> getLocalClusterInfrastructure() {
+        if (isOpenShift()) {
+            return Optional.ofNullable(infrastructureInformer.getByKey("cluster"));
+        } else {
+            log.warn("Not running on OpenShift cluster, Infrastructure CR not available");
+            return Optional.empty();
+        }
     }
 
     public Route getLocalRoute(String namespace, String name) {

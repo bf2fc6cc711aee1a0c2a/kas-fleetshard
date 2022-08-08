@@ -25,9 +25,6 @@ public class KafkaInstanceConfiguration {
     // cluster level
     private static final String JVM_OPTIONS_XX = "ExitOnOutOfMemoryError true";
 
-    // broker
-    private static final String KAFKA_STORAGE_CLASS = "gp2";
-
     @JsonUnwrapped(prefix = "managedkafka.kafka.")
     protected Kafka kafka = new Kafka();
     @JsonUnwrapped(prefix = "managedkafka.zookeeper.")
@@ -179,7 +176,7 @@ public class KafkaInstanceConfiguration {
         @JsonProperty("egress-per-sec")
         protected String egressPerSec;
         @JsonProperty("storage-class")
-        protected String storageClass = KAFKA_STORAGE_CLASS;
+        protected String storageClass;
         @JsonProperty("volume-size")
         protected String volumeSize;
         @JsonProperty("jvm-xms")
