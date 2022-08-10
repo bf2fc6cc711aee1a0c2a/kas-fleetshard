@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
@@ -21,13 +22,16 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -87,6 +91,22 @@ public class IngressControllerManagerTest {
                         .withLabels(Collections.emptyMap())
                         .endMetadata()
                         .build()));
+    }
+
+    @Test
+    public void testIngressControllerNodePlacement() {
+        useProfileLabels();
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        String tolerations = Serialization.asYaml(ingressControllers.get(0).getSpec().getNodePlacement().getTolerations());
+
+        // the additional toleration will cause the deployment to roll
+        assertEquals("---\n"
+                + "- effect: \"NoSchedule\"\n"
+                + "  key: \"kas-fleetshard-ingress\"\n"
+                + "  operator: \"Exists\"\n", tolerations);
     }
 
     @Test
@@ -207,11 +227,36 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCounts1() {
+    public void testIngressControllerReplicaCountsMultiUnit() {
         List<Node> nodes = buildNodes(99);
 
         assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000*24));
         assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0));
+    }
+
+    @Test
+    public void testIngressControllerReplicaCountsWithoutCollocation() {
+        useProfileLabels();
+
+        List<Node> nodes = buildNodes(310);
+
+        // should only be 2 replicas for 60 standard instances
+        long ingress = 50000000;
+        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
+    }
+
+    private void useProfileLabels() {
+        InformerManager mockInformerManager = Mockito.mock(InformerManager.class);
+        QuarkusMock.installMockForType(mockInformerManager, InformerManager.class);
+        // enable the profile
+        Mockito.when(mockInformerManager.getLocalAgent()).thenReturn(new ManagedKafkaAgentBuilder()
+                .withNewMetadata()
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .addToCapacity("standard", new ProfileBuilder().withMaxNodes(6).build())
+                .endSpec()
+                .build());
     }
 
     private List<Node> buildNodes(int nodeCount) {

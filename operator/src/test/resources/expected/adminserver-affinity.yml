@@ -106,6 +106,9 @@ spec:
       - effect: "NoExecute"
         key: "bf2.org/kafkaInstanceProfileType"
         value: "standard"
+      - effect: "NoSchedule"
+        key: "bf2.org/kafkaInstanceProfileType"
+        value: "standard"
       volumes:
       - configMap:
           name: "test-mk-q-admin-server"

@@ -245,6 +245,10 @@ public class OperandOverrideManager {
         return getOverrides(strimzi).dynamicScalingScheduling;
     }
 
+    public boolean migratedToDynamicScalingScheduling() {
+        return overrides.values().stream().allMatch(o -> o.dynamicScalingScheduling);
+    }
+
     void updateOverrides(ConfigMap obj) {
         String name = obj.getMetadata().getName();
         if (name.startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {

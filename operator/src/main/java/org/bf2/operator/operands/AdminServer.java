@@ -154,8 +154,9 @@ public class AdminServer extends AbstractAdminServer {
 
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
 
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper(), overrideManager.useDynamicScalingScheduling(strimzi));
+                this.configs.getConfig(managedKafka).getAdminserver().isColocateWithZookeeper(), dynamicScalingScheduling);
 
         builder
                 .editOrNewMetadata()
@@ -178,7 +179,7 @@ public class AdminServer extends AbstractAdminServer {
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
                             .withAffinity(affinity)
-                            .withTolerations(OperandUtils.profileTolerations(managedKafka))
+                            .withTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling))
                         .endSpec()
                     .endTemplate()
                 .endSpec();

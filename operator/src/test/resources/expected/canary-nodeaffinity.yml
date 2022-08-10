@@ -149,6 +149,9 @@ spec:
         - effect: "NoExecute"
           key: "bf2.org/kafkaInstanceProfileType"
           value: "standard"
+        - effect: "NoSchedule"
+          key: "bf2.org/kafkaInstanceProfileType"
+          value: "standard"
       volumes:
         - name: "test-mk-tls-ca-cert"
           secret:

@@ -465,8 +465,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
 
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         Affinity affinity = OperandUtils.buildAffinity(this.informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getKafka().isColocateWithZookeeper(), this.overrideManager.useDynamicScalingScheduling(strimzi));
+                this.configs.getConfig(managedKafka).getKafka().isColocateWithZookeeper(), dynamicScalingScheduling);
 
         podTemplateBuilder.withAffinity(affinity);
 
@@ -476,7 +477,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // some of them will have ZK, admin-server, canary and broker needs to be on its own
         podTemplateBuilder.addToTolerations(buildKafkaBrokerToleration());
 
-        podTemplateBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka));
+        podTemplateBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka, this.informerManager.getLocalAgent(), dynamicScalingScheduling));
 
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
@@ -553,7 +554,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
             addAffinity = true;
         }
 
-        podNestedBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka));
+        String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
+        podNestedBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling));
 
         if (addAffinity) {
             podNestedBuilder.withAffinity(affinityBuilder.build());
@@ -627,11 +630,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
         }
 
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
                 config.getExporter().isColocateWithZookeeper(),
-                this.overrideManager.useDynamicScalingScheduling(strimzi));
+                dynamicScalingScheduling);
 
-        List<Toleration> profileTolerations = OperandUtils.profileTolerations(managedKafka);
+        List<Toleration> profileTolerations = OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling);
         if (!profileTolerations.isEmpty()) {
             specBuilder.editOrNewTemplate()
                     .editOrNewPod()
@@ -756,14 +760,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
 
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                cruiseControl.isColocateWithZookeeper(), this.overrideManager.useDynamicScalingScheduling(strimzi));
+                cruiseControl.isColocateWithZookeeper(), dynamicScalingScheduling);
 
         specBuilder.editOrNewTemplate()
                 .editOrNewPod()
                     .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                     .withAffinity(affinity)
-                    .withTolerations(OperandUtils.profileTolerations(managedKafka))
+                    .withTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling))
                 .endPod()
             .endTemplate();
 

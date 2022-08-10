@@ -100,8 +100,9 @@ public class Canary extends AbstractCanary {
 
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
 
+        boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         Affinity affinity = OperandUtils.buildAffinity(informerManager.getLocalAgent(), managedKafka,
-                this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper(), overrideManager.useDynamicScalingScheduling(strimzi));
+                this.configs.getConfig(managedKafka).getCanary().isColocateWithZookeeper(), dynamicScalingScheduling);
 
         builder
                 .editOrNewMetadata()
@@ -124,7 +125,7 @@ public class Canary extends AbstractCanary {
                             .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                             .withVolumes(buildVolumes(managedKafka))
                             .withAffinity(affinity)
-                            .withTolerations(OperandUtils.profileTolerations(managedKafka))
+                            .withTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling))
                         .endSpec()
                     .endTemplate()
                 .endSpec();
