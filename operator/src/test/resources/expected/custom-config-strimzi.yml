@@ -216,7 +216,7 @@ spec:
       kas.policy.topic-config.topic-config-policy-enforced: true
       kas.policy.topic-config.enforced: "flush.ms:9223372036854775807,index.interval.bytes:4096,compression.type:producer,flush.messages:9223372036854775807,min.cleanable.dirty.ratio:0.5,file.delete.delay.ms:60000,segment.index.bytes:10485760,preallocate:false,unclean.leader.election.enable:false,min.insync.replicas:2"
       kas.policy.topic-config.range: "max.message.bytes::1048588,segment.bytes:52428800:,segment.ms:600000:"
-      kas.policy.topic-config.mutable: "message.timestamp.difference.max.ms,message.timestamp.type,retention.bytes,min.compaction.lag.ms,cleanup.policy,max.compaction.lag.ms,delete.retention.ms,message.downconversion.enable"
+      kas.policy.topic-config.mutable: "message.timestamp.difference.max.ms,message.timestamp.type,retention.bytes,retention.ms,min.compaction.lag.ms,cleanup.policy,max.compaction.lag.ms,delete.retention.ms,message.downconversion.enable"
       broker.foo: bar
     storage:
       volumes:
