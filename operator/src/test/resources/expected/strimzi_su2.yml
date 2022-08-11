@@ -95,12 +95,7 @@ spec:
         type: "internal"
         tls: false
     config:
-      strimzi.authorization.custom-authorizer.acl.022: "priority=1;permission=deny;principal=canary-123;topic=*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.023: "priority=1;permission=deny;principal=canary-123;group=*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.024: "priority=1;permission=deny;principal=canary-123;transactional_id=*;operations=all"
       auto.create.topics.enable: "false"
-      strimzi.authorization.custom-authorizer.acl.020: "priority=0;permission=allow;principal=canary-123;topic=__redhat_strimzi_canary;operations=create,describe,read,write,alter,alter_configs"
-      strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
       alter.config.policy.class.name: "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy"
@@ -112,61 +107,21 @@ spec:
       log.message.format.version: "2.6"
       connections.max.reauth.ms: 299000
       quota.window.size.seconds: "2"
-      strimzi.authorization.custom-authorizer.allowed-listeners: "SRE-9096"
       quota.window.num: "30"
-      strimzi.authorization.custom-authorizer.adminclient-listener.port: 9090
-      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.duration: "PT300S"
-      strimzi.authorization.custom-authorizer.adminclient-listener.name: "controlplane-9090"
       client.quota.callback.static.storage.check-interval: "30"
       client.quota.callback.usageMetrics.topic: __redhat_strimzi_volumeUsageMetrics
       client.quota.callback.quotaPolicy.check-interval: "15"
       client.quota.callback.kafka.clientIdPrefix: __redhat_strimzi
-      strimzi.authorization.custom-authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
-      strimzi.authorization.custom-authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
-      strimzi.authorization.custom-authorizer.acl.003: "default=true;permission=allow;cluster=*;operations=describe"
-      strimzi.authorization.custom-authorizer.acl.008: "priority=1;permission=deny;topic=__consumer_offsets;operations=all"
-      strimzi.authorization.custom-authorizer.acl.009: "priority=1;permission=deny;topic=__transaction_state;operations=all"
       offsets.topic.replication.factor: 3
       transaction.state.log.min.isr: 2
-      strimzi.authorization.custom-authorizer.acl.004: "permission=deny;cluster=*;operations-except=alter,describe,idempotent_write"
-      strimzi.authorization.custom-authorizer.adminclient-listener.protocol: "SSL"
       client.quota.callback.static.storage.soft: "366503875925"
-      strimzi.authorization.custom-authorizer.acl.005: "permission=deny;cluster=*;operations=alter;apis-except=create_acls,delete_acls"
-      strimzi.authorization.custom-authorizer.acl.006: "permission=deny;cluster=*;operations=describe;apis-except=describe_acls"
-      strimzi.authorization.custom-authorizer.acl.007: "permission=allow;cluster=*;operations=idempotent_write"
-      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.apis: "PRODUCE,FETCH"
       inter.broker.protocol.version: "2.6"
-      strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix: "__redhat_"
       client.quota.callback.static.produce: "17476266"
-      strimzi.authorization.custom-authorizer.acl.011: "priority=1;permission=deny;group=__redhat_*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.logging.004: "priority=1;topic=__redhat_*;operations=describe,read,write;level=DEBUG"
       ssl.protocol: "TLS"
-      strimzi.authorization.custom-authorizer.acl.012: "priority=1;permission=deny;transactional_id=__redhat_*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.logging.003: "topic=*;operations=describe;level=DEBUG"
       client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
-      strimzi.authorization.custom-authorizer.acl.013: "priority=1;permission=allow;principal=userid-123;cluster=*;operations=describe;apis=describe_acls"
-      strimzi.authorization.custom-authorizer.acl.logging.005: "group=*;apis=offset_fetch,offset_commit,heartbeat,describe_groups;level=DEBUG"
-      strimzi.authorization.custom-authorizer.acl.014: "priority=1;permission=allow;principal=userid-123;cluster=*;operations=alter;apis=create_acls,delete_acls"
       ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
-      strimzi.authorization.custom-authorizer.acl.010: "priority=1;permission=deny;topic=__redhat_*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.019: "priority=1;permission=allow;principal=canary-123;cluster=*;operations=alter;apis=alter_partition_reassignments"
-      strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds: 10
-      strimzi.authorization.custom-authorizer.acl.015: "priority=1;permission=allow;principal=userid-123;topic=*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.016: "priority=1;permission=allow;principal=userid-123;group=*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.logging.002: "topic=*;apis=list_offsets;level=DEBUG"
-      strimzi.authorization.custom-authorizer.acl.017: "priority=1;permission=allow;principal=userid-123;transactional_id=*;operations=all"
-      strimzi.authorization.custom-authorizer.acl.logging.001: "cluster=*;apis=fetch,list_groups,describe_configs;level=DEBUG"
-      strimzi.authorization.custom-authorizer.acl.018: "priority=1;permission=allow;principal=canary-123;cluster=*;operations=describe;apis=list_partition_reassignments"
       client.quota.callback.static.storage.hard: "366503875925"
-      strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds: 15
-      strimzi.authorization.custom-authorizer.resource-operations: "{ \"cluster\"\
-        : [ \"describe\", \"alter\" ], \"group\": [ \"all\", \"delete\", \"describe\"\
-        , \"read\" ], \"topic\": [ \"all\", \"alter\", \"alter_configs\", \"create\"\
-        , \"delete\", \"describe\", \"describe_configs\", \"read\", \"write\" ], \"\
-        transactional_id\": [ \"all\", \"describe\", \"write\" ] }"
       leader.imbalance.per.broker.percentage: 0
-      strimzi.authorization.custom-authorizer.acl.logging.suppressionWindow.eventCount: 5000
-      strimzi.authorization.custom-authorizer.partition-limit-enforced: true
 
       kas.authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
       kas.authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"

@@ -432,9 +432,6 @@ public class KafkaInstanceConfiguration {
         protected String authorizerClass = null;
         @JsonProperty("broker-plugins-config-prefix")
         protected String brokerPluginsConfigPrefix = null;
-        @Deprecated
-        @JsonProperty("config-prefix")
-        protected String configPrefix = null;
         @JsonProperty("global")
         protected String global = null;
         @JsonProperty("owner")
@@ -508,16 +505,6 @@ public class KafkaInstanceConfiguration {
 
         public void setBrokerPluginsConfigPrefix(String brokerPluginsConfigPrefix) {
             this.brokerPluginsConfigPrefix = brokerPluginsConfigPrefix;
-        }
-
-        @Deprecated
-        public String getConfigPrefix() {
-            return configPrefix;
-        }
-
-        @Deprecated
-        public void setConfigPrefix(String configPrefix) {
-            this.configPrefix = configPrefix;
         }
 
         public String getGlobal() {
