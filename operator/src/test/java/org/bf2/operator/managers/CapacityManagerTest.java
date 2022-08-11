@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @TestProfile(MockProfile.class)
 @QuarkusTest
-public class CapacityManagerTest {
+class CapacityManagerTest {
 
     @Inject
     KubernetesClient client;

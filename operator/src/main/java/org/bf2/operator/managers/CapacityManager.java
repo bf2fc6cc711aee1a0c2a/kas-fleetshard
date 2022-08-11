@@ -86,15 +86,9 @@ public class CapacityManager {
         managedKafkaClient.list().forEach(mk -> {
             String currentProfile = KafkaInstanceConfigurations.getInstanceType(mk);
 
-            //String deployment = OperandUtils.getOrDefault(mk.getMetadata().getLabels(), ManagedKafka.DEPLOYMENT_TYPE, null);
-
             // don't count this mk for several reasons:
 
-            //if ("reserved".equals(deployment)) {
-            //return; // not part of the actual resource calculation
-            //}
-
-            if (mk.getSpec().isDeleted()) {
+            if (mk.isReserveDeployment() || mk.getSpec().isDeleted()) {
                 return;
             }
 
@@ -252,15 +246,12 @@ public class CapacityManager {
     Optional<OperandReadiness> validateResources(ManagedKafka managedKafka, String profile, String claimedResources) {
         Resources resources = Serialization.unmarshal(claimedResources, Resources.class);
 
-        // String deployment = OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.DEPLOYMENT_TYPE, null);
-
         String message = null;
 
-        /*
-         * if ("reserved".equals(deployment)) { message =
-         * String.format("The deployment type for %s/%s was flipped to reserved",
-         * managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName()); }
-         */
+        if (managedKafka.isReserveDeployment()) {
+            message = String.format("The deployment type for %s/%s was flipped to reserved",
+                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        }
 
         if (!resources.profile.equals(profile)) {
             message = String.format("The profile type for %s/%s was changed", managedKafka.getMetadata().getNamespace(),
@@ -317,15 +308,15 @@ public class CapacityManager {
         ConfigMap resourceConfigMap = getOrCreateResourceConfigMap(resource);
 
         for (String key : profiles.keySet()) {
-            getProfileMaxUnits(profiles, key).ifPresent(max -> {
+            getProfileMaxUnits(profiles, key).ifPresent(max ->
                 capacity.put(key,
                         new ProfileCapacityBuilder().withMaxUnits(max)
                                 .withRemainingUnits(Optional.ofNullable(resourceConfigMap.getData().get(key))
                                         .map(Integer::valueOf)
                                         .map(i -> max - i)
                                         .orElse(max))
-                                .build());
-            });
+                                .build())
+            );
         }
         return capacity;
     }

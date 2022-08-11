@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
-public class IngressControllerManagerTest {
+class IngressControllerManagerTest {
 
     @Inject
     IngressControllerManager ingressControllerManager;
@@ -73,7 +73,7 @@ public class IngressControllerManagerTest {
     InformerManager informerManager;
 
     @Test
-    public void testIngressControllerCreationWithNoZones() {
+    void testIngressControllerCreationWithNoZones() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();
@@ -94,7 +94,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerNodePlacement() {
+    void testIngressControllerNodePlacement() {
         useProfileLabels();
 
         ingressControllerManager.reconcileIngressControllers();
@@ -110,7 +110,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testReplicaReduction() {
+    void testReplicaReduction() {
         openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
 
         IntStream.range(0, 6).forEach(i -> {
@@ -148,7 +148,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerCreationWith3Zones() {
+    void testIngressControllerCreationWith3Zones() {
         buildNodes(3).stream().forEach(n -> openShiftClient.nodes().create(n));
 
         ingressControllerManager.reconcileIngressControllers();
@@ -166,7 +166,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerCreationWithMultiUnitInstances() {
+    void testIngressControllerCreationWithMultiUnitInstances() {
         buildNodes(99).stream().forEach(n -> openShiftClient.nodes().create(n));
 
         for (int i = 0; i < 25; i++) {
@@ -192,7 +192,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testSummarize() {
+    void testSummarize() {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
         int replicas = kafka.getSpec().getKafka().getReplicas();
@@ -207,7 +207,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCounts() {
+    void testIngressControllerReplicaCounts() {
         List<Node> nodes = buildNodes(9);
 
         assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000));
@@ -227,7 +227,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCountsMultiUnit() {
+    void testIngressControllerReplicaCountsMultiUnit() {
         List<Node> nodes = buildNodes(99);
 
         assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000*24));
@@ -235,7 +235,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCountsWithoutCollocation() {
+    void testIngressControllerReplicaCountsWithoutCollocation() {
         useProfileLabels();
 
         List<Node> nodes = buildNodes(310);
@@ -271,7 +271,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testGetManagedKafkaRoutesFor() {
+    void testGetManagedKafkaRoutesFor() {
         final String mkName = "my-managedkafka";
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withNewMetadata().withName(mkName).withNamespace(mkName).endMetadata()
@@ -366,7 +366,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerHaProxyOptions() {
+    void testIngressControllerHaProxyOptions() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();
@@ -379,7 +379,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerPreservesOtherAnnotationsAndUnsupportedConfigOverrides() {
+    void testIngressControllerPreservesOtherAnnotationsAndUnsupportedConfigOverrides() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();

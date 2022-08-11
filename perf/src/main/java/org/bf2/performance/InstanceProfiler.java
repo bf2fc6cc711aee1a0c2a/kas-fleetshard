@@ -298,8 +298,8 @@ public class InstanceProfiler {
             profiler.setup();
             profiler.profile();
             //profiler.runLocalTest();
-        } catch (Throwable t) {
-            LOGGER.error("Uncaught exception", t);
+        } catch (Exception e) {
+            LOGGER.error("Uncaught exception", e);
         } finally {
             if (profiler.profilingResult.completedStep == Step.DONE) {
                 // don't tear down for now to keep reusing the cluster
