@@ -5,13 +5,9 @@
     <parent>
         <groupId>org.bf2</groupId>
         <artifactId>kas-fleetshard</artifactId>
-        <version>0.26.1-SNAPSHOT</version>
+        <version>0.27.2-SNAPSHOT</version>
     </parent>
     <artifactId>kas-fleetshard-api</artifactId>
-    
-    <properties>
-        <basepom.check.skip-coverage>true</basepom.check.skip-coverage>
-    </properties>
 
     <dependencies>
         <dependency>

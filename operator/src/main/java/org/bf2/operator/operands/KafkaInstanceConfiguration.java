@@ -164,6 +164,14 @@ public class KafkaInstanceConfiguration {
         protected int partitionCapacity;
         @JsonProperty("partition-limit-enforced")
         protected boolean partitionLimitEnforced = true;
+        @JsonProperty("topic-config-policy-enforced")
+        protected boolean topicConfigPolicyEnforced;
+        @JsonProperty("topic-config-enforced-rule")
+        protected String topicConfigEnforcedRule;
+        @JsonProperty("topic-config-range-rule")
+        protected String topicConfigRangeRule;
+        @JsonProperty("topic-config-mutable-rule")
+        protected String topicConfigMutableRule;
         @JsonProperty("scaling-and-replication-factor")
         protected int scalingAndReplicationFactor;
         @JsonProperty("ingress-per-sec")
@@ -340,6 +348,38 @@ public class KafkaInstanceConfiguration {
 
         public void setPartitionLimitEnforced(boolean partitionLimitEnforced) {
             this.partitionLimitEnforced = partitionLimitEnforced;
+        }
+
+        public boolean isTopicConfigPolicyEnforced() {
+            return topicConfigPolicyEnforced;
+        }
+
+        public void setTopicConfigPolicyEnforced(boolean topicConfigPolicyEnforced) {
+            this.topicConfigPolicyEnforced = topicConfigPolicyEnforced;
+        }
+
+        public String getTopicConfigEnforcedRule() {
+            return topicConfigEnforcedRule;
+        }
+
+        public void setTopicConfigEnforcedRule(String topicConfigEnforcedRule) {
+            this.topicConfigEnforcedRule = topicConfigEnforcedRule;
+        }
+
+        public String getTopicConfigRangeRule() {
+            return topicConfigRangeRule;
+        }
+
+        public void setTopicConfigRangeRule(String topicConfigRangeRule) {
+            this.topicConfigRangeRule = topicConfigRangeRule;
+        }
+
+        public String getTopicConfigMutableRule() {
+            return topicConfigMutableRule;
+        }
+
+        public void setTopicConfigMutableRule(String topicConfigMutableRule) {
+            this.topicConfigMutableRule = topicConfigMutableRule;
         }
 
         public int getScalingAndReplicationFactor() {

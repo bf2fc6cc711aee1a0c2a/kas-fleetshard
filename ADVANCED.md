@@ -169,10 +169,10 @@ The added configuration will be merged with the default logging configuration al
 
 ## Configure Strimzi Components logging
 
-To change the Strimzi operator logging, find the namespace in which the Strimzi Operator is installed then edit the config map with name `strimzi-cluster-operator` that has the log4j configuration for the operator. The contents of the key `log4j.properties` needs to be modified to suit the needs.
+To change the Strimzi operator logging, find the namespace in which the Strimzi Operator is installed then edit the config map with name `strimzi-cluster-operator.<version>` that has the log4j configuration for the operator. The contents of the key `log4j2.properties` needs to be modified to suit the needs.
 
 ```shell
-kubectl edit cm strimzi-cluster-operator -n <namespace>
+kubectl edit cm strimzi-cluster-operator.<version> -n <namespace>
 ```
 
 ## Configure Kafka Components logging

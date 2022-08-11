@@ -431,6 +431,7 @@ class KafkaClusterTest {
     void testScalingAndReplicationFactor() throws IOException {
         alternativeConfig(config -> {
             config.getKafka().setScalingAndReplicationFactor(1);
+            config.getKafka().setTopicConfigPolicyEnforced(false);
         });
 
         ManagedKafka mk = exampleManagedKafka("60Gi");
@@ -501,6 +502,12 @@ class KafkaClusterTest {
 
         assertEquals(0, kafka.getSpec().getKafka().getTemplate().getPodDisruptionBudget().getMaxUnavailable());
         assertEquals(0, kafka.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget().getMaxUnavailable());
+
+        ManagedKafka dev = new ManagedKafkaBuilder(mk).editMetadata().addToLabels(ManagedKafka.PROFILE_TYPE, KafkaInstanceConfigurations.InstanceType.DEVELOPER.lowerName).endMetadata().build();
+        Kafka kafkaDev = kafkaCluster.kafkaFrom(dev, null);
+
+        assertNull(kafkaDev.getSpec().getKafka().getTemplate().getPodDisruptionBudget());
+        assertNull(kafkaDev.getSpec().getZookeeper().getTemplate().getPodDisruptionBudget());
     }
 
     @Test

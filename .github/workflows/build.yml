@@ -33,3 +33,14 @@ jobs:
           ${{ runner.os }}-maven-
     - name: Build and run Unit tests
       run: mvn install --file pom.xml --no-transfer-progress -Dno-format
+    - name: Save Build Context
+      run: echo "$GITHUB_CONTEXT" > target/build-context.json
+      env:
+        GITHUB_CONTEXT: ${{ toJson(github) }}
+    - name: Attach Build Output
+      uses: actions/upload-artifact@v2
+      with:
+        name: target
+        path: |
+          **/target/
+          !**/target/**/*.jar

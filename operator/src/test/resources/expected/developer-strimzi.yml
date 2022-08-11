@@ -54,8 +54,8 @@ spec:
         brokers:
         - broker: 0
           host: "broker-0-xxx.yyy.zzz"
-        maxConnections: 3000
-        maxConnectionCreationRate: 100
+        maxConnections: 100
+        maxConnectionCreationRate: 50
     - name: "oauth"
       port: 9095
       type: "internal"
@@ -94,6 +94,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.021: "priority=0;permission=allow;principal=canary-123;group=__redhat_strimzi_canary_group;operations=describe,read"
       min.insync.replicas: 1
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
+      alter.config.policy.class.name: "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy"
       client.quota.callback.static.excluded.principal.name.list: "canary-123"
       default.replication.factor: 1
       client.quota.callback.quotaPolicy.check-interval: "15"
@@ -204,6 +205,10 @@ spec:
       kas.policy.shared-admin.adminclient-listener.name: "controlplane-9090"
       kas.policy.shared-admin.adminclient-listener.port: 9090
       kas.policy.shared-admin.adminclient-listener.protocol: "SSL"
+      kas.policy.topic-config.topic-config-policy-enforced: true
+      kas.policy.topic-config.enforced: "flush.ms:9223372036854775807,index.interval.bytes:4096,compression.type:producer,flush.messages:9223372036854775807,min.cleanable.dirty.ratio:0.5,file.delete.delay.ms:60000,segment.index.bytes:10485760,preallocate:false,unclean.leader.election.enable:false,min.insync.replicas:1"
+      kas.policy.topic-config.range: "max.message.bytes::1048588,segment.bytes:52428800:,segment.ms:600000:"
+      kas.policy.topic-config.mutable: "message.timestamp.difference.max.ms,message.timestamp.type,retention.bytes,retention.ms,min.compaction.lag.ms,cleanup.policy,max.compaction.lag.ms,delete.retention.ms,message.downconversion.enable"
     storage:
       volumes:
       - type: "persistent-claim"

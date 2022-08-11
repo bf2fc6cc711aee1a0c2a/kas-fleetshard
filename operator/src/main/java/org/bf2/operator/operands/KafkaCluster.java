@@ -285,7 +285,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage(buildKafkaStorage(managedKafka, current, storagePerBroker))
                         .withListeners(buildListeners(managedKafka, actualReplicas))
                         .withRack(buildKafkaRack(managedKafka))
-                        .withTemplate(buildKafkaTemplate(managedKafka))
+                        .withTemplate(buildKafkaTemplate(managedKafka, actualReplicas))
                         .withMetricsConfig(buildKafkaMetricsConfig(managedKafka))
                         .withAuthorization(buildKafkaAuthorization(managedKafka))
                         .withImage(this.overrideManager.getKafkaImage(strimzi).orElse(null))
@@ -296,7 +296,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                         .withStorage((SingleVolumeStorage) buildZooKeeperStorage(current, config))
                         .withResources(config.zookeeper.buildResources())
                         .withJvmOptions(buildZooKeeperJvmOptions(managedKafka))
-                        .withTemplate(buildZookeeperTemplate(managedKafka))
+                        .withTemplate(buildZookeeperTemplate(managedKafka, config.getZookeeper().getReplicas()))
                         .withMetricsConfig(buildZooKeeperMetricsConfig(managedKafka))
                         .withImage(this.overrideManager.getZookeeperImage(strimzi).orElse(null))
                         .withExternalLogging(buildZookeeperExternalLogging(managedKafka))
@@ -455,7 +455,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .build();
     }
 
-    private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka) {
+    private KafkaClusterTemplate buildKafkaTemplate(ManagedKafka managedKafka, int replicas) {
         // ensures even distribution of the Kafka pods in a given cluster across the availability zones
         // the previous affinity make sure single per node or not
         // this only comes into picture when there are more number of nodes than the brokers
@@ -482,7 +482,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
 
-        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+        if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
                 new PodDisruptionBudgetTemplateBuilder()
                     .withMaxUnavailable(0)
@@ -523,7 +523,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .endLabelSelector().build();
     }
 
-    private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka) {
+    private ZookeeperClusterTemplate buildZookeeperTemplate(ManagedKafka managedKafka, int replicas) {
         // onePerNode = true - one zk per node across all namespaces
         // onePerNode = false - one zk per node per managedkafka
         boolean onePerNode = this.configs.getConfig(managedKafka).getKafka().isOneInstancePerNode();
@@ -564,7 +564,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         ZookeeperClusterTemplateBuilder templateBuilder = podNestedBuilder.endPod();
 
-        if (drainCleanerManager.isDrainCleanerWebhookFound()) {
+        if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
                 new PodDisruptionBudgetTemplateBuilder()
                     .withMaxUnavailable(0)
@@ -654,32 +654,43 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka, Kafka current, long storagePerBroker, boolean cruiseControlEnabled) {
         Map<String, Object> config = new HashMap<>();
         KafkaInstanceConfiguration instanceConfig = this.configs.getConfig(managedKafka);
-        int scalingAndReplicationFactor = instanceConfig.getKafka().getScalingAndReplicationFactor();
+        org.bf2.operator.operands.KafkaInstanceConfiguration.Kafka kafkaConfigs = instanceConfig.getKafka();
+        int scalingAndReplicationFactor = kafkaConfigs.getScalingAndReplicationFactor();
+        int minIsr = Math.min(scalingAndReplicationFactor, 2);
         config.put("offsets.topic.replication.factor", scalingAndReplicationFactor);
-        config.put("transaction.state.log.min.isr", Math.min(scalingAndReplicationFactor, 2));
+        config.put("transaction.state.log.min.isr", minIsr);
         config.put("transaction.state.log.replication.factor", scalingAndReplicationFactor);
         config.put("auto.create.topics.enable", "false");
-        config.put("min.insync.replicas", Math.min(scalingAndReplicationFactor, 2));
+        config.put("min.insync.replicas", minIsr);
         config.put("default.replication.factor", scalingAndReplicationFactor);
         config.put("log.message.format.version", this.kafkaManager.currentKafkaLogMessageFormatVersion(managedKafka));
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
         config.put("strimzi.authorization.custom-authorizer.partition-limit-enforced",
-                instanceConfig.getKafka().isPartitionLimitEnforced());
+                kafkaConfigs.isPartitionLimitEnforced());
         config.put("kas.policy.create-topic.partition-limit-enforced",
-                instanceConfig.getKafka().isPartitionLimitEnforced());
+                kafkaConfigs.isPartitionLimitEnforced());
+
+        boolean isTopicConfigPolicyEnforced = kafkaConfigs.isTopicConfigPolicyEnforced();
+        config.put("kas.policy.topic-config.topic-config-policy-enforced", isTopicConfigPolicyEnforced);
+        if (isTopicConfigPolicyEnforced) {
+            config.put("kas.policy.topic-config.enforced", kafkaConfigs.getTopicConfigEnforcedRule());
+            config.put("kas.policy.topic-config.range", kafkaConfigs.getTopicConfigRangeRule());
+            config.put("kas.policy.topic-config.mutable", kafkaConfigs.getTopicConfigMutableRule());
+        }
 
         ManagedKafkaAuthenticationOAuth oauth = managedKafka.getSpec().getOauth();
         var maximumSessionLifetime = oauth != null ? oauth.getMaximumSessionLifetime() : null;
         long maxReauthMs = maximumSessionLifetime != null ?
                 Math.max(maximumSessionLifetime, 0) :
-                    instanceConfig.getKafka().getMaximumSessionLifetimeDefault();
+                kafkaConfigs.getMaximumSessionLifetimeDefault();
         config.put("connections.max.reauth.ms", maxReauthMs);
 
         if (managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4) >= 0) {
             // extension to manage the create topic to ensure valid Replication Factor and ISR
             config.put("create.topic.policy.class.name", "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy");
+            config.put("alter.config.policy.class.name", "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy");
         }
 
         // forcing the preferred leader election as soon as possible
@@ -687,10 +698,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         //       this could be removed,  when we contribute to Sarama to have the support for Elect Leader API
         config.put("leader.imbalance.per.broker.percentage", 0);
 
-        config.put(MESSAGE_MAX_BYTES, instanceConfig.getKafka().getMessageMaxBytes());
+        config.put(MESSAGE_MAX_BYTES, kafkaConfigs.getMessageMaxBytes());
 
         // configure quota plugin
-        if (instanceConfig.getKafka().isEnableQuota()) {
+        if (kafkaConfigs.isEnableQuota()) {
             addQuotaConfig(managedKafka, current, config, storagePerBroker);
         }
 
