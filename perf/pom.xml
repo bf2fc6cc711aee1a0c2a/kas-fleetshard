@@ -13,6 +13,7 @@
         <skipTests>true</skipTests>
         <basepom.check.skip-coverage>true</basepom.check.skip-coverage>
         <basepom.check.skip-dependency-versions-check>true</basepom.check.skip-dependency-versions-check>
+        <sonar.skip>true</sonar.skip>
     </properties>
 
     <repositories>
