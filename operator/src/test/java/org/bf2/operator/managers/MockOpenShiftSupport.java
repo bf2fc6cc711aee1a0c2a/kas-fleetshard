@@ -12,9 +12,15 @@ import javax.enterprise.context.ApplicationScoped;
 @ApplicationScoped
 public class MockOpenShiftSupport extends OpenShiftSupport {
 
+    boolean openshift = true;
+
     @Override
     public boolean isOpenShift(KubernetesClient client) {
-        return true;
+        return openshift;
+    }
+
+    public void setOpenShift(boolean value) {
+        this.openshift = value;
     }
 
     @Override
