@@ -84,6 +84,7 @@ import java.io.InputStream;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -652,6 +653,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("offsets.topic.replication.factor", scalingAndReplicationFactor);
         config.put("transaction.state.log.min.isr", minIsr);
         config.put("transaction.state.log.replication.factor", scalingAndReplicationFactor);
+        config.put("transaction.id.expiration.ms", Duration.ofDays(1).toMillis());
         config.put("auto.create.topics.enable", "false");
         config.put("min.insync.replicas", minIsr);
         config.put("default.replication.factor", scalingAndReplicationFactor);

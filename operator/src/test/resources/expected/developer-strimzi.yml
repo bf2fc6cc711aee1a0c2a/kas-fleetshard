@@ -119,6 +119,7 @@ spec:
       strimzi.authorization.custom-authorizer.acl.009: "priority=1;permission=deny;topic=__transaction_state;operations=all"
       offsets.topic.replication.factor: 1
       transaction.state.log.min.isr: 1
+      transaction.id.expiration.ms: 86400000
       strimzi.authorization.custom-authorizer.acl.004: "permission=deny;cluster=*;operations-except=alter,describe,idempotent_write"
       strimzi.authorization.custom-authorizer.adminclient-listener.protocol: "SSL"
       client.quota.callback.static.storage.soft: "64424509440"
