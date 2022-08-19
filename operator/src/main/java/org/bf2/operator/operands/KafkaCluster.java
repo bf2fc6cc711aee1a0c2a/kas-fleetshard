@@ -97,6 +97,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -990,7 +991,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
             .map(PlatformSpec::getType)
             .map(String::toLowerCase)
             .map(platformType -> applicationConfig.getConfigValue(String.format("platform.%s.default-storage-class", platformType)))
-            .map(ConfigValue::getValue);
+            .map(ConfigValue::getValue)
+            .filter(Predicate.not(String::isBlank));
     }
 
     private AccessControl getAclConfig(ManagedKafka managedKafka) {
