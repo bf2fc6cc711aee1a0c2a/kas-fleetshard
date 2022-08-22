@@ -14,7 +14,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.fabric8.openshift.api.model.InfrastructureBuilder;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
@@ -33,12 +32,10 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
-import io.strimzi.api.kafka.model.storage.Storage;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
-import org.bf2.operator.managers.MockOpenShiftSupport;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
@@ -60,8 +57,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -96,9 +91,6 @@ class KafkaClusterTest {
 
     @InjectMock
     OperandOverrideManager overrideManager;
-
-    @Inject
-    MockOpenShiftSupport openshiftSupport;
 
     @BeforeEach
     void beforeEach() {
@@ -635,64 +627,6 @@ class KafkaClusterTest {
                     .build());
         }
         return overrides;
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-        "AWS,gp2",
-        "Azure,managed-premium",
-        "GCP,standard",
-        "CloudsRUs,"})
-    void testStorageClassDerivation(String providerType, String expectedStorageClass) {
-        InformerManager mock = Mockito.mock(InformerManager.class);
-        Mockito.when(mock.getLocalClusterInfrastructure())
-            .thenReturn(Optional.of(new InfrastructureBuilder()
-                    .withNewSpec()
-                        .withNewPlatformSpec()
-                            .withType(providerType)
-                        .endPlatformSpec()
-                    .endSpec()
-                    .build()));
-        QuarkusMock.installMockForType(mock, InformerManager.class);
-
-        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-        Storage kafkaStorage = kafka.getSpec().getKafka().getStorage();
-        assertEquals(JbodStorage.class, kafkaStorage.getClass());
-        assertTrue(((JbodStorage) kafkaStorage).getVolumes()
-                .stream()
-                .map(PersistentClaimStorage.class::cast)
-                .map(PersistentClaimStorage::getStorageClass)
-                .allMatch(storageClass -> Objects.equals(expectedStorageClass, storageClass)));
-
-        Storage zkStorage = kafka.getSpec().getZookeeper().getStorage();
-        assertEquals(PersistentClaimStorage.class, zkStorage.getClass());
-        assertEquals(expectedStorageClass, ((PersistentClaimStorage) zkStorage).getStorageClass());
-    }
-
-    @Test
-    void testStorageClassDefaultKubernetes() {
-        openshiftSupport.setOpenShift(false);
-
-        try {
-            ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-            Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
-
-            Storage kafkaStorage = kafka.getSpec().getKafka().getStorage();
-            assertEquals(JbodStorage.class, kafkaStorage.getClass());
-            assertTrue(((JbodStorage) kafkaStorage).getVolumes()
-                    .stream()
-                    .map(PersistentClaimStorage.class::cast)
-                    .map(PersistentClaimStorage::getStorageClass)
-                    .allMatch(Objects::isNull));
-
-            Storage zkStorage = kafka.getSpec().getZookeeper().getStorage();
-            assertEquals(PersistentClaimStorage.class, zkStorage.getClass());
-            assertNull(((PersistentClaimStorage) zkStorage).getStorageClass());
-        } finally {
-            openshiftSupport.setOpenShift(true);
-        }
     }
 
     @Test

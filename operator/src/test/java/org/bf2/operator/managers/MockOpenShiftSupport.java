@@ -13,6 +13,7 @@ import javax.enterprise.context.ApplicationScoped;
 public class MockOpenShiftSupport extends OpenShiftSupport {
 
     boolean openshift = true;
+    OpenShiftClient client = null;
 
     @Override
     public boolean isOpenShift(KubernetesClient client) {
@@ -25,8 +26,13 @@ public class MockOpenShiftSupport extends OpenShiftSupport {
 
     @Override
     public OpenShiftClient adapt(KubernetesClient client) {
-        return new DefaultOpenShiftClient(client.getHttpClient(),
-                OpenShiftConfig.wrap(client.getConfiguration()));
+        return this.client != null ?
+                this.client :
+                    new DefaultOpenShiftClient(client.getHttpClient(),
+                            OpenShiftConfig.wrap(client.getConfiguration()));
     }
 
+    public void setClient(OpenShiftClient client) {
+        this.client = client;
+    }
 }

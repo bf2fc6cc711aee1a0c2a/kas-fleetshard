@@ -21,9 +21,6 @@ import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.openshift.api.model.Infrastructure;
-import io.fabric8.openshift.api.model.InfrastructureSpec;
-import io.fabric8.openshift.api.model.PlatformSpec;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
 import io.strimzi.api.kafka.model.CruiseControlSpec;
@@ -75,7 +72,6 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
 import org.bf2.operator.resources.v1alpha1.Versions;
 import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.ConfigValue;
 import org.jboss.logging.Logger;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -97,7 +93,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -739,9 +734,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 config.put(key, value);
             } else {
                 config.remove(key);
-            } ;
+            }
         });
-
 
         return config;
     }
@@ -837,7 +831,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .map(this::getExistingVolumesFromJbodStorage)
                 .ifPresentOrElse(
                         existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.configs.getConfig(managedKafka))),
-                        () -> builder.withStorageClass(getStorageClass(this.configs.getConfig(managedKafka))));
+                        () -> builder.withStorageClass(this.configs.getConfig(managedKafka).getKafka().getStorageClass()));
 
         return new JbodStorageBuilder().withVolumes(builder.build()).build();
     }
@@ -857,7 +851,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 builder.withOverrides(persistentClaimStorage.getOverrides());
             } else {
                 log.trace("Setting default StorageClass on Kafka");
-                builder.withStorageClass(getStorageClass(config));
+                builder.withStorageClass(config.getKafka().getStorageClass());
             }
         } else {
             log.error("Existing Volume is not an instance of PersistentClaimStorage. This shouldn't happen.");
@@ -973,26 +967,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getZookeeper).map(ZookeeperClusterSpec::getStorage)
             .ifPresentOrElse(
                     existing -> handleExistingVolume(existing, builder, config),
-                    () -> builder.withStorageClass(getStorageClass(config)));
+                    () -> builder.withStorageClass(config.getKafka().getStorageClass()));
 
         return builder.build();
-    }
-
-    private String getStorageClass(KafkaInstanceConfiguration config) {
-        return Optional.ofNullable(config.getKafka().getStorageClass())
-                .or(this::getPlatformDefaultStorageClass)
-                .orElse(null);
-    }
-
-    private Optional<String> getPlatformDefaultStorageClass() {
-        return informerManager.getLocalClusterInfrastructure()
-            .map(Infrastructure::getSpec)
-            .map(InfrastructureSpec::getPlatformSpec)
-            .map(PlatformSpec::getType)
-            .map(String::toLowerCase)
-            .map(platformType -> applicationConfig.getConfigValue(String.format("platform.%s.default-storage-class", platformType)))
-            .map(ConfigValue::getValue)
-            .filter(Predicate.not(String::isBlank));
     }
 
     private AccessControl getAclConfig(ManagedKafka managedKafka) {
