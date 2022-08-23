@@ -734,9 +734,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 config.put(key, value);
             } else {
                 config.remove(key);
-            } ;
+            }
         });
-
 
         return config;
     }
