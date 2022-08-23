@@ -16,6 +16,7 @@ import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
 import org.junit.jupiter.api.BeforeEach;
@@ -161,6 +162,10 @@ class AdminServerTest {
 
     @Test
     void testDeploymentCreatedWhenSecretsExist() {
+        KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
+        QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
+        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.True, null, null));
+
         ManagedKafka mk = buildBasicManagedKafka("test", "0.26.0-10", new TlsKeyPair());
 
         Resource<Deployment> deployment = client.apps().deployments()

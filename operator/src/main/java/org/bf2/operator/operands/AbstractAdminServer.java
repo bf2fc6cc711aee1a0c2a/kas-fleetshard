@@ -8,6 +8,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -23,9 +24,21 @@ public abstract class AbstractAdminServer implements Operand<ManagedKafka> {
     @Inject
     protected InformerManager informerManager;
 
+    @Inject
+    protected AbstractKafkaCluster kafkaCluster;
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Deployment currentDeployment = cachedDeployment(managedKafka);
+
+        if (currentDeployment == null) {
+            OperandReadiness kafkaReadiness = kafkaCluster.getReadiness(managedKafka);
+            if (kafkaReadiness.getStatus() != Status.True) {
+                // don't create until ready
+                return;
+            }
+        }
+
         Deployment deployment = deploymentFrom(managedKafka, currentDeployment);
         createOrUpdate(deployment);
 

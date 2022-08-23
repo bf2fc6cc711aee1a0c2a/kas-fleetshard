@@ -8,6 +8,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
@@ -23,6 +24,9 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Inject
     protected InformerManager informerManager;
 
+    @Inject
+    protected AbstractKafkaCluster kafkaCluster;
+
     public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
     public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
@@ -30,6 +34,15 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Deployment current = cachedDeployment(managedKafka);
+
+        if (current == null) {
+            OperandReadiness kafkaReadiness = kafkaCluster.getReadiness(managedKafka);
+            if (kafkaReadiness.getStatus() != Status.True) {
+                // do nothing as the kafka has never been ready
+                return;
+            }
+        }
+
         Deployment deployment = deploymentFrom(managedKafka, current);
         createOrUpdate(deployment);
 

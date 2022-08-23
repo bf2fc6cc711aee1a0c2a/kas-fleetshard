@@ -89,9 +89,6 @@ public class Canary extends AbstractCanary {
     @Inject
     protected OperandOverrideManager overrideManager;
 
-    @Inject
-    protected AbstractKafkaCluster kafkaCluster;
-
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
         String canaryName = canaryName(managedKafka);
