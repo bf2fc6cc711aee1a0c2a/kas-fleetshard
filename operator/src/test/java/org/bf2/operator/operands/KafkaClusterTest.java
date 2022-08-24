@@ -32,12 +32,13 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
+import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
-import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -99,10 +100,10 @@ class KafkaClusterTest {
         IngressControllerManager controllerManager = Mockito.mock(IngressControllerManager.class);
 
         Mockito.when(controllerManager.getRouteMatchLabels()).thenReturn(Map.of(
-                "managedkafka.bf2.org/kas-multi-zone", "true",
-                "managedkafka.bf2.org/kas-zone0", "true",
-                "managedkafka.bf2.org/kas-zone1", "true",
-                "managedkafka.bf2.org/kas-zone2", "true"));
+                ManagedKafkaKeys.Labels.KAS_MULTI_ZONE, "true",
+                ManagedKafkaKeys.forKey("kas-zone0"), "true",
+                ManagedKafkaKeys.forKey("kas-zone1"), "true",
+                ManagedKafkaKeys.forKey("kas-zone2"), "true"));
 
         QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
 
@@ -635,7 +636,7 @@ class KafkaClusterTest {
 
         InformerManager informer = Mockito.mock(InformerManager.class);
         Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
-                .editMetadata().withAnnotations(Map.of(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION, "custom")).endMetadata()
+                .editMetadata().withAnnotations(Map.of(Annotations.STRIMZI_PAUSE_REASON, "custom")).endMetadata()
                 .withNewStatus()
                 .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
                 .endStatus().build();

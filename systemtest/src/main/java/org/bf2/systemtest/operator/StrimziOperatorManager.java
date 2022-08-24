@@ -16,6 +16,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.systemtest.api.github.GithubApiClient;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
@@ -139,7 +140,7 @@ public class StrimziOperatorManager {
         env.add(new EnvVarBuilder().withName("STRIMZI_FULL_RECONCILIATION_INTERVAL_MS").withValue("15000").build());
         env.add(new EnvVarBuilder().withName("STRIMZI_NAMESPACE").withValue("*").build());
         // allowing a specific Strimzi operator (just one in systemtest) to select the Kafka resources to work on
-        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue("managedkafka.bf2.org/strimziVersion=" + deploymentName).build());
+        env.add(new EnvVarBuilder().withName("STRIMZI_CUSTOM_RESOURCE_SELECTOR").withValue(ManagedKafkaKeys.Labels.STRIMZI_VERSION + "=" + deploymentName).build());
         container.setEnv(env);
     }
 

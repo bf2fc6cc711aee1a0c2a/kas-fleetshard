@@ -41,6 +41,8 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
+import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.ManagedKafkaKeys.Labels;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -90,11 +92,6 @@ public class IngressControllerManager {
     protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
-
-    /**
-     * The label key for the multi-AZ IngressController
-     */
-    public static final String KAS_MULTI_ZONE = "managedkafka.bf2.org/kas-multi-zone";
 
     /**
      * The node label identifying the AZ in which the node resides
@@ -466,7 +463,7 @@ public class IngressControllerManager {
             String domain = kasZone + "." + clusterDomain;
             int replicas = numReplicasForZone(zone, nodeInformer.getList(), ingress, egress, connectionDemand);
 
-            Map<String, String> routeMatchLabel = Map.of("managedkafka.bf2.org/" + kasZone, "true");
+            Map<String, String> routeMatchLabel = Map.of(ManagedKafkaKeys.forKey(kasZone), "true");
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
             routeMatchLabels.putAll(routeMatchLabel);
 
@@ -479,7 +476,7 @@ public class IngressControllerManager {
 
         int replicas = numReplicasForAllZones(nodeInformer.getList(), connectionDemand);
 
-        final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
+        final Map<String, String> routeMatchLabel = Map.of(Labels.KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
         routeMatchLabels.putAll(routeMatchLabel);
 

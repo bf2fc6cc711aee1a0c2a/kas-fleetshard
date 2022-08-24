@@ -32,6 +32,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
 import io.quarkus.runtime.StartupEvent;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
@@ -379,7 +380,7 @@ public class AdminServer extends AbstractAdminServer {
 
     private Map<String, String> buildAnnotations(ManagedKafka managedKafka) {
         return Map.of(
-                SecuritySecretManager.ANNOTATION_SECRET_DEP_DIGEST,
+                Annotations.SECRET_DEPENDENCY_DIGEST,
                 securitySecretManager.digestSecretsVersions(managedKafka, getDependsOnSecrets(managedKafka)));
     }
 
