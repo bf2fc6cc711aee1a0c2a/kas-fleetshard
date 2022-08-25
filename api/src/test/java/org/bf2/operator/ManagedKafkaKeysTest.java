@@ -9,7 +9,7 @@ class ManagedKafkaKeysTest {
     @Test
     // Trivial test to meet package coverage check
     void testForKey() {
-        assertEquals(ManagedKafkaKeys.MK_NAMESPACE + "test", ManagedKafkaKeys.forKey("test"));
+        assertEquals(ManagedKafkaKeys.MK_PREFIX + "test", ManagedKafkaKeys.forKey("test"));
     }
 
 }
