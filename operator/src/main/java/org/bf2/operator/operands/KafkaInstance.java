@@ -1,6 +1,7 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -47,6 +48,10 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+            return;
+        }
+
         imagePullSecretManager.propagateSecrets(managedKafka);
 
         if (securitySecretManager.masterSecretExists(managedKafka)) {
@@ -87,6 +92,9 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         if (managedKafka.getSpec().isDeleted()) {
             // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
+        }
+        if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+            return new OperandReadiness(Status.Unknown, Reason.Paused, null);
         }
         List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 

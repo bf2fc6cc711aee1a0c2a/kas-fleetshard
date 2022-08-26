@@ -61,7 +61,7 @@
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.26.0</strimzi.version>
         <fabric8.client.version>5.12.2</fabric8.client.version>
-        <quarkus.operator.extension>3.0.7</quarkus.operator.extension>
+        <quarkus.operator.extension>3.0.9</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.2</junit.platform.version>
         <sundrio.version>0.50.4</sundrio.version>
@@ -73,7 +73,7 @@
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
         <jakarta.validation.version>2.0.2</jakarta.validation.version>
-        
+
         <!-- Override version for maven-install-plugin because there is a bug in
              3.0.0-M1 preventing installing of modules with packaging of feature
              see: https://issues.apache.org/jira/browse/MINSTALL-151 -->

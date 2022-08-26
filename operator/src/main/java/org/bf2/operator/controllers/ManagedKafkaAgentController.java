@@ -12,6 +12,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.managers.ObservabilityManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ClusterCapacity;
@@ -45,7 +46,10 @@ import java.util.List;
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
 @ApplicationScoped
-@ControllerConfiguration(finalizerName = Constants.NO_FINALIZER)
+@ControllerConfiguration(
+        finalizerName = Constants.NO_FINALIZER,
+        generationAwareEventProcessing = false,
+        eventFilters = { ControllerEventFilter.class })
 public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent> {
 
     @Inject
