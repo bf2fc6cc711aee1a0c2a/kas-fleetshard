@@ -17,7 +17,6 @@ import javax.inject.Inject;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -101,7 +100,7 @@ public class KafkaInstanceTest {
         OperandReadiness readiness = kafkaInstance.getReadiness(pausedInstance);
         assertEquals(Status.Unknown, readiness.getStatus());
         assertEquals(Reason.Paused, readiness.getReason());
-        assertNull(readiness.getMessage());
+        assertEquals("Reconciliation paused via annotation", readiness.getMessage());
     }
 
     @Test
