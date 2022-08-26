@@ -18,6 +18,7 @@ import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
@@ -34,14 +35,10 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.net.HttpURLConnection;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -58,10 +55,6 @@ public class ManagedKafkaSync {
     private static final String MANAGEDKAFKA_ID_LABEL = "bf2.org/id";
     private static final String MANAGEDKAFKA_ID_NAMESPACE_LABEL = "bf2.org/managedkafka-id";
     private static Logger log = Logger.getLogger(ManagedKafkaSync.class);
-
-    // expand as needed to account for annotations managed by the data plane
-    private static final Set<String> DATA_PLANE_ANNOTATIONS =
-            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SecretManager.ANNOTATION_MASTER_SECRET_DIGEST)));
 
     @Inject
     ManagedKafkaResourceClient client;
@@ -198,7 +191,7 @@ public class ManagedKafkaSync {
 
         // will always be non-null due to the id/placement requirements
         Map<String, String> annotations = new HashMap<>(existing.getMetadata().getAnnotations());
-        annotations.keySet().removeAll(DATA_PLANE_ANNOTATIONS);
+        annotations.keySet().removeAll(ManagedKafkaKeys.Annotations.DATA_PLANE_ANNOTATIONS);
 
         if (!Objects.equals(annotations, remoteCopy.getMetadata().getAnnotations())) {
             logChange("Remote annotations changed: %s", remoteCopy.getMetadata().getAnnotations(), annotations);
@@ -282,7 +275,7 @@ public class ManagedKafkaSync {
                             Map<String, String> existingAnnotations = mk.getMetadata().getAnnotations();
                             mk.getMetadata().setAnnotations(meta.getAnnotations());
                             if (existingAnnotations != null) {
-                                existingAnnotations.keySet().retainAll(DATA_PLANE_ANNOTATIONS);
+                                existingAnnotations.keySet().retainAll(ManagedKafkaKeys.Annotations.DATA_PLANE_ANNOTATIONS);
                                 mk.getMetadata().getAnnotations().putAll(existingAnnotations);
                             }
                             secretManager.calculateMasterSecretDigest(mk, masterSecret);
