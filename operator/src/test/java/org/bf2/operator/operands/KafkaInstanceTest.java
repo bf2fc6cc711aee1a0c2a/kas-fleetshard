@@ -3,6 +3,7 @@ package org.bf2.operator.operands;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
@@ -14,6 +15,9 @@ import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
+import java.util.Map;
+
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -91,6 +95,16 @@ public class KafkaInstanceTest {
     }
 
     @Test
+    void statusUnknownWhenPaused() {
+        ManagedKafka pausedInstance = ManagedKafkaUtils.dummyManagedKafka("x");
+        pausedInstance.getMetadata().setAnnotations(Map.of(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, "true"));
+        OperandReadiness readiness = kafkaInstance.getReadiness(pausedInstance);
+        assertEquals(Status.Unknown, readiness.getStatus());
+        assertEquals(Reason.Paused, readiness.getReason());
+        assertNull(readiness.getMessage());
+    }
+
+    @Test
     void deleteOrderCanaryDeleteBeforeKafkaCluster() {
         Context context = Mockito.mock(Context.class);
 
@@ -123,5 +137,17 @@ public class KafkaInstanceTest {
         inOrder.verify(kafkaCluster, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(canary, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(adminServer, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
+    }
+
+    @Test
+    void operandsNotCreatedWhenInstancePaused() {
+        ManagedKafka pausedInstance = ManagedKafkaUtils.dummyManagedKafka("x");
+        pausedInstance.getMetadata().setAnnotations(Map.of(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, "true"));
+        kafkaInstance.createOrUpdate(pausedInstance);
+
+        InOrder inOrder = inOrder(kafkaCluster, canary, adminServer);
+        inOrder.verify(kafkaCluster, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(canary, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(adminServer, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
     }
 }
