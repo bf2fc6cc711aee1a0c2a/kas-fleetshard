@@ -146,8 +146,8 @@ public class KafkaInstanceTest {
         kafkaInstance.createOrUpdate(pausedInstance);
 
         InOrder inOrder = inOrder(kafkaCluster, canary, adminServer);
-        inOrder.verify(kafkaCluster, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
-        inOrder.verify(canary, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
-        inOrder.verify(adminServer, never()).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        inOrder.verify(kafkaCluster, never()).createOrUpdate(pausedInstance);
+        inOrder.verify(canary, never()).createOrUpdate(pausedInstance);
+        inOrder.verify(adminServer, never()).createOrUpdate(pausedInstance);
     }
 }
