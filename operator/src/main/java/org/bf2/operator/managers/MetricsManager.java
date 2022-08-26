@@ -1,5 +1,6 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -111,7 +112,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
         orphanMeters.forEach(meterRegistry::remove);
     }
 
-    private Tags buildKafkaInstanceTags(Kafka obj) {
+    public static Tags buildKafkaInstanceTags(HasMetadata obj) {
         ObjectMeta metadata = obj.getMetadata();
         return Tags.of(Tag.of(TAG_LABEL_NAMESPACE, metadata.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, metadata.getName()), OWNER);
     }

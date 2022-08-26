@@ -1,8 +1,12 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.search.Search;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.ImagePullSecretManager;
+import org.bf2.operator.managers.MetricsManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
@@ -38,6 +42,8 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     ImagePullSecretManager imagePullSecretManager;
     @Inject
     SecuritySecretManager securitySecretManager;
+    @Inject
+    MeterRegistry meterRegistry;
 
     private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
@@ -48,9 +54,18 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        Tags tags = MetricsManager.buildKafkaInstanceTags(managedKafka);
+
         if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+            meterRegistry.gauge("kafka_instance_paused", tags, 1);
             return;
         }
+
+        Search.in(meterRegistry)
+            .name("kafka_instance_paused")
+            .tags(tags)
+            .meters()
+            .forEach(meterRegistry::remove);
 
         imagePullSecretManager.propagateSecrets(managedKafka);
 
