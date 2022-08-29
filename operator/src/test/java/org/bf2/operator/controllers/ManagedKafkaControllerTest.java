@@ -5,6 +5,7 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
@@ -45,7 +46,7 @@ public class ManagedKafkaControllerTest {
                         .withKafkaVersions(mk.getSpec().getVersions().getKafka())
                         .build());
         Mockito.when(strimziManager.getVersionLabel())
-                .thenReturn("managedkafka.bf2.org/strimziVersion");
+                .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
 
         QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
@@ -78,7 +79,7 @@ public class ManagedKafkaControllerTest {
 
         StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
         Mockito.when(strimziManager.getVersionLabel())
-                .thenReturn("managedkafka.bf2.org/strimziVersion");
+                .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
 
         QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 

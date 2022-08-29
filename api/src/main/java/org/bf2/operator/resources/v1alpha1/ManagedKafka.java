@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Version;
 import io.sundr.builder.annotations.Buildable;
 import io.sundr.builder.annotations.BuildableReference;
+import org.bf2.operator.ManagedKafkaKeys;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,7 +24,7 @@ import java.util.UUID;
         refs = @BuildableReference(CustomResource.class),
         editableEnabled = false
 )
-@Group("managedkafka.bf2.org")
+@Group(ManagedKafkaKeys.GROUP)
 @Version("v1alpha1")
 public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaStatus> implements Namespaced {
 

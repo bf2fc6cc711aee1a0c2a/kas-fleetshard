@@ -6,6 +6,7 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
@@ -108,7 +109,7 @@ public class PollerTest {
         managedKafkaSync.syncKafkaClusters();
         items = lookup.getLocalManagedKafkas();
         assertEquals(1, items.size());
-        assertTrue(items.get(0).getAnnotation(SecretManager.ANNOTATION_MASTER_SECRET_DIGEST).isPresent());
+        assertTrue(items.get(0).getAnnotation(ManagedKafkaKeys.Annotations.MASTER_SECRET_DIGEST).isPresent());
 
         // make sure the remote tracking is there and not marked as deleted
         assertFalse(controlPlane.getDesiredState(ControlPlane.managedKafkaKey(managedKafka)).getSpec().isDeleted());

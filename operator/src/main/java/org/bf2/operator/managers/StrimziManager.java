@@ -15,6 +15,8 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.ResourceInformerFactory;
+import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
@@ -49,11 +51,7 @@ public class StrimziManager {
 
     public static final String STRIMZI_CLUSTER_OPERATOR = "strimzi-cluster-operator";
     public static final String STRIMZI_PAUSE_RECONCILE_ANNOTATION = "strimzi.io/pause-reconciliation";
-    public static final String STRIMZI_PAUSE_REASON_ANNOTATION = "managedkafka.bf2.org/pause-reason";
-
-    public static final String KAFKA_IMAGES_ANNOTATION = "managedkafka.bf2.org/kafka-images";
     public static final String KAFKA_IMAGES_ENVVAR = "STRIMZI_KAFKA_IMAGES";
-    public static final String RELATED_IMAGES_ANNOTATION = "managedkafka.bf2.org/related-images";
 
     // concurrent hash maps don't like null values, so we'll use this instead
     private static final ComponentVersions EMPTY_STATUS = new ComponentVersions(new StrimziVersionStatus(), Collections.emptyMap());
@@ -91,7 +89,7 @@ public class StrimziManager {
     private volatile ConcurrentHashMap<String, ComponentVersions> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
-    @ConfigProperty(name = "strimzi.version.label", defaultValue = "managedkafka.bf2.org/strimziVersion")
+    @ConfigProperty(name = "strimzi.version.label", defaultValue = ManagedKafkaKeys.Labels.STRIMZI_VERSION)
     protected String versionLabel;
 
     @PostConstruct
@@ -185,7 +183,7 @@ public class StrimziManager {
     }
 
     List<String> readKafkaVersions(Deployment deployment) {
-        return readAnnotation(deployment, KAFKA_IMAGES_ANNOTATION)
+        return readAnnotation(deployment, Annotations.KAFKA_IMAGES)
             .or(() -> readVersionEnvVar(deployment))
             .map(this::parseKafkaVersions)
             .orElseGet(Collections::emptyList);
@@ -214,7 +212,7 @@ public class StrimziManager {
 
     @SuppressWarnings("unchecked")
     Map<String, String> readRelatedImagesAnnotation(Deployment deployment) {
-        return readAnnotation(deployment, RELATED_IMAGES_ANNOTATION)
+        return readAnnotation(deployment, Annotations.RELATED_IMAGES)
                 .map(value -> Serialization.unmarshal(value, Map.class))
                 .orElseGet(Collections::emptyMap);
     }
@@ -262,18 +260,18 @@ public class StrimziManager {
         if (kafkaCluster.isReadyNotUpdating(managedKafka)) {
             if (!isPauseReasonStrimziUpdate(annotations)) { // if already paused for another reason, we'll override to proceed with the upgrade
                 pauseReconcile(managedKafka, annotations);
-                annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+                annotations.put(Annotations.STRIMZI_PAUSE_REASON, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
             } else if (!"true".equals(annotations.get(STRIMZI_PAUSE_RECONCILE_ANNOTATION))) {
-                annotations.remove(STRIMZI_PAUSE_REASON_ANNOTATION);
+                annotations.remove(Annotations.STRIMZI_PAUSE_REASON);
             } // else don't remove the pause reason - strimzi has not reconciled yet
         // Kafka cluster reconcile is paused because of Strimzi updating --> apply version from spec to handover and unpause to restart reconcile
         } else if (kafkaCluster.isReconciliationPaused(managedKafka)) {
             if (isPauseReasonStrimziUpdate(annotations)) {
                 labels.put(this.versionLabel, managedKafka.getSpec().getVersions().getStrimzi());
                 unpauseReconcile(managedKafka, annotations);
-            } else if (annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION) == null) {
+            } else if (annotations.get(Annotations.STRIMZI_PAUSE_REASON) == null) {
                 // defensively assume we're updating
-                annotations.put(STRIMZI_PAUSE_REASON_ANNOTATION, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
+                annotations.put(Annotations.STRIMZI_PAUSE_REASON, ManagedKafkaCondition.Reason.StrimziUpdating.name().toLowerCase());
             } // else we don't know why we're paused
         }
 
@@ -350,7 +348,7 @@ public class StrimziManager {
     public static boolean isPauseReasonStrimziUpdate(Map<String, String> annotations) {
         return ManagedKafkaCondition.Reason.StrimziUpdating.name()
                 .toLowerCase()
-                .equals(annotations.get(STRIMZI_PAUSE_REASON_ANNOTATION));
+                .equals(annotations.get(Annotations.STRIMZI_PAUSE_REASON));
     }
 
     private Kafka cachedKafka(ManagedKafka managedKafka) {

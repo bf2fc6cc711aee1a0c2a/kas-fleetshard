@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
@@ -34,7 +35,6 @@ public class SecretManager {
     private static final String OAUTH_SSO_CLIENT_SECRET = "oauth.ssoClientSecret";
     private static final String CANARY_SASL_PRINCIPAL = "canary.sasl.principal";
     private static final String CANARY_SASL_PASSWORD = "canary.sasl.password";
-    static final String ANNOTATION_MASTER_SECRET_DIGEST = "managedkafka.bf2.org/master-secret-digest";
 
     @Inject
     KubernetesClient kubernetesClient;
@@ -57,7 +57,7 @@ public class SecretManager {
     }
 
     public boolean isMasterSecretChanged(ManagedKafka remote, ManagedKafka local){
-        String localDigest = local.getMetadata().getAnnotations().get(ANNOTATION_MASTER_SECRET_DIGEST);
+        String localDigest = local.getMetadata().getAnnotations().get(Annotations.MASTER_SECRET_DIGEST);
         String remoteDigest = buildDigest(buildSecretData(remote));
         return !remoteDigest.equals(localDigest);
     }
@@ -158,7 +158,7 @@ public class SecretManager {
 
     public void calculateMasterSecretDigest(ManagedKafka managedKafka, Secret secret) {
         var metadata = new ObjectMetaBuilder(managedKafka.getMetadata())
-                .addToAnnotations(ANNOTATION_MASTER_SECRET_DIGEST, buildDigest(decode(secret.getData())))
+                .addToAnnotations(Annotations.MASTER_SECRET_DIGEST, buildDigest(decode(secret.getData())))
                 .build();
 
         managedKafka.setMetadata(metadata);

@@ -12,6 +12,7 @@ import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -106,7 +107,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
 
     private Map<String, String> buildLabels(ManagedKafka managedKafka) {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
-        labels.put("managedkafka.bf2.org/strimziVersion", managedKafka.getSpec().getVersions().getStrimzi());
+        labels.put(ManagedKafkaKeys.Labels.STRIMZI_VERSION, managedKafka.getSpec().getVersions().getStrimzi());
         labels.put("dev-kafka", "");
         return labels;
     }
