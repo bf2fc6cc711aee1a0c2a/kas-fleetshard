@@ -46,7 +46,7 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
         if (getEventHandler() != null) {
             if(resource.getMetadata().getOwnerReferences().isEmpty()) {
                 log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-            } else {
+            } else if (ResourceID.fromFirstOwnerReference(resource).isPresent()){
                 getEventHandler().handleEvent(new ResourceEvent(action, ResourceID.fromFirstOwnerReference(resource).get()));
             }
         }

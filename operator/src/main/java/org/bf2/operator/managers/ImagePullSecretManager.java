@@ -45,7 +45,7 @@ public class ImagePullSecretManager {
 
     private List<LocalObjectReference> imagePullSecretRefs;
 
-    private volatile Map<String, Secret> secrets;
+    private Map<String, Secret> secrets;
 
     private static String getSecretName(ManagedKafka managedKafka, String name) {
         return managedKafka.getMetadata().getName() + "-pull-" + name;
