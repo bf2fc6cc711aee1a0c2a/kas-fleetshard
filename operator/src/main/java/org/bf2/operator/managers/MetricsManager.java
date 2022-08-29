@@ -41,6 +41,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     static final String KAFKA_INSTANCE_CONNECTION_LIMIT = "kafka_instance_connection_limit";
     static final String KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT = "kafka_instance_connection_creation_rate_limit";
     static final String KAFKA_INSTANCE_QUOTA_CONSUMED = "kafka_instance_profile_quota_consumed";
+    public static final String KAFKA_INSTANCE_PAUSED = "kafka_instance_paused";
 
     static final String TAG_LABEL_OWNER = "owner";
     static final String TAG_LABEL_BROKER_ID = "broker_id";

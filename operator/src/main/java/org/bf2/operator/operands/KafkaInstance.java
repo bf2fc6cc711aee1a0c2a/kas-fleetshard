@@ -57,12 +57,12 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         Tags tags = MetricsManager.buildKafkaInstanceTags(managedKafka);
 
         if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
-            meterRegistry.gauge("kafka_instance_paused", tags, 1);
+            meterRegistry.gauge(MetricsManager.KAFKA_INSTANCE_PAUSED, tags, 1);
             return;
         }
 
         Search.in(meterRegistry)
-            .name("kafka_instance_paused")
+            .name(MetricsManager.KAFKA_INSTANCE_PAUSED)
             .tags(tags)
             .meters()
             .forEach(meterRegistry::remove);
