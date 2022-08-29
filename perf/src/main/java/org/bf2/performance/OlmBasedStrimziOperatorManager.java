@@ -40,7 +40,7 @@ public class OlmBasedStrimziOperatorManager {
 
     private final String namespace;
     private final KubeClient kubeClient;
-    private volatile List<String> versions = Collections.emptyList();
+    private List<String> versions = Collections.emptyList();
 
     public OlmBasedStrimziOperatorManager(KubeClient kubeClient, String namespace) {
         this.namespace = namespace;

@@ -86,7 +86,7 @@ public class StrimziManager {
     }
 
     private Map<String, ComponentVersions> strimziVersions = new ConcurrentHashMap<>();
-    private volatile ConcurrentHashMap<String, ComponentVersions> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, ComponentVersions> strimziPendingInstallationVersions = new ConcurrentHashMap<>();
 
     // this configuration needs to match with the STRIMZI_CUSTOM_RESOURCE_SELECTOR env var in the Strimzi Deployment(s)
     @ConfigProperty(name = "strimzi.version.label", defaultValue = ManagedKafkaKeys.Labels.STRIMZI_VERSION)
