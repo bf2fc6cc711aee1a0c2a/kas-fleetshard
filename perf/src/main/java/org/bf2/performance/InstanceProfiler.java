@@ -430,8 +430,7 @@ public class InstanceProfiler {
                     a1.cpuMillis = Math.min(a1.cpuMillis, a2.cpuMillis);
                     a1.memoryBytes = Math.min(a1.memoryBytes, a2.memoryBytes);
                     return a1;
-                })
-                .get();
+                }).orElse(null);
         return resources;
     }
 
@@ -562,7 +561,7 @@ public class InstanceProfiler {
             result.medianEndToEndLatency99pct = TestUtils.getMedian(loadTestResult.endToEndLatency99pct);
             result.aggregatedPublishLatency50pct = loadTestResult.aggregatedPublishLatency50pct;
             result.aggregatedPublishLatency99pct = loadTestResult.aggregatedPublishLatency99pct;
-            result.maxConnectionCount = loadTestResult.additionalMetrics.get(KafkaBenchmarkDriverWithMetrics.CONNECTION_COUNT).stream().max(Double::compareTo).get();
+            result.maxConnectionCount = loadTestResult.additionalMetrics.get(KafkaBenchmarkDriverWithMetrics.CONNECTION_COUNT).stream().max(Double::compareTo).orElse(0.0);
 
             if (resultConsumer != null) {
                 resultConsumer.accept(profile, loadTestResult);

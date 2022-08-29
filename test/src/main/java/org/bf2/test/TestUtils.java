@@ -99,13 +99,13 @@ public class TestUtils {
 
     public static Path getLogPath(String folderName, ExtensionContext context) {
         String testMethod = context.getDisplayName();
-        Class<?> testClass = context.getTestClass().get();
+        Class<?> testClass = context.getTestClass().orElse(null);
         return getLogPath(folderName, testClass, testMethod);
     }
 
     public static Path getLogPath(String folderName, TestInfo info) {
         String testMethod = info.getDisplayName();
-        Class<?> testClass = info.getTestClass().get();
+        Class<?> testClass = info.getTestClass().orElse(null);
         return getLogPath(folderName, testClass, testMethod);
     }
 
