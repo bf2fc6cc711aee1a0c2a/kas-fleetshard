@@ -14,6 +14,7 @@ import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -226,12 +227,12 @@ public class StrimziManagerTest {
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
         // Kafka reconcile paused but label is still the current version
         assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
-        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(Annotations.STRIMZI_PAUSE_REASON));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), mk.getStatus().getVersions().getStrimzi());
 
         // nothing should change after an intermediate reconcile
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
-        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(Annotations.STRIMZI_PAUSE_REASON));
 
         // Kafka moves to be paused
         kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build()).build());
@@ -241,7 +242,7 @@ public class StrimziManagerTest {
         // Kafka reconcile not paused and Kafka label updated to requested Strimzi version
         assertFalse(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION));
         // the pause reason should stay until strimzi updates to ready
-        assertTrue(kafka.getMetadata().getAnnotations().containsKey(StrimziManager.STRIMZI_PAUSE_REASON_ANNOTATION));
+        assertTrue(kafka.getMetadata().getAnnotations().containsKey(Annotations.STRIMZI_PAUSE_REASON));
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 
@@ -269,11 +270,11 @@ public class StrimziManagerTest {
         Map<String, String> annotations = new HashMap<>();
 
         if (versionsAnnotations && kafkaImages != null) {
-            annotations.put(StrimziManager.KAFKA_IMAGES_ANNOTATION, kafkaImages);
+            annotations.put(Annotations.KAFKA_IMAGES, kafkaImages);
         }
 
         if (!relatedImages.isEmpty()) {
-            annotations.put(StrimziManager.RELATED_IMAGES_ANNOTATION, Serialization.asJson(relatedImages));
+            annotations.put(Annotations.RELATED_IMAGES, Serialization.asJson(relatedImages));
         }
 
         Deployment deployment = new DeploymentBuilder()

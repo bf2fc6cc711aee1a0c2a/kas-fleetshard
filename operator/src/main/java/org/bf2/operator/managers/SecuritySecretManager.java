@@ -33,7 +33,6 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class SecuritySecretManager {
 
-    public static final String ANNOTATION_SECRET_DEP_DIGEST = "managedkafka.bf2.org/secret-dependency-digest";
     public static final String SASL_PRINCIPAL ="sasl.principal";
     public static final String SASL_PASSWORD ="sasl.password";
 
