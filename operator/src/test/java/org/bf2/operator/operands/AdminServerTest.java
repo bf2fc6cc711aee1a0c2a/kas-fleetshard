@@ -31,9 +31,9 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -214,6 +214,29 @@ class AdminServerTest {
         // 2 of 2 required secrets fully exist
         adminServer.createOrUpdate(mk);
         assertNotNull(deployment.get());
+
+        // check kafka delay
+        deployment.delete();
+        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.False, null, null));
+        adminServer.createOrUpdate(mk);
+        assertNull(deployment.get());
+    }
+
+    @Test
+    void testReservedDeployment() throws Exception {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk = new ManagedKafkaBuilder(mk).editMetadata()
+                .withNamespace("reserved")
+                .addToLabels(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE)
+                .endMetadata()
+                .build();
+        adminServer.createOrUpdate(mk);
+        Resource<Deployment> deployment = client.apps().deployments()
+                .inNamespace(AdminServer.adminServerNamespace(mk))
+                .withName(AdminServer.adminServerName(mk));
+
+        Deployment reserved = deployment.get();
+        assertEquals("pause", reserved.getSpec().getTemplate().getSpec().getContainers().get(0).getName());
     }
 
 }

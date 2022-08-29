@@ -2,61 +2,33 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 
-public abstract class AbstractCanary implements Operand<ManagedKafka> {
+public abstract class AbstractCanary extends DeploymentOperand {
 
     @Inject
     Logger log;
 
     @Inject
-    protected KubernetesClient kubernetesClient;
-
-    @Inject
     protected InformerManager informerManager;
-
-    @Inject
-    protected AbstractKafkaCluster kafkaCluster;
-
-    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
     public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Deployment current = cachedDeployment(managedKafka);
-
-        if (current == null) {
-            OperandReadiness kafkaReadiness = kafkaCluster.getReadiness(managedKafka);
-            if (kafkaReadiness.getStatus() != Status.True) {
-                // do nothing as the kafka has never been ready
-                return;
-            }
-        }
-
         Deployment deployment = deploymentFrom(managedKafka, current);
         createOrUpdate(deployment);
 
         Service currentService = cachedService(managedKafka);
         Service service = serviceFrom(managedKafka, currentService);
         createOrUpdate(service);
-    }
-
-    protected void createOrUpdate(Deployment deployment) {
-        OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), deployment);
-    }
-
-    protected void createOrUpdate(Service service) {
-        OperandUtils.createOrUpdate(kubernetesClient.services(), service);
     }
 
     @Override
@@ -92,6 +64,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
         return managedKafka.getMetadata().getNamespace();
     }
 
+    @Override
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
     }
