@@ -1,5 +1,6 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
@@ -40,6 +41,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     static final String KAFKA_INSTANCE_CONNECTION_LIMIT = "kafka_instance_connection_limit";
     static final String KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT = "kafka_instance_connection_creation_rate_limit";
     static final String KAFKA_INSTANCE_QUOTA_CONSUMED = "kafka_instance_profile_quota_consumed";
+    public static final String KAFKA_INSTANCE_PAUSED = "kafka_instance_paused";
 
     static final String TAG_LABEL_OWNER = "owner";
     static final String TAG_LABEL_BROKER_ID = "broker_id";
@@ -111,7 +113,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
         orphanMeters.forEach(meterRegistry::remove);
     }
 
-    private Tags buildKafkaInstanceTags(Kafka obj) {
+    public static Tags buildKafkaInstanceTags(HasMetadata obj) {
         ObjectMeta metadata = obj.getMetadata();
         return Tags.of(Tag.of(TAG_LABEL_NAMESPACE, metadata.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, metadata.getName()), OWNER);
     }
