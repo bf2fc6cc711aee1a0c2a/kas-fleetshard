@@ -432,7 +432,6 @@ public class InstanceProfiler {
                     return a1;
                 })
                 .get(); //NOSONAR
-
         return resources;
     }
 
