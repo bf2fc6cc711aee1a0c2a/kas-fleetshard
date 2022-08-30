@@ -69,7 +69,10 @@ public class ManagedKafkaStateAssertionParameterResolver implements ParameterRes
     }
 
     private static Stream<ManagedKafkaAssertion> getManagedKafkaAssertionStream(OpenshiftClusterData openshiftClusterData, Optional<Method> testMethod) {
-        return Arrays.stream(testMethod.orElse(null).getAnnotationsByType(ManagedKafkaAssertion.class))
+        return testMethod
+                .map(m -> m.getAnnotationsByType(ManagedKafkaAssertion.class))
+                .map(Arrays::stream)
+                .orElseGet(Stream::empty)
                 .filter(a -> a.instanceType().equals(openshiftClusterData.getWorkerInstanceType()))
                 .sorted(Comparator.comparingInt(ManagedKafkaAssertion::minWorkers))
                 .collect(Collectors.toList())

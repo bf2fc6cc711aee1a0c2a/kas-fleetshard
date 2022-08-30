@@ -424,7 +424,7 @@ public class InstanceProfiler {
         }
     }
 
-    private AvailableResources getMinAvailableResources(Stream<Node> stream) {
+    private AvailableResources getMinAvailableResources(Stream<Node> stream) throws NullPointerException{
         AvailableResources resources = stream.map(TestUtils::getMaxAvailableResources)
                 .reduce((a1, a2) -> {
                     a1.cpuMillis = Math.min(a1.cpuMillis, a2.cpuMillis);

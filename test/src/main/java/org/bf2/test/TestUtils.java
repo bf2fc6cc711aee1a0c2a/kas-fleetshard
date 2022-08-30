@@ -97,13 +97,13 @@ public class TestUtils {
         return future;
     }
 
-    public static Path getLogPath(String folderName, ExtensionContext context) {
+    public static Path getLogPath(String folderName, ExtensionContext context) throws NullPointerException {
         String testMethod = context.getDisplayName();
         Class<?> testClass = context.getTestClass().orElse(null);
         return getLogPath(folderName, testClass, testMethod);
     }
 
-    public static Path getLogPath(String folderName, TestInfo info) {
+    public static Path getLogPath(String folderName, TestInfo info) throws NullPointerException {
         String testMethod = info.getDisplayName();
         Class<?> testClass = info.getTestClass().orElse(null);
         return getLogPath(folderName, testClass, testMethod);
