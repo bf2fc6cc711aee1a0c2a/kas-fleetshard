@@ -430,7 +430,9 @@ public class InstanceProfiler {
                     a1.cpuMillis = Math.min(a1.cpuMillis, a2.cpuMillis);
                     a1.memoryBytes = Math.min(a1.memoryBytes, a2.memoryBytes);
                     return a1;
-                }).orElse(null);
+                })
+                .get(); //NOSONAR
+
         return resources;
     }
 

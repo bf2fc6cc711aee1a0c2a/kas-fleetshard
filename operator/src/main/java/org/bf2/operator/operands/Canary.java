@@ -314,9 +314,8 @@ public class Canary extends AbstractCanary {
                     .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
                     .findFirst();
 
-                if (kafkaVersionEnvVar.isPresent()) {
-                    kafkaVersion = kafkaVersionEnvVar.get().getValue();
-
+            if (kafkaVersionEnvVar.isPresent()) {
+                kafkaVersion = kafkaVersionEnvVar.get().getValue();
             }
 
         }

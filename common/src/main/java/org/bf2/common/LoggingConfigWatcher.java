@@ -39,8 +39,8 @@ public class LoggingConfigWatcher {
     @ConfigProperty(name = "logging.config.interval", defaultValue = "15s")
     Duration interval;
 
-    private  ScheduledExecutorService workerPool;
-    private  FileTime lastUpdated;
+    private  volatile ScheduledExecutorService workerPool;
+    private  volatile FileTime lastUpdated;
 
     void onStart(@Observes StartupEvent ev) throws IOException {
         Path path = Paths.get(loggingConfigFile);
