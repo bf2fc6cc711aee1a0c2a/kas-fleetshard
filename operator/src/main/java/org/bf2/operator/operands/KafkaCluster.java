@@ -70,7 +70,6 @@ import org.bf2.operator.operands.KafkaInstanceConfiguration.AccessControl;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAuthenticationOAuth;
 import org.bf2.operator.resources.v1alpha1.ServiceAccount;
-import org.bf2.operator.resources.v1alpha1.Versions;
 import org.eclipse.microprofile.config.Config;
 import org.jboss.logging.Logger;
 
@@ -659,8 +658,6 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
-        config.put("strimzi.authorization.custom-authorizer.partition-limit-enforced",
-                kafkaConfigs.isPartitionLimitEnforced());
         config.put("kas.policy.create-topic.partition-limit-enforced",
                 kafkaConfigs.isPartitionLimitEnforced());
 
@@ -679,11 +676,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 kafkaConfigs.getMaximumSessionLifetimeDefault();
         config.put("connections.max.reauth.ms", maxReauthMs);
 
-        if (managedKafka.getSpec().getVersions().compareStrimziVersionTo(Versions.STRIMZI_CLUSTER_OPERATOR_V0_23_0_4) >= 0) {
-            // extension to manage the create topic to ensure valid Replication Factor and ISR
-            config.put("create.topic.policy.class.name", "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy");
-            config.put("alter.config.policy.class.name", "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy");
-        }
+        config.put("create.topic.policy.class.name", "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy");
+        config.put("alter.config.policy.class.name", "io.bf2.kafka.config.ManagedKafkaAlterConfigPolicy");
 
         // forcing the preferred leader election as soon as possible
         // NOTE: mostly useful for canary when Kafka brokers roll, partitions move but a preferred leader is not elected
@@ -700,20 +694,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // custom authorizer configuration
         AccessControl aclConfig = getAclConfig(managedKafka);
         addKafkaAuthorizerConfig(managedKafka, config, aclConfig::getBrokerPluginsConfigPrefix);
-        addKafkaAuthorizerConfig(managedKafka, config, aclConfig::getConfigPrefix);
 
         if (managedKafka.getSpec().getCapacity().getMaxPartitions() != null) {
             config.put(MAX_PARTITIONS, managedKafka.getSpec().getCapacity().getMaxPartitions());
         }
-
-        config.put("strimzi.authorization.custom-authorizer.partition-counter.timeout-seconds", 10);
-        config.put("strimzi.authorization.custom-authorizer.partition-counter.schedule-interval-seconds", 15);
-        config.put("strimzi.authorization.custom-authorizer.partition-counter.private-topic-prefix",
-                instanceConfig.kafka.acl.privatePrefix);
-
-        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.name", "controlplane-9090");
-        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.port", 9090);
-        config.put("strimzi.authorization.custom-authorizer.adminclient-listener.protocol", "SSL");
 
         config.put("kas.policy.create-topic.partition-counter.private-topic-prefix", instanceConfig.kafka.acl.privatePrefix);
         config.put("kas.policy.create-topic.partition-counter.schedule-interval-seconds", 15);
