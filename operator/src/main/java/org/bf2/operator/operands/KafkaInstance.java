@@ -1,7 +1,12 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.core.instrument.search.Search;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.ImagePullSecretManager;
+import org.bf2.operator.managers.MetricsManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
@@ -37,6 +42,8 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     ImagePullSecretManager imagePullSecretManager;
     @Inject
     SecuritySecretManager securitySecretManager;
+    @Inject
+    MeterRegistry meterRegistry;
 
     private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
@@ -47,6 +54,19 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
+        Tags tags = MetricsManager.buildKafkaInstanceTags(managedKafka);
+
+        if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+            meterRegistry.gauge(MetricsManager.KAFKA_INSTANCE_PAUSED, tags, 1);
+            return;
+        }
+
+        Search.in(meterRegistry)
+            .name(MetricsManager.KAFKA_INSTANCE_PAUSED)
+            .tags(tags)
+            .meters()
+            .forEach(meterRegistry::remove);
+
         imagePullSecretManager.propagateSecrets(managedKafka);
 
         if (securitySecretManager.masterSecretExists(managedKafka)) {
@@ -87,6 +107,9 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         if (managedKafka.getSpec().isDeleted()) {
             // TODO: it may be a good idea to offer a message here as well
             return new OperandReadiness(isDeleted(managedKafka) ? Status.False : Status.Unknown, Reason.Deleted, null);
+        }
+        if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+            return new OperandReadiness(Status.Unknown, Reason.Paused, "Reconciliation paused via annotation");
         }
         List<OperandReadiness> readiness = operands.stream().map(o -> o.getReadiness(managedKafka)).filter(Objects::nonNull).collect(Collectors.toList());
 
