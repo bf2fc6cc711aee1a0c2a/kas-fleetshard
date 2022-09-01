@@ -112,6 +112,9 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
         } else {
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
         }
+        if (!this.observabilityManager.isObservabilityRunning() && readyCondition != null) {
+            ConditionUtils.updateConditionStatus(readyCondition, statusValue,null, "Observability secret not yet accepted");
+        }
 
         ClusterCapacity total = new ClusterCapacityBuilder()
                 .withConnections(10000)
