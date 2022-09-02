@@ -111,8 +111,7 @@ jobs:
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
             -Dsonar.pullrequest.key=${{ fromJson(steps.build_context.outputs.content).event.number }} \
             -Dsonar.pullrequest.branch=${{ fromJson(steps.build_context.outputs.content).head_ref }} \
-            -Dsonar.pullrequest.base=${{ fromJson(steps.build_context.outputs.content).base_ref }} \
-            -Dsonar.coverage.exclusions=perf/**/*.java,systemtest/**/*.java,test/**/*.java
+            -Dsonar.pullrequest.base=${{ fromJson(steps.build_context.outputs.content).base_ref }}
       ## (Push Only) Run Sonar analysis against the results of the build job
       - name: SonarCloud Analysis (Push Only)
         if: github.event.workflow_run.event == 'push'
@@ -125,5 +124,4 @@ jobs:
             -Dsonar.login=${SONAR_TOKEN} \
             -Dsonar.coverage.jacoco.xmlReportPaths=$(pwd)/api/target/site/jacoco/jacoco.xml,$(pwd)/common/target/site/jacoco/jacoco.xml,$(pwd)/operator/target/site/jacoco/jacoco.xml,$(pwd)/sync/target/site/jacoco/jacoco.xml \
             -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
-            -Dsonar.branch.name=${{ github.event.workflow_run.head_branch }} \
-            -Dsonar.coverage.exclusions=perf/**/*.java,systemtest/**/*.java,test/**/*.java
+            -Dsonar.branch.name=${{ github.event.workflow_run.head_branch }}
