@@ -112,7 +112,7 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
         } else {
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
         }
-        if (!this.observabilityManager.isObservabilityRunning() && readyCondition != null) {
+        if (!this.observabilityManager.isObservabilityRunning()) {
             ConditionUtils.updateConditionStatus(readyCondition, statusValue,null, "Observability secret not yet accepted");
         }
 
