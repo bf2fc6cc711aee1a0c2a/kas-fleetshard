@@ -3,9 +3,9 @@ package org.bf2.operator.operands;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 
 import javax.inject.Inject;
 
@@ -45,9 +45,9 @@ public abstract class DeploymentOperand implements Operand<ManagedKafka> {
         }
 
         if (current == null) {
-            OperandReadiness kafkaReadiness = kafkaCluster.getReadiness(managedKafka);
-            if (kafkaReadiness.getStatus() != Status.True) {
-                // don't create until ready
+            Kafka kafka = kafkaCluster.cachedKafka(managedKafka);
+            // if we don't yet have a clusterId, then we've never been ready
+            if (kafka == null || kafka.getStatus() == null || kafka.getStatus().getClusterId() == null) {
                 return true;
             }
         }

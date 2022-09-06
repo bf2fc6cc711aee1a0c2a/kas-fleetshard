@@ -11,12 +11,12 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPair;
 import org.junit.jupiter.api.BeforeEach;
@@ -164,7 +164,8 @@ class AdminServerTest {
     void testDeploymentCreatedWhenSecretsExist() {
         KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
         QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
-        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.True, null, null));
+        Mockito.when(kafkaCluster.cachedKafka(Mockito.any()))
+                .thenReturn(new KafkaBuilder().withNewStatus().withClusterId("all-good").endStatus().build());
 
         ManagedKafka mk = buildBasicManagedKafka("test", "0.26.0-10", new TlsKeyPair());
 
@@ -217,7 +218,7 @@ class AdminServerTest {
 
         // check kafka delay
         deployment.delete();
-        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.False, null, null));
+        Mockito.when(kafkaCluster.cachedKafka(Mockito.any())).thenReturn(new KafkaBuilder().build());
         adminServer.createOrUpdate(mk);
         assertNull(deployment.get());
     }

@@ -14,10 +14,10 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
+import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPairBuilder;
 import org.junit.jupiter.api.Test;
@@ -172,7 +172,7 @@ public class CanaryTest {
         KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
         QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
 
-        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.False, null, null));
+        Mockito.when(kafkaCluster.cachedKafka(Mockito.any())).thenReturn(null);
 
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         canary.createOrUpdate(mk);
@@ -182,7 +182,8 @@ public class CanaryTest {
         assertNull(deployment.get());
 
         // should proceed once ready
-        Mockito.when(kafkaCluster.getReadiness(Mockito.any())).thenReturn(new OperandReadiness(ManagedKafkaCondition.Status.True, null, null));
+        Mockito.when(kafkaCluster.cachedKafka(Mockito.any()))
+            .thenReturn(new KafkaBuilder().withNewStatus().withClusterId("all-good").endStatus().build());
         configureMockOverrideManager(mk, Collections.emptyList(), Collections.emptyList());
         canary.createOrUpdate(mk);
         assertNotNull(deployment.get());
