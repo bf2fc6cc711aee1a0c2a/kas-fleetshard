@@ -125,7 +125,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testReplicaReduction3to2() {
+    void testReplicaReduction3to2() {
         openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
 
         IntStream.range(0, 3).forEach(i -> {
@@ -219,28 +219,28 @@ public class IngressControllerManagerTest {
     public void testIngressControllerReplicaCounts() {
         List<Node> nodes = buildNodes(9);
 
-        assertEquals(1, ingressControllerManager.numReplicasForAllZones(3000));
-        assertEquals(1, ingressControllerManager.numReplicasForZone("zone0", new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
+        assertEquals(1, ingressControllerManager.numReplicasForDefault(3000));
+        assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
 
         nodes = buildNodes(210);
 
-        assertEquals(3, ingressControllerManager.numReplicasForAllZones(160000));
-        assertEquals(1, ingressControllerManager.numReplicasForZone("zone0", new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));
-        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", new LongSummaryStatistics(), new LongSummaryStatistics(), 480000, ZONE_PERCENTAGE));
+        assertEquals(3, ingressControllerManager.numReplicasForDefault(160000));
+        assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));
+        assertEquals(3, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 480000, ZONE_PERCENTAGE));
 
         nodes = buildNodes(310);
 
         long ingress = 50000000;
-        assertEquals(5, ingressControllerManager.numReplicasForAllZones(370000));
-        assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
+        assertEquals(5, ingressControllerManager.numReplicasForDefault(370000));
+        assertEquals(4, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
     }
 
     @Test
     public void testIngressControllerReplicaCounts1() {
         List<Node> nodes = buildNodes(99);
 
-        assertEquals(1, ingressControllerManager.numReplicasForAllZones(3000*24));
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
+        assertEquals(1, ingressControllerManager.numReplicasForDefault(3000*24));
+        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
     }
 
     private List<Node> buildNodes(int nodeCount) {

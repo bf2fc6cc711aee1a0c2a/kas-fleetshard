@@ -459,12 +459,11 @@ public class IngressControllerManager {
 
         // there is an assumption that the nodes / brokers will be balanced by zone
         double zonePercentage = 1d / ingressControllers.size();
+        int replicas = numReplicasForZone(ingress, egress, connectionDemand, zonePercentage);
         ingressControllers.entrySet().stream().forEach(e -> {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
             String domain = kasZone + "." + clusterDomain;
-            int replicas = numReplicasForZone(zone, ingress, egress, connectionDemand, zonePercentage);
-
             Map<String, String> routeMatchLabel = Map.of(ManagedKafkaKeys.forKey(kasZone), "true");
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
             routeMatchLabels.putAll(routeMatchLabel);
@@ -476,7 +475,7 @@ public class IngressControllerManager {
     private void buildDefaultIngressController(List<String> zones, String clusterDomain, long connectionDemand) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
 
-        int replicas = numReplicasForAllZones(connectionDemand);
+        int replicas = numReplicasForDefault(connectionDemand);
 
         final Map<String, String> routeMatchLabel = Map.of(Labels.KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
@@ -563,7 +562,7 @@ public class IngressControllerManager {
         createOrEdit(builder.build(), existing);
     }
 
-    int numReplicasForZone(String zone, LongSummaryStatistics ingress, LongSummaryStatistics egress,
+    int numReplicasForZone(LongSummaryStatistics ingress, LongSummaryStatistics egress,
             long connectionDemand, double zonePercentage) {
         // use the override if present
         if (azReplicaCount.isPresent()) {
@@ -606,7 +605,7 @@ public class IngressControllerManager {
                 .summaryStatistics();
     }
 
-    int numReplicasForAllZones(long connectionDemand) {
+    int numReplicasForDefault(long connectionDemand) {
         // use the override if present
         if (defaultReplicaCount.isPresent()) {
             return defaultReplicaCount.get();
