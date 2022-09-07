@@ -212,6 +212,16 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
     }
 
+    public boolean hasKafkaBeenReady(ManagedKafka managedKafka) {
+        Kafka kafka = cachedKafka(managedKafka);
+        // if we don't yet have a clusterId, then we've never been ready
+        return hasClusterId(kafka);
+    }
+
+    static boolean hasClusterId(Kafka kafka) {
+        return kafka != null && kafka.getStatus() != null && kafka.getStatus().getClusterId() != null;
+    }
+
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Kafka current = cachedKafka(managedKafka);
