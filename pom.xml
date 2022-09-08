@@ -328,6 +328,7 @@
 	                    <!-- exclude entry points -->
 	                    <exclude>**/KasFleetShardOperator.class</exclude>
 	                    <exclude>**/Main.class</exclude>
+                        <exclude>**/**/ExcludedPOJO.class</exclude>
 	                </excludes>
 	            </configuration>
 	            <executions>
