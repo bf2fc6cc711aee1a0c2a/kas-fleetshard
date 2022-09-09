@@ -2,28 +2,21 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
 
-public abstract class AbstractCanary implements Operand<ManagedKafka> {
+public abstract class AbstractCanary extends DeploymentOperand {
 
     @Inject
     Logger log;
 
     @Inject
-    protected KubernetesClient kubernetesClient;
-
-    @Inject
     protected InformerManager informerManager;
-
-    public abstract Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current);
 
     public abstract Service serviceFrom(ManagedKafka managedKafka, Service current);
 
@@ -36,14 +29,6 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
         Service currentService = cachedService(managedKafka);
         Service service = serviceFrom(managedKafka, currentService);
         createOrUpdate(service);
-    }
-
-    protected void createOrUpdate(Deployment deployment) {
-        OperandUtils.createOrUpdate(kubernetesClient.apps().deployments(), deployment);
-    }
-
-    protected void createOrUpdate(Service service) {
-        OperandUtils.createOrUpdate(kubernetesClient.services(), service);
     }
 
     @Override
@@ -79,6 +64,7 @@ public abstract class AbstractCanary implements Operand<ManagedKafka> {
         return managedKafka.getMetadata().getNamespace();
     }
 
+    @Override
     protected Deployment cachedDeployment(ManagedKafka managedKafka) {
         return informerManager.getLocalDeployment(canaryNamespace(managedKafka), canaryName(managedKafka));
     }

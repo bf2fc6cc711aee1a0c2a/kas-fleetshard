@@ -52,7 +52,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -112,14 +111,7 @@ public class AdminServer extends AbstractAdminServer {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        if (managedKafka.isReserveDeployment()) {
-            Deployment current = cachedDeployment(managedKafka);
-            Deployment deployment = deploymentFrom(managedKafka, null);
-
-            deployment = ReservedDeploymentConverter.asReservedDeployment(current, deployment, managedKafka);
-            if (!Objects.equals(current, deployment)) {
-                createOrUpdate(deployment);
-            }
+        if (handleReserveOrWaitForKafka(managedKafka)) {
             return;
         }
 

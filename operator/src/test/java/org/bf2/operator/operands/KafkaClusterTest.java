@@ -66,6 +66,7 @@ import java.util.stream.Collectors;
 import static org.bf2.operator.utils.ManagedKafkaUtils.dummyManagedKafka;
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -682,7 +683,6 @@ class KafkaClusterTest {
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
     }
 
-
     private void configureMockOverrideManager(ManagedKafka mk, Map<String, Object> brokerConfigOverride) {
         String strimzi = mk.getSpec().getVersions().getStrimzi();
         OperandOverrideManager.Kafka canary = new OperandOverrideManager.Kafka();
@@ -692,5 +692,11 @@ class KafkaClusterTest {
         when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
     }
 
+    @Test
+    void testHasClusterId() {
+        assertTrue(KafkaCluster.hasClusterId(new KafkaBuilder().withNewStatus().withClusterId("all-good").endStatus().build()));
+        assertFalse(KafkaCluster.hasClusterId(new KafkaBuilder().build()));
+        assertFalse(KafkaCluster.hasClusterId(null));
+    }
 
 }
