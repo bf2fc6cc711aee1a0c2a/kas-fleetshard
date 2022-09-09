@@ -475,6 +475,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         podTemplateBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka));
 
+        if (replicas == 1) {
+            podTemplateBuilder.editOrNewMetadata()
+                    .addToAnnotations("cluster-autoscaler.kubernetes.io/safe-to-evict", "true")
+                    .endMetadata();
+        }
+
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
 

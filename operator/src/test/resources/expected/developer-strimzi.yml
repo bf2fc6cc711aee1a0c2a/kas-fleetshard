@@ -212,6 +212,9 @@ spec:
           optional: false
     template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         affinity:
           podAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:
