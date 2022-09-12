@@ -59,7 +59,7 @@
         <quarkus.platform.test.version>2.7.6.Final</quarkus.platform.test.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
-        <strimzi.version>0.26.0</strimzi.version>
+        <strimzi.version>0.29.0</strimzi.version>
         <fabric8.client.version>5.12.2</fabric8.client.version>
         <quarkus.operator.extension>3.0.9</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>

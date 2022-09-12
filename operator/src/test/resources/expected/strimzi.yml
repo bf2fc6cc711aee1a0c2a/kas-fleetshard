@@ -57,6 +57,7 @@ spec:
           host: "broker-1-xxx.yyy.zzz"
         - broker: 2
           host: "broker-2-xxx.yyy.zzz"
+        createBootstrapService: true
         maxConnections: 1000
         maxConnectionCreationRate: 33
     - name: "oauth"
