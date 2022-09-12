@@ -3,6 +3,8 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
@@ -20,6 +22,8 @@ import java.util.List;
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @EqualsAndHashCode
+@Getter
+@Setter
 public class StrimziVersionStatus {
 
     @NotNull
@@ -31,35 +35,4 @@ public class StrimziVersionStatus {
 
     private List<String> kafkaIbpVersions;
 
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
-    public boolean isReady() {
-        return ready;
-    }
-
-    public void setReady(boolean ready) {
-        this.ready = ready;
-    }
-
-    public List<String> getKafkaVersions() {
-        return kafkaVersions;
-    }
-
-    public void setKafkaVersions(List<String> kafkaVersions) {
-        this.kafkaVersions = kafkaVersions;
-    }
-
-    public List<String> getKafkaIbpVersions() {
-        return kafkaIbpVersions;
-    }
-
-    public void setKafkaIbpVersions(List<String> kafkaIbpVersions) {
-        this.kafkaIbpVersions = kafkaIbpVersions;
-    }
 }

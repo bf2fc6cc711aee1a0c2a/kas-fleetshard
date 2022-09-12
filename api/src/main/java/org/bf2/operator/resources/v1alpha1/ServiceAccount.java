@@ -3,6 +3,8 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
@@ -18,6 +20,8 @@ import javax.validation.constraints.NotNull;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Getter
+@Setter
 public class ServiceAccount {
 
     public enum ServiceAccountName {
@@ -50,45 +54,5 @@ public class ServiceAccount {
     private String password;
     private SecretKeySelector principalRef;
     private SecretKeySelector passwordRef;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPrincipal() {
-        return principal;
-    }
-
-    public void setPrincipal(String principal) {
-        this.principal = principal;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public SecretKeySelector getPrincipalRef() {
-        return principalRef;
-    }
-
-    public void setPrincipalRef(SecretKeySelector principalRef) {
-        this.principalRef = principalRef;
-    }
-
-    public SecretKeySelector getPasswordRef() {
-        return passwordRef;
-    }
-
-    public void setPasswordRef(SecretKeySelector passwordRef) {
-        this.passwordRef = passwordRef;
-    }
 
 }

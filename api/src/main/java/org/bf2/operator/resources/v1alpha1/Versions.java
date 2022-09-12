@@ -3,6 +3,8 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
@@ -29,34 +31,13 @@ public class Versions {
     public static final String STRIMZI_CLUSTER_OPERATOR_V0_23_0_4 = "strimzi-cluster-operator.v0.23.0-4";
 
     @NotNull
+    @Getter @Setter
     private String kafka;
     @NotNull
+    @Getter @Setter
     private String strimzi;
+    @Getter @Setter
     private String kafkaIbp;
-
-    public String getKafka() {
-        return kafka;
-    }
-
-    public void setKafka(String kafka) {
-        this.kafka = kafka;
-    }
-
-    public String getStrimzi() {
-        return strimzi;
-    }
-
-    public void setStrimzi(String strimzi) {
-        this.strimzi = strimzi;
-    }
-
-    public String getKafkaIbp() {
-        return kafkaIbp;
-    }
-
-    public void setKafkaIbp(String kafkaIbp) {
-        this.kafkaIbp = kafkaIbp;
-    }
 
     public boolean isStrimziVersionIn(String... versions) {
         Matcher m = strimziVersionPattern.matcher(getStrimzi());
