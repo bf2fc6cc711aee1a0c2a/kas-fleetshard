@@ -18,16 +18,18 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
+@Getter
+@Setter
 public class ManagedKafkaCapacity {
 
-    @Setter private Quantity ingressPerSec;
-    @Setter private Quantity egressPerSec;
-    @Getter @Setter private Quantity ingressEgressThroughputPerSec;
-    @Getter @Setter private Integer totalMaxConnections;
-    @Getter @Setter private Quantity maxDataRetentionSize;
-    @Getter @Setter private Integer maxPartitions;
-    @Getter @Setter private String maxDataRetentionPeriod;
-    @Getter @Setter private Integer maxConnectionAttemptsPerSec;
+    private Quantity ingressPerSec;
+    private Quantity egressPerSec;
+    private Quantity ingressEgressThroughputPerSec;
+    private Integer totalMaxConnections;
+    private Quantity maxDataRetentionSize;
+    private Integer maxPartitions;
+    private String maxDataRetentionPeriod;
+    private Integer maxConnectionAttemptsPerSec;
 
     public Quantity getEgressPerSec() {
         if (egressPerSec == null) {

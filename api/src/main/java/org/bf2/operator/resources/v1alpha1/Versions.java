@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Getter @Setter
 public class Versions {
     static final Pattern strimziVersionPattern = Pattern.compile("[a-z\\.\\-]*(\\d+\\.\\d+\\.\\d+)(?:-(\\d+))?");
     private static final Comparator<String> strimziComparator = new StrimziVersionComparator();
@@ -31,12 +32,9 @@ public class Versions {
     public static final String STRIMZI_CLUSTER_OPERATOR_V0_23_0_4 = "strimzi-cluster-operator.v0.23.0-4";
 
     @NotNull
-    @Getter @Setter
     private String kafka;
     @NotNull
-    @Getter @Setter
     private String strimzi;
-    @Getter @Setter
     private String kafkaIbp;
 
     public boolean isStrimziVersionIn(String... versions) {
