@@ -80,6 +80,7 @@ import javax.xml.bind.DatatypeConverter;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -93,6 +94,8 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static io.fabric8.kubernetes.api.model.Quantity.getAmountInBytes;
 
 /**
  * Provides same functionalities to get a Kafka resource from a ManagedKafka one
@@ -717,6 +720,19 @@ public class KafkaCluster extends AbstractKafkaCluster {
             config.put("cruise.control.metrics.topic.min.insync.replicas", this.configs.getConfig(managedKafka).cruiseControl.getMetricReporterTopicMinInsyncReplicas());
         }
 
+        Quantity cpu = new Quantity(kafkaConfigs.getContainerCpu());
+        BigDecimal cpuBytes = Quantity.getAmountInBytes(cpu);
+        log.error("!!! kafkaConfigs.getContainerCpu():" + kafkaConfigs.getContainerCpu());
+        log.error("!!! cpuBytes:" + cpuBytes);
+
+        int cpuCores = Math.max(1, cpuBytes.intValue());
+        log.error("!!! cpuCores:" + cpuCores);
+        System.out.println("!! kafkaConfigs.getContainerCpu():" + kafkaConfigs.getContainerCpu());
+        System.out.println("!! cpuBytes:" + cpuBytes);
+        System.out.println("!! cpuCores:" + cpuCores);
+
+        config.put("num.recovery.threads.per.data.dir", cpuCores);
+
         // Override broker config from operand override
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         Optional.ofNullable(this.overrideManager.getKafkaOverride(strimzi)).map(OperandOverrideManager.Kafka::getBrokerConfig).orElse(Map.of()).forEach((key, value) -> {
@@ -852,7 +868,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
      * Get per broker value
      */
     private long getPerBrokerBytes(Quantity quantity, Supplier<String> defaultValue, int replicas) {
-        long bytes = Quantity.getAmountInBytes(Optional.ofNullable(quantity).orElseGet(() -> Quantity.parse(defaultValue.get()))).longValue();
+        long bytes = getAmountInBytes(Optional.ofNullable(quantity).orElseGet(() -> Quantity.parse(defaultValue.get()))).longValue();
         return bytes / replicas;
     }
 
@@ -871,7 +887,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
      */
     private long calculateSafetyMargin(ManagedKafka managedKafka, Kafka current) {
         KafkaInstanceConfiguration config = this.configs.getConfig(managedKafka);
-        return Quantity.getAmountInBytes(config.getStorage().getMinMargin()).longValue()
+        return getAmountInBytes(config.getStorage().getMinMargin()).longValue()
                 + getIngressBytes(managedKafka, current) * config.getStorage().getCheckInterval()
                         * config.getStorage().getSafetyFactor();
     }
@@ -899,7 +915,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 for (SingleVolumeStorage singleVolumeStorage : jbodStorage.getVolumes()) {
                     if (singleVolumeStorage instanceof PersistentClaimStorage && Integer.valueOf(JBOD_VOLUME_ID).equals(singleVolumeStorage.getId())) {
                         String existingSize = ((PersistentClaimStorage)singleVolumeStorage).getSize();
-                        long existingBytes = Quantity.getAmountInBytes(Quantity.parse(existingSize)).longValue();
+                        long existingBytes = getAmountInBytes(Quantity.parse(existingSize)).longValue();
                         // TODO: if not changed a warning may be appropriate, but it would be best as a status condition
                         bytes = Math.max(existingBytes, bytes);
                         break;
@@ -932,7 +948,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             if (q == null) {
                 return 0L;
             }
-            long value = Quantity.getAmountInBytes(q).longValue();
+            long value = getAmountInBytes(q).longValue();
             // round down to the nearest GB - the PVC request is automatically rounded up
             return (long) Math.floor(((double) unpadBrokerStorage(managedKafka, current, value)) / (1L << 30));
         }).mapToLong(Long::longValue).sum();
@@ -941,7 +957,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         // try to correct for the overall rounding
         if (storageInGbs > 0 && (capacity == null
-                || ("Gi".equals(capacity.getFormat()) && (Quantity.getAmountInBytes(capacity).longValue() / (1L << 30))
+                || ("Gi".equals(capacity.getFormat()) && (getAmountInBytes(capacity).longValue() / (1L << 30))
                         % getBrokerReplicas(managedKafka, current) != 0))) {
             storageInGbs++;
         }
