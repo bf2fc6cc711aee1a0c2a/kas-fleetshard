@@ -38,6 +38,7 @@ import javax.inject.Inject;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -296,13 +297,15 @@ public class Canary extends AbstractCanary {
         if (current != null) {
             Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().stream()
                     .filter(container -> "canary".equals(container.getName()))
-                    .findFirst()
-                    .get().getEnv().stream()
+                    .map(Container::getEnv)
+                    .flatMap(Collection::stream)
                     .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
                     .findFirst();
+
             if (kafkaVersionEnvVar.isPresent()) {
                 kafkaVersion = kafkaVersionEnvVar.get().getValue();
             }
+
         }
         envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(kafkaVersion).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());
