@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapKeySelector;
 import io.fabric8.kubernetes.api.model.ConfigMapKeySelectorBuilder;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.NodeAffinity;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimStatus;
 import io.fabric8.kubernetes.api.model.PodAffinityTerm;
 import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
@@ -226,7 +227,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
         PodTemplate template = templateExtractor.apply(spec);
         Deployment current = informerManager.getLocalDeployment(managedKafka.getMetadata().getNamespace(), name);
-        Deployment reserved = ReservedDeploymentConverter.asReservedDeployment(current, managedKafka, name, kafka.getMetadata(),
+        Deployment reserved = ReservedDeploymentConverter.asReservedDeployment(current, managedKafka, name,
+                new ObjectMetaBuilder(kafka.getMetadata()).withLabels(OperandUtils.getDefaultLabels())
+                        .addToLabels("app", name)
+                        .build(),
                 replicasExtractor.apply(spec), template,
                 resourceExtractor.apply(spec));
 
