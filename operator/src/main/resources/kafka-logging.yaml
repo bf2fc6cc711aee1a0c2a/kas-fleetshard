@@ -36,6 +36,6 @@ data:
 
     log4j.logger.kafka.log.LogCleaner=INFO
 
-    log4j.logger.state.change.logger=TRACE
+    log4j.logger.state.change.logger=INFO
 
     log4j.logger.kafka.authorizer.logger=INFO
