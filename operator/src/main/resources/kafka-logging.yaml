@@ -16,8 +16,6 @@ data:
 
     log4j.rootLogger=${kafka.root.logger.level}, CONSOLE
 
-    log4j.logger.org.I0Itec.zkclient.ZkClient=INFO
-
     log4j.logger.org.apache.zookeeper=INFO
 
     log4j.logger.kafka=INFO
