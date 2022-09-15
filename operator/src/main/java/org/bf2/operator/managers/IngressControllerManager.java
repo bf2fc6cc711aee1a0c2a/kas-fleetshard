@@ -41,6 +41,8 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
+import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.ManagedKafkaKeys.Labels;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -90,11 +92,6 @@ public class IngressControllerManager {
     protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
     protected static final String CPU = "cpu";
-
-    /**
-     * The label key for the multi-AZ IngressController
-     */
-    public static final String KAS_MULTI_ZONE = "managedkafka.bf2.org/kas-multi-zone";
 
     /**
      * The node label identifying the AZ in which the node resides
@@ -463,13 +460,14 @@ public class IngressControllerManager {
         LongSummaryStatistics egress = summarize(kafkas, KafkaCluster::getFetchQuota, () -> {throw new IllegalStateException("A kafka lacks a fetch quota");});
         LongSummaryStatistics ingress = summarize(kafkas, KafkaCluster::getProduceQuota, () -> {throw new IllegalStateException("A kafka lacks a produce quota");});
 
+        // there is an assumption that the nodes / brokers will be balanced by zone
+        double zonePercentage = 1d / ingressControllers.size();
+        int replicas = numReplicasForZone(ingress, egress, connectionDemand, zonePercentage);
         ingressControllers.entrySet().stream().forEach(e -> {
             String zone = e.getKey();
             String kasZone = "kas-" + zone;
             String domain = kasZone + "." + clusterDomain;
-            int replicas = numReplicasForZone(zone, nodeInformer.getList(), ingress, egress, connectionDemand);
-
-            Map<String, String> routeMatchLabel = Map.of("managedkafka.bf2.org/" + kasZone, "true");
+            Map<String, String> routeMatchLabel = Map.of(ManagedKafkaKeys.forKey(kasZone), "true");
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
             routeMatchLabels.putAll(routeMatchLabel);
 
@@ -480,9 +478,9 @@ public class IngressControllerManager {
     private void buildDefaultIngressController(List<String> zones, String clusterDomain, long connectionDemand) {
         IngressController existing = ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas"));
 
-        int replicas = numReplicasForAllZones(nodeInformer.getList(), connectionDemand);
+        int replicas = numReplicasForDefault(connectionDemand);
 
-        final Map<String, String> routeMatchLabel = Map.of(KAS_MULTI_ZONE, "true");
+        final Map<String, String> routeMatchLabel = Map.of(Labels.KAS_MULTI_ZONE, "true");
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
         routeMatchLabels.putAll(routeMatchLabel);
 
@@ -499,6 +497,12 @@ public class IngressControllerManager {
         // retain replicas as long as we're above the min reduction
         if (existingReplicas != null && existingReplicas - replicas <= MIN_REPLICA_REDUCTION) {
             replicas = Math.max(existingReplicas, replicas);
+        }
+
+        // enforce a minimum of two replicas on clusters that can accommodate it - which may change if we don't want to
+        // provide pod / node level HA for the az specific replicas.
+        if (replicas == 1 && nodeInformer.getList().size() > 3) {
+            replicas = 2;
         }
 
         builder
@@ -572,18 +576,12 @@ public class IngressControllerManager {
         createOrEdit(builder.build(), existing);
     }
 
-    int numReplicasForZone(String zone, List<Node> nodes, LongSummaryStatistics ingress, LongSummaryStatistics egress, long connectionDemand) {
+    int numReplicasForZone(LongSummaryStatistics ingress, LongSummaryStatistics egress,
+            long connectionDemand, double zonePercentage) {
         // use the override if present
         if (azReplicaCount.isPresent()) {
             return azReplicaCount.get();
         }
-
-        int nodesInZone = Math.toIntExact(nodes.stream()
-                .filter(node -> zone.equals(node.getMetadata().getLabels().get(TOPOLOGY_KEY)))
-                .filter(Objects::nonNull)
-                .count());
-
-        double zonePercentage = nodesInZone / (double)nodes.size();
 
         long throughput = (egress.getMax() + ingress.getMax())/2;
         long replicationThroughput = ingress.getMax()*2;
@@ -610,12 +608,7 @@ public class IngressControllerManager {
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
-        /*
-         * we want at least 2 replicas, unless there are fewer nodes
-         * each replica roughly has the responsibility for access to NODES_PER_REPLICA nodes
-         * we'll therefore scale up after 2*NODES_PER_REPLICA nodes in the zone
-         */
-        return Math.min(nodesInZone, Math.max(2, Math.max(connectionReplicaCount, replicaCount)));
+        return Math.max(1, Math.max(connectionReplicaCount, replicaCount));
     }
 
     static LongSummaryStatistics summarize(List<Kafka> kafkas, Function<Kafka, String> quantity,
@@ -630,18 +623,16 @@ public class IngressControllerManager {
                 .summaryStatistics();
     }
 
-    int numReplicasForAllZones(List<Node> nodes, long connectionDemand) {
+    int numReplicasForDefault(long connectionDemand) {
         // use the override if present
         if (defaultReplicaCount.isPresent()) {
             return defaultReplicaCount.get();
         }
 
         /*
-         * we want at least 2 replicas, unless there are fewer nodes
-         *
          * an assumption here is that these ingress replicas will not become bandwidth constrained - but that may need further qualification
          */
-        return Math.min(nodes.size(), Math.max(2, numReplicasForConnectionDemand(connectionDemand)));
+        return numReplicasForConnectionDemand(connectionDemand);
     }
 
     private int numReplicasForConnectionDemand(double connectionDemand) {

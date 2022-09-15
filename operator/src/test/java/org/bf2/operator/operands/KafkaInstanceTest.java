@@ -1,18 +1,25 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
+import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.managers.MetricsManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.utils.ManagedKafkaUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
+
+import java.util.Collections;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
@@ -21,7 +28,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
-public class KafkaInstanceTest {
+class KafkaInstanceTest {
 
     private static final ManagedKafka DUMMY_MANAGED_KAFKA = ManagedKafkaUtils.dummyManagedKafka("x");
 
@@ -38,7 +45,15 @@ public class KafkaInstanceTest {
     SecuritySecretManager securitySecretManager;
 
     @Inject
+    MeterRegistry meterRegistry;
+
+    @Inject
     KafkaInstance kafkaInstance;
+
+    @AfterEach
+    void teardown() {
+        meterRegistry.forEachMeter(meterRegistry::remove);
+    }
 
     @Test
     void statusInstallingTrumpsError() {
@@ -91,6 +106,34 @@ public class KafkaInstanceTest {
     }
 
     @Test
+    void statusUnknownWhenPaused() {
+        ManagedKafka pausedInstance = ManagedKafkaUtils.dummyManagedKafka("x");
+        OperandReadiness readiness;
+
+        when(kafkaCluster.getReadiness(pausedInstance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, null));
+        when(canary.getReadiness(pausedInstance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, null));
+        when(adminServer.getReadiness(pausedInstance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, null));
+
+        pausedInstance.getMetadata().setAnnotations(Map.of(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, "true"));
+        readiness = kafkaInstance.getReadiness(pausedInstance);
+        assertEquals(Status.Unknown, readiness.getStatus());
+        assertEquals(Reason.Paused, readiness.getReason());
+        assertEquals("Reconciliation paused via annotation", readiness.getMessage());
+
+        pausedInstance.getMetadata().setAnnotations(Map.of(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, "false"));
+        readiness = kafkaInstance.getReadiness(pausedInstance);
+        assertEquals(Status.False, readiness.getStatus());
+        assertEquals(Reason.Installing, readiness.getReason());
+        assertEquals("", readiness.getMessage());
+
+        pausedInstance.getMetadata().setAnnotations(Collections.emptyMap());
+        readiness = kafkaInstance.getReadiness(pausedInstance);
+        assertEquals(Status.False, readiness.getStatus());
+        assertEquals(Reason.Installing, readiness.getReason());
+        assertEquals("", readiness.getMessage());
+    }
+
+    @Test
     void deleteOrderCanaryDeleteBeforeKafkaCluster() {
         Context context = Mockito.mock(Context.class);
 
@@ -123,5 +166,19 @@ public class KafkaInstanceTest {
         inOrder.verify(kafkaCluster, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(canary, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(adminServer, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauges().size());
+    }
+
+    @Test
+    void operandsNotCreatedWhenInstancePaused() {
+        ManagedKafka pausedInstance = ManagedKafkaUtils.dummyManagedKafka("x");
+        pausedInstance.getMetadata().setAnnotations(Map.of(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, "true"));
+        kafkaInstance.createOrUpdate(pausedInstance);
+
+        InOrder inOrder = inOrder(kafkaCluster, canary, adminServer);
+        inOrder.verify(kafkaCluster, never()).createOrUpdate(pausedInstance);
+        inOrder.verify(canary, never()).createOrUpdate(pausedInstance);
+        inOrder.verify(adminServer, never()).createOrUpdate(pausedInstance);
+        assertEquals(1, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauge().value());
     }
 }

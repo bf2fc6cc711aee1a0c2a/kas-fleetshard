@@ -5,6 +5,7 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.canary.CanaryService;
 import org.bf2.operator.clients.canary.Status;
 import org.bf2.operator.operands.AbstractCanary;
@@ -41,9 +42,6 @@ import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class KafkaManager {
-
-    public static final String KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION = "managedkafka.bf2.org/kafka-upgrade-start";
-    public static final String KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION = "managedkafka.bf2.org/kafka-upgrade-end";
 
     private static final long STATUS_TIME_WINDOW_PERCENTAGE_CORRECTION = 10; // 10% more
 
@@ -92,7 +90,7 @@ public class KafkaManager {
                 .endSpec();
 
         // stamp the ManagedKafka resource with starting time of Kafka upgrade
-        addUpgradeTimeStampAnnotation(managedKafka, KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION);
+        addUpgradeTimeStampAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
     }
 
     /**
@@ -270,7 +268,7 @@ public class KafkaManager {
      * @return if a Kafka stability check has to run/scheduled after a Kafka version upgrade
      */
     public boolean isKafkaUpgradeStabilityCheckToRun(ManagedKafka managedKafka, AbstractKafkaCluster kafkaCluster) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION);
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
 
         // taking into account that the stability check job was scheduled
         // NOTE: it's useful when operator crashes after Kafka upgrade ends but stability check not started yet.
@@ -286,12 +284,12 @@ public class KafkaManager {
      * @param managedKafka ManagedKafka instance
      */
     public void checkKafkaUpgradeIsStable(ManagedKafka managedKafka) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION);
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
 
         // the stability check starts only if a Kafka upgrade was in place
         if (kafkaUpgradeStartTimestampAnnotation.isPresent()) {
             Duration d;
-            Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION);
+            Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
 
             // Kafka upgrade just finished
             if (kafkaUpgradeEndTimestampAnnotation.isEmpty()) {
@@ -299,16 +297,16 @@ public class KafkaManager {
                 d = Duration.ofMillis(checkStabilityTimeMs);
                 log.debugf("[%s/%s] No %s annotation, duration is %s",
                         managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                        KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION, d.toString());
+                        Annotations.KAFKA_UPGRADE_END_TIMESTAMP, d.toString());
 
                 // stamp the ManagedKafka resource with ending time of Kafka upgrade and starting stability check
-                addUpgradeTimeStampAnnotation(managedKafka, KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION);
+                addUpgradeTimeStampAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
             // Kafka upgrade already finished, but operator could have crashed not ending the stability check (and removing annotations)
             } else {
                 ZonedDateTime endTimestamp = ZonedDateTime.parse(kafkaUpgradeEndTimestampAnnotation.get());
                 log.debugf("[%s/%s] Found %s annotation, end timestamp is %s",
                         managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                        KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION, endTimestamp);
+                        Annotations.KAFKA_UPGRADE_END_TIMESTAMP, endTimestamp);
 
                 // if the time window to wait is already passed (i.e. fleetshard operator was down for long time)
                 if (ZonedDateTime.now(ZoneOffset.UTC).compareTo(endTimestamp.plus(checkStabilityTimeMs, ChronoUnit.MILLIS)) > 0) {
@@ -375,8 +373,8 @@ public class KafkaManager {
                         .withName(managedKafka.getMetadata().getName())
                         .edit(mk -> new ManagedKafkaBuilder(mk)
                                 .editMetadata()
-                                    .removeFromAnnotations(KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION)
-                                    .removeFromAnnotations(KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION)
+                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
+                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
                                 .endMetadata()
                                 .build());
             } else {
@@ -389,7 +387,7 @@ public class KafkaManager {
                         .withName(managedKafka.getMetadata().getName())
                         .edit(mk -> new ManagedKafkaBuilder(mk)
                                 .editMetadata()
-                                    .removeFromAnnotations(KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION)
+                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
                                 .endMetadata()
                                 .build());
             }

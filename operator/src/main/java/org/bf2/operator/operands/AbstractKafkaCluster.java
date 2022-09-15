@@ -24,9 +24,9 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
-import org.bf2.operator.managers.KafkaManager;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
@@ -131,8 +131,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isKafkaUpgradeStabilityChecking(ManagedKafka managedKafka) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(KafkaManager.KAFKA_UPGRADE_START_TIMESTAMP_ANNOTATION);
-        Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(KafkaManager.KAFKA_UPGRADE_END_TIMESTAMP_ANNOTATION);
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
+        Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
 
         return kafkaUpgradeStartTimestampAnnotation.isPresent() && kafkaUpgradeEndTimestampAnnotation.isPresent();
     }
@@ -210,6 +210,16 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     protected Kafka cachedKafka(ManagedKafka managedKafka) {
         return informerManager.getLocalKafka(kafkaClusterNamespace(managedKafka), kafkaClusterName(managedKafka));
+    }
+
+    public boolean hasKafkaBeenReady(ManagedKafka managedKafka) {
+        Kafka kafka = cachedKafka(managedKafka);
+        // if we don't yet have a clusterId, then we've never been ready
+        return hasClusterId(kafka);
+    }
+
+    static boolean hasClusterId(Kafka kafka) {
+        return kafka != null && kafka.getStatus() != null && kafka.getStatus().getClusterId() != null;
     }
 
     @Override

@@ -12,6 +12,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.ObservabilityManager;
@@ -49,7 +50,10 @@ import java.util.Map;
  * updates directly based upon the changes it sees in the ManagedKafka instances.
  */
 @ApplicationScoped
-@ControllerConfiguration(finalizerName = Constants.NO_FINALIZER)
+@ControllerConfiguration(
+        finalizerName = Constants.NO_FINALIZER,
+        generationAwareEventProcessing = false,
+        eventFilters = { ControllerEventFilter.class })
 public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent> {
 
     @Inject
@@ -117,6 +121,9 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
             readyCondition = ConditionUtils.buildCondition(ManagedKafkaCondition.Type.Ready, statusValue);
         } else {
             ConditionUtils.updateConditionStatus(readyCondition, statusValue, null, null);
+        }
+        if (!this.observabilityManager.isObservabilityRunning()) {
+            ConditionUtils.updateConditionStatus(readyCondition, statusValue,null, "Observability secret not yet accepted");
         }
 
         Map<String, ProfileCapacity> capacity = capacityManager.buildCapacity(resource);

@@ -57,6 +57,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @QuarkusTest
 class IngressControllerManagerTest {
 
+    private static final double ZONE_PERCENTAGE = 1d/3;
+
     @Inject
     IngressControllerManager ingressControllerManager;
 
@@ -125,18 +127,45 @@ class IngressControllerManagerTest {
         informerManager.createKafkaInformer();
 
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(4);
+        // this is more than the number of nodes, but we're presuming node scaling is available
+        checkAzReplicaCount(5);
 
         // remove two kafkas - we should keep the same number of replicas
         var kafkas = openShiftClient.resources(Kafka.class).inNamespace("ingressTest");
         assertTrue(kafkas.withName("ingressTest0").delete());
         assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(4);
+        checkAzReplicaCount(5);
 
         // remove two more kafkas - and we should reduce
         assertTrue(kafkas.withName("ingressTest2").delete());
         assertTrue(kafkas.withName("ingressTest3").delete());
+        ingressControllerManager.reconcileIngressControllers();
+        checkAzReplicaCount(2);
+    }
+
+    @Test
+    void testReplicaReduction3to2() {
+        openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
+
+        IntStream.range(0, 3).forEach(i -> {
+            ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+            mk.getMetadata().setName("ingressTest" + i);
+            mk.getMetadata().setNamespace("ingressTest");
+            mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("300Mi"));
+            mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("300Mi"));
+            Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+            openShiftClient.resource(kafka).createOrReplace();
+        });
+        informerManager.createKafkaInformer();
+
+        ingressControllerManager.reconcileIngressControllers();
+        checkAzReplicaCount(3);
+
+        // remove two kafkas - we should reduce to 2
+        var kafkas = openShiftClient.resources(Kafka.class).inNamespace("ingressTest");
+        assertTrue(kafkas.withName("ingressTest0").delete());
+        assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
         checkAzReplicaCount(2);
     }
@@ -208,41 +237,31 @@ class IngressControllerManagerTest {
 
     @Test
     void testIngressControllerReplicaCounts() {
-        List<Node> nodes = buildNodes(9);
+        assertEquals(1, ingressControllerManager.numReplicasForDefault(3000));
+        assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
 
-        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000));
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(), new LongSummaryStatistics(), 0));
-
-        nodes = buildNodes(210);
-
-        assertEquals(3, ingressControllerManager.numReplicasForAllZones(nodes, 160000));
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0));
-        assertEquals(3, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(), new LongSummaryStatistics(), 480000));
-
-        nodes = buildNodes(310);
+        assertEquals(3, ingressControllerManager.numReplicasForDefault(160000));
+        assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));
+        assertEquals(3, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 480000, ZONE_PERCENTAGE));
 
         long ingress = 50000000;
-        assertEquals(5, ingressControllerManager.numReplicasForAllZones(nodes, 370000));
-        assertEquals(4, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
+        assertEquals(5, ingressControllerManager.numReplicasForDefault(370000));
+        assertEquals(4, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
     }
 
     @Test
     void testIngressControllerReplicaCountsMultiUnit() {
-        List<Node> nodes = buildNodes(99);
-
-        assertEquals(2, ingressControllerManager.numReplicasForAllZones(nodes, 3000*24));
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0));
+        assertEquals(1, ingressControllerManager.numReplicasForDefault(3000*24));
+        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
     }
 
     @Test
     void testIngressControllerReplicaCountsWithoutCollocation() {
         useProfileLabels();
 
-        List<Node> nodes = buildNodes(310);
-
         // should only be 2 replicas for 60 standard instances
         long ingress = 50000000;
-        assertEquals(2, ingressControllerManager.numReplicasForZone("zone0", nodes, new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0));
+        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
     }
 
     private void useProfileLabels() {

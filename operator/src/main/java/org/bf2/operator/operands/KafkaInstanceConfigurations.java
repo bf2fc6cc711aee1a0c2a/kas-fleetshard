@@ -1,19 +1,30 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.openshift.api.model.Infrastructure;
+import io.fabric8.openshift.api.model.InfrastructureSpec;
+import io.fabric8.openshift.api.model.PlatformSpec;
+import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.managers.OpenShiftSupport;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.eclipse.microprofile.config.ConfigProvider;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.ConfigValue;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -56,7 +67,16 @@ public class KafkaInstanceConfigurations {
         }
     }
 
-    private Map<String, KafkaInstanceConfiguration> configs = new HashMap<String, KafkaInstanceConfiguration>();
+    @Inject
+    Config applicationConfig;
+
+    @Inject
+    KubernetesClient kubernetesClient;
+
+    @Inject
+    OpenShiftSupport openShiftSupport;
+
+    Map<String, KafkaInstanceConfiguration> configs = new HashMap<>();
 
     @PostConstruct
     void init() throws IOException {
@@ -67,6 +87,38 @@ public class KafkaInstanceConfigurations {
         for (InstanceType type : InstanceType.values()) {
             configs.put(type.lowerName, loadConfiguration(new HashMap<>(defaultValues), type.lowerName));
         }
+
+        if (openShiftSupport.isOpenShift(kubernetesClient)) {
+            setDefaultStorageClasses(configs, openShiftSupport.adapt(kubernetesClient));
+        }
+    }
+
+    void setDefaultStorageClasses(Map<String, KafkaInstanceConfiguration> configs, OpenShiftClient client) {
+        Resource<Infrastructure> infraResource = client.config().infrastructures().withName("cluster");
+
+        Optional.ofNullable(infraResource.get())
+            .map(Infrastructure::getSpec)
+            .map(InfrastructureSpec::getPlatformSpec)
+            .map(PlatformSpec::getType)
+            .map(String::toLowerCase)
+            .map(platformType -> String.format("platform.%s.default-storage-class", platformType))
+            .map(applicationConfig::getConfigValue)
+            .map(ConfigValue::getValue)
+            .filter(Predicate.not(String::isBlank))
+            .ifPresent(storageClass ->
+                configs.values()
+                    .stream()
+                    .filter(Predicate.not(this::storageClassSet))
+                    .forEach(config -> config.getKafka().setStorageClass(storageClass)));
+    }
+
+    boolean storageClassSet(KafkaInstanceConfiguration config) {
+        String storageClass = config.getKafka().getStorageClass();
+        return storageClass != null && !storageClass.isBlank();
+    }
+
+    /* test */ void setApplicationConfig(Config applicationConfig) {
+        this.applicationConfig = applicationConfig;
     }
 
     private KafkaInstanceConfiguration loadConfiguration(Map<String, String> allValues, String name) throws IOException {
@@ -92,7 +144,7 @@ public class KafkaInstanceConfigurations {
     private void overlayWithConfigProperties(Map<String, String> defaultValues, UnaryOperator<String> keyMapper) {
         // overlay anything from the quarkus config
         defaultValues.entrySet()
-                .forEach(e -> ConfigProvider.getConfig()
+                .forEach(e -> applicationConfig
                         .getOptionalValue(keyMapper.apply(e.getKey()), String.class)
                         .ifPresent(v -> e.setValue(v)));
     }

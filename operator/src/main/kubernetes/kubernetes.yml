@@ -148,7 +148,7 @@ rules:
     verbs:
       - get
       - list
-      - watch      
+      - watch
   - apiGroups:
       - operator.openshift.io
     resources:
@@ -170,6 +170,13 @@ rules:
     verbs:
       - list
       - delete
+  - apiGroups:
+      - config.openshift.io
+    resources:
+      # Used to determine cloud platform to configure vendor-specific storage group name
+      - infrastructures
+    verbs:
+      - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

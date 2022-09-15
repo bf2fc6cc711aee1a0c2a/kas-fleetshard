@@ -38,10 +38,10 @@ import javax.inject.Inject;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -88,9 +88,6 @@ public class Canary extends AbstractCanary {
 
     @Inject
     protected OperandOverrideManager overrideManager;
-
-    @Inject
-    protected AbstractKafkaCluster kafkaCluster;
 
     @Override
     public Deployment deploymentFrom(ManagedKafka managedKafka, Deployment current) {
@@ -178,15 +175,7 @@ public class Canary extends AbstractCanary {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        if (managedKafka.isReserveDeployment()) {
-            Deployment current = cachedDeployment(managedKafka);
-            Deployment deployment = deploymentFrom(managedKafka, null);
-
-            deployment = ReservedDeploymentConverter.asReservedDeployment(current, deployment, managedKafka);
-
-            if (!Objects.equals(current, deployment)) {
-                createOrUpdate(deployment);
-            }
+        if (handleReserveOrWaitForKafka(managedKafka)) {
             return;
         }
         super.createOrUpdate(managedKafka);
@@ -311,13 +300,15 @@ public class Canary extends AbstractCanary {
         if (current != null) {
             Optional<EnvVar> kafkaVersionEnvVar = current.getSpec().getTemplate().getSpec().getContainers().stream()
                     .filter(container -> "canary".equals(container.getName()))
-                    .findFirst()
-                    .get().getEnv().stream()
+                    .map(Container::getEnv)
+                    .flatMap(Collection::stream)
                     .filter(ev -> "KAFKA_VERSION".equals(ev.getName()))
                     .findFirst();
+
             if (kafkaVersionEnvVar.isPresent()) {
                 kafkaVersion = kafkaVersionEnvVar.get().getValue();
             }
+
         }
         envVars.add(new EnvVarBuilder().withName("KAFKA_VERSION").withValue(kafkaVersion).build());
         envVars.add(new EnvVarBuilder().withName("TZ").withValue("UTC").build());

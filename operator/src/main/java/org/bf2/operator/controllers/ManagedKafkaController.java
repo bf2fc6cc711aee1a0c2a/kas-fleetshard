@@ -14,6 +14,7 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -46,7 +47,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-@ControllerConfiguration(finalizerName = Constants.NO_FINALIZER)
+@ControllerConfiguration(
+        finalizerName = Constants.NO_FINALIZER,
+        generationAwareEventProcessing = false,
+        eventFilters = { ControllerEventFilter.class })
 public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSourceInitializer<HasMetadata> {
 
     // 1 for bootstrap URL + 1 for Admin API server
@@ -176,7 +180,7 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
 
         int replicas = kafkaCluster.getReplicas(managedKafka);
 
-        if (ingressControllerManagerInstance.isResolvable()) {
+        if (ingressControllerManagerInstance.isResolvable() && kafkaCluster.hasKafkaBeenReady(managedKafka)) {
             IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
             List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
 
