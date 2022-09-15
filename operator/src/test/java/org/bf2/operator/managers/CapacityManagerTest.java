@@ -14,9 +14,6 @@ import org.bf2.common.OperandUtils;
 import org.bf2.operator.MockProfile;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaConditionBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatusBuilder;
 import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
 import org.bf2.operator.resources.v1alpha1.ProfileCapacity;
 import org.junit.jupiter.api.AfterEach;
@@ -110,18 +107,6 @@ class CapacityManagerTest {
         resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
         client.resource(resourceMap).delete();
         assertEquals(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk2), "{\"profile\":\"standard\",\"units\":1}"),
-                resourceMap.getData());
-
-        // rejected doesn't count either
-        mk2.setStatus(new ManagedKafkaStatusBuilder().withConditions(
-                new ManagedKafkaConditionBuilder().withReason(ManagedKafkaCondition.Reason.Rejected.name())
-                        .withType(ManagedKafkaCondition.Type.Ready.name())
-                        .build())
-                .build());
-        client.resource(mk2).createOrReplace();
-        resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
-        client.resource(resourceMap).delete();
-        assertEquals(Map.of("standard", "0"),
                 resourceMap.getData());
     }
 

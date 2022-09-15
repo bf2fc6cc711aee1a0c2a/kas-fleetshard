@@ -5,6 +5,8 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import lombok.Getter;
+import lombok.Setter;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
@@ -40,9 +42,11 @@ public class CapacityManager {
     public static final String FLEETSHARD_RESOURCES = "kas-fleetshard-resources";
     private static final String MANAGED_KAFKA_PREFIX = "mk-"; // should not conflict with the profile names
 
+    @Getter
+    @Setter
     private static class Resources {
-        public String profile;
-        public int units;
+        private String profile;
+        private int units;
     }
 
     @Inject
@@ -61,6 +65,9 @@ public class CapacityManager {
 
     /**
      * Will nominally attempt to create the configmap, if it already exists the existing one will be returned
+     *
+     * the map is not reconciled periodically.  rather it's assumed that all controller actions are gated
+     * by the capacitymanager
      */
     public synchronized ConfigMap getOrCreateResourceConfigMap(ManagedKafkaAgent agent) {
         ConfigMap configMap = getCachedResourceConfigMap();
@@ -72,9 +79,6 @@ public class CapacityManager {
             return configMap;
         }
         checkedForOrphans = true;
-        // may need to do this periodically as well - or based upon an informer
-        Map<String, String> data = new LinkedHashMap<>();
-        Map<String, Integer> totals = new LinkedHashMap<>();
 
         try {
             informerManager.createKafkaInformer();
@@ -82,33 +86,21 @@ public class CapacityManager {
             // no bundle is installed, lookups for kafkas will return null
         }
 
-        // TODO: use the controller cache - but there's a possibility it may not be the complete state
-        managedKafkaClient.list().forEach(mk -> {
+        Map<String, String> data = new LinkedHashMap<>();
+        Map<String, Integer> totals = new LinkedHashMap<>();
+
+        // could use the controller cache instead - but there's a possibility it may not be the complete state
+        // since this is only at start up we'll just use a list
+        managedKafkaClient.list()
+                .stream()
+                // if deleted we'll proactively assume that cleanup will work
+                .filter(mk -> !mk.getSpec().isDeleted())
+                // check if it has a kafka - if not we won't consider this as taking up resources yet.
+                // it will need to be reconciled before it has resources
+                .filter(mk -> informerManager.getLocalKafka(AbstractKafkaCluster.kafkaClusterNamespace(mk),
+                        AbstractKafkaCluster.kafkaClusterName(mk)) != null)
+                .forEach(mk -> {
             String currentProfile = KafkaInstanceConfigurations.getInstanceType(mk);
-
-            // don't count this mk for several reasons:
-
-            if (mk.isReserveDeployment() || mk.getSpec().isDeleted()) {
-                return;
-            }
-
-            if (mk.getStatus() != null) {
-                Optional<ManagedKafkaCondition> optReady =
-                        ConditionUtils.findManagedKafkaCondition(mk.getStatus().getConditions(),
-                                ManagedKafkaCondition.Type.Ready);
-                if (optReady.filter(c -> ManagedKafkaCondition.Reason.Rejected.name().equals(c.getReason()))
-                        .isPresent()) {
-                    return;
-                }
-            }
-
-            // check if it has a kafka - if not we won't consider this as taking up resources yet.  it will need to be reconciled before it
-            // has resources
-            if (informerManager.getLocalKafka(AbstractKafkaCluster.kafkaClusterNamespace(mk),
-                    AbstractKafkaCluster.kafkaClusterName(mk)) == null) {
-                return;
-            }
-
             Resources resources = createResources(mk, currentProfile);
             totals.compute(currentProfile, (k, v) -> (v == null ? 0 : v) + resources.units);
             data.put(getManagedKafkaKey(mk), Serialization.asJson(resources));
@@ -117,8 +109,13 @@ public class CapacityManager {
         // update with the totals as well
         totals.forEach((k, v) -> data.put(k, String.valueOf(v)));
 
+        return createResouceConfigMap(agent, data);
+    }
+
+    private ConfigMap createResouceConfigMap(ManagedKafkaAgent agent, Map<String, String> data) {
+        ConfigMap configMap;
         if (data.isEmpty()) {
-            data.put(InstanceType.STANDARD.getLowerName(), "0"); // the map logic is easier if it's non-empty, util fabric8 6 we'll get back a null data
+            data.put(InstanceType.STANDARD.getLowerName(), "0"); // the map logic is easier if it's non-empty, until fabric8 6 we'll get back a null data
         }
 
         configMap = new ConfigMapBuilder().withNewMetadata()
@@ -178,7 +175,7 @@ public class CapacityManager {
     }
 
     public synchronized void releaseResources(ManagedKafka managedKafka) {
-        // use the latest - TODO: see if using the cached version is acceptable
+        // use the latest
         ConfigMap resourceConfigMap = client.configMaps().withName(FLEETSHARD_RESOURCES).get();
         if (resourceConfigMap != null) {
             String entryKey = getManagedKafkaKey(managedKafka);
