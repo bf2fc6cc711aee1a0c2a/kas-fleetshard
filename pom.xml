@@ -91,7 +91,6 @@
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>bf2fc6cc711aee1a0c2a</sonar.organization>
         <sonar.coverage.exclusions>perf/**/*.java,systemtest/**/*.java,test/**/*.java</sonar.coverage.exclusions>
-        <sonar.coverage.exclusions>**/@Generated**</sonar.coverage.exclusions>
     </properties>
 
     <modules>
@@ -329,6 +328,7 @@
 	                    <!-- exclude entry points -->
 	                    <exclude>**/KasFleetShardOperator.class</exclude>
 	                    <exclude>**/Main.class</exclude>
+                        <exclude>**/**/ExcludedPOJO.class</exclude>
 	                </excludes>
 	            </configuration>
 	            <executions>
