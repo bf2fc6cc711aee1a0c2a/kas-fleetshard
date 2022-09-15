@@ -2,6 +2,7 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.RollableScalableResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import org.bf2.operator.managers.InformerManager;
@@ -9,6 +10,8 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.jboss.logging.Logger;
 
 import javax.inject.Inject;
+
+import java.net.HttpURLConnection;
 
 public abstract class AbstractCanary extends DeploymentOperand {
 
@@ -33,15 +36,32 @@ public abstract class AbstractCanary extends DeploymentOperand {
 
     @Override
     public void delete(ManagedKafka managedKafka, Context context) {
+        kubernetesClient.services()
+                .inNamespace(canaryNamespace(managedKafka))
+                .withName(canaryName(managedKafka))
+                .delete();
         RollableScalableResource<Deployment> deploymentResource = canaryDeploymentResource(managedKafka);
-        try {
-            deploymentResource.scale(0, true);
-            log.infof("Scaled down canary deployment: %s", managedKafka.getMetadata().getName());
-        } catch (Exception e) {
-            log.warnf("Ignored exception whilst scaling down canary deployment: %s", managedKafka.getMetadata().getName(), e);
-        } finally {
+        Deployment canary = cachedDeployment(managedKafka);
+        boolean delete = canary != null;
+        if (delete && canary.getStatus() != null) {
+            Integer replicas = canary.getStatus().getReadyReplicas();
+            if (replicas != null && replicas > 0) {
+                // scale down first.  there will be another event once we're scaled down
+                try {
+                    deploymentResource.scale(0, false);
+                    delete = false;
+                    log.infof("Scaled down canary deployment: %s", managedKafka.getMetadata().getName());
+                } catch (KubernetesClientException e) {
+                    if (e.getCode() != HttpURLConnection.HTTP_NOT_FOUND) {
+                        log.warnf("Ignored exception whilst scaling down canary deployment: %s", managedKafka.getMetadata().getName(), e);
+                    }
+                }
+            }
+        }
+        if (delete) {
             deploymentResource.delete();
         }
+
     }
 
     @Override
