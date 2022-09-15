@@ -5,8 +5,11 @@ import io.fabric8.kubernetes.api.model.SecretVolumeSource;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
@@ -20,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
@@ -28,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -36,6 +41,9 @@ import static org.mockito.Mockito.when;
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 public class CanaryTest {
+
+    @Inject
+    KubernetesClient client;
 
     @KubernetesTestServer
     KubernetesServer server;
@@ -156,5 +164,26 @@ public class CanaryTest {
 
         assertTrue(actualSecretName.isPresent());
         assertEquals(expectedSecretName, actualSecretName.get());
+    }
+
+    @Test
+    void testDelayedDeployment() throws Exception {
+        KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
+        QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
+
+        Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(false);
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        canary.createOrUpdate(mk);
+        Resource<Deployment> deployment = client.apps().deployments()
+                .inNamespace(Canary.canaryNamespace(mk))
+                .withName(Canary.canaryName(mk));
+        assertNull(deployment.get());
+
+        // should proceed once ready
+        Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(true);
+        configureMockOverrideManager(mk, Collections.emptyList(), Collections.emptyList());
+        canary.createOrUpdate(mk);
+        assertNotNull(deployment.get());
     }
 }

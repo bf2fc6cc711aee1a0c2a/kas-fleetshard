@@ -54,6 +54,7 @@ spec:
         brokers:
         - broker: 0
           host: "broker-0-xxx.yyy.zzz"
+        createBootstrapService: true
         maxConnections: 100
         maxConnectionCreationRate: 50
     - name: "oauth"
@@ -212,6 +213,9 @@ spec:
           optional: false
     template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         affinity:
           podAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:

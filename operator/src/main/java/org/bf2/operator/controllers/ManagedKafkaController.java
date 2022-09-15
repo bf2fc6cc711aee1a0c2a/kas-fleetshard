@@ -170,7 +170,7 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
 
         int replicas = kafkaCluster.getReplicas(managedKafka);
 
-        if (ingressControllerManagerInstance.isResolvable()) {
+        if (ingressControllerManagerInstance.isResolvable() && kafkaCluster.hasKafkaBeenReady(managedKafka)) {
             IngressControllerManager ingressControllerManager = ingressControllerManagerInstance.get();
             List<ManagedKafkaRoute> routes = ingressControllerManager.getManagedKafkaRoutesFor(managedKafka);
 
