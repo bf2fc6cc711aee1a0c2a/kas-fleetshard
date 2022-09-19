@@ -3,6 +3,8 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 @Buildable(
@@ -12,6 +14,8 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
+@Getter
+@Setter
 public class ManagedKafkaRoute {
 
     private String name;
@@ -28,27 +32,4 @@ public class ManagedKafkaRoute {
         this(null, null, null);
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getRouter() {
-        return router;
-    }
-
-    public void setRouter(String router) {
-        this.router = router;
-    }
-
-    public String getPrefix() {
-        return prefix;
-    }
-
-    public void setPrefix(String prefix) {
-        this.prefix = prefix;
-    }
 }

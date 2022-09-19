@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 /**
@@ -16,6 +18,8 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(value = JsonInclude.Include.NON_NULL)
+@Getter
+@Setter
 public class ManagedKafkaCapacity {
 
     private Quantity ingressPerSec;
@@ -40,61 +44,4 @@ public class ManagedKafkaCapacity {
         }
         return ingressPerSec;
     }
-
-    public void setEgressPerSec(Quantity egressPerSec) {
-        this.egressPerSec = egressPerSec;
-    }
-
-    public void setIngressPerSec(Quantity ingressPerSec) {
-        this.ingressPerSec = ingressPerSec;
-    }
-
-    public Quantity getIngressEgressThroughputPerSec() {
-        return ingressEgressThroughputPerSec;
-    }
-
-    public void setIngressEgressThroughputPerSec(Quantity ingressEgressThroughputPerSec) {
-        this.ingressEgressThroughputPerSec = ingressEgressThroughputPerSec;
-    }
-
-    public Integer getTotalMaxConnections() {
-        return totalMaxConnections;
-    }
-
-    public void setTotalMaxConnections(Integer totalMaxConnections) {
-        this.totalMaxConnections = totalMaxConnections;
-    }
-
-    public Quantity getMaxDataRetentionSize() {
-        return maxDataRetentionSize;
-    }
-
-    public void setMaxDataRetentionSize(Quantity maxDataRetentionSize) {
-        this.maxDataRetentionSize = maxDataRetentionSize;
-    }
-
-    public Integer getMaxPartitions() {
-        return maxPartitions;
-    }
-
-    public void setMaxPartitions(Integer maxPartitions) {
-        this.maxPartitions = maxPartitions;
-    }
-
-    public String getMaxDataRetentionPeriod() {
-        return maxDataRetentionPeriod;
-    }
-
-    public void setMaxDataRetentionPeriod(String maxDataRetentionPeriod) {
-        this.maxDataRetentionPeriod = maxDataRetentionPeriod;
-    }
-
-    public Integer getMaxConnectionAttemptsPerSec() {
-        return maxConnectionAttemptsPerSec;
-    }
-
-    public void setMaxConnectionAttemptsPerSec(Integer maxConnectionAttemptsPerSec) {
-        this.maxConnectionAttemptsPerSec = maxConnectionAttemptsPerSec;
-    }
-
 }
