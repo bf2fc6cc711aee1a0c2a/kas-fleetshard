@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 @JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
@@ -22,6 +24,8 @@ import lombok.ToString;
 @ToString
 @EqualsAndHashCode
 @Buildable(editableEnabled = false, validationEnabled = false, lazyCollectionInitEnabled = false, builderPackage = "io.fabric8.kubernetes.api.builder")
+@Getter
+@Setter
 public class SecretKeySelector implements KubernetesResource
 {
     private String key;
@@ -46,30 +50,6 @@ public class SecretKeySelector implements KubernetesResource
         super();
         this.key = key;
         this.name = name;
-        this.optional = optional;
-    }
-
-    public String getKey() {
-        return key;
-    }
-
-    public void setKey(String key) {
-        this.key = key;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public Boolean getOptional() {
-        return optional;
-    }
-
-    public void setOptional(Boolean optional) {
         this.optional = optional;
     }
 
