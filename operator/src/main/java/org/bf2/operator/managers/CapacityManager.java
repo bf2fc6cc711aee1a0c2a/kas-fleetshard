@@ -189,7 +189,7 @@ public class CapacityManager {
     }
 
     static String getManagedKafkaKey(ManagedKafka managedKafka) {
-        return "mk-" + managedKafka.getId();
+        return MANAGED_KAFKA_PREFIX + managedKafka.getId();
     }
 
     private boolean releaseResources(Map<String, String> resourceData, String entryKey) {
