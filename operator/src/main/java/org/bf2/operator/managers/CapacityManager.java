@@ -203,8 +203,11 @@ public class CapacityManager {
         return false;
     }
 
-    public synchronized Optional<OperandReadiness> claimResources(ManagedKafka managedKafka, String profile,
+    synchronized Optional<OperandReadiness> claimResources(ManagedKafka managedKafka, String profile,
             ManagedKafkaAgent agent) {
+        if (managedKafka.isReserveDeployment()) {
+            return Optional.empty();
+        }
         Integer max = getProfileMaxUnits(agent.getSpec().getCapacity(), profile).orElse(null);
         if (max == null) {
             return Optional.empty();

@@ -1,6 +1,7 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
@@ -12,8 +13,11 @@ import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.MockProfile;
+import org.bf2.operator.operands.OperandReadiness;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
 import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
 import org.bf2.operator.resources.v1alpha1.ProfileCapacity;
 import org.junit.jupiter.api.AfterEach;
@@ -23,9 +27,12 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @TestProfile(MockProfile.class)
@@ -46,6 +53,7 @@ class CapacityManagerTest {
         client.configMaps().withName(CapacityManager.FLEETSHARD_RESOURCES).delete();
         client.resources(ManagedKafka.class).inAnyNamespace().delete();
         client.resources(Kafka.class).inAnyNamespace().delete();
+        client.resources(ManagedKafkaAgent.class).inAnyNamespace().delete();
     }
 
     @Test
@@ -83,7 +91,9 @@ class CapacityManagerTest {
         // make sure there's a single entry - mk2 has no kafka
         ConfigMap resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
         client.resource(resourceMap).delete();
-        assertEquals(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk), "{\"profile\":\"standard\",\"units\":1}"),
+        assertEquals(
+                Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk),
+                        "{\"profile\":\"standard\",\"units\":1}"),
                 resourceMap.getData());
 
         Kafka kafka2 = new KafkaBuilder().withNewMetadata()
@@ -98,7 +108,8 @@ class CapacityManagerTest {
         // both are now expected
         resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
         client.resource(resourceMap).delete();
-        assertEquals(Map.of("standard", "2", CapacityManager.getManagedKafkaKey(mk), "{\"profile\":\"standard\",\"units\":1}", CapacityManager.getManagedKafkaKey(mk2),
+        assertEquals(Map.of("standard", "2", CapacityManager.getManagedKafkaKey(mk),
+                "{\"profile\":\"standard\",\"units\":1}", CapacityManager.getManagedKafkaKey(mk2),
                 "{\"profile\":\"standard\",\"units\":1}"), resourceMap.getData());
 
         // a deleted resource shouldn't count
@@ -106,7 +117,9 @@ class CapacityManagerTest {
         client.resource(mk).createOrReplace();
         resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
         client.resource(resourceMap).delete();
-        assertEquals(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk2), "{\"profile\":\"standard\",\"units\":1}"),
+        assertEquals(
+                Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk2),
+                        "{\"profile\":\"standard\",\"units\":1}"),
                 resourceMap.getData());
     }
 
@@ -145,7 +158,9 @@ class CapacityManagerTest {
         resourceMap = capacityManager.getOrCreateResourceConfigMap(dummyInstance);
 
         // make sure there's a single entry
-        assertEquals(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk), "{\"profile\":\"standard\",\"units\":1}"),
+        assertEquals(
+                Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk),
+                        "{\"profile\":\"standard\",\"units\":1}"),
                 resourceMap.getData());
 
         client.resource(mk).delete();
@@ -168,6 +183,40 @@ class CapacityManagerTest {
         ProfileCapacity capacity = capacityManager.buildCapacity(dummyInstance).get("developer");
         assertEquals(300, capacity.getMaxUnits());
         assertEquals(300, capacity.getRemainingUnits());
+    }
+
+    @Test
+    void testReserved() {
+        ManagedKafkaAgent dummyInstance = ManagedKafkaAgentResourceClient.getDummyInstance();
+        dummyInstance.getMetadata().setNamespace(client.getNamespace());
+        dummyInstance.getSpec()
+                .setCapacity(Map.of("standard",
+                        new ProfileBuilder().withMaxNodes(30).build()));
+        client.resource(dummyInstance).createOrReplace();
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk = new ManagedKafkaBuilder().editMetadata()
+                .addToLabels(ManagedKafka.DEPLOYMENT_TYPE, ManagedKafka.RESERVED_DEPLOYMENT_TYPE)
+                .endMetadata()
+                .build();
+
+        Optional<OperandReadiness> result = capacityManager.claimResources(mk, "standard", dummyInstance);
+        // no validation error, and the map should still not exist
+        assertTrue(result.isEmpty());
+        assertNull(client.configMaps().withName(CapacityManager.FLEETSHARD_RESOURCES).get());
+
+        // add a real instance
+        client.configMaps()
+                .create(new ConfigMapBuilder().withNewMetadata()
+                        .withName(CapacityManager.FLEETSHARD_RESOURCES)
+                        .endMetadata()
+                        .withData(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk),
+                                "{\"profile\":\"standard\",\"units\":1}"))
+                        .build());
+
+        // should fail flipping real instance to reserved
+        OperandReadiness readiness = capacityManager.validateResources(mk).get();
+        assertEquals(Status.False, readiness.getStatus());
     }
 
 }
