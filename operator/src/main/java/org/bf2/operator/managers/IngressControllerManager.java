@@ -130,6 +130,9 @@ public class IngressControllerManager {
     @Inject
     ResourceInformerFactory resourceInformerFactory;
 
+    @Inject
+    OperandOverrideManager overrideManager;
+
     private Map<String, String> routeMatchLabels = new ConcurrentHashMap<>();
 
     ResourceInformer<Pod> brokerPodInformer;
@@ -538,6 +541,17 @@ public class IngressControllerManager {
                 .endSpec();
         }
 
+        // if configured for profiles, move the ingress replicas to the default machine pool by adding a dummy toleration
+        if (OperandUtils.shouldProfileLabelsExist(informerManager.getLocalAgent())
+                && overrideManager.migratedToDynamicScalingScheduling()) {
+            builder
+                .editSpec()
+                    .editOrNewNodePlacement()
+                        .addNewToleration("NoSchedule", "kas-fleetshard-ingress", "Exists", null, null)
+                    .endNodePlacement()
+                .endSpec();
+        }
+
         if (hardStopAfter != null && !hardStopAfter.isBlank()) {
             builder.editMetadata().addToAnnotations(HARD_STOP_AFTER_ANNOTATION, hardStopAfter).endMetadata();
         } else {
@@ -575,10 +589,14 @@ public class IngressControllerManager {
         // subtract out that we could share the node with a broker + the 1Mi is padding to account for the bandwidth of other colocated pods
         // we assume a worst case that 1/2 of the traffic to this broker may come from another replicas
         long throughputPerIngressReplica = Quantity.getAmountInBytes(maxIngressThroughput).longValue()
-                - replicationThroughput - throughput / 2 - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
-
-        if (throughputPerIngressReplica < 0) {
-            throw new AssertionError("Cannot appropriately scale ingress as collocating with a broker takes more than the available node bandwidth");
+                - Quantity.getAmountInBytes(Quantity.parse("1Mi")).longValue();
+        if (!OperandUtils.shouldProfileLabelsExist(informerManager.getLocalAgent()) || !overrideManager.migratedToDynamicScalingScheduling()) {
+           // subtract out that we could share the node with a broker
+           // we assume a worst case that 1/2 of the traffic to this broker may come from another replicas
+          throughputPerIngressReplica -= (throughput / 2 + replicationThroughput);
+          if (throughputPerIngressReplica < 0) {
+              throw new AssertionError("Cannot appropriately scale ingress as collocating with a broker takes more than the available node bandwidth");
+          }
         }
 
         // average of total ingress/egress in this zone

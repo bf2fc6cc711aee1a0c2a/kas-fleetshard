@@ -286,12 +286,20 @@ public class InstanceProfiler {
 
     public static void main(String[] args) throws Exception {
         InstanceProfiler profiler = new InstanceProfiler();
+        /*profiler.testParameters = new TestParameters();
+        profiler.setupConfig();
+        AvailableResources ar = TestUtils.getMaxAvailableResources(new NodeBuilder().withNewStatus()
+                .withAllocatable(Map.of("cpu", Quantity.parse("7910m"), "memory", Quantity.parse("29076376125440m")))
+                .endStatus()
+                .build());
+        profiler.sizeBrokerPods(ar);*/
+
         try {
             profiler.setup();
             profiler.profile();
             //profiler.runLocalTest();
-        } catch (Throwable t) {
-            LOGGER.error("Uncaught exception", t);
+        } catch (Exception e) {
+            LOGGER.error("Uncaught exception", e);
         } finally {
             if (profiler.profilingResult.completedStep == Step.DONE) {
                 // don't tear down for now to keep reusing the cluster
@@ -341,29 +349,7 @@ public class InstanceProfiler {
             profilingResult.name = "profile-" + Environment.DATE_FORMAT.format(LocalDateTime.now());
         }
 
-        if (testParameters.config == null) {
-            Properties p = new Properties();
-            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
-                p.load(is);
-            }
-            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/instances/managedkafka.properties")) {
-                Properties p1 = new Properties();
-                p1.load(is);
-                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
-            }
-            String name = testParameters.profile;
-            try (InputStream is = InstanceProfiler.class.getResourceAsStream(
-                    String.format("/instances/%s.properties", name))) {
-                Properties p1 = new Properties();
-                p1.load(is);
-                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
-            }
-            if (testParameters.override != null) {
-                p.putAll(testParameters.override);
-            }
-            testParameters.config =
-                    Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
-        }
+        setupConfig();
 
         if (profilingResult.testParameters == null) {
             profilingResult.testParameters = testParameters;
@@ -421,6 +407,32 @@ public class InstanceProfiler {
             installedProvisioner = true;
             kafkaProvisioner.install();
             writeResults(Step.SETUP);
+        }
+    }
+
+    private void setupConfig() throws IOException {
+        if (testParameters.config == null) {
+            Properties p = new Properties();
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/application.properties")) {
+                p.load(is);
+            }
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream("/instances/managedkafka.properties")) {
+                Properties p1 = new Properties();
+                p1.load(is);
+                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
+            }
+            String name = testParameters.profile;
+            try (InputStream is = InstanceProfiler.class.getResourceAsStream(
+                    String.format("/instances/%s.properties", name))) {
+                Properties p1 = new Properties();
+                p1.load(is);
+                p1.forEach((k, v) -> p.put("managedkafka." + k, v));
+            }
+            if (testParameters.override != null) {
+                p.putAll(testParameters.override);
+            }
+            testParameters.config =
+                    Serialization.jsonMapper().convertValue(p, KafkaInstanceConfiguration.class);
         }
     }
 
@@ -670,6 +682,43 @@ public class InstanceProfiler {
 
         // note these number seem to change per release - 4.9 reports a different allocatable, than 4.8
         AvailableResources resources = getMinAvailableResources(workerNodes);
+        KafkaInstanceConfiguration toUse = sizeBrokerPods(resources);
+
+        AdopterProfile.openListenersAndAccess(toUse);
+
+        toUse.getKafka().setReplicasOverride(testParameters.getNumberOfBrokers());
+
+        if (!testParameters.config.getKafka().isEnableQuota()) {
+            toUse.getKafka().setMaxConnections(Integer.MAX_VALUE);
+            toUse.getKafka().setConnectionAttemptsPerSec(Integer.MAX_VALUE);
+        }
+
+        if (testParameters.density > 1) {
+            toUse.getKafka().setOneInstancePerNode(false);
+        }
+        toUse.getKafka().setStorageClass(testParameters.storage.name().toLowerCase());
+        toUse.getZookeeper().setVolumeSize(testParameters.storage.zookeeperSize);
+
+        Kafka kafka = toUse.getKafka();
+        LOGGER.info("Running with kafka sizing {} container memory, {} container cpu, and {} vm memory",
+                kafka.getContainerMemory(), kafka.getContainerCpu(), kafka.getJvmXms());
+
+        if (profilingResult.config == null) {
+            profilingResult.config = toUse;
+        } else if (!Serialization.asYaml(profilingResult.config).equals(Serialization.asYaml(toUse))) {
+            throw new IllegalStateException("Sizing parameters have changed, please save/remove the old results file.");
+        }
+
+        // if running on m5.4xlarge or greater and want to constrain resources like m5.2xlarge (fully dedicated)
+        //profilingResult.config.getKafka().setContainerMemory("29013426176");
+        //profilingResult.config.getKafka().setContainerCpu("6500m");
+
+        // to constrain resources like m5.xlarge (fully dedicated)
+        //profilingResult.config.getKafka().setContainerMemory("12453740544");
+        //profilingResult.config.getKafka().setContainerCpu("2500m");
+    }
+
+    private KafkaInstanceConfiguration sizeBrokerPods(AvailableResources resources) {
         long cpuMillis = resources.cpuMillis;
         long memoryBytes = resources.memoryBytes;
 
@@ -692,6 +741,7 @@ public class InstanceProfiler {
             containerResources(testParameters.config.getAdminserver(), cpuResources, memoryResources);
             containerResources(testParameters.config.getExporter(), cpuResources, memoryResources);
             containerResources(testParameters.config.getCanary(), cpuResources, memoryResources);
+            containerResources(testParameters.config.getCruiseControl(), cpuResources, memoryResources);
 
             LOGGER.info("Total overhead of additional pods {} memory, {} cpu",
                     memoryResources.stream().collect(Collectors.summingLong(Long::valueOf)),
@@ -706,8 +756,6 @@ public class InstanceProfiler {
                             * (zookeeperBytes + memoryResources.get(0) + memoryResources.get(2));
             cpuMillis = resources.cpuMillis - testParameters.density
                     * (zookeeperCpu + cpuResources.get(0) + cpuResources.get(2));
-
-            // TODO account for possible ingress replica collocation
         }
 
         // reserve additional memory to help lessen the fluctuation of resources across openshift versions
@@ -743,39 +791,7 @@ public class InstanceProfiler {
             toUse.getKafka().setJvmXms(String.valueOf(maxVmBytes));
             toUse.getKafka().setContainerMemory(String.valueOf(memoryBytes));
         }
-
-        AdopterProfile.openListenersAndAccess(toUse);
-
-        toUse.getKafka().setReplicasOverride(testParameters.getNumberOfBrokers());
-
-        if (!testParameters.config.getKafka().isEnableQuota()) {
-            toUse.getKafka().setMaxConnections(Integer.MAX_VALUE);
-            toUse.getKafka().setConnectionAttemptsPerSec(Integer.MAX_VALUE);
-        }
-
-        if (testParameters.density > 1) {
-            toUse.getKafka().setOneInstancePerNode(false);
-        }
-        toUse.getKafka().setStorageClass(testParameters.storage.name().toLowerCase());
-        toUse.getZookeeper().setVolumeSize(testParameters.storage.zookeeperSize);
-
-        Kafka kafka = toUse.getKafka();
-        LOGGER.info("Running with kafka sizing {} container memory, {} container cpu, and {} vm memory",
-                kafka.getContainerMemory(), kafka.getContainerCpu(), kafka.getJvmXms());
-
-        if (profilingResult.config == null) {
-            profilingResult.config = toUse;
-        } else if (!Serialization.asYaml(profilingResult.config).equals(Serialization.asYaml(toUse))) {
-            throw new IllegalStateException("Sizing parameters have changed, please save/remove the old results file.");
-        }
-
-        // if running on m5.4xlarge or greater and want to constrain resources like m5.2xlarge (fully dedicated)
-        //profilingResult.config.getKafka().setContainerMemory("29013426176");
-        //profilingResult.config.getKafka().setContainerCpu("6500m");
-
-        // to constrain resources like m5.xlarge (fully dedicated)
-        //profilingResult.config.getKafka().setContainerMemory("12453740544");
-        //profilingResult.config.getKafka().setContainerCpu("2500m");
+        return toUse;
     }
 
     void containerResources(KafkaInstanceConfiguration.Container container, List<Long> cpu, List<Long> memory) {

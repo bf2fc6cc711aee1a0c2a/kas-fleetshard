@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
@@ -21,13 +22,16 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
-public class IngressControllerManagerTest {
+class IngressControllerManagerTest {
 
     private static final double ZONE_PERCENTAGE = 1d/3;
 
@@ -71,7 +75,7 @@ public class IngressControllerManagerTest {
     InformerManager informerManager;
 
     @Test
-    public void testIngressControllerCreationWithNoZones() {
+    void testIngressControllerCreationWithNoZones() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();
@@ -92,7 +96,23 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testReplicaReduction() {
+    void testIngressControllerNodePlacement() {
+        useProfileLabels();
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        String tolerations = Serialization.asYaml(ingressControllers.get(0).getSpec().getNodePlacement().getTolerations());
+
+        // the additional toleration will cause the deployment to roll
+        assertEquals("---\n"
+                + "- effect: \"NoSchedule\"\n"
+                + "  key: \"kas-fleetshard-ingress\"\n"
+                + "  operator: \"Exists\"\n", tolerations);
+    }
+
+    @Test
+    void testReplicaReduction() {
         openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
 
         IntStream.range(0, 6).forEach(i -> {
@@ -157,7 +177,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerCreationWith3Zones() {
+    void testIngressControllerCreationWith3Zones() {
         buildNodes(3).stream().forEach(n -> openShiftClient.nodes().create(n));
 
         ingressControllerManager.reconcileIngressControllers();
@@ -175,7 +195,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerCreationWithMultiUnitInstances() {
+    void testIngressControllerCreationWithMultiUnitInstances() {
         buildNodes(99).stream().forEach(n -> openShiftClient.nodes().create(n));
 
         for (int i = 0; i < 25; i++) {
@@ -201,7 +221,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testSummarize() {
+    void testSummarize() {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
         int replicas = kafka.getSpec().getKafka().getReplicas();
@@ -216,19 +236,13 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCounts() {
-        List<Node> nodes = buildNodes(9);
-
+    void testIngressControllerReplicaCounts() {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000));
         assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
-
-        nodes = buildNodes(210);
 
         assertEquals(3, ingressControllerManager.numReplicasForDefault(160000));
         assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));
         assertEquals(3, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 480000, ZONE_PERCENTAGE));
-
-        nodes = buildNodes(310);
 
         long ingress = 50000000;
         assertEquals(5, ingressControllerManager.numReplicasForDefault(370000));
@@ -236,11 +250,32 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerReplicaCounts1() {
-        List<Node> nodes = buildNodes(99);
-
+    void testIngressControllerReplicaCountsMultiUnit() {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000*24));
         assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
+    }
+
+    @Test
+    void testIngressControllerReplicaCountsWithoutCollocation() {
+        useProfileLabels();
+
+        // should only be 2 replicas for 60 standard instances
+        long ingress = 50000000;
+        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
+    }
+
+    private void useProfileLabels() {
+        InformerManager mockInformerManager = Mockito.mock(InformerManager.class);
+        QuarkusMock.installMockForType(mockInformerManager, InformerManager.class);
+        // enable the profile
+        Mockito.when(mockInformerManager.getLocalAgent()).thenReturn(new ManagedKafkaAgentBuilder()
+                .withNewMetadata()
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .addToCapacity("standard", new ProfileBuilder().withMaxNodes(6).build())
+                .endSpec()
+                .build());
     }
 
     private List<Node> buildNodes(int nodeCount) {
@@ -255,7 +290,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testGetManagedKafkaRoutesFor() {
+    void testGetManagedKafkaRoutesFor() {
         final String mkName = "my-managedkafka";
         ManagedKafka mk = new ManagedKafkaBuilder()
                 .withNewMetadata().withName(mkName).withNamespace(mkName).endMetadata()
@@ -350,7 +385,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerHaProxyOptions() {
+    void testIngressControllerHaProxyOptions() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();
@@ -363,7 +398,7 @@ public class IngressControllerManagerTest {
     }
 
     @Test
-    public void testIngressControllerPreservesOtherAnnotationsAndUnsupportedConfigOverrides() {
+    void testIngressControllerPreservesOtherAnnotationsAndUnsupportedConfigOverrides() {
         QuarkusMock.installMockForType(Mockito.mock(InformerManager.class), InformerManager.class);
 
         ingressControllerManager.reconcileIngressControllers();

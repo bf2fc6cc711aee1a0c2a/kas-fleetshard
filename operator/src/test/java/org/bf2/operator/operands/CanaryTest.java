@@ -65,6 +65,7 @@ public class CanaryTest {
         ManagedKafka mk = createManagedKafka(bootstrapServerHost);
         configureMockOverrideManager(mk, overrideContainerEnvVars, overrideInitContainerEnvVars);
 
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString())).thenReturn(useNodeAffinity);
         if (useNodeAffinity) {
             OperandTestUtils.useNodeAffinity(mk);
         }

@@ -21,6 +21,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,10 +93,7 @@ public class OperandUtils {
         return withName.createOrReplace(resource);
     }
 
-    /**
-     * Will likely always be a single toleration, but returns a list to gracefully handle null as empty
-     */
-    public static List<Toleration> profileTolerations(ManagedKafka managedKafka) {
+    public static List<Toleration> profileTolerations(ManagedKafka managedKafka, ManagedKafkaAgent agent, boolean dynamicScalingScheduling) {
         String type =
                 OperandUtils.getOrDefault(managedKafka.getMetadata().getLabels(), ManagedKafka.PROFILE_TYPE, null);
 
@@ -103,15 +101,27 @@ public class OperandUtils {
             return Collections.emptyList();
         }
 
-        return Collections.singletonList(new TolerationBuilder()
+        ArrayList<Toleration> result = new ArrayList<>();
+        result.add(new TolerationBuilder()
                 .withKey(ManagedKafka.PROFILE_TYPE)
                 .withValue(type)
                 .withEffect("NoExecute")
                 .build());
+
+        // add only with a version that supports dynamicScalingScheduling to control the blast radius
+        if (dynamicScalingScheduling && shouldProfileLabelsExist(agent)) {
+            result.add(new TolerationBuilder()
+                    .withKey(ManagedKafka.PROFILE_TYPE)
+                    .withValue(type)
+                    .withEffect("NoSchedule")
+                    .build());
+        }
+
+        return result;
     }
 
     public static NodeAffinity nodeAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka) {
-        if (agent == null || agent.getSpec().getCapacity().size() <= 1) {
+        if (!shouldProfileLabelsExist(agent)) {
             return null; // not expected to use a node label
         }
         String type =
@@ -131,16 +141,23 @@ public class OperandUtils {
                 .build();
     }
 
+    public static boolean shouldProfileLabelsExist(ManagedKafkaAgent agent) {
+        return agent != null && !agent.getSpec().getCapacity().isEmpty() && (agent.getSpec().getCapacity().size() != 1
+                || agent.getSpec().getCapacity().values().iterator().next().getMaxNodes() != null);
+    }
+
     /**
      * Create the Affinity based upon the Agent/profile and if it should be collocated with the zookeeper
      */
-    public static Affinity buildAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka, boolean collocateWithZookeeper) {
+    public static Affinity buildAffinity(ManagedKafkaAgent agent, ManagedKafka managedKafka, boolean collocateWithZookeeper, boolean useNodeAffinity) {
         AffinityBuilder affinityBuilder = new AffinityBuilder();
         boolean useAffinity = false;
-        NodeAffinity nodeAffinity = nodeAffinity(agent, managedKafka);
-        if (nodeAffinity != null) {
-            affinityBuilder.withNodeAffinity(nodeAffinity);
-            useAffinity = true;
+        if (useNodeAffinity) {
+            NodeAffinity nodeAffinity = nodeAffinity(agent, managedKafka);
+            if (nodeAffinity != null) {
+                affinityBuilder.withNodeAffinity(nodeAffinity);
+                useAffinity = true;
+            }
         }
         if(collocateWithZookeeper) {
             affinityBuilder.withPodAffinity(buildZookeeperPodAffinity(managedKafka));

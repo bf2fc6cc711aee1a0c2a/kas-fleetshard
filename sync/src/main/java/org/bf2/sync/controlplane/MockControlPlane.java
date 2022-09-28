@@ -72,8 +72,7 @@ public class MockControlPlane implements ControlPlaneApi {
 
         // feed the start of clusters
         if (this.kafkas.size() == 0) {
-            int max = Math.abs(random.nextInt(maxKafkas));
-            for (int i = 0; i < max; i++) {
+            for (int i = 0; i < maxKafkas; i++) {
                 ManagedKafka k = ManagedKafka.getDummyInstance(this.clusterIdGenerator.getAndIncrement());
                 log.infof("control plane::marking %s for addition", k.getId());
                 this.kafkas.put(k.getId(), k);

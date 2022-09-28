@@ -5,7 +5,9 @@ import io.sundr.builder.annotations.Buildable;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Buildable(builderPackage = "io.fabric8.kubernetes.api.builder")
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -26,5 +28,7 @@ public class ManagedKafkaAgentStatus {
     private String updatedTimestamp;
 
     private List<StrimziVersionStatus> strimzi;
+
+    private Map<String, ProfileCapacity> capacity = new LinkedHashMap<>();
 
 }

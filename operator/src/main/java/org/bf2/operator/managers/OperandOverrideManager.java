@@ -119,6 +119,9 @@ public class OperandOverrideManager {
 
         @JsonProperty(value = "kafka-exporter")
         public OperandOverride kafkaExporter = new OperandOverride();
+
+        @JsonProperty(value = "dynamic-scaling-scheduling")
+        public boolean dynamicScalingScheduling;
     }
 
     static final OperandOverrides EMPTY = new OperandOverrides();
@@ -236,6 +239,14 @@ public class OperandOverrideManager {
                     }
                     return Optional.empty();
                 });
+    }
+
+    public boolean useDynamicScalingScheduling(String strimzi) {
+        return getOverrides(strimzi).dynamicScalingScheduling;
+    }
+
+    public boolean migratedToDynamicScalingScheduling() {
+        return overrides.values().stream().allMatch(o -> o.dynamicScalingScheduling);
     }
 
     void updateOverrides(ConfigMap obj) {
