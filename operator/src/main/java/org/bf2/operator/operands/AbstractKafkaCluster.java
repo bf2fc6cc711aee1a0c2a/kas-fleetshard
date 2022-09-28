@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
@@ -25,6 +26,7 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
@@ -42,12 +44,14 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
@@ -235,37 +239,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         boolean reconciliationPaused = isReconciliationPaused(managedKafka);
 
         if (managedKafka.isSuspended() && reconciliationPaused && !updatesInProgress(managedKafka)) {
-            String namespace = kafkaClusterNamespace(managedKafka);
-
-            kubernetesClient.apps()
-                .deployments()
-                .inNamespace(namespace)
-                .withName(managedKafka.getMetadata().getName() + "-kafka-exporter")
-                .delete();
-
-            // Remove when migration to StrimziPodSets complete
-            kubernetesClient.apps()
-                .statefulSets()
-                .inNamespace(namespace)
-                .withName(managedKafka.getMetadata().getName() + "-kafka")
-                .delete();
-
-            kubernetesClient.resources(StrimziPodSet.class)
-                .inNamespace(namespace)
-                .withName(managedKafka.getMetadata().getName() + "-kafka")
-                .delete();
-
-            // Remove when migration to StrimziPodSets complete
-            kubernetesClient.apps()
-                .statefulSets()
-                .inNamespace(namespace)
-                .withName(managedKafka.getMetadata().getName() + "-zookeeper")
-                .delete();
-
-            kubernetesClient.resources(StrimziPodSet.class)
-                .inNamespace(namespace)
-                .withName(managedKafka.getMetadata().getName() + "-zookeeper")
-                .delete();
+            suspend(managedKafka);
         }
     }
 
@@ -278,6 +252,53 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     protected void createOrUpdate(Kafka kafka) {
         kafkaResourceClient.createOrUpdate(kafka);
+    }
+
+    protected void suspend(ManagedKafka managedKafka) {
+        String namespace = kafkaClusterNamespace(managedKafka);
+        String instanceName = kafkaClusterName(managedKafka);
+
+        kubernetesClient.apps()
+            .deployments()
+            .inNamespace(namespace)
+            .withName(instanceName + "-kafka-exporter")
+            .delete();
+
+        // Remove when migration to StrimziPodSets complete
+        kubernetesClient.apps()
+            .statefulSets()
+            .inNamespace(namespace)
+            .withName(instanceName + "-kafka")
+            .delete();
+
+        kubernetesClient.resources(StrimziPodSet.class)
+            .inNamespace(namespace)
+            .withName(instanceName + "-kafka")
+            .delete();
+
+        // Remove when migration to StrimziPodSets complete
+        kubernetesClient.apps()
+            .statefulSets()
+            .inNamespace(namespace)
+            .withName(instanceName + "-zookeeper")
+            .delete();
+
+        kubernetesClient.resources(StrimziPodSet.class)
+            .inNamespace(namespace)
+            .withName(instanceName + "-zookeeper")
+            .delete();
+
+        Map<String, String> rateLimitAnnotations = OperandUtils.buildRateLimitAnnotations(5, 5);
+        Supplier<Map<String, String>> routeAnnotationFactory = () -> new HashMap<>(rateLimitAnnotations.size());
+
+        informerManager.getRoutesInNamespace(namespace)
+            .filter(r -> r.getMetadata().getName().startsWith(instanceName + "-kafka-"))
+            .forEach(r -> {
+                Map<String, String> routeAnnotations = Objects.requireNonNullElseGet(r.getMetadata().getAnnotations(), routeAnnotationFactory);
+                routeAnnotations.putAll(rateLimitAnnotations);
+                r.getMetadata().setAnnotations(routeAnnotations);
+                OperandUtils.createOrUpdate(kubernetesClient.resources(Route.class), r);
+            });
     }
 
     protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka, int replicas) {

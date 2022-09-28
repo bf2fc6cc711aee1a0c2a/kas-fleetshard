@@ -157,7 +157,7 @@ public class InformerManager {
         }
     }
 
-    protected Stream<Route> getRoutesInNamespace(String namespace) {
+    public Stream<Route> getRoutesInNamespace(String namespace) {
         if (isOpenShift()) {
             return routeInformer.getList().stream()
                     .filter(r -> r.getMetadata().getNamespace().equals(namespace));

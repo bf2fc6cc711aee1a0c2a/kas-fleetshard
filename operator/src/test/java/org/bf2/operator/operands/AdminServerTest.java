@@ -11,6 +11,7 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
@@ -147,9 +148,9 @@ class AdminServerTest {
         assertNotNull(annotations);
         assertEquals(3, annotations.size());
         assertTrue(annotations.keySet().containsAll(List.of(
-                AdminServer.RATE_LIMIT_ANNOTATION,
-                AdminServer.RATE_LIMIT_ANNOTATION_CONCURRENT_TCP,
-                AdminServer.RATE_LIMIT_ANNOTATION_TCP_RATE)));
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION,
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION_CONCURRENT_TCP,
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION_TCP_RATE)));
     }
 
     @Test

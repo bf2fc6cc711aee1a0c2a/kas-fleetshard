@@ -72,10 +72,6 @@ public class AdminServer extends AbstractAdminServer {
     private static final IntOrString HTTP_PORT_TARGET = new IntOrString(HTTP_PORT_NAME);
     private static final IntOrString HTTPS_PORT_TARGET = new IntOrString(HTTPS_PORT_NAME);
 
-    static final String RATE_LIMIT_ANNOTATION = "haproxy.router.openshift.io/rate-limit-connections";
-    static final String RATE_LIMIT_ANNOTATION_CONCURRENT_TCP = RATE_LIMIT_ANNOTATION + ".concurrent-tcp";
-    static final String RATE_LIMIT_ANNOTATION_TCP_RATE = RATE_LIMIT_ANNOTATION + ".rate-tcp";
-
     static final String CUSTOM_CONFIG_VOLUME_NAME = "custom-config";
     static final String TLS_CONFIG_VOLUME_NAME = "tls-config";
     static final String TLS_CONFIG_MOUNT_PATH = "/opt/kafka-admin-api/tls-config/";
@@ -401,14 +397,9 @@ public class AdminServer extends AbstractAdminServer {
         Map<String, String> annotations;
 
         if (config.getAdminserver().isRateLimitEnabled()) {
-            String concurrentTcp = String.valueOf(config.getAdminserver().getRateLimitConcurrentTcp());
-            // TCP limit expressed in terms of a 3s window
-            int rateTcp = 3 * config.getAdminserver().getRateLimitRequestsPerSec();
-
-            annotations = Map.ofEntries(
-                    Map.entry(RATE_LIMIT_ANNOTATION, "true"),
-                    Map.entry(RATE_LIMIT_ANNOTATION_CONCURRENT_TCP, concurrentTcp),
-                    Map.entry(RATE_LIMIT_ANNOTATION_TCP_RATE, String.valueOf(rateTcp)));
+            annotations = OperandUtils.buildRateLimitAnnotations(
+                    config.getAdminserver().getRateLimitConcurrentTcp(),
+                    config.getAdminserver().getRateLimitRequestsPerSec());
         } else {
             annotations = Collections.emptyMap();
         }

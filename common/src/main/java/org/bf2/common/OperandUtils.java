@@ -32,6 +32,11 @@ public class OperandUtils {
     public static final String K8S_NAME_LABEL = "app.kubernetes.io/name";
     public static final String MANAGED_BY_LABEL = "app.kubernetes.io/managed-by";
     public static final String COMPONENT_LABEL = "app.kubernetes.io/component";
+
+    public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION = "haproxy.router.openshift.io/rate-limit-connections";
+    public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION_CONCURRENT_TCP = OPENSHIFT_RATE_LIMIT_ANNOTATION + ".concurrent-tcp";
+    public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION_TCP_RATE = OPENSHIFT_RATE_LIMIT_ANNOTATION + ".rate-tcp";
+
     public static final String STRIMZI_OPERATOR_NAME = "strimzi-cluster-operator";
     public static final String FLEETSHARD_OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String MASTER_SECRET_NAME = "master-secret";
@@ -188,6 +193,22 @@ public class OperandUtils {
                     .withOperator("In")
                     .withValues(value).build())
                 .endLabelSelector().build();
+    }
+
+    /**
+     * Build a map of OpenShift Route annotations with the provided concurrent TCP connection
+     * and TCP connection rate limits.
+     *
+     * @param concurrentTcp number of concurrent TCP connections allowed per IP
+     * @param rateTcp TCP connection creation rate per second allowed per IP
+     * @return map of OpenShift Route rate limit annotations
+     */
+    public static Map<String, String> buildRateLimitAnnotations(int concurrentTcp, int rateTcp) {
+        return Map.ofEntries(
+                Map.entry(OPENSHIFT_RATE_LIMIT_ANNOTATION, "true"),
+                Map.entry(OPENSHIFT_RATE_LIMIT_ANNOTATION_CONCURRENT_TCP, String.valueOf(concurrentTcp)),
+                // TCP limit expressed in terms of a 3s window
+                Map.entry(OPENSHIFT_RATE_LIMIT_ANNOTATION_TCP_RATE, String.valueOf(3 * rateTcp)));
     }
 
     public static <T> T getOrDefault(Map<String, T> map, String key, T defaultValue) {
