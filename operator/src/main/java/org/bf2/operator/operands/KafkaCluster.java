@@ -122,7 +122,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
     private static final boolean DELETE_CLAIM = true;
-    private static final int JBOD_VOLUME_ID = 0;
+    // define jbod volume number to determin how many log.dirs we have
+    private static final int JBOD_VOLUME_NUM = 1;
 
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
     private static final String KAFKA_EXPORTER_LOG_LEVEL = "logLevel";
@@ -722,14 +723,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         Quantity cpu = new Quantity(kafkaConfigs.getContainerCpu());
         BigDecimal cpuBytes = Quantity.getAmountInBytes(cpu);
-        log.error("!!! kafkaConfigs.getContainerCpu():" + kafkaConfigs.getContainerCpu());
-        log.error("!!! cpuBytes:" + cpuBytes);
-
         int cpuCores = Math.max(1, cpuBytes.intValue());
-        log.error("!!! cpuCores:" + cpuCores);
-        System.out.println("!! kafkaConfigs.getContainerCpu():" + kafkaConfigs.getContainerCpu());
-        System.out.println("!! cpuBytes:" + cpuBytes);
-        System.out.println("!! cpuCores:" + cpuCores);
 
         config.put("num.recovery.threads.per.data.dir", cpuCores);
 
@@ -828,18 +822,24 @@ public class KafkaCluster extends AbstractKafkaCluster {
         storageBytes += calculateSafetyMargin(managedKafka, current);
         storageBytes += calculateFormatOverheadFromFormattedSize(managedKafka, storageBytes);
 
-        PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder()
-                .withId(JBOD_VOLUME_ID)
-                .withSize(getAdjustedMaxDataRetentionSize(current, storageBytes).getAmount())
-                .withDeleteClaim(DELETE_CLAIM);
+        List<SingleVolumeStorage> volumes = new ArrayList<>(JBOD_VOLUME_NUM);
 
-        Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getKafka).map(KafkaClusterSpec::getStorage)
-                .map(this::getExistingVolumesFromJbodStorage)
-                .ifPresentOrElse(
-                        existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.configs.getConfig(managedKafka))),
-                        () -> builder.withStorageClass(this.configs.getConfig(managedKafka).getKafka().getStorageClass()));
+        for (int jbodVolumeId = 0; jbodVolumeId < JBOD_VOLUME_NUM; jbodVolumeId++) {
+            PersistentClaimStorageBuilder builder = new PersistentClaimStorageBuilder();
+            builder.withId(jbodVolumeId)
+                    .withSize(getAdjustedMaxDataRetentionSize(current, storageBytes).getAmount())
+                    .withDeleteClaim(DELETE_CLAIM);
 
-        return new JbodStorageBuilder().withVolumes(builder.build()).build();
+            Optional.ofNullable(current).map(Kafka::getSpec).map(KafkaSpec::getKafka).map(KafkaClusterSpec::getStorage)
+                    .map(this::getExistingVolumesFromJbodStorage)
+                    .ifPresentOrElse(
+                            existingVolumes -> existingVolumes.stream().forEach(v -> handleExistingVolume(v, builder, this.configs.getConfig(managedKafka))),
+                            () -> builder.withStorageClass(this.configs.getConfig(managedKafka).getKafka().getStorageClass()));
+
+            volumes.add(builder.build());
+        }
+
+        return new JbodStorageBuilder().withVolumes(volumes).build();
     }
 
     private <S extends Storage> List<SingleVolumeStorage> getExistingVolumesFromJbodStorage(S storage) {
@@ -913,7 +913,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             if (storage instanceof JbodStorage) {
                 JbodStorage jbodStorage = (JbodStorage)storage;
                 for (SingleVolumeStorage singleVolumeStorage : jbodStorage.getVolumes()) {
-                    if (singleVolumeStorage instanceof PersistentClaimStorage && Integer.valueOf(JBOD_VOLUME_ID).equals(singleVolumeStorage.getId())) {
+                    if (singleVolumeStorage instanceof PersistentClaimStorage && singleVolumeStorage.getId() >= 0 && singleVolumeStorage.getId() < JBOD_VOLUME_NUM) {
                         String existingSize = ((PersistentClaimStorage)singleVolumeStorage).getSize();
                         long existingBytes = getAmountInBytes(Quantity.parse(existingSize)).longValue();
                         // TODO: if not changed a warning may be appropriate, but it would be best as a status condition
