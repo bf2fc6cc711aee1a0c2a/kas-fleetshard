@@ -14,6 +14,7 @@ import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.GenericSecretSource;
 import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaResources;
 import io.strimzi.api.kafka.model.StrimziPodSet;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
@@ -268,24 +269,24 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         kubernetesClient.apps()
             .statefulSets()
             .inNamespace(namespace)
-            .withName(instanceName + "-kafka")
+            .withName(KafkaResources.kafkaStatefulSetName(instanceName))
             .delete();
 
         kubernetesClient.resources(StrimziPodSet.class)
             .inNamespace(namespace)
-            .withName(instanceName + "-kafka")
+            .withName(KafkaResources.kafkaStatefulSetName(instanceName))
             .delete();
 
         // Remove when migration to StrimziPodSets complete
         kubernetesClient.apps()
             .statefulSets()
             .inNamespace(namespace)
-            .withName(instanceName + "-zookeeper")
+            .withName(KafkaResources.zookeeperStatefulSetName(instanceName))
             .delete();
 
         kubernetesClient.resources(StrimziPodSet.class)
             .inNamespace(namespace)
-            .withName(instanceName + "-zookeeper")
+            .withName(KafkaResources.zookeeperStatefulSetName(instanceName))
             .delete();
 
         Map<String, String> rateLimitAnnotations = OperandUtils.buildRateLimitAnnotations(5, 5);
