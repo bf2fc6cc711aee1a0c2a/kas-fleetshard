@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.HTTPGetActionBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -56,10 +55,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 
 /**
@@ -113,6 +110,10 @@ public class OMB {
      * Install build config, image stream and trust cert. Trigger the initial build.
      */
     public void install(TlsConfig tlsConfig) throws IOException {
+        install(tlsConfig.getTrustStoreBase64());
+    }
+
+    public void install(String base64EncodedTrustStore) throws IOException {
         LOGGER.info("Installing OMB in namespace {}", Constants.OMB_NAMESPACE);
 
         pullAndHoldWorkerImageToAllNodesUsingDaemonSet();
@@ -123,13 +124,12 @@ public class OMB {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
-        String keystore = tlsConfig.getTrustStoreBase64();
         ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
                 .editOrNewMetadata()
                 .withName("ext-listener-crt")
                 .withNamespace(Constants.OMB_NAMESPACE)
                 .endMetadata()
-                .addToData("listener.jks", keystore)
+                .addToData("listener.jks", base64EncodedTrustStore)
                 .build());
 
         LOGGER.info("Done installing OMB in namespace {}", Constants.OMB_NAMESPACE);
@@ -145,22 +145,21 @@ public class OMB {
         LOGGER.info("Deploying {} workers, container memory: {}, cpu: {}", workers, workerContainerMemory, workerCpu);
         // we are now on java 11 which defaults to https://www.eclipse.org/openj9/docs/xxusecontainersupport/ and -XX:+PreferContainerQuotaForCPUCount
         String jvmOpts = String.format("-XX:+ExitOnOutOfMemoryError");
-        List<Future<Void>> futures = new ArrayList<>();
+        CompletableFuture<?>[] futures = new CompletableFuture[workers];
         List<Node> nodes = ombCluster.getWorkerNodes();
         ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
         try {
             for (int i = 0; i < workers; i++) {
                 String name = String.format("worker-%d", i);
                 final int nodeIdx = i % nodes.size();
-                futures.add(executorService.submit(() -> {
+                futures[i] = CompletableFuture.runAsync(() -> {
                     workerNames.add(name);
                     createWorker(jvmOpts, name, this.useSingleNode ? nodes.get(0) : nodes.get(nodeIdx));
-                    return null;
-                }));
+                }, executorService);
             }
+            CompletableFuture.allOf(futures).join();
         } finally {
             executorService.shutdown();
-            awaitAllFutures(futures);
         }
         LOGGER.info("Collecting hosts");
 
@@ -213,7 +212,7 @@ public class OMB {
         return hostnames;
     }
 
-    private void createWorker(String jvmOpts, String name, Node node) throws IOException {
+    private void createWorker(String jvmOpts, String name, Node node) {
         KubeClient kubeClient = ombCluster.kubeClient();
         DeploymentBuilder deploymentBuilder = new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -346,6 +345,8 @@ public class OMB {
 
         workload.validate();
 
+        boolean complete = false;
+
         try (
              Worker worker = workers.isEmpty()?new LocalWorker():new DistributedWorkersEnsemble(workers, false);
              WorkloadGenerator generator = new WorkloadGenerator(driver.name, workload, worker);
@@ -356,17 +357,16 @@ public class OMB {
 
             TestResult result = generator.run();
 
-            try {
-                worker.stopAll();
-            } catch (IOException e) {
-            }
-
             LOGGER.info("Writing test result into {}", resultFile.getAbsolutePath());
             WRITER.writeValue(resultFile, result);
 
+            complete = true;
         } catch (Exception e) {
-            LOGGER.error("Failed to run the workload '{}' for driver '{}'", workload.name, driverFile.getAbsolutePath(), e);
-            throw e;
+            if (!complete) {
+                LOGGER.error("Failed to run the workload '{}' for driver '{}'", workload.name, driverFile.getAbsolutePath(), e);
+                throw e;
+            }
+            LOGGER.warn("Failed to cleanly shutdown the workload '{}' for driver '{}'", workload.name, driverFile.getAbsolutePath(), e);
         }
 
         TestMetadataCapture.getInstance().storeOmbData(ombCluster, workload, driver, this);
@@ -389,25 +389,15 @@ public class OMB {
     public void deleteWorkers() throws Exception {
         LOGGER.info("Deleting {} workers", workerNames.size());
         OpenShiftClient client = ombCluster.kubeClient().client().adapt(OpenShiftClient.class);
-        ExecutorService executorService = Executors.newFixedThreadPool(N_THREADS);
-        List<Future<Void>> futures = new ArrayList<>();
-        try {
-            for (String name : workerNames) {
-                futures.add(executorService.submit(() -> {
-                    client.deploymentConfigs().inNamespace(Constants.OMB_NAMESPACE).withName(name).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
-                    // Switched service from foreground to background - kept seeing a defect that looks like: https://github.com/kubernetes/kubernetes/issues/90512
-                    client.services().inNamespace(Constants.OMB_NAMESPACE).withName(name).withPropagationPolicy(DeletionPropagation.BACKGROUND).delete();
-                    client.routes().inNamespace(Constants.OMB_NAMESPACE).withName(name).withPropagationPolicy(DeletionPropagation.BACKGROUND).delete();
-                    return null;
-                }));
-            }
-        } finally {
-            executorService.shutdown();
-            awaitAllFutures(futures);
 
+        client.apps().deployments().inNamespace(Constants.OMB_NAMESPACE).delete();
+        client.services().inNamespace(Constants.OMB_NAMESPACE).delete();
+        client.routes().inNamespace(Constants.OMB_NAMESPACE).delete();
+
+        while (!client.apps().deployments().inNamespace(Constants.OMB_NAMESPACE).list().getItems().isEmpty()) {
+            Thread.sleep(5000);
         }
-
-        while (!client.deploymentConfigs().inNamespace(Constants.OMB_NAMESPACE).list().getItems().isEmpty()) {
+        while (!client.pods().inNamespace(Constants.OMB_NAMESPACE).list().getItems().isEmpty()) {
             Thread.sleep(5000);
         }
         while (!client.services().inNamespace(Constants.OMB_NAMESPACE).list().getItems().isEmpty()) {
@@ -422,19 +412,6 @@ public class OMB {
 
     private TestResult createTestResult(File file) throws IOException {
         return new ObjectMapper().readValue(file, TestResult.class);
-    }
-
-    private void awaitAllFutures(List<Future<Void>> futures) {
-        futures.forEach(f -> {
-            try {
-                f.get();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException e) {
-                Throwable cause = e.getCause();
-                throw new RuntimeException(cause);
-            }
-        });
     }
 
     /*
