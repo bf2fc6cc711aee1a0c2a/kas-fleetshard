@@ -57,8 +57,9 @@ public class FleetShardOperatorManager {
         printVar();
         LOGGER.info("Installing {}", OPERATOR_NAME);
 
-        installedCrds =
-                Files.list(CRD_PATH).filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).collect(Collectors.toList());
+        try (Stream<Path> credFilePath = Files.list(CRD_PATH)){
+            installedCrds = credFilePath.filter(p -> p.getFileName().toString().endsWith(CRD_FILE_SUFFIX)).collect(Collectors.toList());
+        }
         LOGGER.info("Installing CRDs {}", installedCrds);
         installedCrds.forEach(crd -> kubeClient.apply(OPERATOR_NAME, crd));
 

@@ -21,6 +21,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import java.net.HttpURLConnection;
+import java.net.http.HttpResponse;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -67,20 +70,30 @@ public class UpgradeST extends AbstractST {
         String mkAppName = "mk-test-upgrade";
 
         LOGGER.info("Create namespace");
-        resourceManager.createResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
+        resourceManager.addResource(extensionContext, new NamespaceBuilder().withNewMetadata().withName(mkAppName).endMetadata().build());
 
         String startVersion = SyncApiClient.getPreviousStrimziVersion(syncEndpoint);
         String kafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, startVersion);
 
         LOGGER.info("Create managedkafka with version {}", startVersion);
         ManagedKafka mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, startVersion, kafkaVersion);
-        mk = resourceManager.createResource(extensionContext, mk);
+        String id = mk.getId();
+        resourceManager.addResource(extensionContext, mk);
 
+        HttpResponse<String> res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
+        assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
+
+        resourceManager.waitResourceCondition(mk, Objects::nonNull);
+        mk = resourceManager.waitUntilReady(mk, 300_000);
         AssertUtils.assertManagedKafka(mk);
 
         LOGGER.info("Upgrade to {}", latestStrimziVersion);
         mk = ManagedKafkaResourceType.getDefault(mkAppName, mkAppName, keycloak, latestStrimziVersion, kafkaVersion);
-        mk = resourceManager.createResource(extensionContext, mk);
+        mk.setId(id);
+        resourceManager.addResource(extensionContext, mk);
+
+        res = SyncApiClient.createManagedKafka(mk, syncEndpoint);
+        assertEquals(HttpURLConnection.HTTP_NO_CONTENT, res.statusCode());
 
         if (!ManagedKafkaResourceType.isDevKafka(mk)) {
             resourceManager.waitResourceCondition(mk, m -> {

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.bf2</groupId>
         <artifactId>kas-fleetshard</artifactId>
-        <version>0.28.1-SNAPSHOT</version>
+        <version>0.29.1-SNAPSHOT</version>
     </parent>
     <artifactId>kas-fleetshard-api</artifactId>
 
@@ -43,5 +43,25 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compilerArgs>
+                        <compilerArg>-XprintRounds</compilerArg>
+                    </compilerArgs>
+                    <annotationProcessors>
+                        <annotationProcessor>lombok.launch.AnnotationProcessorHider$AnnotationProcessor</annotationProcessor>
+                        <annotationProcessor>lombok.launch.AnnotationProcessorHider$ClaimingProcessor</annotationProcessor>
+                        <annotationProcessor>io.sundr.builder.internal.processor.BuildableProcessor</annotationProcessor>
+                        <annotationProcessor>io.sundr.builder.internal.processor.ExternalBuildableProcessor</annotationProcessor>
+                    </annotationProcessors>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

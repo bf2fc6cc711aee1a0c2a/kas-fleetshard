@@ -3,6 +3,8 @@ package org.bf2.operator.resources.v1alpha1;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.sundr.builder.annotations.Buildable;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
@@ -22,6 +24,7 @@ import java.util.regex.Pattern;
 @ToString
 @EqualsAndHashCode
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Getter @Setter
 public class Versions {
     static final Pattern strimziVersionPattern = Pattern.compile("[a-z\\.\\-]*(\\d+\\.\\d+\\.\\d+)(?:-(\\d+))?");
     private static final Comparator<String> strimziComparator = new StrimziVersionComparator();
@@ -33,30 +36,6 @@ public class Versions {
     @NotNull
     private String strimzi;
     private String kafkaIbp;
-
-    public String getKafka() {
-        return kafka;
-    }
-
-    public void setKafka(String kafka) {
-        this.kafka = kafka;
-    }
-
-    public String getStrimzi() {
-        return strimzi;
-    }
-
-    public void setStrimzi(String strimzi) {
-        this.strimzi = strimzi;
-    }
-
-    public String getKafkaIbp() {
-        return kafkaIbp;
-    }
-
-    public void setKafkaIbp(String kafkaIbp) {
-        this.kafkaIbp = kafkaIbp;
-    }
 
     public boolean isStrimziVersionIn(String... versions) {
         Matcher m = strimziVersionPattern.matcher(getStrimzi());
