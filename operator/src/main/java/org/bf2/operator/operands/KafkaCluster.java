@@ -123,7 +123,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     private static final String DO_NOT_SCHEDULE = "DoNotSchedule";
 
     private static final boolean DELETE_CLAIM = true;
-    // define jbod volume number to determin how many log.dirs we have
+    // define jbod volume number to determin how many log.dirs we have. So far, we only support 1 volume
+    // TODO: We should export it as a configurable parameter in the future
     private static final int JBOD_VOLUME_NUM = 1;
 
     private static final String KAFKA_EXPORTER_ENABLE_SARAMA_LOGGING = "enableSaramaLogging";
@@ -729,7 +730,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         BigDecimal cpuBytes = Quantity.getAmountInBytes(cpu);
         int cpuCores = Math.max(1, cpuBytes.intValue());
 
-        config.put("num.recovery.threads.per.data.dir", cpuCores);
+        config.put("num.recovery.threads.per.data.dir", cpuCores / JBOD_VOLUME_NUM);
 
         // Override broker config from operand override
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
