@@ -523,17 +523,11 @@ public class ManagedKafkaProvisioner {
     }
 
     public ManagedKafka getCluster(String name) {
-        Resource<ManagedKafka> mkResource = cluster.kubeClient()
+        return cluster.kubeClient()
                 .client()
                 .resources(ManagedKafka.class)
                 .inNamespace(KAFKA_NAMESPACE)
-                .withName(name);
-        try {
-            return mkResource.get();
-        } catch (KubernetesClientException e) {
-
-        }
-        return null;
+                .withName(name).get();
     }
 
 }

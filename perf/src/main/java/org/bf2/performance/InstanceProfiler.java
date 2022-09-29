@@ -112,20 +112,20 @@ public class InstanceProfiler {
 
     // recommended latency optimized profile
     public static final Profile LATENCY = new Profile("acks=1\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+                "cleanup.policy=delete\nretention.ms=240000\n");
     // recommended latency optimized profile, but with batching disabled for throughput testing
     public static final Profile LATENCY_NO_BATCHING = new Profile("acks=1\nbatch.size=0\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+                "cleanup.policy=delete\nretention.ms=240000\n");
 
     // using both https://www.confluent.io/blog/configure-kafka-to-minimize-latency/
     // and https://docs.confluent.io/cloud/current/client-apps/optimizing/throughput.html#optimizing-for-throughput
     public static final Profile THROUGHPUT = new Profile("acks=1\nbatch.size=200000\nlinger.ms=100\n",
             "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-            "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+            "cleanup.policy=delete\nretention.ms=240000\n");
 
     public static final Profile PRODUCER_COMPRESSION = new Profile("acks=1\nbatch.size=200000\nlinger.ms=100\ncompression.type=lz4\n",
             "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-            "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+            "cleanup.policy=delete\nretention.ms=240000\n");
 
     @SuppressFBWarnings
     public static class ThroughputResult {
