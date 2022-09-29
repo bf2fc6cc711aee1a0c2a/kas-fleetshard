@@ -5,7 +5,6 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
-import org.bf2.operator.resources.v1alpha1.ClusterCapacityBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatusBuilder;
 import org.bf2.sync.controlplane.ControlPlaneRestClient;
@@ -16,6 +15,7 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @WithKubernetesTestServer
@@ -50,8 +50,7 @@ public class AgentPollerTest {
         managedKafkaAgentSync.loop(); // pick up the agent from the control plane
 
         ManagedKafkaAgent local = lookup.getLocalManagedKafkaAgent();
-        local.setStatus(new ManagedKafkaAgentStatusBuilder()
-                .withRemaining(new ClusterCapacityBuilder().withConnections(1000).build()).build());
+        local.setStatus(new ManagedKafkaAgentStatusBuilder().build());
         client.replaceStatus(local);
 
         assertEquals("test-token", local.getSpec().getObservability().getAccessToken());
@@ -64,7 +63,7 @@ public class AgentPollerTest {
         local = lookup.getLocalManagedKafkaAgent();
 
         assertEquals("abc", local.getSpec().getObservability().getAccessToken());
-        assertEquals(1000, local.getStatus().getRemaining().getConnections());
+        assertNotNull(local.getStatus());
     }
 
 }

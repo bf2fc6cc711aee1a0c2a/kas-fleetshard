@@ -17,14 +17,6 @@ public class ManagedKafkaAgentStatus {
 
     private List<ManagedKafkaCondition> conditions;
 
-    private ClusterCapacity total;
-
-    private ClusterCapacity remaining;
-
-    private NodeCounts nodeInfo;
-
-    private ClusterResizeInfo resizeInfo;
-
     private String updatedTimestamp;
 
     private List<StrimziVersionStatus> strimzi;
