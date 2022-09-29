@@ -53,6 +53,7 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -274,6 +275,25 @@ class KafkaClusterTest {
 
         // storage should change to a larger size with the higher limits.
         diffToExpected(larger, "/expected/strimzi.yml", "[{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.soft\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/config/client.quota.callback.static.storage.hard\",\"value\":\"28633115306\"},{\"op\":\"replace\",\"path\":\"/spec/kafka/storage/volumes/0/size\",\"value\":\"41383100373\"}]");
+    }
+
+    @Test
+    void numRecoveryThreadShouldConsiderStorageCount() throws IOException {
+        //Given
+        final int volumeCount = 2;
+        alternativeConfig(clone -> clone.getKafka().setVolumeCount(volumeCount));
+        final ManagedKafka managedKafka = dummyManagedKafka("0");
+
+        //When
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        //Then
+        final String actualRecoveryThreadNum = String.valueOf(kafka.getSpec().getKafka().getConfig().get("num.recovery.threads.per.data.dir"));
+
+        Quantity cpu = new Quantity(configs.getConfig(managedKafka).getKafka().getContainerCpu());
+        BigDecimal cpuBytes = Quantity.getAmountInBytes(cpu);
+        int cpuCores = Math.max(1, cpuBytes.intValue());
+        assertEquals(String.valueOf(cpuCores/volumeCount), actualRecoveryThreadNum);
     }
 
     @Test
