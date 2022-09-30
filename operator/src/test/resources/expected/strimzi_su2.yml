@@ -295,6 +295,9 @@ spec:
         cpu: "500m"
     template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         imagePullSecrets:
           - name: "myimage:0.0.1"
   cruiseControl:
@@ -320,6 +323,9 @@ spec:
           key: jmx-exporter-config
     template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         imagePullSecrets:
           - name: "myimage:0.0.1"
     config:

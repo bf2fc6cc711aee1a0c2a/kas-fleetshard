@@ -278,6 +278,9 @@ spec:
           optional: false
     template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         tolerations:
         - effect: "NoExecute"
           key: "bf2.org/kafkaInstanceProfileType"
@@ -301,7 +304,11 @@ spec:
         memory: "128Mi"
         cpu: "75m"
     template:
+    template:
       pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         affinity:
           podAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:

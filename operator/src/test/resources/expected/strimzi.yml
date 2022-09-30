@@ -273,6 +273,11 @@ spec:
           topologyKey: "topology.kubernetes.io/zone"
           whenUnsatisfiable: "DoNotSchedule"
   kafkaExporter:
+    template:
+      pod:
+        metadata:
+          annotations:
+            cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
     resources:
       limits:
         memory: "256Mi"
