@@ -138,6 +138,8 @@ public class KafkaCluster extends AbstractKafkaCluster {
     public static final String MAX_PARTITIONS = "max.partitions";
     public static final String MESSAGE_MAX_BYTES = "message.max.bytes";
 
+    private static final Map<String, String> SAFE_TO_EVICT = Map.of("cluster-autoscaler.kubernetes.io/safe-to-evict", "true");
+
     @Inject
     Logger log;
 
@@ -484,7 +486,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         if (replicas == 1) {
             podTemplateBuilder.editOrNewMetadata()
-                    .addToAnnotations("cluster-autoscaler.kubernetes.io/safe-to-evict", "true")
+                    .addToAnnotations(SAFE_TO_EVICT)
                     .endMetadata();
         }
 
@@ -580,6 +582,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .build());
         }
 
+        if (replicas == 1) {
+            templateBuilder.editOrNewPod().editOrNewMetadata().addToAnnotations(SAFE_TO_EVICT).endMetadata().endPod();
+        }
+
         return templateBuilder.build();
     }
 
@@ -618,7 +624,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
                 .withTopicRegex(".*")
                 .withGroupRegex(".*")
                 .withImage(this.overrideManager.getKafkaExporterImage(strimzi).orElse(null))
-                .withResources(config.getExporter().buildResources());
+                .withResources(config.getExporter().buildResources())
+                .withNewTemplate()
+                .withNewPod()
+                .withNewMetadata()
+                .withAnnotations(SAFE_TO_EVICT)
+                .endMetadata()
+                .endPod()
+                .endTemplate();
         var pullSecrets = imagePullSecretManager.getOperatorImagePullSecrets(managedKafka);
         if (!pullSecrets.isEmpty()) {
             specBuilder.editOrNewTemplate()
@@ -773,6 +786,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .withImagePullSecrets(imagePullSecretManager.getOperatorImagePullSecrets(managedKafka))
                     .withAffinity(affinity)
                     .withTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling))
+                    .editOrNewMetadata().addToAnnotations(SAFE_TO_EVICT).endMetadata()
                 .endPod()
             .endTemplate();
 
