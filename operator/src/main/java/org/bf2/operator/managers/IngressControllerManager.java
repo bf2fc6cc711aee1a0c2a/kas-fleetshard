@@ -620,6 +620,11 @@ public class IngressControllerManager {
         int desiredReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
         if (defaultReplicaCount.isPresent()) {
             return defaultReplicaCount.get();
+        } else if (nodeInformer.getList().size() > 3){
+            // enforce a minimum of two replicas on clusters that can accommodate it when no default specified
+            // which may change if we don't want to
+            // provide pod / node level HA for the az specific replicas.
+            desiredReplicaCount = 2;
         }
 
         /*

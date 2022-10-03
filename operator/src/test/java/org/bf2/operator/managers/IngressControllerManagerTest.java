@@ -84,7 +84,7 @@ class IngressControllerManagerTest {
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         assertEquals(1, ingressControllers.size(), "Expected only one IngressController");
         assertEquals("kas", ingressControllers.get(0).getMetadata().getName(), "Expected the IngressController to be named kas");
-        assertEquals(0, ingressControllers.get(0).getSpec().getReplicas(), "Expected 0 replicas because there are 0 nodes");
+        checkDefaultReplicaCount(0, "Expected 0 replicas because there are 0 nodes");
 
         // check the patch logic
         IngressController ic = ingressControllers.get(0);
@@ -169,12 +169,19 @@ class IngressControllerManagerTest {
         assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
         checkAzReplicaCount(1);
+        checkDefaultReplicaCount(2, "Expected 2 replicas because there are 12 nodes");
     }
 
     private void checkAzReplicaCount(int count) {
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         IngressController ic = ingressControllers.stream().filter(c -> !c.getMetadata().getName().equals("kas")).findFirst().get();
         assertEquals(count, ic.getSpec().getReplicas());
+    }
+
+    private void checkDefaultReplicaCount(int count, String errmsg) {
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        IngressController ic = ingressControllers.stream().filter(c -> c.getMetadata().getName().equals("kas")).findFirst().get();
+        assertEquals(count, ic.getSpec().getReplicas(), errmsg);
     }
 
     @Test
