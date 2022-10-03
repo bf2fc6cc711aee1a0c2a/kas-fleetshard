@@ -570,7 +570,7 @@ public class IngressControllerManager {
     int numReplicasForZone(LongSummaryStatistics ingress, LongSummaryStatistics egress,
             long connectionDemand, double zonePercentage) {
         // use the override if present
-        int desiredReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
+        int minimumReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
         if (azReplicaCount.isPresent()) {
             return azReplicaCount.get();
         }
@@ -600,7 +600,7 @@ public class IngressControllerManager {
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
-        return Math.max(desiredReplicaCount, Math.max(connectionReplicaCount, replicaCount));
+        return Math.max(minimumReplicaCount, Math.max(connectionReplicaCount, replicaCount));
     }
 
     static LongSummaryStatistics summarize(List<Kafka> kafkas, Function<Kafka, String> quantity,
@@ -617,20 +617,20 @@ public class IngressControllerManager {
 
     int numReplicasForDefault(long connectionDemand) {
         // use the override if present
-        int desiredReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
+        int minimumReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
         if (defaultReplicaCount.isPresent()) {
             return defaultReplicaCount.get();
         } else if (nodeInformer.getList().size() > 3){
             // enforce a minimum of two replicas on clusters that can accommodate it when no default specified
             // which may change if we don't want to
             // provide pod / node level HA for the az specific replicas.
-            desiredReplicaCount = 2;
+            minimumReplicaCount = 2;
         }
 
         /*
          * an assumption here is that these ingress replicas will not become bandwidth constrained - but that may need further qualification
          */
-        return Math.max(desiredReplicaCount, numReplicasForConnectionDemand(connectionDemand));
+        return Math.max(minimumReplicaCount, numReplicasForConnectionDemand(connectionDemand));
     }
 
     private int numReplicasForConnectionDemand(double connectionDemand) {
