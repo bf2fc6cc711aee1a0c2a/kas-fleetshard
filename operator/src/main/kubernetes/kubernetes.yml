@@ -209,6 +209,8 @@ spec:
           env:
             - name: QUARKUS_PROFILE
               value: prod
+            - name: INGRESSCONTROLLER_AZ_REPLICA_COUNT
+              value: "1"              
           ports:
             - containerPort: 8080
               name: http

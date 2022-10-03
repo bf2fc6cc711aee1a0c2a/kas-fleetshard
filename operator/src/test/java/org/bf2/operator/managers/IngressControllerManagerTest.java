@@ -44,6 +44,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -83,7 +84,7 @@ class IngressControllerManagerTest {
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         assertEquals(1, ingressControllers.size(), "Expected only one IngressController");
         assertEquals("kas", ingressControllers.get(0).getMetadata().getName(), "Expected the IngressController to be named kas");
-        assertEquals(0, ingressControllers.get(0).getSpec().getReplicas(), "Expected 0 replicas because there are 0 nodes");
+        checkDefaultReplicaCount(0, "Expected 0 replicas because there are 0 nodes");
 
         // check the patch logic
         IngressController ic = ingressControllers.get(0);
@@ -135,7 +136,7 @@ class IngressControllerManagerTest {
         assertTrue(kafkas.withName("ingressTest0").delete());
         assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(5);
+        checkAzReplicaCount(4);
 
         // remove two more kafkas - and we should reduce
         assertTrue(kafkas.withName("ingressTest2").delete());
@@ -145,7 +146,7 @@ class IngressControllerManagerTest {
     }
 
     @Test
-    void testReplicaReduction3to2() {
+    void testReplicaReduction3to1() {
         openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
 
         IntStream.range(0, 3).forEach(i -> {
@@ -167,13 +168,20 @@ class IngressControllerManagerTest {
         assertTrue(kafkas.withName("ingressTest0").delete());
         assertTrue(kafkas.withName("ingressTest1").delete());
         ingressControllerManager.reconcileIngressControllers();
-        checkAzReplicaCount(2);
+        checkAzReplicaCount(1);
+        checkDefaultReplicaCount(2, "Expected 2 replicas because there are 12 nodes");
     }
 
     private void checkAzReplicaCount(int count) {
         List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
         IngressController ic = ingressControllers.stream().filter(c -> !c.getMetadata().getName().equals("kas")).findFirst().get();
         assertEquals(count, ic.getSpec().getReplicas());
+    }
+
+    private void checkDefaultReplicaCount(int count, String errmsg) {
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        IngressController ic = ingressControllers.stream().filter(c -> c.getMetadata().getName().equals("kas")).findFirst().get();
+        assertEquals(count, ic.getSpec().getReplicas(), errmsg);
     }
 
     @Test
@@ -192,6 +200,29 @@ class IngressControllerManagerTest {
             }
             return c.getSpec().getNodePlacement() != null;
         }));
+    }
+
+    @Test
+    void testFixedReplicaCount() {
+        openShiftClient.resourceList((List)buildNodes(12)).createOrReplace();
+        try {
+            ingressControllerManager.setAzReplicaCount(Optional.of(1));
+            IntStream.range(0, 3).forEach(i -> {
+                ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+                mk.getMetadata().setName("ingressTest" + i);
+                mk.getMetadata().setNamespace("ingressTest");
+                mk.getSpec().getCapacity().setIngressPerSec(Quantity.parse("300Mi"));
+                mk.getSpec().getCapacity().setEgressPerSec(Quantity.parse("300Mi"));
+                Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+                openShiftClient.resource(kafka).createOrReplace();
+            });
+            informerManager.createKafkaInformer();
+
+            ingressControllerManager.reconcileIngressControllers();
+            checkAzReplicaCount(1);
+        } finally {
+            ingressControllerManager.setAzReplicaCount(Optional.empty());
+        }
     }
 
     @Test
@@ -238,7 +269,7 @@ class IngressControllerManagerTest {
     @Test
     void testIngressControllerReplicaCounts() {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000));
-        assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
+        assertEquals(0, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
 
         assertEquals(3, ingressControllerManager.numReplicasForDefault(160000));
         assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));

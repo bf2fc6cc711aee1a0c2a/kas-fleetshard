@@ -28,7 +28,6 @@ import io.fabric8.openshift.api.model.operator.v1.Config;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
-import io.fabric8.openshift.api.model.operator.v1.IngressControllerSpec;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.arc.properties.UnlessBuildProperty;
@@ -87,7 +86,6 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
-    private static final int MIN_REPLICA_REDUCTION = 1;
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
@@ -492,18 +490,6 @@ public class IngressControllerManager {
 
         Optional<IngressController> optionalExisting = Optional.ofNullable(existing);
         IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElseGet(IngressControllerBuilder::new);
-        Integer existingReplicas = optionalExisting.map(IngressController::getSpec).map(IngressControllerSpec::getReplicas).orElse(null);
-
-        // retain replicas as long as we're above the min reduction
-        if (existingReplicas != null && existingReplicas - replicas <= MIN_REPLICA_REDUCTION) {
-            replicas = Math.max(existingReplicas, replicas);
-        }
-
-        // enforce a minimum of two replicas on clusters that can accommodate it - which may change if we don't want to
-        // provide pod / node level HA for the az specific replicas.
-        if (replicas == 1 && nodeInformer.getList().size() > 3) {
-            replicas = 2;
-        }
 
         builder
             .editOrNewMetadata()
@@ -576,9 +562,15 @@ public class IngressControllerManager {
         createOrEdit(builder.build(), existing);
     }
 
+    // for testing
+    void setAzReplicaCount(Optional<Integer> value) {
+        azReplicaCount = value;
+    }
+
     int numReplicasForZone(LongSummaryStatistics ingress, LongSummaryStatistics egress,
             long connectionDemand, double zonePercentage) {
         // use the override if present
+        int minimumReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
         if (azReplicaCount.isPresent()) {
             return azReplicaCount.get();
         }
@@ -608,7 +600,7 @@ public class IngressControllerManager {
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
 
-        return Math.max(1, Math.max(connectionReplicaCount, replicaCount));
+        return Math.max(minimumReplicaCount, Math.max(connectionReplicaCount, replicaCount));
     }
 
     static LongSummaryStatistics summarize(List<Kafka> kafkas, Function<Kafka, String> quantity,
@@ -625,14 +617,18 @@ public class IngressControllerManager {
 
     int numReplicasForDefault(long connectionDemand) {
         // use the override if present
+        int minimumReplicaCount = nodeInformer.getList().size() > 0 ? 1:0;
         if (defaultReplicaCount.isPresent()) {
             return defaultReplicaCount.get();
+        } else if (nodeInformer.getList().size() > 3){
+            // enforce a minimum of two replicas on clusters that can accommodate it when no default specified
+            minimumReplicaCount = 2;
         }
 
         /*
          * an assumption here is that these ingress replicas will not become bandwidth constrained - but that may need further qualification
          */
-        return numReplicasForConnectionDemand(connectionDemand);
+        return Math.max(minimumReplicaCount, numReplicasForConnectionDemand(connectionDemand));
     }
 
     private int numReplicasForConnectionDemand(double connectionDemand) {
