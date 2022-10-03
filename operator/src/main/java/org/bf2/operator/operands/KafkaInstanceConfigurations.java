@@ -10,6 +10,7 @@ import io.fabric8.openshift.client.OpenShiftClient;
 import io.quarkus.runtime.Startup;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.OpenShiftSupport;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigValue;
@@ -76,7 +77,12 @@ public class KafkaInstanceConfigurations {
     @Inject
     OpenShiftSupport openShiftSupport;
 
+    @Inject
+    OperandOverrideManager overrideManager;
+
     Map<String, KafkaInstanceConfiguration> configs = new HashMap<>();
+
+    KafkaInstanceConfiguration standardDynamic;
 
     @PostConstruct
     void init() throws IOException {
@@ -87,6 +93,9 @@ public class KafkaInstanceConfigurations {
         for (InstanceType type : InstanceType.values()) {
             configs.put(type.lowerName, loadConfiguration(new HashMap<>(defaultValues), type.lowerName));
         }
+
+        KafkaInstanceConfiguration standard = configs.get(InstanceType.STANDARD.lowerName);
+        standardDynamic = loadConfiguration(standard.toMap(true), "standard-dynamic");
 
         if (openShiftSupport.isOpenShift(kubernetesClient)) {
             setDefaultStorageClasses(configs, openShiftSupport.adapt(kubernetesClient));
@@ -154,7 +163,12 @@ public class KafkaInstanceConfigurations {
     }
 
     public KafkaInstanceConfiguration getConfig(ManagedKafka managedKafka) {
-        return configs.get(getInstanceType(managedKafka));
+        String instanceType = getInstanceType(managedKafka);
+        if (InstanceType.STANDARD.lowerName.equals(instanceType) &&
+                overrideManager.useDynamicScalingScheduling(managedKafka.getSpec().getVersions().getStrimzi())) {
+            return standardDynamic;
+        }
+        return configs.get(instanceType);
     }
 
     public static String getInstanceType(ManagedKafka managedKafka) {

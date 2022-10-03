@@ -98,7 +98,7 @@ spec:
             cpu: "500m"
           requests:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "100m"
         volumeMounts:
         - mountPath: "/opt/kafka-admin-api/custom-config/"
           name: "custom-config"
