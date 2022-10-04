@@ -177,9 +177,6 @@ public class KafkaInstanceConfiguration {
         protected String egressPerSec;
         @JsonProperty("storage-class")
         protected String storageClass;
-        // jbod volume count is to determine how many log.dirs we have. Default is 1
-        @JsonProperty("volume-count")
-        protected int volumeCount = 1;
         @JsonProperty("volume-size")
         protected String volumeSize;
         @JsonProperty("jvm-xms")
@@ -223,14 +220,6 @@ public class KafkaInstanceConfiguration {
 
         public void setVolumeSize(String volumeSize) {
             this.volumeSize = volumeSize;
-        }
-
-        public int getVolumeCount() {
-            return volumeCount;
-        }
-
-        public void setVolumeCount(int volumeCount) {
-            this.volumeCount = volumeCount;
         }
 
         public String getJvmXms() {
