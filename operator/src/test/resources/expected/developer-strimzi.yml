@@ -115,6 +115,7 @@ spec:
       ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
       client.quota.callback.static.storage.hard: "64424509440"
       leader.imbalance.per.broker.percentage: 0
+      num.recovery.threads.per.data.dir: 1
 
       kas.authorizer.acl.001: "default=true;permission=allow;topic=*;operations=describe,describe_configs"
       kas.authorizer.acl.002: "default=true;permission=allow;group=*;operations=describe"
