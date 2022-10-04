@@ -7,10 +7,14 @@ import io.fabric8.openshift.api.model.InfrastructureBuilder;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.fabric8.openshift.client.dsl.OpenShiftConfigAPIGroupDSL;
 import io.quarkus.test.common.QuarkusTestResource;
+import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.managers.MockOpenShiftSupport;
+import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
+import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.eclipse.microprofile.config.Config;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -44,18 +48,19 @@ class KafkaInstanceConfigurationsTest {
     @SuppressWarnings("unchecked")
     @ParameterizedTest
     @CsvSource({
-        "AWS      , custom-standard-gp2, gp2",
-        "Azure    , ' '                , managed-premium",
-        "GCP      ,                    , standard",
-        "CloudsRUs,                    ,"})
-    void testStorageClassDerivation(String platformType, String configuredStandardClass, String platformDefaultStorageClass) throws IOException {
+            "AWS      , custom-standard-gp2, gp2",
+            "Azure    , ' '                , managed-premium",
+            "GCP      ,                    , standard",
+            "CloudsRUs,                    ," })
+    void testStorageClassDerivation(String platformType, String configuredStandardClass,
+            String platformDefaultStorageClass) throws IOException {
         Infrastructure infra = new InfrastructureBuilder()
-            .withNewSpec()
+                .withNewSpec()
                 .withNewPlatformSpec()
-                    .withType(platformType)
+                .withType(platformType)
                 .endPlatformSpec()
-            .endSpec()
-            .build();
+                .endSpec()
+                .build();
 
         OpenShiftClient mockClient = Mockito.mock(OpenShiftClient.class);
         var mockConfig = Mockito.mock(OpenShiftConfigAPIGroupDSL.class);
@@ -72,7 +77,7 @@ class KafkaInstanceConfigurationsTest {
         // Using spy so that real configuration is used for all except single property
         Config overrideConfig = Mockito.spy(applicationConfig);
         Mockito.when(overrideConfig.getOptionalValue("standard.kafka.storage-class", String.class))
-            .thenAnswer(args -> Optional.ofNullable(configuredStandardClass));
+                .thenAnswer(args -> Optional.ofNullable(configuredStandardClass));
 
         target.setApplicationConfig(overrideConfig);
 
@@ -83,17 +88,19 @@ class KafkaInstanceConfigurationsTest {
         }
 
         Arrays.stream(InstanceType.values())
-            .filter(Predicate.not(InstanceType.STANDARD::equals))
-            .map(target::getConfig)
-            .map(KafkaInstanceConfiguration::getKafka)
-            .map(KafkaInstanceConfiguration.Kafka::getStorageClass)
-            .forEach(actualStorageClass -> {
-                assertEquals(platformDefaultStorageClass, actualStorageClass);
-            });
+                .filter(Predicate.not(InstanceType.STANDARD::equals))
+                .map(target::getConfig)
+                .map(KafkaInstanceConfiguration::getKafka)
+                .map(KafkaInstanceConfiguration.Kafka::getStorageClass)
+                .forEach(actualStorageClass -> {
+                    assertEquals(platformDefaultStorageClass, actualStorageClass);
+                });
 
         boolean standardClassPresent = !Objects.requireNonNullElse(configuredStandardClass, "").isBlank();
-        String expectedStandardStorageClass = standardClassPresent ? configuredStandardClass : platformDefaultStorageClass;
-        assertEquals(expectedStandardStorageClass, target.getConfig(InstanceType.STANDARD).getKafka().getStorageClass());
+        String expectedStandardStorageClass =
+                standardClassPresent ? configuredStandardClass : platformDefaultStorageClass;
+        assertEquals(expectedStandardStorageClass,
+                target.getConfig(InstanceType.STANDARD).getKafka().getStorageClass());
     }
 
     @Test
@@ -107,9 +114,28 @@ class KafkaInstanceConfigurationsTest {
         }
 
         Arrays.stream(InstanceType.values())
-            .map(target::getConfig)
-            .map(KafkaInstanceConfiguration::getKafka)
-            .map(KafkaInstanceConfiguration.Kafka::getStorageClass)
-            .forEach(Assertions::assertNull);
+                .map(target::getConfig)
+                .map(KafkaInstanceConfiguration::getKafka)
+                .map(KafkaInstanceConfiguration.Kafka::getStorageClass)
+                .forEach(Assertions::assertNull);
+    }
+
+    @Test
+    void testDynamicOverrides() {
+        OperandOverrideManager overrideManager = Mockito.mock(OperandOverrideManager.class);
+        QuarkusMock.installMockForType(overrideManager, OperandOverrideManager.class);
+        Mockito.when(overrideManager.useDynamicScalingScheduling("x.y.z")).thenReturn(true);
+        ManagedKafka mk = new ManagedKafkaBuilder().withNewMetadata()
+                .addToLabels(ManagedKafka.PROFILE_TYPE, KafkaInstanceConfigurations.InstanceType.STANDARD.lowerName)
+                .endMetadata()
+                .withNewSpec()
+                .withNewVersions()
+                .withStrimzi("x.y.z")
+                .endVersions()
+                .endSpec()
+                .build();
+        KafkaInstanceConfiguration config = target.getConfig(mk);
+        assertEquals("3100m", config.getKafka().getContainerRequestCpu());
+        assertEquals("3200m", config.getKafka().getContainerCpu());
     }
 }
