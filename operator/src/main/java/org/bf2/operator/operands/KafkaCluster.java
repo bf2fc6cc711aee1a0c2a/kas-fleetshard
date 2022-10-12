@@ -685,6 +685,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         int scalingAndReplicationFactor = kafkaConfigs.getScalingAndReplicationFactor();
         int minIsr = Math.min(scalingAndReplicationFactor, 2);
         config.put("offsets.topic.replication.factor", scalingAndReplicationFactor);
+        config.put("connection.failed.authentication.delay.ms", 1000);
         config.put("transaction.state.log.min.isr", minIsr);
         config.put("transaction.state.log.replication.factor", scalingAndReplicationFactor);
         config.put("auto.create.topics.enable", "false");

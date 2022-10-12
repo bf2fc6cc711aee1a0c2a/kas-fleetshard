@@ -108,6 +108,7 @@ spec:
       client.quota.callback.quotaPolicy.check-interval: "15"
       client.quota.callback.kafka.clientIdPrefix: __redhat_strimzi
       offsets.topic.replication.factor: 3
+      connection.failed.authentication.delay.ms: 1000
       transaction.state.log.min.isr: 2
       client.quota.callback.static.storage.soft: "21474836480"
       inter.broker.protocol.version: "2.6"
