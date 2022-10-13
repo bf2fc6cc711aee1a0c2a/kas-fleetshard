@@ -2,10 +2,12 @@ package org.bf2.operator.controllers;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.javaoperatorsdk.operator.Operator;
 import io.quarkus.test.junit.QuarkusTest;
@@ -41,10 +43,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Encoder;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -66,9 +70,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ol>
  */
 @QuarkusTest
-@TestProfile(ManagedKafkaControllerIT.Profile.class)
+@TestProfile(ManagedKafkaSuspensionIT.Profile.class)
 @EnabledIfSystemProperty(named = "mk-integration-test", matches = "true")
-class ManagedKafkaControllerIT {
+class ManagedKafkaSuspensionIT {
 
     static final String OWNER_PRINCIPAL_NAME = "user-123";
     static final String CANARY_PRINCIPAL_NAME = "canary-123";
@@ -191,7 +195,11 @@ class ManagedKafkaControllerIT {
     @Test
     void testManagedKafkaSuspendAndResume() {
         Object[] suspendedAcls = Arrays.stream(aclDenyAll.split("\n")).map(String::trim).toArray(Object[]::new);
+        @SuppressWarnings("unchecked")
+        Map.Entry<String, String>[] rateLimitAnnotations = OperandUtils.buildRateLimitAnnotations(5, 5).entrySet().toArray(Map.Entry[]::new);
         String name = "mk1";
+
+        // Initial creation of the instance, verify ACLs
         createManagedKafka(name);
 
         await().atMost(10, TimeUnit.MINUTES).pollInterval(Duration.ofSeconds(5)).untilAsserted(() -> {
@@ -205,6 +213,7 @@ class ManagedKafkaControllerIT {
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertTrue(kafkaAcls.values().stream().noneMatch(Arrays.asList(suspendedAcls)::contains));
 
+        // Suspend the instance and confirm all pods are removed
         ManagedKafka mk = mkClient.getByName(kafkaNs, name);
         mk.getMetadata().getLabels().put(ManagedKafka.SUSPENDED_INSTANCE, "true");
         mkClient.patch(mk);
@@ -213,6 +222,7 @@ class ManagedKafkaControllerIT {
             assertTrue(client.pods().inNamespace(kafkaNs).list().getItems().isEmpty());
         });
 
+        // Test the resource state now that the cluster has been suspended
         kafka = client.resources(Kafka.class).inNamespace(kafkaNs).withName(name).get();
         kafkaAcls = getKafkaAcls(kafka.getSpec().getKafka().getConfig());
 
@@ -220,6 +230,19 @@ class ManagedKafkaControllerIT {
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertThat(kafkaAcls.values(), hasItems(suspendedAcls));
 
+        List<Route> kafkaRoutes = client.resources(Route.class)
+                .inNamespace(kafkaNs)
+                .list()
+                .getItems()
+                .stream()
+                .filter(r -> r.getMetadata().getName().startsWith(name + "-kafka-"))
+                .collect(Collectors.toList());
+
+        assertEquals(kafka.getSpec().getKafka().getReplicas() + 1, kafkaRoutes.size());
+        kafkaRoutes.forEach(route ->
+                assertThat(route.getMetadata().getAnnotations().entrySet(), hasItems(rateLimitAnnotations)));
+
+        // Resume the instance by removing the annotation
         mk = mkClient.getByName(kafkaNs, name);
         mk.getMetadata().getLabels().remove(ManagedKafka.SUSPENDED_INSTANCE);
         mkClient.patch(mk);
@@ -234,6 +257,24 @@ class ManagedKafkaControllerIT {
         assertEquals(5L, getPrincipalAcls(OWNER_PRINCIPAL_NAME, kafkaAcls).size());
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertTrue(kafkaAcls.values().stream().noneMatch(Arrays.asList(suspendedAcls)::contains));
+
+        kafkaRoutes = client.resources(Route.class)
+                .inNamespace(kafkaNs)
+                .list()
+                .getItems()
+                .stream()
+                .filter(r -> r.getMetadata().getName().startsWith(name + "-kafka-"))
+                .collect(Collectors.toList());
+
+        assertEquals(kafka.getSpec().getKafka().getReplicas() + 1, kafkaRoutes.size());
+        // Require that none of the rate limit annotations are present on the Kafka routes
+        assertTrue(kafkaRoutes.stream()
+                .map(Route::getMetadata)
+                .map(ObjectMeta::getAnnotations)
+                .filter(Objects::nonNull)
+                .map(Map::entrySet)
+                .flatMap(Collection::stream)
+                .noneMatch(Arrays.asList(rateLimitAnnotations)::contains));
     }
 
     void createManagedKafka(String name) {
@@ -358,7 +399,7 @@ class ManagedKafkaControllerIT {
         String dockerConfigJson =
                 String.format("{ \"auths\": { \"%s\":{ \"auth\": \"%s\" } } }",
                         "quay.io",
-                        b64.encodeToString((quayUsername + ":" + quayPassword).getBytes()));
+                        b64.encodeToString((quayUsername + ":" + quayPassword).getBytes(StandardCharsets.UTF_8)));
 
         client.secrets()
             .inNamespace(operatorNs)

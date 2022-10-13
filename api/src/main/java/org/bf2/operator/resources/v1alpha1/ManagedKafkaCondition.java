@@ -17,11 +17,13 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ManagedKafkaCondition {
 
+    @SuppressWarnings({ "java:S115" }) // Ignore Sonar rule considering camel-case enums to be non-compliant
     public enum Type {
         Ready,
         StrimziBundleReady
     }
 
+    @SuppressWarnings({ "java:S115" }) // Ignore Sonar rule considering camel-case enums to be non-compliant
     public enum Reason {
         Installing,
         Deleted,
@@ -35,6 +37,7 @@ public class ManagedKafkaCondition {
         Suspended
     }
 
+    @SuppressWarnings({ "java:S115" }) // Ignore Sonar rule considering camel-case enums to be non-compliant
     public enum Status {
         True,
         False,
