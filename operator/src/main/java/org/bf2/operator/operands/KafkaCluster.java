@@ -1019,9 +1019,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private KafkaAuthorization buildKafkaAuthorization(ManagedKafka managedKafka) {
-        return new KafkaAuthorizationCustomBuilder()
-                .withAuthorizerClass(getAclConfig(managedKafka).getAuthorizerClass())
-                .build();
+        return Optional.ofNullable(getAclConfig(managedKafka).getAuthorizerClass())
+            .map(className -> new KafkaAuthorizationCustomBuilder().withAuthorizerClass(className).build())
+            .orElse(null);
     }
 
     private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config, Supplier<String> getConfigPrefix) {
@@ -1061,8 +1061,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
-        for (String owner : owners) {
-            addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
+        if (managedKafka.isSuspended()) {
+            addAcl(aclConfig.getSuspended(), "", aclKeyTemplate, aclCount, config);
+        } else {
+            for (String owner : owners) {
+                addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
+            }
         }
 
         Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
