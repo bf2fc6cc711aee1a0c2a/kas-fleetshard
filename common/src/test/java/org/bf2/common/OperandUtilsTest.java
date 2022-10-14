@@ -14,5 +14,4 @@ public class OperandUtilsTest {
         assertEquals("value", OperandUtils.getOrDefault(Map.of("key", "value"), "key", "1"));
     }
 
-
 }
