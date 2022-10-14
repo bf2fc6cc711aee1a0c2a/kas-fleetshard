@@ -5,8 +5,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.openmessaging.benchmark.TestResult;
 import io.openmessaging.benchmark.Workload;
@@ -17,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.bf2.common.SuppressFBWarnings;
 import org.bf2.operator.operands.KafkaInstanceConfiguration;
 import org.bf2.operator.operands.KafkaInstanceConfiguration.Kafka;
+import org.bf2.operator.operands.KafkaInstanceConfigurations;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCapacity;
 import org.bf2.performance.TestUtils.AvailableResources;
@@ -29,9 +28,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,7 +80,7 @@ public class InstanceProfiler {
     }
 
     public enum Storage {
-        GP2("10Gi"), GP3("223Gi");
+        GP2("10Gi"), GP3("223Gi"), STANDARD("10Gi");
 
         Storage(String zookeeperSize) {
             this.zookeeperSize = zookeeperSize;
@@ -111,20 +112,20 @@ public class InstanceProfiler {
 
     // recommended latency optimized profile
     public static final Profile LATENCY = new Profile("acks=1\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+                "cleanup.policy=delete\nretention.ms=240000\n");
     // recommended latency optimized profile, but with batching disabled for throughput testing
     public static final Profile LATENCY_NO_BATCHING = new Profile("acks=1\nbatch.size=0\n", "auto.offset.reset=earliest\nenable.auto.commit=false\n",
-                "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+                "cleanup.policy=delete\nretention.ms=240000\n");
 
     // using both https://www.confluent.io/blog/configure-kafka-to-minimize-latency/
     // and https://docs.confluent.io/cloud/current/client-apps/optimizing/throughput.html#optimizing-for-throughput
     public static final Profile THROUGHPUT = new Profile("acks=1\nbatch.size=200000\nlinger.ms=100\n",
             "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-            "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+            "cleanup.policy=delete\nretention.ms=240000\n");
 
     public static final Profile PRODUCER_COMPRESSION = new Profile("acks=1\nbatch.size=200000\nlinger.ms=100\ncompression.type=lz4\n",
             "fetch.min.bytes=100000\nauto.offset.reset=earliest\nenable.auto.commit=false\n",
-            "compression.type=uncompressed\ncleanup.policy=delete\nretention.ms=240000\n");
+            "cleanup.policy=delete\nretention.ms=240000\n");
 
     @SuppressFBWarnings
     public static class ThroughputResult {
@@ -159,6 +160,8 @@ public class InstanceProfiler {
         public Double maxConnectionCount;
         public Double targetIngressMBs;
         public Double targetEgressMBs;
+        public int consumers;
+        public int producers;
     }
 
     @JsonInclude(content = JsonInclude.Include.NON_NULL)
@@ -176,7 +179,7 @@ public class InstanceProfiler {
 
         // defines the number and shape of a unit
         public int units = 1;
-        public int maxConnectionsPerUnit = 2000;
+        public int maxConnectionsPerUnit = 3000;
         public int maxPartitionsPerUnit = 1500;
         public Quantity ingressPerUnit = Quantity.parse("50Mi");
         public int egressMultiple = 2;
@@ -193,10 +196,13 @@ public class InstanceProfiler {
 
         public String profile = "standard";
 
+        public String appServicesProperties;
+
         public Map<String, String> override;
 
         @JsonIgnore
         public KafkaInstanceConfiguration config;
+        public boolean failOnError = true;
 
         /*
          * see https://www.confluent.io/blog/kafka-fastest-messaging-system/#test-setup where they chose 100
@@ -248,7 +254,7 @@ public class InstanceProfiler {
 
         public TreeMap<Integer, LatencyResult> partitionResults = new TreeMap<>();
 
-        public Map<Profile, ThroughputResult> throughputResults = new HashMap<>();
+        public Map<String, ThroughputResult> throughputResults = new HashMap<>();
 
         // connections
         //public TreeMap<Integer, LatencyResult> consumers = new TreeMap<>();
@@ -281,8 +287,8 @@ public class InstanceProfiler {
     KubeClusterResource kafkaCluster;
     OMB omb;
     File logDir;
-    String instanceBootstrap;
     boolean installedProvisioner;
+    OMBDriver driver = new OMBDriver();
 
     public static void main(String[] args) throws Exception {
         InstanceProfiler profiler = new InstanceProfiler();
@@ -297,9 +303,9 @@ public class InstanceProfiler {
         try {
             profiler.setup();
             profiler.profile();
-            //profiler.runLocalTest();
-        } catch (Exception e) {
-            LOGGER.error("Uncaught exception", e);
+            //profiler.runKasInstallerTest();
+        } catch (Throwable t) {
+            LOGGER.error("Uncaught exception", t);
         } finally {
             if (profiler.profilingResult.completedStep == Step.DONE) {
                 // don't tear down for now to keep reusing the cluster
@@ -311,8 +317,8 @@ public class InstanceProfiler {
     private void runLocalTest() throws Exception {
         Profile profile = LATENCY;
         sizeAndUpdateConfig();
-        deployIfNeeded("profile");
-        OMBDriver driver = createDriver(instanceBootstrap, profile);
+        deployIfNeeded();
+        updateDriver(profile);
 
         byte[] storeBytes = Base64.getDecoder().decode(kafkaProvisioner.getTlsConfig().getTrustStoreBase64());
         File store = new File("target", "listener.jks");
@@ -332,8 +338,10 @@ public class InstanceProfiler {
     private void teardown() throws Exception {
         if (omb != null) {
             omb.uninstall();
-            kafkaProvisioner.uninstall();
-            kafkaProvisioner.teardown();
+            if (kafkaProvisioner != null) {
+                kafkaProvisioner.uninstall();
+                kafkaProvisioner.teardown();
+            }
         }
     }
 
@@ -364,12 +372,24 @@ public class InstanceProfiler {
         kafkaCluster = KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.KAFKA_KUBECONFIG);
         profilingResult.kafkaNodeType =
                 kafkaCluster.getWorkerNodes().get(0).getMetadata().getLabels().get("node.kubernetes.io/instance-type");
-        kafkaProvisioner = ManagedKafkaProvisioner.create(kafkaCluster);
 
-        kafkaProvisioner.setup();
         omb = new OMB(KubeClusterResource.connectToKubeCluster(PerformanceEnvironment.OMB_KUBECONFIG));
 
-        omb.install(kafkaProvisioner.getTlsConfig());
+        if (testParameters.appServicesProperties == null) {
+            kafkaProvisioner = ManagedKafkaProvisioner.create(kafkaCluster);
+            kafkaProvisioner.setup();
+            omb.install(kafkaProvisioner.getTlsConfig().getTrustStoreBase64());
+        } else {
+            // install the appService secret
+            try (FileInputStream fis = new FileInputStream(testParameters.appServicesProperties)) {
+                Properties p = new Properties();
+                p.load(fis);
+                String trustStore = p.getProperty("ssl.truststore.location");
+                Path path = Paths.get(trustStore);
+                byte[] data = Files.readAllBytes(path);
+                omb.install(Base64.getEncoder().encodeToString(data));
+            }
+        }
 
         // TODO: if there is an existing result, make sure it's the same test setup
 
@@ -404,9 +424,15 @@ public class InstanceProfiler {
         createCapacity();
 
         if (profilingResult.completedStep == null) {
+            installKafkaProvisioner();
+            writeResults(Step.SETUP);
+        }
+    }
+
+    private void installKafkaProvisioner() throws Exception {
+        if (kafkaProvisioner != null && !installedProvisioner) {
             installedProvisioner = true;
             kafkaProvisioner.install();
-            writeResults(Step.SETUP);
         }
     }
 
@@ -436,14 +462,14 @@ public class InstanceProfiler {
         }
     }
 
-    private AvailableResources getMinAvailableResources(Stream<Node> stream) throws NullPointerException{
+    private AvailableResources getMinAvailableResources(Stream<Node> stream) {
         AvailableResources resources = stream.map(TestUtils::getMaxAvailableResources)
                 .reduce((a1, a2) -> {
                     a1.cpuMillis = Math.min(a1.cpuMillis, a2.cpuMillis);
                     a1.memoryBytes = Math.min(a1.memoryBytes, a2.memoryBytes);
                     return a1;
                 })
-                .get(); //NOSONAR
+                .get();
         return resources;
     }
 
@@ -460,9 +486,7 @@ public class InstanceProfiler {
             writeResults(Step.SIZE);
         }
 
-        deployIfNeeded("profile");
-
-        maxMessageSize();
+        deployIfNeeded();
 
         if (profilingResult.completedStep == Step.SIZE) {
             profilingResult.baselineLatency = determineLatency(workload -> {
@@ -476,8 +500,8 @@ public class InstanceProfiler {
 
         if (profilingResult.completedStep == Step.LATENCY) {
             if (!testParameters.config.getKafka().isEnableQuota()) {
-                determineThroughput(LATENCY_NO_BATCHING);
-                determineThroughput(THROUGHPUT);
+                determineThroughput(LATENCY_NO_BATCHING, "no batching");
+                determineThroughput(THROUGHPUT, "saturating w/batching");
             }
             streamingUnitTest();
             writeResults(Step.THROUGHPUT);
@@ -507,38 +531,40 @@ public class InstanceProfiler {
         LOGGER.info("Done running");
     }
 
-    private void deployIfNeeded(String name) throws Exception {
-        ManagedKafka mk = null;
-        Resource<ManagedKafka> mkResource = kafkaCluster.kubeClient()
-                .client()
-                .resources(ManagedKafka.class)
-                .inNamespace(Constants.KAFKA_NAMESPACE)
-                .withName(name);
-        try {
-            mk = mkResource.get();
-        } catch (KubernetesClientException e) {
-
+    private void deployIfNeeded() throws Exception {
+        if (testParameters.appServicesProperties != null) {
+            // instances is coming from kas-installer
+            try (FileInputStream fis = new FileInputStream(testParameters.appServicesProperties)) {
+                Properties p = new Properties();
+                p.load(fis);
+                // use the container path to the mounted secret
+                p.setProperty("ssl.truststore.location", "/cert/listener.jks");
+                StringWriter writer = new StringWriter();
+                p.store(writer, null);
+                driver.setCommonConfig(writer.toString());
+                return;
+            }
         }
+
+        String name = "profile";
+
+        ManagedKafka mk = kafkaProvisioner.getCluster(name);
 
         ManagedKafkaDeployment kd = null;
         if (mk == null) {
-            if (!installedProvisioner) {
-                // TODO: come up with a better resume logic here - it currently has to recreate everything
-                installedProvisioner = true;
-                kafkaProvisioner.install();
-            }
+            installKafkaProvisioner();
             kafkaProvisioner.removeClusters(true);
             ObjectMetaBuilder builder = new ObjectMetaBuilder();
             builder.withName(name);
             builder.addToLabels(ManagedKafka.PROFILE_TYPE, this.testParameters.profile);
-            //builder.addToLabels(ManagedKafka.DEPLOYMENT_TYPE, "reserved");
-            kd = kafkaProvisioner.deployCluster(builder.build(), profilingResult.capacity, profilingResult.config);
+            kd = kafkaProvisioner.deployCluster(builder.build(), profilingResult.capacity, profilingResult.config, this.testParameters.override);
         } else {
             // TODO validate config / capacity
             kd = new ManagedKafkaDeployment(mk, kafkaCluster);
             kd.start();
         }
-        instanceBootstrap = kd.waitUntilReady();
+        String instanceBootstrap = kd.waitUntilReady();
+        driver.setCommonConfigWithBootstrapUrl(instanceBootstrap);
     }
 
     protected LatencyResult determineLatency(Consumer<Workload> setupModifier) throws Exception {
@@ -556,6 +582,8 @@ public class InstanceProfiler {
         LatencyResult result = new LatencyResult();
         result.targetIngressMBs = load.producerRate * load.messageSize / (double) ONE_MB;
         result.targetEgressMBs = result.targetIngressMBs * load.subscriptionsPerTopic;
+        result.consumers = load.consumerPerSubscription * load.subscriptionsPerTopic * load.topics;
+        result.producers = load.producersPerTopic * load.topics;
 
         try {
             OMBWorkloadResult loadResult = doTestRun(load.name, load, profile);
@@ -574,7 +602,7 @@ public class InstanceProfiler {
             result.medianEndToEndLatency99pct = TestUtils.getMedian(loadTestResult.endToEndLatency99pct);
             result.aggregatedPublishLatency50pct = loadTestResult.aggregatedPublishLatency50pct;
             result.aggregatedPublishLatency99pct = loadTestResult.aggregatedPublishLatency99pct;
-            result.maxConnectionCount = loadTestResult.additionalMetrics.get(KafkaBenchmarkDriverWithMetrics.CONNECTION_COUNT).stream().max(Double::compareTo).get();//NOSONAR
+            result.maxConnectionCount = loadTestResult.additionalMetrics.get(KafkaBenchmarkDriverWithMetrics.CONNECTION_COUNT).stream().max(Double::compareTo).get();
 
             if (resultConsumer != null) {
                 resultConsumer.accept(profile, loadTestResult);
@@ -589,6 +617,9 @@ public class InstanceProfiler {
                     loadTestResult.aggregatedEndToEndLatency50pct, result.medianEndToEndLatency99pct,
                     loadTestResult.aggregatedEndToEndLatency99pct));
         } catch (Exception e) {
+            if (testParameters.failOnError) {
+                throw e;
+            }
             result.error = new ErrorResult();
             result.error.message = e.getMessage();
             LOGGER.info(String.format("not accepting %s as there were errors during the test", load.name), e);
@@ -600,7 +631,7 @@ public class InstanceProfiler {
      * Determine throughput
      * see https://www.confluent.io/blog/kafka-fastest-messaging-system/#throughput-test
      */
-    protected void determineThroughput(Profile profile) throws Exception {
+    protected void determineThroughput(Profile profile, String name) throws Exception {
         int pub = Math.max(testParameters.getNominialPartitionCount(), 2 * profilingResult.ombWorkerNodes);
 
         // start by over producing to get a better guess at producer rate
@@ -617,7 +648,7 @@ public class InstanceProfiler {
         LOGGER.info(String.format("Result summary for %s %s producers/consumers %s", profile, pub,
                 Serialization.asYaml(throughputResult)));
 
-        profilingResult.throughputResults.put(profile, throughputResult);
+        profilingResult.throughputResults.put(name, throughputResult);
 
         // could run again for confirmation - or take multiple samples
         // there could also be a notion of a sustained accounting for latency
@@ -662,7 +693,7 @@ public class InstanceProfiler {
     }
 
     private void readResults() throws IOException {
-        File file = new File("result.yaml");
+        File file = new File(testParameters.outputDirectory, "result.yaml");
         if (file.exists()) {
             profilingResult = Serialization.unmarshal(Files.readString(file.toPath()), ProfilingResult.class);
         }
@@ -670,7 +701,7 @@ public class InstanceProfiler {
 
     protected void sizeAndUpdateConfig() throws Exception {
         Stream<Node> workerNodes = kafkaCluster.getWorkerNodes().stream();
-        if (!testParameters.config.getKafka().isColocateWithZookeeper()) {
+        if (kafkaProvisioner != null && !testParameters.config.getKafka().isColocateWithZookeeper()) {
             kafkaProvisioner.validateClusterForBrokers(testParameters.getNumberOfBrokers(), false, workerNodes);
             workerNodes = kafkaCluster.getWorkerNodes()
                     .stream()
@@ -741,11 +772,13 @@ public class InstanceProfiler {
             containerResources(testParameters.config.getAdminserver(), cpuResources, memoryResources);
             containerResources(testParameters.config.getExporter(), cpuResources, memoryResources);
             containerResources(testParameters.config.getCanary(), cpuResources, memoryResources);
-            containerResources(testParameters.config.getCruiseControl(), cpuResources, memoryResources);
+            if (KafkaInstanceConfigurations.InstanceType.STANDARD.getLowerName().equals(testParameters.profile)) {
+                containerResources(testParameters.config.getCruiseControl(), cpuResources, memoryResources);
+            }
 
             LOGGER.info("Total overhead of additional pods {} memory, {} cpu",
                     memoryResources.stream().collect(Collectors.summingLong(Long::valueOf)),
-                    memoryResources.stream().collect(Collectors.summingLong(Long::valueOf)));
+                    cpuResources.stream().collect(Collectors.summingLong(Long::valueOf)));
 
             Collections.sort(cpuResources);
             Collections.sort(memoryResources);
@@ -753,44 +786,37 @@ public class InstanceProfiler {
             // typical needs ~ 800Mi and 1075m/1575m cpu over 3 nodes, but worst case is over two
             memoryBytes = resources.memoryBytes
                     - testParameters.density
-                            * (zookeeperBytes + memoryResources.get(0) + memoryResources.get(2));
+                            * (zookeeperBytes + memoryResources.get(memoryResources.size() - 1));
             cpuMillis = resources.cpuMillis - testParameters.density
-                    * (zookeeperCpu + cpuResources.get(0) + cpuResources.get(2));
+                    * (zookeeperCpu + cpuResources.get(0) + cpuResources.get(cpuResources.size() - 1));
+
+            // if there are eventually other pods that need to be collocated, or the current ones need adjusted we don't want to adjust the resources downward
+            if (testParameters.density == 1) {
+                memoryBytes -= .75 * ONE_GB;
+                cpuMillis -= 300;
+            }
         }
 
         // reserve additional memory to help lessen the fluctuation of resources across openshift versions
-        // and if there are eventually pods that need to be collocated, and we don't want to adjust the resources downward
-        if (testParameters.density == 1) {
-            memoryBytes -= 2 * ONE_GB;
-            cpuMillis -= 500;
-        } else {
-            // we can assume a much tighter resource utilization for density 2 - it can fluctuate between releases
-            // or may require adjustments as other pods are added or pod resource adjustments are made
-            memoryBytes -= 1 * ONE_GB;
-            cpuMillis -= 200;
-        }
+        memoryBytes -= .55 * ONE_GB;
+        cpuMillis -= 200;
 
         memoryBytes = memoryBytes / testParameters.density;
         cpuMillis = cpuMillis / testParameters.density;
 
         long maxVmBytes = Math.min(memoryBytes - getVMOverheadForContainer(memoryBytes), MAX_KAFKA_VM_SIZE);
 
-        if (testParameters.density > 1) {
-            maxVmBytes -= 1 * ONE_GB;
-        }
-
         KafkaInstanceConfiguration toUse = Serialization.jsonMapper().convertValue(testParameters.config, KafkaInstanceConfiguration.class);
 
-        LOGGER.info("Calculated kafka sizing {} container memory, {} container cpu, and {} vm memory", memoryBytes,
-                cpuMillis, maxVmBytes);
-
         if (!testParameters.autoSize) {
-            LOGGER.info("Not using calculated sizes");
+            LOGGER.info("Not using calculated kafka sizing {} container memory, {} container cpu, and {} vm memory", memoryBytes,
+              cpuMillis, maxVmBytes);
         } else {
             toUse.getKafka().setContainerCpu(cpuMillis + "m");
             toUse.getKafka().setJvmXms(String.valueOf(maxVmBytes));
             toUse.getKafka().setContainerMemory(String.valueOf(memoryBytes));
         }
+
         return toUse;
     }
 
@@ -803,8 +829,10 @@ public class InstanceProfiler {
     }
 
     private void createCapacity() {
-        profilingResult.capacity = kafkaProvisioner.defaultCapacity(
-                Quantity.getAmountInBytes(testParameters.ingressPerUnit).longValue() * testParameters.units);
+        profilingResult.capacity = new ManagedKafkaCapacity();
+        long ingress = Quantity.getAmountInBytes(testParameters.ingressPerUnit).longValue() * testParameters.units;
+        profilingResult.capacity.setIngressPerSec(Quantity.parse(String.valueOf(ingress)));
+        profilingResult.capacity.setEgressPerSec(Quantity.parse(String.valueOf(ingress * testParameters.egressMultiple)));
         profilingResult.capacity
                 .setMaxDataRetentionSize(Quantity.parse(Quantity.getAmountInBytes(testParameters.dataRetentionPerUnit)
                         .multiply(BigDecimal.valueOf(testParameters.units))
@@ -822,7 +850,7 @@ public class InstanceProfiler {
      *   for a fixed number of consumers -- were they scaling the consumers as well?
      */
     protected void determinePartitions() throws Exception {
-        int maxClients = testParameters.getMaxClients();
+        int maxClients = adjustedMaxClients(.75);
         int maxPartitions = testParameters.config.getKafka().getPartitionCapacity() * testParameters.units;
         if (testParameters.config.getKafka().isEnableQuota()) {
             maxPartitions = Math.min(maxPartitions, testParameters.maxPartitionsPerUnit * testParameters.units);
@@ -830,27 +858,22 @@ public class InstanceProfiler {
 
         for (int i = 0; i < 4; i++) {
             int sample = maxPartitions / 4 * (i + 1);
-            try {
-                LOGGER.info("Running latency test for {} partitions", sample);
-                profilingResult.partitionResults.put(sample, determineLatency(workload -> {
-                    workload.partitionsPerTopic = sample;
-                    workload.consumerPerSubscription = Math.min(sample, maxClients);
-                    workload.name = "latency-partitions-" + sample;
-                }));
-            } catch (IllegalStateException e) {
-                LOGGER.info(String.format("not accepting %s as there were errors during the test", sample), e);
-            }
+            LOGGER.info("Running latency test for {} partitions", sample);
+            profilingResult.partitionResults.put(sample, determineLatency(workload -> {
+                // to spread the clients as much as possible we'll create additional topics
+                int topics = sample;
+                while (topics > maxClients) {
+                    topics /= 2;
+                }
+                int clientsPerTopic = 4;
+                workload.topics = topics / clientsPerTopic;
+                workload.partitionsPerTopic = sample / workload.topics;
+                workload.consumerPerSubscription = Math.min(workload.partitionsPerTopic, (maxClients - workload.topics) / workload.topics);
+                workload.producersPerTopic = 1;
+                workload.name = "latency-partitions-" + sample;
+            }));
         }
     }
-
-    /*
-     * private void determineConsumersPerConsumerGroup() throws Exception { // this is not expected to vary with the
-     * number of brokers are every consumer in the consumer group uses a single // broker for coordination List<Integer>
-     * samples = Arrays.asList(100, 250, 500); for (int sample : samples) {
-     * LOGGER.info("Running latency test for {} consumers", sample); profilingResult.consumers.put(sample,
-     * determineLatency(workload -> { workload.consumerPerSubscription = sample; workload.partitionsPerTopic = sample;
-     * workload.name = "latency-consumers-" + sample; })); } }
-     */
 
     private void maxMessageSize() throws Exception {
         int messageMaxBytes = this.testParameters.config.getKafka().getMessageMaxBytes();
@@ -876,21 +899,13 @@ public class InstanceProfiler {
         this.profilingResult.maxMessage.messageBytes = dataBytes;
     }
 
-    /*private void determineConsumerGroups() throws Exception {
-        List<Integer> samples = Arrays.asList(10, 25);
-        int multiplier = numberOfBrokers/3;
-        for (int sample : samples.stream().map(s -> s*multiplier).collect(Collectors.toList())) {
-            LOGGER.info("Running latency test for {} consumer groups", sample);
-            profilingResult.consumerGroups.put(sample, determineLatency(workload -> {
-                workload.subscriptionsPerTopic = sample;
-                workload.name = "latency-consumergroups-" + sample;
-            }));
-        }
-    }*/
-
     private void determineProducers() throws Exception {
-        int maxClients = testParameters.getMaxClients();
-        List<Integer> samples = Arrays.asList(2 * (maxClients / 5), maxClients, (maxClients * 3) / 2);
+        int maxClients = adjustedMaxClients(.8);
+        List<Integer> samples = new ArrayList<>(Arrays.asList(2 * (maxClients / 5), maxClients));
+        if (!testParameters.config.getKafka().isEnableQuota()) {
+            samples.add(3 * maxClients / 2);
+        }
+
         for (int sample : samples) {
             LOGGER.info("Running latency test for {} producers", sample);
             profilingResult.producers.put(sample, determineLatency(workload -> {
@@ -898,6 +913,12 @@ public class InstanceProfiler {
                 workload.name = "latency-producers-" + sample;
             }));
         }
+    }
+
+    private int adjustedMaxClients(double percentage) {
+        // subtract out the other consumer or producer connections and the canary, then
+        // assume that the spread of bootstrap / coordinator connections will not be perfect
+        return (int) (percentage * (testParameters.getMaxClients() - (testParameters.getNominialPartitionCount() + 1)));
     }
 
     protected boolean isThroughputAcceptable(OMBWorkload load, TestResult loadTestResult) {
@@ -970,6 +991,7 @@ public class InstanceProfiler {
 
         // we've autosized the workers for the nodes, so just create 2 workers for each node
         int numberOfWorkers = 2*profilingResult.ombWorkerNodes;
+        omb.deleteWorkers();
         List<String> instanceWorkers = omb.deployWorkers(numberOfWorkers);
         assertEquals(numberOfWorkers, instanceWorkers.size(),
                 String.format("failed to create %s omb workers", numberOfWorkers));
@@ -978,7 +1000,7 @@ public class InstanceProfiler {
         assertTrue(instanceDir.mkdir() || instanceDir.exists(),
                 String.format("failed to create directory %s", instanceDir.getName()));
 
-        OMBDriver driver = createDriver(instanceBootstrap, profile);
+        updateDriver(profile);
 
         // run the workload
         OMBWorkloadResult result = omb.runWorkload(instanceDir, driver, instanceWorkers, ombWorkload);
@@ -999,18 +1021,18 @@ public class InstanceProfiler {
     /**
      *  create driver assuming a nominal latency optimized scenario
      *  see https://www.confluent.io/blog/configure-kafka-to-minimize-latency/ https://docs.confluent.io/cloud/current/client-apps/optimizing/latency.html
+     * @throws IOException
+     * @throws FileNotFoundException
      */
-    protected OMBDriver createDriver(String instanceBootstrap, Profile profile) {
-        OMBDriver driver = new OMBDriver()
+    protected void updateDriver(Profile profile) throws FileNotFoundException, IOException {
+        driver
                 .setReplicationFactor(testParameters.config.getKafka().getScalingAndReplicationFactor())
                 // insync replicas should not affect latency, so leave at a majority - which may need to change when the number of brokers does
                 // don't retain past 5 minutes, that is beyond any retention we'll need for testing
                 .setTopicConfig(profile.topicConfig + "\nmin.insync.replicas="
                         + Math.max(1, testParameters.config.getKafka().getScalingAndReplicationFactor() - 1))
-                .setCommonConfigWithBootstrapUrl(instanceBootstrap)
                 .setProducerConfig(profile.producerConfig)
                 .setConsumerConfig(profile.consumerConfig);
-        return driver;
     }
 
 }
