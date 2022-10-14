@@ -338,9 +338,10 @@
                             <goal>report-aggregate</goal>
                         </goals>
                         <configuration>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
                             <includeCurrentProject>true</includeCurrentProject>
                             <formats>
-                                <format>XML</format>
+                               <format>XML</format>
                             </formats>
                         </configuration>
                     </execution>
