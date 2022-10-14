@@ -1,9 +1,6 @@
 package org.bf2.operator.operands;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
-import io.micrometer.core.instrument.search.Search;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.MetricsManager;
@@ -43,7 +40,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
     @Inject
     SecuritySecretManager securitySecretManager;
     @Inject
-    MeterRegistry meterRegistry;
+    MetricsManager metricsManager;
 
     private final Deque<Operand<ManagedKafka>> operands = new ArrayDeque<>();
 
@@ -54,18 +51,11 @@ public class KafkaInstance implements Operand<ManagedKafka> {
 
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
-        Tags tags = MetricsManager.buildKafkaInstanceTags(managedKafka);
+        metricsManager.createOrUpdateMetrics(managedKafka);
 
         if (managedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
-            meterRegistry.gauge(MetricsManager.KAFKA_INSTANCE_PAUSED, tags, 1);
             return;
         }
-
-        Search.in(meterRegistry)
-            .name(MetricsManager.KAFKA_INSTANCE_PAUSED)
-            .tags(tags)
-            .meters()
-            .forEach(meterRegistry::remove);
 
         imagePullSecretManager.propagateSecrets(managedKafka);
 
@@ -83,6 +73,7 @@ public class KafkaInstance implements Operand<ManagedKafka> {
         // The deletion order is significant. The canary is deleted before the cluster so that the
         // collection of metrics from a de-provision cluster is avoided.
         operands.descendingIterator().forEachRemaining(o -> o.delete(managedKafka, context));
+        metricsManager.deleteMetrics(managedKafka);
     }
 
     @Override

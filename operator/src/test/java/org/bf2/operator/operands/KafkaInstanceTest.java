@@ -166,7 +166,8 @@ class KafkaInstanceTest {
         inOrder.verify(kafkaCluster, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(canary, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(adminServer, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
-        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauges().size());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauge().value());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_SUSPENDED).gauge().value());
     }
 
     @Test
@@ -180,5 +181,6 @@ class KafkaInstanceTest {
         inOrder.verify(canary, never()).createOrUpdate(pausedInstance);
         inOrder.verify(adminServer, never()).createOrUpdate(pausedInstance);
         assertEquals(1, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauge().value());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_SUSPENDED).gauge().value());
     }
 }

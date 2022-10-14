@@ -10,6 +10,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.javaoperatorsdk.operator.Operator;
+import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -37,6 +38,12 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import javax.inject.Inject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.math.BigDecimal;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,6 +59,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.awaitility.Awaitility.await;
@@ -61,12 +69,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
+ * Starts the operator in production mode using an existing Kube context (oc login before running).
+ * 
+ * This test will place a ManagedKafkaAgent, ManagedKafka and associated master secret and verify 
+ * deployment. 
  *
  * Run this test by:
  *
  * <ol>
  * <li>deploy the control and data planes using kas-installer
  * <li>scale the kas-fleetshard operator and sync to zero replicas
+ * <li>run {@code mvn verify -Dmk-integration-test=true -Dit.test=ManagedKafkaSuspensionIT}
  * </ol>
  */
 @QuarkusTest
@@ -100,6 +113,9 @@ class ManagedKafkaSuspensionIT {
     }
 
     Encoder b64 = Base64.getEncoder();
+
+    @TestHTTPResource("/q/metrics")
+    URL metricsUrl;
 
     @Inject
     KubernetesClient client;
@@ -212,6 +228,7 @@ class ManagedKafkaSuspensionIT {
         assertEquals(5L, getPrincipalAcls(OWNER_PRINCIPAL_NAME, kafkaAcls).size());
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertTrue(kafkaAcls.values().stream().noneMatch(Arrays.asList(suspendedAcls)::contains));
+        assertEquals(0, getMetricValue(getMetrics(), Pattern.compile("^kafka_instance_suspended\\{.*namespace=\"" + kafkaNs + "\"")).intValueExact());
 
         // Suspend the instance and confirm all pods are removed
         ManagedKafka mk = mkClient.getByName(kafkaNs, name);
@@ -229,6 +246,7 @@ class ManagedKafkaSuspensionIT {
         assertEquals(0L, getPrincipalAcls(OWNER_PRINCIPAL_NAME, kafkaAcls).size());
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertThat(kafkaAcls.values(), hasItems(suspendedAcls));
+        assertEquals(1, getMetricValue(getMetrics(), Pattern.compile("^kafka_instance_suspended\\{.*namespace=\"" + kafkaNs + "\"")).intValueExact());
 
         List<Route> kafkaRoutes = client.resources(Route.class)
                 .inNamespace(kafkaNs)
@@ -257,6 +275,7 @@ class ManagedKafkaSuspensionIT {
         assertEquals(5L, getPrincipalAcls(OWNER_PRINCIPAL_NAME, kafkaAcls).size());
         assertEquals(7L, getPrincipalAcls(CANARY_PRINCIPAL_NAME, kafkaAcls).size());
         assertTrue(kafkaAcls.values().stream().noneMatch(Arrays.asList(suspendedAcls)::contains));
+        assertEquals(0, getMetricValue(getMetrics(), Pattern.compile("^kafka_instance_suspended\\{.*namespace=\"" + kafkaNs + "\"")).intValueExact());
 
         kafkaRoutes = client.resources(Route.class)
                 .inNamespace(kafkaNs)
@@ -410,5 +429,24 @@ class ManagedKafkaSuspensionIT {
                 .withType("kubernetes.io/dockerconfigjson")
                 .withData(Map.of(".dockerconfigjson", b64.encodeToString(dockerConfigJson.getBytes(StandardCharsets.UTF_8))))
                 .build());
+    }
+
+    BigDecimal getMetricValue(List<String> metrics, Pattern namePattern) {
+        return metrics.stream()
+            .filter(record -> !record.startsWith("#"))
+            .filter(record -> namePattern.matcher(record).find())
+            .map(record -> record.split(" +"))
+            .map(fields -> {
+                return new BigDecimal(fields[1]);
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    List<String> getMetrics() {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(metricsUrl.openStream()))) {
+            return in.lines().collect(Collectors.toList());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }
