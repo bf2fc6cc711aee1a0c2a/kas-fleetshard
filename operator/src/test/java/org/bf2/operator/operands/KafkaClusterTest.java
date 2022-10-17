@@ -39,6 +39,7 @@ import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -659,10 +660,14 @@ class KafkaClusterTest {
 
         InformerManager informer = Mockito.mock(InformerManager.class);
         Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
-                .editMetadata().withAnnotations(Map.of(Annotations.STRIMZI_PAUSE_REASON, "custom")).endMetadata()
+                .editMetadata()
+                    .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
+                    .addToAnnotations(Annotations.STRIMZI_PAUSE_REASON, "custom")
+                .endMetadata()
                 .withNewStatus()
-                .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
-                .endStatus().build();
+                    .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
+                .endStatus()
+                .build();
 
         Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
                 .thenReturn(kafka);

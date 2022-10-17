@@ -195,7 +195,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public boolean isReconciliationPaused(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
-        boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
+        boolean isReconciliationPaused = kafka != null
+                && hasAnnotationValue(kafka, StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
+                && kafka.getStatus() != null
                 && hasKafkaCondition(kafka, c -> c.getType() != null && "ReconciliationPaused".equals(c.getType())
                 && "True".equals(c.getStatus()));
         log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
@@ -207,6 +209,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         boolean isDeleted = cachedKafka(managedKafka) == null;
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
+    }
+
+    protected boolean hasAnnotationValue(Kafka kafka, String annotationName, String value) {
+        return Optional.ofNullable(kafka.getMetadata().getAnnotations())
+                .map(annotations -> annotations.get(annotationName))
+                .map(value::equals)
+                .orElse(false);
     }
 
     protected boolean hasKafkaCondition(Kafka kafka, Predicate<Condition> predicate) {

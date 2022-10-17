@@ -219,7 +219,7 @@ public class StrimziManagerTest {
         // ManagedKafka and Kafka updated their status information
         mk.setStatus(new ManagedKafkaStatusBuilder().withVersions(new VersionsBuilder().withStrimzi("strimzi-cluster-operator.v1").build()).build());
         kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("Ready").withStatus("True").build()).build());
-        kafkaClient.replaceStatus(kafka);
+        kafkaClient.createOrReplace(kafka);
 
         // ask for a Strimzi version change on ManagedKafka
         mk.getSpec().getVersions().setStrimzi("strimzi-cluster-operator.v2");
@@ -236,7 +236,7 @@ public class StrimziManagerTest {
 
         // Kafka moves to be paused
         kafka.setStatus(new KafkaStatusBuilder().withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build()).build());
-        kafkaClient.replaceStatus(kafka);
+        kafkaClient.createOrReplace(kafka);
 
         kafka = this.kafkaCluster.kafkaFrom(mk, kafka);
         // Kafka reconcile not paused and Kafka label updated to requested Strimzi version
