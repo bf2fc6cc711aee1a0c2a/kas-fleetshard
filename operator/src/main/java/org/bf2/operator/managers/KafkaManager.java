@@ -1,8 +1,10 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.ExecListener;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.ManagedKafkaKeys;
@@ -30,7 +32,9 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -39,6 +43,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
@@ -65,8 +70,8 @@ public class KafkaManager {
     @ConfigProperty(name = "managedkafka.upgrade.consuming-percentage-threshold")
     Integer consumingPercentageThreshold;
 
-    @ConfigProperty(name = "managedkafka.upgrade.stability-check-enabled", defaultValue = "true")
-    boolean stabilityCheckEnabled;
+    @ConfigProperty(name = "managedkafka.upgrade.stability-check-method")
+    Optional<String> stabilityCheckMethod;
 
     private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> managedKafkaClient;
 
@@ -354,7 +359,9 @@ public class KafkaManager {
      * @param managedKafka ManagedKafka instance
      */
     void doKafkaUpgradeStabilityCheck(ManagedKafka managedKafka) {
-        if (!stabilityCheckEnabled) {
+        String stabilityCheck = stabilityCheckMethod.orElse("");
+
+        if ("NONE".equalsIgnoreCase(stabilityCheck)) {
             log.warnf("Skipping [%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
             managedKafkaClient
                     .inNamespace(managedKafka.getMetadata().getNamespace())
@@ -370,53 +377,110 @@ public class KafkaManager {
         }
 
         log.infof("[%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+        Status status;
 
+        try {
+            if ("EXEC".equalsIgnoreCase(stabilityCheck)) {
+                status = getCanaryStatusFromPod(managedKafka);
+            } else {
+                status = getCanaryStatusFromService(managedKafka);
+            }
+        } catch (Exception e) {
+            log.errorf(e,
+                    "[%s/%s] Error while checking Kafka upgrade stability",
+                    managedKafka.getMetadata().getNamespace(),
+                    managedKafka.getMetadata().getName());
+            return;
+        }
+
+        log.infof("[%s/%s] Canary status: timeWindow %d - percentage %d",
+                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
+                status.getConsuming().getTimeWindow(), status.getConsuming().getPercentage());
+
+        if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
+            log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
+                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+
+            managedKafkaClient
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(managedKafka.getMetadata().getName())
+                    .edit(mk -> new ManagedKafkaBuilder(mk)
+                            .editMetadata()
+                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
+                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                            .endMetadata()
+                            .build());
+        } else {
+            log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
+                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
+                    status.getConsuming().getPercentage(), consumingPercentageThreshold);
+
+            managedKafkaClient
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(managedKafka.getMetadata().getName())
+                    .edit(mk -> new ManagedKafkaBuilder(mk)
+                            .editMetadata()
+                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                            .endMetadata()
+                            .build());
+        }
+        // trigger a reconcile on the ManagedKafka instance to push checking if next step
+        // Kafka IBP upgrade is needed or another stability check
+        informerManager.resyncManagedKafka(managedKafka);
+    }
+
+    Status getCanaryStatusFromService(ManagedKafka managedKafka) {
         CanaryService canaryService = RestClientBuilder.newBuilder()
                 .baseUri(URI.create("http://" + AbstractCanary.canaryName(managedKafka) + "." + managedKafka.getMetadata().getNamespace() + ":8080"))
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build(CanaryService.class);
 
-        try {
-            Status status = canaryService.getStatus();
-            log.infof("[%s/%s] Canary status: timeWindow %d - percentage %d",
-                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                    status.getConsuming().getTimeWindow(), status.getConsuming().getPercentage());
+        return canaryService.getStatus();
+    }
 
-            if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
-                log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
-                        managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+    /**
+     * Obtain the canary's Status response by executing curl directly in the pod. This
+     * method is meant for use in local development mode where the kubectl session is
+     * kubeadmin and calling the canary via the service is not possible.
+     */
+    Status getCanaryStatusFromPod(ManagedKafka managedKafka) throws Exception {
+        return kubernetesClient
+            .pods()
+            .inNamespace(managedKafka.getMetadata().getNamespace())
+            .withLabel("app.kubernetes.io/component", "canary")
+            .list()
+            .getItems()
+            .stream()
+            .findFirst()
+            .map(canaryPod -> {
+                CompletableFuture<String> promise = new CompletableFuture<>();
+                ByteArrayOutputStream data = new ByteArrayOutputStream();
 
-                managedKafkaClient
-                        .inNamespace(managedKafka.getMetadata().getNamespace())
-                        .withName(managedKafka.getMetadata().getName())
-                        .edit(mk -> new ManagedKafkaBuilder(mk)
-                                .editMetadata()
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                                .endMetadata()
-                                .build());
-            } else {
-                log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
-                        managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                        status.getConsuming().getPercentage(), consumingPercentageThreshold);
+                kubernetesClient
+                    .pods()
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(canaryPod.getMetadata().getName())
+                    .writingOutput(data)
+                    .writingError(data)
+                    .usingListener(new ExecListener() {
+                        @Override
+                        public void onClose(int code, String reason) {
+                            promise.complete(data.toString(StandardCharsets.UTF_8));
+                        }
 
-                managedKafkaClient
-                        .inNamespace(managedKafka.getMetadata().getNamespace())
-                        .withName(managedKafka.getMetadata().getName())
-                        .edit(mk -> new ManagedKafkaBuilder(mk)
-                                .editMetadata()
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                                .endMetadata()
-                                .build());
-            }
-            // trigger a reconcile on the ManagedKafka instance to push checking if next step
-            // Kafka IBP upgrade is needed or another stability check
-            informerManager.resyncManagedKafka(managedKafka);
-        } catch (Exception e) {
-            log.errorf("[%s/%s] Error while checking Kafka upgrade stability",
-                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), e);
-        }
+                        @Override
+                        public void onFailure(Throwable t, Response failureResponse) {
+                            promise.completeExceptionally(t);
+                        }
+                    })
+                    .exec("curl", "-s", "localhost:8080/status");
+
+                return promise;
+            })
+            .orElse(CompletableFuture.completedFuture(null))
+            .thenApply(response -> Serialization.unmarshal(response, Status.class))
+            .get(30, TimeUnit.SECONDS);
     }
 
     /**

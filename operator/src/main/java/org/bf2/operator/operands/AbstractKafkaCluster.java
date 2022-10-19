@@ -97,6 +97,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isKafkaUpdating(ManagedKafka managedKafka) {
+        if (managedKafka.isSuspended() && isReconciliationPaused(managedKafka)) {
+            return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
+                    && managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
+        }
         return this.isKafkaAnnotationUpdating(managedKafka, "strimzi.io/kafka-version", kafka -> kafka.getSpec().getKafka().getVersion());
     }
 
