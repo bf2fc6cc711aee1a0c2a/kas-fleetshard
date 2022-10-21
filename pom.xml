@@ -42,7 +42,7 @@
         <basepom.test.fork-count>1</basepom.test.fork-count>
         <basepom.failsafe.fork-count>1</basepom.failsafe.fork-count>
         <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
-        <basepom.test.timeout>150</basepom.test.timeout>
+        <basepom.test.timeout>180</basepom.test.timeout>
 
         <!-- Disable push of changes from the release plugin, handled in separate job step. See .github/workflows/release.yml. -->
         <basepom.release.push-changes>false</basepom.release.push-changes>
