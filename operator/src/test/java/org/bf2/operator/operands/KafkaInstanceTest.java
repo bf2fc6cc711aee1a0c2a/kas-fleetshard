@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -131,6 +132,22 @@ class KafkaInstanceTest {
         assertEquals(Status.False, readiness.getStatus());
         assertEquals(Reason.Installing, readiness.getReason());
         assertEquals("", readiness.getMessage());
+    }
+
+    @Test
+    void statusReadyFalseWhenSuspended() {
+        ManagedKafka instance = ManagedKafkaUtils.dummyManagedKafka("x");
+        OperandReadiness readiness;
+
+        when(kafkaCluster.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Suspended, null));
+        when(canary.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, String.format("Deployment x-canary does not exist")));
+        when(adminServer.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, String.format("Deployment x-admin-server does not exist")));
+
+        instance.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+        readiness = kafkaInstance.getReadiness(instance);
+        assertEquals(Status.False, readiness.getStatus());
+        assertEquals(Reason.Suspended, readiness.getReason());
+        assertNull(readiness.getMessage());
     }
 
     @Test

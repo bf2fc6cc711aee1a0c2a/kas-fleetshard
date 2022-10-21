@@ -106,7 +106,7 @@ class AdminServerTest {
 
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
 
-        KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource);
+        assertTrue(KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource).isEmpty());
     }
 
     @Test
@@ -240,4 +240,36 @@ class AdminServerTest {
         assertEquals("pause", reserved.getSpec().getTemplate().getSpec().getContainers().get(0).getName());
     }
 
+    @Test
+    void testSuspendedDeploymentHasZeroReplicas() throws Exception {
+        KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
+        QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
+        Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(true);
+        Mockito.when(kafkaCluster.updatesInProgress(Mockito.any())).thenReturn(false);
+
+        SecuritySecretManager securitySecretManager = Mockito.mock(SecuritySecretManager.class);
+        QuarkusMock.installMockForType(securitySecretManager, SecuritySecretManager.class);
+        Mockito.when(securitySecretManager.secretKeysExist(Mockito.any(), Mockito.any())).thenReturn(true);
+        Mockito.when(securitySecretManager.digestSecretsVersions(Mockito.any(), Mockito.any())).thenReturn("dummy-digest");
+
+        Resource<Deployment> deployment;
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "false"));
+        adminServer.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(AdminServer.adminServerNamespace(mk))
+                .withName(AdminServer.adminServerName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(1, deployment.get().getSpec().getReplicas());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+        adminServer.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(AdminServer.adminServerNamespace(mk))
+                .withName(AdminServer.adminServerName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(0, deployment.get().getSpec().getReplicas());
+    }
 }
