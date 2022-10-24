@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -64,6 +65,7 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -124,6 +126,7 @@ class KafkaClusterTest {
         // clean out all deployments
         client.resources(Kafka.class).inAnyNamespace().delete();
         client.apps().deployments().inAnyNamespace().delete();
+        client.pods().inAnyNamespace().delete();
     }
 
     @Test
@@ -667,29 +670,112 @@ class KafkaClusterTest {
         return overrides;
     }
 
-    @Test
-    void pausedUnknownStatus() throws InterruptedException {
+    @ParameterizedTest
+    @CsvSource({
+        "     , true, custom         ,  ,  , ReconciliationPaused, True ,          , 0,      ,    , Unknown   , Paused          , 'Kafka mk-1 is paused for an unknown reason'",
+        "     ,     ,                ,  ,  , NotReady            , True , Creating , 0,      ,    , False     , Installing      , ",
+        "     ,     ,                ,  ,  , NotReady            , True , Something, 0,      ,    , False     , Error           , ",
+        "     , true, strimziupdating,  ,  , ReconciliationPaused, True ,          , 0,      ,    , True      , StrimziUpdating , 'Updating Strimzi version'",
+        "true , true,                , 1,  , ReconciliationPaused, True ,          , 0,      ,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "true , true,                , 1, 2, ReconciliationPaused, True ,          , 0,      ,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "false,     ,                ,  ,  ,                     ,      ,          , 2, 3.2.0,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "true , true,                ,  ,  , ReconciliationPaused, True ,          , 2,      , 3.2, True      , KafkaIbpUpdating, 'Updating Kafka IBP version'",
+        "true , true,                ,  ,  , ReconciliationPaused, True ,          , 0,      ,    , False     , Suspended       , ",
+        "false,     ,                ,  ,  ,                     ,      ,          , 0,      ,    , False     , Installing      , 'Kafka mk-1 is not providing status'",
+    })
+    void testReadiness(String suspendedValue,
+            String pauseValue,
+            String pauseReason,
+            Long kafkaUpgradeStart,
+            Long kafkaUpgradeEnd,
+            String conditionType,
+            String conditionStatus,
+            String conditionReason,
+            int kafkaPodCount,
+            String kafkaPodVersion,
+            String kafkaPodIbpVersion,
+            Status expStatus,
+            Reason expReason,
+            String expMessage) {
+
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getSpec().getVersions().setKafkaIbp(AbstractKafkaCluster.getKafkaIbpVersion(mk.getSpec().getVersions().getKafka()));
+        String ns = mk.getMetadata().getNamespace();
+        String name = mk.getMetadata().getName();
 
         InformerManager informer = Mockito.mock(InformerManager.class);
-        Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
-                .editMetadata()
-                    .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
-                    .addToAnnotations(Annotations.STRIMZI_PAUSE_REASON, "custom")
-                .endMetadata()
-                .withNewStatus()
-                    .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
-                .endStatus()
-                .build();
+        KafkaBuilder kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null));
+
+        if (kafkaUpgradeStart != null) {
+            mk.getMetadata().getAnnotations().put(
+                    ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP,
+                    Instant.ofEpochMilli(kafkaUpgradeStart).toString());
+        }
+
+        if (kafkaUpgradeEnd != null) {
+            mk.getMetadata().getAnnotations().put(
+                    ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_END_TIMESTAMP,
+                    Instant.ofEpochMilli(kafkaUpgradeEnd).toString());
+        }
+
+        if (suspendedValue != null) {
+            mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, suspendedValue));
+        }
+
+        if (pauseValue != null) {
+            kafka.editOrNewMetadata()
+                .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, pauseValue)
+                .endMetadata();
+        }
+
+        if (pauseReason != null) {
+            kafka.editOrNewMetadata()
+                .addToAnnotations(Annotations.STRIMZI_PAUSE_REASON, pauseReason)
+                .endMetadata();
+        }
+
+        if (conditionType != null || conditionStatus != null || conditionReason != null) {
+            kafka.withNewStatus()
+                .withConditions(new ConditionBuilder()
+                        .withType(conditionType)
+                        .withStatus(conditionStatus)
+                        .withReason(conditionReason)
+                        .build())
+                .endStatus();
+        }
 
         Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(kafka);
+                .thenReturn(kafka.build());
         QuarkusMock.installMockForType(informer, InformerManager.class);
 
+        for (int i = 0; i < kafkaPodCount; i++) {
+            PodBuilder pod = new PodBuilder()
+                    .withNewMetadata()
+                        .withName(name + "-kafka-" + i)
+                        .addToLabels("strimzi.io/name", name + "-kafka")
+                    .endMetadata()
+                    .withNewSpec()
+                    .endSpec();
+
+            if (kafkaPodVersion != null) {
+                pod.editMetadata()
+                    .addToAnnotations("strimzi.io/kafka-version", kafkaPodVersion)
+                    .endMetadata();
+            }
+
+            if (kafkaPodIbpVersion != null) {
+                pod.editMetadata()
+                    .addToAnnotations("strimzi.io/inter-broker-protocol-version", kafkaPodIbpVersion)
+                    .endMetadata();
+            }
+
+            client.pods().inNamespace(ns).create(pod.build());
+        }
+
         OperandReadiness readiness = this.kafkaCluster.getReadiness(mk);
-        assertEquals(Status.Unknown, readiness.getStatus());
-        assertEquals(Reason.Paused, readiness.getReason());
-        assertEquals("Kafka mk-1 is paused for an unknown reason", readiness.getMessage());
+        assertEquals(expStatus, readiness.getStatus());
+        assertEquals(expReason, readiness.getReason());
+        assertEquals(expMessage, readiness.getMessage());
     }
 
     @Test
@@ -730,6 +816,37 @@ class KafkaClusterTest {
         when(overrideManager.getKafkaOverride(strimzi)).thenReturn(canary);
         when(overrideManager.getCanaryImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
         when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "true , ReconciliationPaused, True , true",
+        "true , ReconciliationPaused, False, false",
+        "false, ReconciliationPaused, True , false",
+        "true , Ready               , True , false",
+        "true ,                     ,      , false",
+        "true ,                     , True , false",
+    })
+    void testIsReconciliationPaused(String pauseValue, String conditionType, String conditionValue, boolean expected) {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        InformerManager informer = Mockito.mock(InformerManager.class);
+
+        KafkaBuilder kafka = new KafkaBuilder(kafkaCluster.kafkaFrom(mk, null))
+                .editMetadata()
+                    .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, pauseValue)
+                .endMetadata();
+
+        if (conditionType != null || conditionValue != null) {
+            kafka.withNewStatus()
+                    .withConditions(new ConditionBuilder().withType(conditionType).withStatus(conditionValue).build())
+                .endStatus();
+        }
+
+        Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(kafka.build());
+        QuarkusMock.installMockForType(informer, InformerManager.class);
+
+        assertEquals(expected, kafkaCluster.isReconciliationPaused(mk));
     }
 
     @Test
