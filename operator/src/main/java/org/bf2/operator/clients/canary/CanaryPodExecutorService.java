@@ -62,5 +62,6 @@ public class CanaryPodExecutorService extends CanaryStatusService {
                 })
                 .orElse(CompletableFuture.completedFuture(null))
                 .thenApply(response -> Serialization.unmarshal(response, Status.class))
-                .get(30, TimeUnit.SECONDS);        }
+                .get(30, TimeUnit.SECONDS);
+    }
 }

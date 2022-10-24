@@ -317,52 +317,52 @@
                 </executions>
             </plugin>
             <plugin>
-	            <groupId>org.jacoco</groupId>
-	            <artifactId>jacoco-maven-plugin</artifactId>
-	            <configuration>
-	                <excludes>
-	                    <!-- exclude non production classes -->
-	                    <exclude>**/operands/dev/**</exclude>
-	                    <exclude>**/operands/test/**</exclude>
-	                    <exclude>**/operator/mock/**</exclude>
-	                    <!-- exclude entry points -->
-	                    <exclude>**/KasFleetShardOperator.class</exclude>
-	                    <exclude>**/Main.class</exclude>
-	                    <exclude>**/CanaryPodExecutorService.class</exclude>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <!-- exclude non production classes -->
+                        <exclude>**/operands/dev/**</exclude>
+                        <exclude>**/operands/test/**</exclude>
+                        <exclude>**/operator/mock/**</exclude>
+                        <!-- exclude entry points -->
+                        <exclude>**/KasFleetShardOperator.class</exclude>
+                        <exclude>**/Main.class</exclude>
+                        <exclude>**/CanaryPodExecutorService.class</exclude>
                         <exclude>**/CanaryStatusService.class</exclude>
-	                </excludes>
-	            </configuration>
-	            <executions>
-	                <execution>
-	                    <id>default-report</id>
-	                    <goals>
-	                        <goal>report</goal>
-	                    </goals>
-	                </execution>
-	                <execution>
-	                    <id>jacoco-check</id>
-	                    <goals>
-	                        <goal>check</goal>
-	                    </goals>
-	                    <configuration>
-	                        <!-- overall coverage rules, this just checks there is some test per
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>default-report</id>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <!-- overall coverage rules, this just checks there is some test per
 	                            package -->
-	                        <rules>
-	                            <rule>
-	                                <element>PACKAGE</element>
-	                                <limits>
-	                                    <limit>
-	                                        <counter>LINE</counter>
-	                                        <value>COVEREDRATIO</value>
-	                                        <minimum>0.01</minimum>
-	                                    </limit>
-	                                </limits>
-	                            </rule>
-	                        </rules>
-	                    </configuration>
-	                </execution>
-	            </executions>
-	        </plugin>
+                            <rules>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.01</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
