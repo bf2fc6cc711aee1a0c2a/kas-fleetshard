@@ -884,7 +884,7 @@ class KafkaClusterTest {
         Resource<Route> bootstrapRoute = client.resources(Route.class).inNamespace(ns).withName(name + "-kafka-bootstrap");
         Resource<Route> broker0Route = client.resources(Route.class).inNamespace(ns).withName(name + "-kafka-0");
 
-        Mockito.when(informerManager.getRoutesInNamespace(ns))
+        Mockito.when(informer.getRoutesInNamespace(ns))
             .thenReturn(Stream.of(bootstrapRoute, broker0Route).map(Resource::get));
 
         kafkaExporterDeployment.create(new DeploymentBuilder()
