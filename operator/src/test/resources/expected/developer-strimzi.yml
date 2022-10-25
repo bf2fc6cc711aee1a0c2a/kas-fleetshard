@@ -105,6 +105,7 @@ spec:
       client.quota.callback.static.storage.check-interval: "30"
       max.partitions: 100
       offsets.topic.replication.factor: 1
+      connection.failed.authentication.delay.ms: 1000
       transaction.state.log.min.isr: 1
       client.quota.callback.static.storage.soft: "64424509440"
       client.quota.callback.usageMetrics.topic: "__redhat_strimzi_volumeUsageMetrics"

@@ -94,6 +94,7 @@ public class DevelopmentKafkaCluster extends AbstractKafkaCluster {
     private Map<String, Object> buildKafkaConfig(ManagedKafka managedKafka) {
         Map<String, Object> config = new HashMap<>();
         config.put("offsets.topic.replication.factor", 3);
+        config.put("connection.failed.authentication.delay.ms", 1000);
         config.put("transaction.state.log.replication.factor", 3);
         config.put("transaction.state.log.min.isr", 2);
         config.put("log.message.format.version", managedKafka.getSpec().getVersions().getKafka());
