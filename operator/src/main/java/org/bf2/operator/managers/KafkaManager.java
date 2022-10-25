@@ -359,6 +359,7 @@ public class KafkaManager {
                     "[%s/%s] Error while checking Kafka upgrade stability",
                     managedKafka.getMetadata().getNamespace(),
                     managedKafka.getMetadata().getName());
+            removeEndTimestamp(managedKafka);
             return;
         }
 
@@ -369,7 +370,6 @@ public class KafkaManager {
         if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
             log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
                     managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-
             managedKafkaClient
                     .inNamespace(managedKafka.getMetadata().getNamespace())
                     .withName(managedKafka.getMetadata().getName())
@@ -383,19 +383,22 @@ public class KafkaManager {
             log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
                     managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
                     status.getConsuming().getPercentage(), consumingPercentageThreshold);
-
-            managedKafkaClient
-                    .inNamespace(managedKafka.getMetadata().getNamespace())
-                    .withName(managedKafka.getMetadata().getName())
-                    .edit(mk -> new ManagedKafkaBuilder(mk)
-                            .editMetadata()
-                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                            .endMetadata()
-                            .build());
+            removeEndTimestamp(managedKafka);
         }
         // trigger a reconcile on the ManagedKafka instance to push checking if next step
         // Kafka IBP upgrade is needed or another stability check
         informerManager.resyncManagedKafka(managedKafka);
+    }
+
+    void removeEndTimestamp(ManagedKafka managedKafka) {
+        managedKafkaClient
+                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .withName(managedKafka.getMetadata().getName())
+                .edit(mk -> new ManagedKafkaBuilder(mk)
+                        .editMetadata()
+                            .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                        .endMetadata()
+                        .build());
     }
 
     /**

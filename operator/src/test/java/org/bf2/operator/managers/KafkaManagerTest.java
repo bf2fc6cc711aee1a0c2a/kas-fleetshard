@@ -107,6 +107,6 @@ class KafkaManagerTest {
         mk = mkClient.getByName(ns, name);
 
         assertNotNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
-        assertNotNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
+        assertNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
     }
 }

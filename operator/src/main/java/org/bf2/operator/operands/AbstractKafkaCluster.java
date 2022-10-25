@@ -97,9 +97,8 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isKafkaUpdating(ManagedKafka managedKafka) {
-        if (managedKafka.isSuspended() && isReconciliationPaused(managedKafka)) {
-            return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
-                    && managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
+        if (managedKafka.isSuspended() && !isKafkaReady(managedKafka)) {
+            return isKafkaUpgradeIncomplete(managedKafka);
         }
         return this.isKafkaAnnotationUpdating(managedKafka, "strimzi.io/kafka-version", kafka -> kafka.getSpec().getKafka().getVersion());
     }
@@ -145,6 +144,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
 
         return kafkaUpgradeStartTimestampAnnotation.isPresent() && kafkaUpgradeEndTimestampAnnotation.isPresent();
+    }
+
+    boolean isKafkaReady(ManagedKafka managedKafka) {
+        return hasKafkaCondition(managedKafka, c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+    }
+
+    boolean isKafkaUpgradeIncomplete(ManagedKafka managedKafka) {
+        return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
+                && managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
     }
 
     public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
@@ -220,6 +228,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .map(annotations -> annotations.get(annotationName))
                 .map(value::equals)
                 .orElse(false);
+    }
+
+    protected boolean hasKafkaCondition(ManagedKafka managedKafka, Predicate<Condition> predicate) {
+        Kafka kafka = cachedKafka(managedKafka);
+        return kafka != null && hasKafkaCondition(kafka, predicate);
     }
 
     protected boolean hasKafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
