@@ -381,6 +381,29 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return kafkaBuilder.build();
     }
 
+    /**
+     * Determine whether the cluster should be blocked from suspension to support
+     * an upgrade of the Kafka version
+     *
+     * @param managedKafka ManagedKafka instance
+     * @return true if suspension should be blocked, otherwise false
+     */
+    private boolean blockSuspension(ManagedKafka managedKafka) {
+        if (kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+            return true;
+        }
+
+        if (kafkaManager.isKafkaUpgradeInProgress(managedKafka, this)) {
+            return true;
+        }
+
+        if (kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, this)) {
+            return true;
+        }
+
+        return kafkaManager.isKafkaUpgradeStabilityCheckInProgress(managedKafka, this);
+    }
+
     private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
         String templateName = name.substring(managedKafka.getMetadata().getName().length() + 1);
 
@@ -1118,9 +1141,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             annotations = new HashMap<>();
         }
 
-        boolean updatesInProgress = updatesInProgress(managedKafka);
-
-        if (managedKafka.isSuspended() && !updatesInProgress) {
+        if (managedKafka.isSuspended() && !blockSuspension(managedKafka)) {
             annotations.put(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true");
             annotations.remove(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON);
         } else if (!annotations.containsKey(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON)) {

@@ -429,12 +429,16 @@ public class KafkaManager {
     private void addUpgradeTimeStampAnnotation(ManagedKafka managedKafka, String annotation) {
         log.debugf("[%s/%s] Adding Kafka upgrade %s timestamp annotation",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotation);
+
+        String timestampValue = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
+        managedKafka.getMetadata().getAnnotations().put(annotation, timestampValue);
+
         managedKafkaClient
                 .inNamespace(managedKafka.getMetadata().getNamespace())
                 .withName(managedKafka.getMetadata().getName())
                 .edit(mk -> new ManagedKafkaBuilder(mk)
                         .editMetadata()
-                            .addToAnnotations(annotation, ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
+                            .addToAnnotations(annotation, timestampValue)
                         .endMetadata()
                         .build());
     }

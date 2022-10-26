@@ -103,7 +103,7 @@ public class Canary extends AbstractCanary {
 
         int replicas;
 
-        if (managedKafka.isSuspended() && !kafkaCluster.updatesInProgress(managedKafka)) {
+        if (managedKafka.isSuspended() && !kafkaCluster.isKafkaUpgradeStabilityChecking(managedKafka)) {
             replicas = 0;
         } else {
             replicas = 1;

@@ -245,7 +245,6 @@ class AdminServerTest {
         KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
         QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
         Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(true);
-        Mockito.when(kafkaCluster.updatesInProgress(Mockito.any())).thenReturn(false);
 
         SecuritySecretManager securitySecretManager = Mockito.mock(SecuritySecretManager.class);
         QuarkusMock.installMockForType(securitySecretManager, SecuritySecretManager.class);
