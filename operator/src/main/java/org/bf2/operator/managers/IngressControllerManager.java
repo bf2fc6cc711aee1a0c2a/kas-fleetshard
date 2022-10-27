@@ -1,10 +1,9 @@
 package org.bf2.operator.managers;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.builder.TypedVisitor;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
@@ -24,12 +23,12 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.api.model.operator.v1.Config;
+import io.fabric8.openshift.api.model.operator.v1.ConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
+import io.fabric8.openshift.api.model.operator.v1.IngressControllerTuningOptions;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.arc.properties.UnlessBuildProperty;
 import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
@@ -58,6 +57,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.LongSummaryStatistics;
 import java.util.Map;
@@ -86,6 +86,10 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    private static final String MAX_CONNECTIONS = "maxConnections";
+    private static final String RELOAD_INTERVAL = "reloadInterval";
+    private static final String UNSUPPORTED_CONFIG_OVERRIDES = "unsupportedConfigOverrides";
+    private static final String TUNING_OPTIONS = "tuningOptions";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
     protected static final String HARD_STOP_AFTER_ANNOTATION = "ingress.operator.openshift.io/hard-stop-after";
     protected static final String MEMORY = "memory";
@@ -138,8 +142,6 @@ public class IngressControllerManager {
     ResourceInformer<IngressController> ingressControllerInformer;
     private boolean ready;
 
-    //TODO: may need to differentiate between default and per az resources
-
     @ConfigProperty(name = "ingresscontroller.limit-cpu")
     Optional<Quantity> limitCpu;
     @ConfigProperty(name = "ingresscontroller.limit-memory")
@@ -165,14 +167,16 @@ public class IngressControllerManager {
     @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
     Integer ingressReloadIntervalSeconds;
 
-
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
-    int peakPercentage;
+    int peakThroughputPercentage;
+    @ConfigProperty(name = "ingresscontroller.peak-connection-percentage")
+    int peakConnectionPercentage;
 
     private ResourceInformer<Deployment> deployments;
     private CachedSingleThreadScheduler scheduler = new CachedSingleThreadScheduler();
     private Set<String> deploymentsToReconcile = new HashSet<>();
-    private ResourceRequirements deploymentResourceRequirements;
+    private ResourceRequirements azDeploymentResourceRequirements;
+    private ResourceRequirements defaultDeploymentResourceRequirements;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -285,7 +289,12 @@ public class IngressControllerManager {
         // this is to patch the IngressController Router deployments to correctly size for resources, should be removed
         // after https://issues.redhat.com/browse/RFE-1475 is resolved.
         if (deploymentResourceBuilder.hasLimits() || deploymentResourceBuilder.hasRequests()) {
-            this.deploymentResourceRequirements = deploymentResourceBuilder.build();
+            this.azDeploymentResourceRequirements = deploymentResourceBuilder.build();
+
+            // use the default cpu for the kas/default ic
+            deploymentResourceBuilder.addToRequests(CPU, Quantity.parse("100m"));
+            this.defaultDeploymentResourceRequirements = deploymentResourceBuilder.build();
+
             deployments = this.resourceInformerFactory.create(Deployment.class,
                     this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),
                     new ResourceEventHandler<Deployment>() {
@@ -336,11 +345,9 @@ public class IngressControllerManager {
     }
 
     /**
-     * check first to see if an update is needed - if for whatever reason we get back a deployment with a non-schema field
-     * 5.7 fabric8 has a bug that will not copy that in a builder, thus triggering an update via edit even if nothing really is changing
-     * - that's fixed in ~5.11
+     * check first to see if an update is needed
      */
-    private boolean shouldReconcile(Deployment d) {
+    protected boolean shouldReconcile(Deployment d) {
         if (!OperandUtils.getOrDefault(d.getMetadata().getLabels(), INGRESSCONTROLLER_LABEL, "").startsWith("kas")) {
             return false;
         }
@@ -350,7 +357,9 @@ public class IngressControllerManager {
             return false;
         }
         Container ingressContainer = containers.get(0);
-        return !(ingressContainer.getResources().equals(deploymentResourceRequirements) && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand));
+        return !((isDefaultDeployment(d) ? defaultDeploymentResourceRequirements
+                : azDeploymentResourceRequirements).equals(ingressContainer.getResources())
+                && Objects.equals(ingressContainer.getCommand(), ingressContainerCommand));
     }
 
     private void doIngressPatch(Deployment d) {
@@ -360,10 +369,18 @@ public class IngressControllerManager {
                 new TypedVisitor<ContainerBuilder>() {
                     @Override
                     public void visit(ContainerBuilder element) {
-                        element.withResources(deploymentResourceRequirements);
+                        if (!isDefaultDeployment(d)) {
+                            element.withResources(azDeploymentResourceRequirements);
+                        } else {
+                            element.withResources(defaultDeploymentResourceRequirements);
+                        }
                         element.withCommand(ingressContainerCommand);
                     }
                 });
+    }
+
+    private boolean isDefaultDeployment(Deployment d) {
+        return d.getMetadata().getName().equals("router-kas");
     }
 
     @Scheduled(every = "3m", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
@@ -414,44 +431,19 @@ public class IngressControllerManager {
         String name = expected.getMetadata().getName();
 
         if (existing != null) {
-            boolean needsApplied = shouldPatchIngressController(expected, existing);
-            if (needsApplied) {
-                openShiftClient.operator().ingressControllers()
-                .inNamespace(expected.getMetadata().getNamespace())
-                .withName(name)
-                .edit(i -> new IngressControllerBuilder(i)
-                        .editMetadata()
-                        .withLabels(expected.getMetadata().getLabels())
-                        .withAnnotations(expected.getMetadata().getAnnotations())
-                        .endMetadata()
-                        .withSpec(expected.getSpec())
-                        .build());
-            }
+            openShiftClient.operator().ingressControllers()
+            .inNamespace(expected.getMetadata().getNamespace())
+            .withName(name)
+            .edit(i -> new IngressControllerBuilder(i)
+                    .editMetadata()
+                    .withLabels(expected.getMetadata().getLabels())
+                    .withAnnotations(expected.getMetadata().getAnnotations())
+                    .endMetadata()
+                    .withSpec(expected.getSpec())
+                    .build());
         } else {
             OperandUtils.createOrUpdate(openShiftClient.operator().ingressControllers(), expected);
         }
-    }
-
-    /**
-     * the creation of the expected is dropping the additionalFields (fixed in fabric8 5.10+)
-     * rather than patching all the time, we'll try to detect when the fields we care about have been changed / removed
-     */
-    boolean shouldPatchIngressController(IngressController expected, IngressController existing) {
-        ObjectMapper objectMapper = Serialization.yamlMapper();
-        JsonNode expectedJson = objectMapper.convertValue(expected, JsonNode.class);
-        JsonNode actualJson = objectMapper.convertValue(existing, JsonNode.class);
-        JsonNode patch = JsonDiff.asJson(expectedJson, actualJson);
-        if (patch.isArray()) {
-            int size = patch.size();
-            for (int i = 0; i < size; i++) {
-                JsonNode op = patch.get(i).get("op");
-                if (op != null && !"add".equals(op.asText())) {
-                    log.infof("Updating the existing IngressController %s/%s %s", expected.getMetadata().getNamespace(), expected.getMetadata().getName(), patch.toString());
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private void ingressControllersFrom(Map<String, IngressController> ingressControllers, String clusterDomain, List<Kafka> kafkas, long connectionDemand) {
@@ -541,25 +533,48 @@ public class IngressControllerManager {
         if (hardStopAfter != null && !hardStopAfter.isBlank()) {
             builder.editMetadata().addToAnnotations(HARD_STOP_AFTER_ANNOTATION, hardStopAfter).endMetadata();
         } else {
-            builder.editMetadata().removeFromAdditionalProperties(HARD_STOP_AFTER_ANNOTATION).endMetadata();
+            builder.editMetadata().removeFromAnnotations(HARD_STOP_AFTER_ANNOTATION).endMetadata();
         }
 
+        // editing properties that may not exist and unsupported is easier as generic
+        GenericKubernetesResource spec = Serialization.jsonMapper().convertValue(builder.buildSpec(), GenericKubernetesResource.class);
 
-        // intent here is to preserve any other UnsupportedConfigOverrides and just add/remove reloadInterval as necessary.
-        // Surely there a better way to express this?
-        var specNestedConfigUnsupportedConfigOverridesNested = builder.editSpec().withNewConfigUnsupportedConfigOverrides();
-        HasMetadata current = builder.editSpec().buildUnsupportedConfigOverrides();
-        if (current instanceof Config) {
-            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties(((Config) current).getAdditionalProperties());
-        }
         if (ingressReloadIntervalSeconds > 0) {
-            specNestedConfigUnsupportedConfigOverridesNested.addToAdditionalProperties("reloadInterval", ingressReloadIntervalSeconds);
+            setSpecProperty(spec, TUNING_OPTIONS, RELOAD_INTERVAL, ingressReloadIntervalSeconds);
+            setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, RELOAD_INTERVAL, ingressReloadIntervalSeconds);
         } else {
-            specNestedConfigUnsupportedConfigOverridesNested.removeFromAdditionalProperties("reloadInterval");
+            removeSpecProperty(spec, RELOAD_INTERVAL);
         }
-        specNestedConfigUnsupportedConfigOverridesNested.endConfigUnsupportedConfigOverrides().endSpec();
+        setSpecProperty(spec, TUNING_OPTIONS, MAX_CONNECTIONS, maxIngressConnections);
+        setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, MAX_CONNECTIONS, maxIngressConnections);
+
+        // on fabric8 6.1 we can convert back from the generic to the actual spec, on earlier versions we cannot
+        // because the unsupportOptions won't be preserved
+        builder.editSpec()
+                .withTuningOptions(Serialization.jsonMapper()
+                        .convertValue(spec.get(TUNING_OPTIONS), IngressControllerTuningOptions.class))
+                .withUnsupportedConfigOverrides(
+                        Optional.ofNullable((Map<String, Object>) spec.get(UNSUPPORTED_CONFIG_OVERRIDES))
+                                .map(m -> new ConfigBuilder()
+                                        .withAdditionalProperties(m)
+                                        .build())
+                                .orElse(null))
+                .endSpec();
 
         createOrEdit(builder.build(), existing);
+    }
+
+    private void setSpecProperty(GenericKubernetesResource spec, String property, String key, Object value) {
+        Optional.ofNullable((Map<String, Object>)spec.get(property)).orElseGet(() -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            spec.setAdditionalProperty(property, map);
+            return map;
+        }).put(key, value);
+    }
+
+    private void removeSpecProperty(GenericKubernetesResource spec, String key) {
+        Optional.ofNullable((Map)spec.get(TUNING_OPTIONS)).ifPresent(m -> m.remove(key));
+        Optional.ofNullable((Map)spec.get(UNSUPPORTED_CONFIG_OVERRIDES)).ifPresent(m -> m.remove(key));
     }
 
     // for testing
@@ -595,7 +610,7 @@ public class IngressControllerManager {
         double throughputDemanded = (egress.getSum() + ingress.getSum()) * zonePercentage / 2;
 
         // scale back with the assumption that we don't really need to meet the peak
-        throughputDemanded *= peakPercentage / 100D;
+        throughputDemanded *= peakThroughputPercentage / 100D;
 
         int replicaCount = (int)Math.ceil(throughputDemanded / throughputPerIngressReplica);
         int connectionReplicaCount = numReplicasForConnectionDemand((long) (connectionDemand * zonePercentage));
@@ -632,7 +647,7 @@ public class IngressControllerManager {
     }
 
     private int numReplicasForConnectionDemand(double connectionDemand) {
-        return (int)Math.ceil(connectionDemand / maxIngressConnections);
+        return (int)Math.ceil(connectionDemand * (peakConnectionPercentage / 100D) / maxIngressConnections);
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
@@ -675,5 +690,13 @@ public class IngressControllerManager {
         return sameNamespace &&
                 owned.getMetadata().getOwnerReferences().stream()
                     .anyMatch(ref -> ref.getKind().equals(ownerKind) && ref.getName().equals(ownerName));
+    }
+
+    List<String> getIngressContainerCommand() {
+        return ingressContainerCommand;
+    }
+
+    Optional<Quantity> getRequestMemory() {
+        return requestMemory;
     }
 }
