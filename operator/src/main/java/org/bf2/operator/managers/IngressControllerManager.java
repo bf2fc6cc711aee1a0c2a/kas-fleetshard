@@ -292,8 +292,9 @@ public class IngressControllerManager {
             this.azDeploymentResourceRequirements = deploymentResourceBuilder.build();
 
             // use the default cpu for the kas/default ic
-            deploymentResourceBuilder.addToRequests(CPU, Quantity.parse("100m"));
-            this.defaultDeploymentResourceRequirements = deploymentResourceBuilder.build();
+            this.defaultDeploymentResourceRequirements = new ResourceRequirementsBuilder(azDeploymentResourceRequirements)
+                    .addToRequests(CPU, Quantity.parse("100m"))
+                    .build();
 
             deployments = this.resourceInformerFactory.create(Deployment.class,
                     this.openShiftClient.apps().deployments().inNamespace(INGRESS_ROUTER_NAMESPACE).withLabel(INGRESSCONTROLLER_LABEL),

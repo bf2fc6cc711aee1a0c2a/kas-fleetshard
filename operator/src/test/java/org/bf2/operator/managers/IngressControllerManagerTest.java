@@ -454,6 +454,10 @@ class IngressControllerManagerTest {
                 .setResources(new ResourceRequirements(null,
                         Map.of("cpu", Quantity.parse("100m"), "memory", ingressControllerManager.getRequestMemory().get())));
         assertFalse(ingressControllerManager.shouldReconcile(d));
+
+        // won't match az specific resources
+        d.getMetadata().setName("router-kas-east");
+        assertTrue(ingressControllerManager.shouldReconcile(d));
     }
 
     @Test
