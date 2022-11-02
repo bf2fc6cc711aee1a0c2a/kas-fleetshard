@@ -59,12 +59,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * TODO:
  * - tune test durations
- * - something other than target dir
  * - document m5.2xlarge 9 node client cluster expectation
  * - we ran as a one off, but we could perform a test run with clients lagging beyond the page cache to confirm latency
  * - some qualification of network performance
- * - account for disk vs ssd in page cache assumptions
- * -- currently we don't have the ability to create ssd clusters
  */
 public class InstanceProfiler {
 
