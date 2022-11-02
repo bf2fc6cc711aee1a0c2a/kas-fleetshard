@@ -5,8 +5,11 @@ import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
@@ -85,15 +88,6 @@ class IngressControllerManagerTest {
         assertEquals(1, ingressControllers.size(), "Expected only one IngressController");
         assertEquals("kas", ingressControllers.get(0).getMetadata().getName(), "Expected the IngressController to be named kas");
         checkDefaultReplicaCount(0, "Expected 0 replicas because there are 0 nodes");
-
-        // check the patch logic
-        IngressController ic = ingressControllers.get(0);
-        assertFalse(ingressControllerManager.shouldPatchIngressController(ic, ic));
-        assertTrue(ingressControllerManager.shouldPatchIngressController(ic,
-                new IngressControllerBuilder(ic).editMetadata()
-                        .withLabels(Collections.emptyMap())
-                        .endMetadata()
-                        .build()));
     }
 
     @Test
@@ -426,6 +420,44 @@ class IngressControllerManagerTest {
 
         assertEquals("5s", ingressController.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
         assertEquals(60, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("reloadInterval"));
+        assertEquals(60, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("reloadInterval"));
+        assertEquals(54000, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("maxConnections"));
+        assertEquals(54000, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("maxConnections"));
+    }
+
+    @Test
+    void testShouldReconcile() {
+        Deployment d = new DeploymentBuilder()
+                .withNewMetadata()
+                .addToLabels(IngressControllerManager.INGRESSCONTROLLER_LABEL, "kas")
+                .withName("router-kas")
+                .endMetadata()
+                .withNewSpec()
+                .withNewTemplate()
+                .withNewSpec()
+                .addNewContainer()
+                .withCommand(ingressControllerManager.getIngressContainerCommand())
+                .endContainer()
+                .endSpec()
+                .endTemplate()
+                .endSpec()
+                .build();
+        // resources don't match
+        assertTrue(ingressControllerManager.shouldReconcile(d));
+
+        // should match the defaults
+        d.getSpec()
+                .getTemplate()
+                .getSpec()
+                .getContainers()
+                .get(0)
+                .setResources(new ResourceRequirements(null,
+                        Map.of("cpu", Quantity.parse("100m"), "memory", ingressControllerManager.getRequestMemory().get())));
+        assertFalse(ingressControllerManager.shouldReconcile(d));
+
+        // won't match az specific resources
+        d.getMetadata().setName("router-kas-east");
+        assertTrue(ingressControllerManager.shouldReconcile(d));
     }
 
     @Test
@@ -462,7 +494,6 @@ class IngressControllerManagerTest {
         assertEquals("5s", updated.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
         assertEquals(60, updatedConfig.getAdditionalProperties().get("reloadInterval"));
     }
-
 
     @BeforeEach
     @AfterEach
