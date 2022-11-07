@@ -102,12 +102,13 @@ rules:
   - apiGroups:
       - operators.coreos.com
     resources:
-      # the operator watches Subscriptions for Strimzi bundle installation
+      # the operator watches Subscriptions for Strimzi bundle installation and patches it to set Manual install plan approval
       - subscriptions
     verbs:
       - get
       - list
       - watch
+      - patch
   - apiGroups:
       - packages.operators.coreos.com
     resources:

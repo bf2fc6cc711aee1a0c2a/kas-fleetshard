@@ -12,6 +12,7 @@ import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageMan
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionSpec;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -57,6 +58,7 @@ public class StrimziBundleManager {
     }
 
     private static final String STRIMZI_ORPHANED_KAFKAS_METRIC = "strimzi_bundle_orphaned_kafkas";
+    private static final String MANUAL = "Manual";
 
     @Inject
     Logger log;
@@ -118,19 +120,32 @@ public class StrimziBundleManager {
     @Scheduled(every = "{strimzi.bundle.interval}", delay = 1, concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void handleSubscriptionLoop() {
         log.debugf("Strimzi bundle Subscription periodic check");
-        Subscription subscription =
-                this.subscriptionInformer.getList().size() > 0 ? this.subscriptionInformer.getList().get(0) : null;
-        if (subscription != null) {
-            this.handleSubscription(subscription);
-        }
+
+        subscriptionInformer.getList()
+            .stream()
+            .findFirst()
+            .ifPresent(this::handleSubscription);
     }
 
     /* test */ public synchronized void handleSubscription(Subscription subscription) {
         if (!this.isInstallPlanApprovalAsManual(subscription)) {
-            log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Skipping approval process.",
-                    subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
+            final String ns = subscription.getMetadata().getNamespace();
+            final String name = subscription.getMetadata().getName();
+
+            log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Changing to 'Manual'.",ns, name);
+
+            this.openShiftClient.operatorHub()
+                .subscriptions()
+                .inNamespace(ns)
+                .withName(name)
+                .edit(s -> {
+                    s.getSpec().setInstallPlanApproval(MANUAL);
+                    return s;
+                });
+
             return;
         }
+
         if (subscription.getStatus() != null) {
             Optional<SubscriptionCondition> conditionOptional =
                     subscription.getStatus().getConditions()
@@ -331,8 +346,10 @@ public class StrimziBundleManager {
     }
 
     private boolean isInstallPlanApprovalAsManual(Subscription subscription) {
-        return subscription.getSpec() != null && subscription.getSpec().getInstallPlanApproval() != null &&
-                "Manual".equals(subscription.getSpec().getInstallPlanApproval());
+        return Optional.ofNullable(subscription.getSpec())
+            .map(SubscriptionSpec::getInstallPlanApproval)
+            .map(MANUAL::equals)
+            .orElse(false);
     }
 
     void setApprovalDelay(Duration approvalDelay) {
