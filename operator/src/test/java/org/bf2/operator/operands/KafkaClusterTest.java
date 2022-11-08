@@ -217,6 +217,18 @@ class KafkaClusterTest {
     }
 
     @Test
+    void testElevatedPriority() throws IOException {
+        final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
+
+        Mockito.when(overrideManager.useElevatedPriority(Mockito.anyString())).thenReturn(true);
+
+        Kafka kafka = kafkaCluster.kafkaFrom(managedKafka, null);
+
+        assertEquals(KafkaCluster.KAS_FLEETSHARD_MEDIUM_PRIORITY, kafka.getSpec().getKafka().getTemplate().getPod().getPriorityClassName());
+        assertEquals(KafkaCluster.KAS_FLEETSHARD_MEDIUM_PRIORITY, kafka.getSpec().getZookeeper().getTemplate().getPod().getPriorityClassName());
+    }
+
+    @Test
     void testNodeAffinity() throws IOException {
         final ManagedKafka managedKafka = exampleManagedKafka("2Ti");
 

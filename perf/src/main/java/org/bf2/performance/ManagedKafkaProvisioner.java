@@ -57,6 +57,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -101,7 +102,7 @@ public class ManagedKafkaProvisioner {
     }
 
     static ConfigMap toConfigMap(KafkaInstanceConfiguration profile, Map<String, String> baseProperties) throws IOException {
-        Map<String, String> allProperties = new LinkedHashMap<>(baseProperties);
+        Map<String, String> allProperties = new LinkedHashMap<>(Optional.ofNullable(baseProperties).orElse(Collections.emptyMap()));
 
         Map<String, String> propertyMap = profile.toMap(false);
         allProperties.putAll(propertyMap);

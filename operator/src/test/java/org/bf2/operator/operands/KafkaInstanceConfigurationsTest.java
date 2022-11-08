@@ -135,7 +135,7 @@ class KafkaInstanceConfigurationsTest {
                 .endSpec()
                 .build();
         KafkaInstanceConfiguration config = target.getConfig(mk);
-        assertEquals("3100m", config.getKafka().getContainerRequestCpu());
+        assertEquals("2900m", config.getKafka().getContainerRequestCpu());
         assertEquals("3200m", config.getKafka().getContainerCpu());
     }
 }
