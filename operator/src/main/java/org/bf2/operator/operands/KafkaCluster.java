@@ -106,6 +106,8 @@ import static io.fabric8.kubernetes.api.model.Quantity.getAmountInBytes;
 @DefaultBean
 public class KafkaCluster extends AbstractKafkaCluster {
 
+    static final String KAS_FLEETSHARD_MEDIUM_PRIORITY = "kas-fleetshard-medium";
+
     private static final String CRUISECONTROL_SUFFIX = "-cruisecontrol";
 
     private static final String ZOOKEEPER_SUFFIX = "-zookeeper";
@@ -487,6 +489,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         // some of them will have ZK, admin-server, canary and broker needs to be on its own
         podTemplateBuilder.addToTolerations(buildKafkaBrokerToleration());
 
+        if (overrideManager.useElevatedPriority(strimzi)) {
+            podTemplateBuilder.withPriorityClassName(KAS_FLEETSHARD_MEDIUM_PRIORITY);
+        }
+
         podTemplateBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka, this.informerManager.getLocalAgent(), dynamicScalingScheduling));
 
         if (replicas == 1) {
@@ -573,6 +579,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
         String strimzi = managedKafka.getSpec().getVersions().getStrimzi();
         boolean dynamicScalingScheduling = overrideManager.useDynamicScalingScheduling(strimzi);
         podNestedBuilder.addAllToTolerations(OperandUtils.profileTolerations(managedKafka, informerManager.getLocalAgent(), dynamicScalingScheduling));
+
+        if (overrideManager.useElevatedPriority(strimzi)) {
+            podNestedBuilder.withPriorityClassName(KAS_FLEETSHARD_MEDIUM_PRIORITY);
+        }
 
         if (addAffinity) {
             podNestedBuilder.withAffinity(affinityBuilder.build());

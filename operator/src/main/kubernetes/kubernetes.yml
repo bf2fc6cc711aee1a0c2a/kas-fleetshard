@@ -254,4 +254,13 @@ metadata:
   name: kas-fleetshard-reservation
 value: -4
 globalDefault: false
+description: "Used for reservation deployments"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kas-fleetshard-medium
+value: 100
+globalDefault: false
+description: "Slightly elevated above the default, and well below the kas-fleetshard-high."
 ---

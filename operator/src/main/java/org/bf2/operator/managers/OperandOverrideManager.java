@@ -122,6 +122,9 @@ public class OperandOverrideManager {
 
         @JsonProperty(value = "dynamic-scaling-scheduling")
         public boolean dynamicScalingScheduling;
+
+        @JsonProperty(value = "elevate-priority")
+        public boolean elevatePriority;
     }
 
     static final OperandOverrides EMPTY = new OperandOverrides();
@@ -243,6 +246,10 @@ public class OperandOverrideManager {
 
     public boolean useDynamicScalingScheduling(String strimzi) {
         return getOverrides(strimzi).dynamicScalingScheduling;
+    }
+
+    public boolean useElevatedPriority(String strimzi) {
+        return getOverrides(strimzi).elevatePriority;
     }
 
     public boolean migratedToDynamicScalingScheduling() {
