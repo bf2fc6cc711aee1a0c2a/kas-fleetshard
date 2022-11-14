@@ -19,6 +19,7 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.bf2.operator.resources.v1alpha1.TlsKeyPairBuilder;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
@@ -40,7 +41,7 @@ import static org.mockito.Mockito.when;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
-public class CanaryTest {
+class CanaryTest {
 
     @Inject
     KubernetesClient client;
@@ -53,6 +54,15 @@ public class CanaryTest {
 
     @InjectMock
     OperandOverrideManager overrideManager;
+
+    @BeforeEach
+    void setup() {
+        client.apps()
+                .deployments()
+                .inAnyNamespace()
+                .withLabel("app.kubernetes.io/component", "canary")
+                .delete();
+    }
 
     @ParameterizedTest(name = "createCanaryDeployment: {0}")
     @CsvSource({
@@ -71,7 +81,7 @@ public class CanaryTest {
         }
 
         Deployment canaryDeployment = canary.deploymentFrom(mk, null);
-        KafkaClusterTest.diffToExpected(canaryDeployment, expectedResource);
+        assertTrue(KafkaClusterTest.diffToExpected(canaryDeployment, expectedResource).isEmpty());
     }
 
     private ManagedKafka createManagedKafka(String bootstrapServerHost) {
@@ -186,5 +196,34 @@ public class CanaryTest {
         configureMockOverrideManager(mk, Collections.emptyList(), Collections.emptyList());
         canary.createOrUpdate(mk);
         assertNotNull(deployment.get());
+    }
+
+    @Test
+    void testSuspendedDeploymentHasZeroReplicas() throws Exception {
+        KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
+        QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
+        Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(true);
+        Mockito.when(kafkaCluster.isKafkaUpgradeStabilityChecking(Mockito.any())).thenReturn(false);
+
+        Resource<Deployment> deployment;
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        configureMockOverrideManager(mk, Collections.emptyList(), Collections.emptyList());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "false"));
+        canary.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(Canary.canaryNamespace(mk))
+                .withName(Canary.canaryName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(1, deployment.get().getSpec().getReplicas());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+        canary.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(Canary.canaryNamespace(mk))
+                .withName(Canary.canaryName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(0, deployment.get().getSpec().getReplicas());
     }
 }

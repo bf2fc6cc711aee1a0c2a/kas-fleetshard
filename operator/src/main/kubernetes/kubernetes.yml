@@ -178,6 +178,20 @@ rules:
       - infrastructures
     verbs:
       - get
+  - apiGroups:
+      - apps
+    resources:
+      # operator deletes statefulsets when suspending an instance
+      - statefulsets
+    verbs:
+      - delete
+  - apiGroups:
+      - core.strimzi.io
+    resources:
+      # operator deletes strimzipodsets when suspending an instance
+      - strimzipodsets
+    verbs:
+      - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

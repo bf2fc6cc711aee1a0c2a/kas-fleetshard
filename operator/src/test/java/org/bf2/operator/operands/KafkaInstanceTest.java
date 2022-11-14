@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -134,6 +135,22 @@ class KafkaInstanceTest {
     }
 
     @Test
+    void statusReadyFalseWhenSuspended() {
+        ManagedKafka instance = ManagedKafkaUtils.dummyManagedKafka("x");
+        OperandReadiness readiness;
+
+        when(kafkaCluster.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Suspended, null));
+        when(canary.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, String.format("Deployment x-canary does not exist")));
+        when(adminServer.getReadiness(instance)).thenReturn(new OperandReadiness(Status.False, Reason.Installing, String.format("Deployment x-admin-server does not exist")));
+
+        instance.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+        readiness = kafkaInstance.getReadiness(instance);
+        assertEquals(Status.False, readiness.getStatus());
+        assertEquals(Reason.Suspended, readiness.getReason());
+        assertNull(readiness.getMessage());
+    }
+
+    @Test
     void deleteOrderCanaryDeleteBeforeKafkaCluster() {
         Context context = Mockito.mock(Context.class);
 
@@ -166,7 +183,8 @@ class KafkaInstanceTest {
         inOrder.verify(kafkaCluster, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(canary, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
         inOrder.verify(adminServer, times(1)).createOrUpdate(DUMMY_MANAGED_KAFKA);
-        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauges().size());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauge().value());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_SUSPENDED).gauge().value());
     }
 
     @Test
@@ -180,5 +198,6 @@ class KafkaInstanceTest {
         inOrder.verify(canary, never()).createOrUpdate(pausedInstance);
         inOrder.verify(adminServer, never()).createOrUpdate(pausedInstance);
         assertEquals(1, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_PAUSED).gauge().value());
+        assertEquals(0, meterRegistry.find(MetricsManager.KAFKA_INSTANCE_SUSPENDED).gauge().value());
     }
 }

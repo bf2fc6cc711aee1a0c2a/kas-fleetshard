@@ -11,6 +11,7 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
@@ -105,7 +106,7 @@ class AdminServerTest {
 
         Deployment adminServerDeployment = adminServer.deploymentFrom(mk, null);
 
-        KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource);
+        assertTrue(KafkaClusterTest.diffToExpected(adminServerDeployment, expectedResource).isEmpty());
     }
 
     @Test
@@ -147,9 +148,9 @@ class AdminServerTest {
         assertNotNull(annotations);
         assertEquals(3, annotations.size());
         assertTrue(annotations.keySet().containsAll(List.of(
-                AdminServer.RATE_LIMIT_ANNOTATION,
-                AdminServer.RATE_LIMIT_ANNOTATION_CONCURRENT_TCP,
-                AdminServer.RATE_LIMIT_ANNOTATION_TCP_RATE)));
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION,
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION_CONCURRENT_TCP,
+                OperandUtils.OPENSHIFT_RATE_LIMIT_ANNOTATION_TCP_RATE)));
     }
 
     @Test
@@ -239,4 +240,35 @@ class AdminServerTest {
         assertEquals("pause", reserved.getSpec().getTemplate().getSpec().getContainers().get(0).getName());
     }
 
+    @Test
+    void testSuspendedDeploymentHasZeroReplicas() throws Exception {
+        KafkaCluster kafkaCluster = Mockito.mock(KafkaCluster.class);
+        QuarkusMock.installMockForType(kafkaCluster, KafkaCluster.class);
+        Mockito.when(kafkaCluster.hasKafkaBeenReady(Mockito.any())).thenReturn(true);
+
+        SecuritySecretManager securitySecretManager = Mockito.mock(SecuritySecretManager.class);
+        QuarkusMock.installMockForType(securitySecretManager, SecuritySecretManager.class);
+        Mockito.when(securitySecretManager.secretKeysExist(Mockito.any(), Mockito.any())).thenReturn(true);
+        Mockito.when(securitySecretManager.digestSecretsVersions(Mockito.any(), Mockito.any())).thenReturn("dummy-digest");
+
+        Resource<Deployment> deployment;
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "false"));
+        adminServer.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(AdminServer.adminServerNamespace(mk))
+                .withName(AdminServer.adminServerName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(1, deployment.get().getSpec().getReplicas());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+        adminServer.createOrUpdate(mk);
+        deployment = client.apps().deployments()
+                .inNamespace(AdminServer.adminServerNamespace(mk))
+                .withName(AdminServer.adminServerName(mk));
+        assertNotNull(deployment.get());
+        assertEquals(0, deployment.get().getSpec().getReplicas());
+    }
 }

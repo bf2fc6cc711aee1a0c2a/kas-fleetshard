@@ -40,6 +40,7 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public static final String PROFILE_QUOTA_CONSUMED = BF2_DOMAIN + "kafkaInstanceProfileQuotaConsumed";
 
     public static final String DEPLOYMENT_TYPE = BF2_DOMAIN + "deployment";
+    public static final String SUSPENDED_INSTANCE = BF2_DOMAIN + "suspended";
 
     @Override
     protected ManagedKafkaSpec initSpec() {
@@ -110,6 +111,17 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
     public Optional<String> getAnnotation(String annotation) {
         return Optional.ofNullable(this.getMetadata().getAnnotations())
                         .map(annotations -> annotations.get(annotation));
+    }
+
+    /**
+     * Get a specific label value on the current ManagedKafka instance
+     *
+     * @param label label to look for in the current ManagedKafka instance metadata
+     * @return label value or empty if not present
+     */
+    public Optional<String> getLabel(String label) {
+        return Optional.ofNullable(this.getMetadata().getLabels())
+                        .map(labels -> labels.get(label));
     }
 
     /**
@@ -187,4 +199,8 @@ public class ManagedKafka extends CustomResource<ManagedKafkaSpec, ManagedKafkaS
         return RESERVED_DEPLOYMENT_TYPE.equals(getMetadata().getLabels().get(DEPLOYMENT_TYPE));
     }
 
+    @JsonIgnore
+    public boolean isSuspended() {
+        return getLabel(SUSPENDED_INSTANCE).map("true"::equals).orElse(false);
+    }
 }

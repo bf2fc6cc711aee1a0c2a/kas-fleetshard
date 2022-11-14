@@ -431,6 +431,8 @@ public class KafkaInstanceConfiguration {
         protected String brokerPluginsConfigPrefix = null;
         @JsonProperty("global")
         protected String global = null;
+        @JsonProperty("suspended")
+        protected String suspended = null;
         @JsonProperty("owner")
         protected String owner = null;
         @JsonProperty("resource-operations")
@@ -502,6 +504,14 @@ public class KafkaInstanceConfiguration {
 
         public void setBrokerPluginsConfigPrefix(String brokerPluginsConfigPrefix) {
             this.brokerPluginsConfigPrefix = brokerPluginsConfigPrefix;
+        }
+
+        public String getSuspended() {
+            return suspended;
+        }
+
+        public void setSuspended(String suspended) {
+            this.suspended = suspended;
         }
 
         public String getGlobal() {

@@ -24,10 +24,11 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
-public class ManagedKafkaControllerTest {
+class ManagedKafkaControllerTest {
 
     @Inject
     ManagedKafkaController mkController;
@@ -166,6 +167,41 @@ public class ManagedKafkaControllerTest {
         condition = mk2.getStatus().getConditions().get(0);
         assertEquals(ManagedKafkaCondition.Reason.Rejected.name(), condition.getReason());
         assertEquals("Cluster has insufficient resources", condition.getMessage());
+    }
+
+    @Test
+    void testReadyFalseWithReasonSuspended() throws InterruptedException {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setUid(UUID.randomUUID().toString());
+        mk.getMetadata().setGeneration(1l);
+        mk.getMetadata().setResourceVersion("1");
+
+        // create
+        Context context = Mockito.mock(Context.class);
+
+        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
+        Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
+            .thenReturn(new StrimziVersionStatusBuilder()
+                            .withVersion(mk.getSpec().getVersions().getStrimzi())
+                    .withKafkaVersions(mk.getSpec().getVersions().getKafka())
+                    .build());
+        Mockito.when(strimziManager.getVersionLabel())
+                .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
+
+        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+
+        mkController.reconcile(mk, context);
+
+        assertEquals(1, mk.getStatus().getConditions().size());
+
+        ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
+        assertEquals(ManagedKafkaCondition.Status.False.name(), condition.getStatus());
+        assertEquals(ManagedKafkaCondition.Reason.Suspended.name(), condition.getReason());
+
+        // Additional status information will be present even though the instance is not ready
+        assertNotNull(mk.getStatus().getCapacity());
+        assertNotNull(mk.getStatus().getVersions());
     }
 
     @AfterEach

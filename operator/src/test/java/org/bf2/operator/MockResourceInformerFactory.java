@@ -6,6 +6,7 @@ import io.fabric8.kubernetes.client.dsl.Gettable;
 import io.fabric8.kubernetes.client.dsl.Informable;
 import io.fabric8.kubernetes.client.dsl.Listable;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.test.Mock;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 
 @Mock
 @ApplicationScoped
+@UnlessBuildProfile("prod")
 public class MockResourceInformerFactory extends ResourceInformerFactory {
 
     @Override
