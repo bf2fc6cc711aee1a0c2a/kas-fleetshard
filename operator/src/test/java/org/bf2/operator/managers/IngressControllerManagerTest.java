@@ -265,12 +265,12 @@ class IngressControllerManagerTest {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000));
         assertEquals(0, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 0, ZONE_PERCENTAGE));
 
-        assertEquals(3, ingressControllerManager.numReplicasForDefault(160000));
+        assertEquals(3, ingressControllerManager.numReplicasForDefault(240000));
         assertEquals(1, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, 30000000, 1500000000), new LongSummaryStatistics(1, 0, 30000000, 1500000000), 0, ZONE_PERCENTAGE));
-        assertEquals(3, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 480000, ZONE_PERCENTAGE));
+        assertEquals(3, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(), new LongSummaryStatistics(), 660000, ZONE_PERCENTAGE));
 
         long ingress = 50000000;
-        assertEquals(5, ingressControllerManager.numReplicasForDefault(370000));
+        assertEquals(5, ingressControllerManager.numReplicasForDefault(460000));
         assertEquals(4, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
     }
 
@@ -421,8 +421,8 @@ class IngressControllerManagerTest {
         assertEquals("5s", ingressController.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
         assertEquals(60, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("reloadInterval"));
         assertEquals(60, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("reloadInterval"));
-        assertEquals(54000, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("maxConnections"));
-        assertEquals(54000, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("maxConnections"));
+        assertEquals(108000, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("maxConnections"));
+        assertEquals(108000, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("maxConnections"));
     }
 
     @Test
