@@ -331,12 +331,20 @@
 	                </excludes>
 	            </configuration>
 	            <executions>
-	                <execution>
-	                    <id>default-report</id>
-	                    <goals>
-	                        <goal>report</goal>
-	                    </goals>
-	                </execution>
+                    <execution>
+                        <id>default-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.reporting.outputDirectory}/jacoco</outputDirectory>
+                            <includeCurrentProject>true</includeCurrentProject>
+                            <formats>
+                               <format>XML</format>
+                            </formats>
+                        </configuration>
+                    </execution>
 	                <execution>
 	                    <id>jacoco-check</id>
 	                    <goals>
