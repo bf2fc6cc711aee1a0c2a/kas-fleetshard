@@ -15,6 +15,7 @@ import io.strimzi.api.kafka.model.KafkaClusterSpec;
 import io.strimzi.api.kafka.model.KafkaSpec;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
@@ -49,6 +50,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     static final String TAG_LABEL_BROKER_ID = "broker_id";
     static final String TAG_LABEL_NAMESPACE = "namespace";
     static final String TAG_LABEL_INSTANCE_NAME = "instance_name";
+    static final String TAG_LABEL_INSTANCE_PROFILE_TYPE = "profile_type";
 
     static final Tag OWNER = Tag.of(TAG_LABEL_OWNER, "KafkaInstanceMetricsManager");
     static final String TAG_LABEL_LISTENER = "listener";
@@ -137,7 +139,8 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
 
     public static Tags buildKafkaInstanceTags(HasMetadata obj) {
         ObjectMeta metadata = obj.getMetadata();
-        return Tags.of(Tag.of(TAG_LABEL_NAMESPACE, metadata.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, metadata.getName()), OWNER);
+        String profileType = OperandUtils.getOrDefault(metadata.getLabels(), ManagedKafka.PROFILE_TYPE, "standard");
+        return Tags.of(Tag.of(TAG_LABEL_NAMESPACE, metadata.getNamespace()), Tag.of(TAG_LABEL_INSTANCE_NAME, metadata.getName()), Tag.of(TAG_LABEL_INSTANCE_PROFILE_TYPE, profileType), OWNER);
     }
 
     private Double replicas(AtomicReference<Kafka> r) {
