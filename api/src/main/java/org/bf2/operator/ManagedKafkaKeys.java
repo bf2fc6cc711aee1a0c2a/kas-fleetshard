@@ -61,7 +61,11 @@ public final class ManagedKafkaKeys {
         /**
          * Set of annotations managed by the data plane - expand as needed.
          */
-        public static final Set<String> DATA_PLANE_ANNOTATIONS = Set.of(MASTER_SECRET_DIGEST, PAUSE_RECONCILIATION);
+        public static final Set<String> DATA_PLANE_ANNOTATIONS = Set.of(
+                MASTER_SECRET_DIGEST,
+                KAFKA_UPGRADE_START_TIMESTAMP,
+                KAFKA_UPGRADE_END_TIMESTAMP,
+                PAUSE_RECONCILIATION);
 
         private Annotations() {
         }

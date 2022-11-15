@@ -16,6 +16,7 @@ import io.strimzi.api.kafka.model.KafkaSpec;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -43,6 +44,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     static final String KAFKA_INSTANCE_CONNECTION_CREATION_RATE_LIMIT = "kafka_instance_connection_creation_rate_limit";
     static final String KAFKA_INSTANCE_QUOTA_CONSUMED = "kafka_instance_profile_quota_consumed";
     public static final String KAFKA_INSTANCE_PAUSED = "kafka_instance_paused";
+    public static final String KAFKA_INSTANCE_SUSPENDED = "kafka_instance_suspended";
 
     static final String TAG_LABEL_OWNER = "owner";
     static final String TAG_LABEL_BROKER_ID = "broker_id";
@@ -60,6 +62,7 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
     MeterRegistry meterRegistry;
 
     private final Map<String, AtomicReference<Kafka>> kafkaMap = new ConcurrentHashMap<>();
+    private final Map<String, AtomicReference<ManagedKafka>> managedKafkaMap = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void postConstruct() {
@@ -78,16 +81,35 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
 
     @Override
     public void onDelete(Kafka obj, boolean deletedFinalStateUnknown) {
-        Search.in(meterRegistry).tags(buildKafkaInstanceTags(obj)).meters().forEach(meterRegistry::remove);
-        kafkaMap.remove(Cache.metaNamespaceKeyFunc(obj));
+        deleteMetrics(obj);
+    }
+
+    static <T> AtomicReference<T> getMetricHolder(T object, Map<String, AtomicReference<T>> cache) {
+        String cacheKey = Cache.metaNamespaceKeyFunc(object);
+        AtomicReference<T> ref = cache.computeIfAbsent(cacheKey, k -> new AtomicReference<T>(object));
+        // Note that meterRegistry.gauge() is a no-op if the gauge already exists.  To handle the update case we
+        // update the existing atomic reference that is already registered with the gauge to point at the new kafka object.
+        ref.set(object);
+        return ref;
+    }
+
+    public void createOrUpdateMetrics(ManagedKafka managedKafka) {
+        AtomicReference<ManagedKafka> ref = getMetricHolder(managedKafka, managedKafkaMap);
+        Tags tags = MetricsManager.buildKafkaInstanceTags(managedKafka);
+
+        meterRegistry.gauge(MetricsManager.KAFKA_INSTANCE_SUSPENDED, tags, ref, this::suspended);
+        meterRegistry.gauge(MetricsManager.KAFKA_INSTANCE_PAUSED, tags, ref, this::paused);
+    }
+
+    public void deleteMetrics(HasMetadata resource) {
+        Search.in(meterRegistry).tags(buildKafkaInstanceTags(resource)).meters().forEach(meterRegistry::remove);
+        String cacheKey = Cache.metaNamespaceKeyFunc(resource);
+        kafkaMap.remove(cacheKey);
+        managedKafkaMap.remove(cacheKey);
     }
 
     private void createOrUpdateMetrics(Kafka kafka) {
-        AtomicReference<Kafka> ref = kafkaMap.computeIfAbsent(Cache.metaNamespaceKeyFunc(kafka), (k) -> new AtomicReference<>(kafka));
-        // Note that meterRegistry.gauge() is a no-op if the gauge already exists.  To handle the update case we
-        // update the existing atomic reference that is already registered with the gauge to point at the new kafka object.
-        ref.set(kafka);
-
+        AtomicReference<Kafka> ref = getMetricHolder(kafka, kafkaMap);
         Tags tags = buildKafkaInstanceTags(kafka);
 
         meterRegistry.gauge(KAFKA_INSTANCE_SPEC_BROKERS_DESIRED_COUNT, tags, ref, this::replicas);
@@ -158,5 +180,23 @@ public class MetricsManager implements ResourceEventHandler<Kafka>{
                 .map(Double::parseDouble).orElse(Double.NaN);
     }
 
+    private Double suspended(AtomicReference<ManagedKafka> ref) {
+        return Optional.ofNullable(ref.get())
+                .map(ManagedKafka::isSuspended)
+                .filter(Boolean.TRUE::equals)
+                .map(suspended -> 1d)
+                .orElse(0d);
+    }
+
+    private Double paused(AtomicReference<ManagedKafka> ref) {
+        return Optional.ofNullable(ref.get())
+                .map(mk -> mk.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .map(Boolean::valueOf)
+                .filter(Boolean.TRUE::equals)
+                .map(paused -> 1d)
+                .orElse(0d);
+    }
 }
 

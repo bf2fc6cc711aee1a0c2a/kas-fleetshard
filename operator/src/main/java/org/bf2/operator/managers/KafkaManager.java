@@ -6,15 +6,13 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
-import org.bf2.operator.clients.canary.CanaryService;
+import org.bf2.operator.clients.canary.CanaryStatusService;
 import org.bf2.operator.clients.canary.Status;
-import org.bf2.operator.operands.AbstractCanary;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.RestClientBuilder;
 import org.jboss.logging.Logger;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -29,7 +27,6 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
-import java.net.URI;
 import java.sql.Date;
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -38,7 +35,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class KafkaManager {
@@ -53,6 +49,9 @@ public class KafkaManager {
 
     @Inject
     KubernetesClient kubernetesClient;
+
+    @Inject
+    CanaryStatusService canaryStatus;
 
     @Inject
     org.quartz.Scheduler quartz;
@@ -351,53 +350,55 @@ public class KafkaManager {
      */
     void doKafkaUpgradeStabilityCheck(ManagedKafka managedKafka) {
         log.infof("[%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-
-        CanaryService canaryService = RestClientBuilder.newBuilder()
-                .baseUri(URI.create("http://" + AbstractCanary.canaryName(managedKafka) + "." + managedKafka.getMetadata().getNamespace() + ":8080"))
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .build(CanaryService.class);
+        Status status;
 
         try {
-            Status status = canaryService.getStatus();
-            log.infof("[%s/%s] Canary status: timeWindow %d - percentage %d",
-                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                    status.getConsuming().getTimeWindow(), status.getConsuming().getPercentage());
-
-            if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
-                log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
-                        managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-
-                managedKafkaClient
-                        .inNamespace(managedKafka.getMetadata().getNamespace())
-                        .withName(managedKafka.getMetadata().getName())
-                        .edit(mk -> new ManagedKafkaBuilder(mk)
-                                .editMetadata()
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                                .endMetadata()
-                                .build());
-            } else {
-                log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
-                        managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
-                        status.getConsuming().getPercentage(), consumingPercentageThreshold);
-
-                managedKafkaClient
-                        .inNamespace(managedKafka.getMetadata().getNamespace())
-                        .withName(managedKafka.getMetadata().getName())
-                        .edit(mk -> new ManagedKafkaBuilder(mk)
-                                .editMetadata()
-                                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                                .endMetadata()
-                                .build());
-            }
-            // trigger a reconcile on the ManagedKafka instance to push checking if next step
-            // Kafka IBP upgrade is needed or another stability check
-            informerManager.resyncManagedKafka(managedKafka);
+            status = canaryStatus.get(managedKafka);
         } catch (Exception e) {
-            log.errorf("[%s/%s] Error while checking Kafka upgrade stability",
-                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), e);
+            log.errorf(e,
+                    "[%s/%s] Error while checking Kafka upgrade stability",
+                    managedKafka.getMetadata().getNamespace(),
+                    managedKafka.getMetadata().getName());
+            removeEndTimestamp(managedKafka);
+            return;
         }
+
+        log.infof("[%s/%s] Canary status: timeWindow %d - percentage %d",
+                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
+                status.getConsuming().getTimeWindow(), status.getConsuming().getPercentage());
+
+        if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
+            log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
+                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
+            managedKafkaClient
+                    .inNamespace(managedKafka.getMetadata().getNamespace())
+                    .withName(managedKafka.getMetadata().getName())
+                    .edit(mk -> new ManagedKafkaBuilder(mk)
+                            .editMetadata()
+                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
+                                .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                            .endMetadata()
+                            .build());
+        } else {
+            log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
+                    managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
+                    status.getConsuming().getPercentage(), consumingPercentageThreshold);
+            removeEndTimestamp(managedKafka);
+        }
+        // trigger a reconcile on the ManagedKafka instance to push checking if next step
+        // Kafka IBP upgrade is needed or another stability check
+        informerManager.resyncManagedKafka(managedKafka);
+    }
+
+    void removeEndTimestamp(ManagedKafka managedKafka) {
+        managedKafkaClient
+                .inNamespace(managedKafka.getMetadata().getNamespace())
+                .withName(managedKafka.getMetadata().getName())
+                .edit(mk -> new ManagedKafkaBuilder(mk)
+                        .editMetadata()
+                            .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                        .endMetadata()
+                        .build());
     }
 
     /**
@@ -428,12 +429,16 @@ public class KafkaManager {
     private void addUpgradeTimeStampAnnotation(ManagedKafka managedKafka, String annotation) {
         log.debugf("[%s/%s] Adding Kafka upgrade %s timestamp annotation",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotation);
+
+        String timestampValue = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
+        managedKafka.getMetadata().getAnnotations().put(annotation, timestampValue);
+
         managedKafkaClient
                 .inNamespace(managedKafka.getMetadata().getNamespace())
                 .withName(managedKafka.getMetadata().getName())
                 .edit(mk -> new ManagedKafkaBuilder(mk)
                         .editMetadata()
-                            .addToAnnotations(annotation, ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT))
+                            .addToAnnotations(annotation, timestampValue)
                         .endMetadata()
                         .build());
     }

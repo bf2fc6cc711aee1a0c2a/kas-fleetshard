@@ -263,6 +263,21 @@ public class StrimziBundleManagerTest {
         this.checkInstallPlan(subscription, false);
     }
 
+    @Test
+    void testAutomaticInstallPlanChangedToManual() {
+        Subscription subscription = installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Automatic",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.strimziBundleManager.handleSubscription(subscription);
+        checkInstallPlan(subscription, false);
+
+        subscription = openShiftClient.resources(Subscription.class)
+                .inNamespace(subscription.getMetadata().getNamespace())
+                .withName(subscription.getMetadata().getName())
+                .get();
+
+        assertEquals("Manual", subscription.getSpec().getInstallPlanApproval());
+    }
+
     /**
      * Install or update a Strimzi bundle, creating/updating the corresponding resources
      * like Subscription, InstallPlan and PackageManifest

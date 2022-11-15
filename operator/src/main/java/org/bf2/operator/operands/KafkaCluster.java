@@ -61,6 +61,7 @@ import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplate;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.ZookeeperClusterTemplateFluent.PodNested;
 import org.bf2.common.OperandUtils;
+import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.managers.DrainCleanerManager;
 import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -380,6 +381,29 @@ public class KafkaCluster extends AbstractKafkaCluster {
             }
         }
         return kafkaBuilder.build();
+    }
+
+    /**
+     * Determine whether the cluster should be blocked from suspension to support
+     * an upgrade of the Kafka version
+     *
+     * @param managedKafka ManagedKafka instance
+     * @return true if suspension should be blocked, otherwise false
+     */
+    private boolean blockSuspension(ManagedKafka managedKafka) {
+        if (kafkaManager.hasKafkaVersionChanged(managedKafka)) {
+            return true;
+        }
+
+        if (kafkaManager.isKafkaUpgradeInProgress(managedKafka, this)) {
+            return true;
+        }
+
+        if (kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, this)) {
+            return true;
+        }
+
+        return kafkaManager.isKafkaUpgradeStabilityCheckInProgress(managedKafka, this);
     }
 
     private ConfigMap configMapTemplate(ManagedKafka managedKafka, String name) {
@@ -1029,9 +1053,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
     }
 
     private KafkaAuthorization buildKafkaAuthorization(ManagedKafka managedKafka) {
-        return new KafkaAuthorizationCustomBuilder()
-                .withAuthorizerClass(getAclConfig(managedKafka).getAuthorizerClass())
-                .build();
+        return Optional.ofNullable(getAclConfig(managedKafka).getAuthorizerClass())
+            .map(className -> new KafkaAuthorizationCustomBuilder().withAuthorizerClass(className).build())
+            .orElse(null);
     }
 
     private void addKafkaAuthorizerConfig(ManagedKafka managedKafka, Map<String, Object> config, Supplier<String> getConfigPrefix) {
@@ -1071,8 +1095,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         config.put(resourceOperationsKey, aclConfig.getResourceOperations());
 
-        for (String owner : owners) {
-            addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
+        if (managedKafka.isSuspended()) {
+            addAcl(aclConfig.getSuspended(), "", aclKeyTemplate, aclCount, config);
+        } else {
+            for (String owner : owners) {
+                addAcl(aclConfig.getOwner(), owner, aclKeyTemplate, aclCount, config);
+            }
         }
 
         Objects.requireNonNullElse(managedKafka.getSpec().getServiceAccounts(), Collections.<ServiceAccount>emptyList())
@@ -1123,7 +1151,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
         if (annotations == null) {
             annotations = new HashMap<>();
         }
-        //this.strimziManager.togglePauseReconciliation(managedKafka, this, annotations);
+
+        if (managedKafka.isSuspended() && !blockSuspension(managedKafka)) {
+            annotations.put(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true");
+            annotations.remove(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON);
+        } else if (!annotations.containsKey(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON)) {
+            annotations.remove(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION);
+        }
+
         log.debugf("Kafka %s/%s annotations: %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotations);
         return annotations;

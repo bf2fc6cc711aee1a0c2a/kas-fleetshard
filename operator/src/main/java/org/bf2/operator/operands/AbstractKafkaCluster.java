@@ -4,6 +4,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.strimzi.api.kafka.model.CertAndKeySecretSource;
@@ -13,6 +14,8 @@ import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.GenericSecretSource;
 import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaResources;
+import io.strimzi.api.kafka.model.StrimziPodSet;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuthBuilder;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
@@ -24,6 +27,7 @@ import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerCon
 import io.strimzi.api.kafka.model.listener.arraylistener.KafkaListenerType;
 import io.strimzi.api.kafka.model.status.Condition;
 import io.strimzi.api.kafka.model.status.KafkaStatus;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
@@ -41,12 +45,14 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
@@ -91,6 +97,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isKafkaUpdating(ManagedKafka managedKafka) {
+        if (managedKafka.isSuspended() && !isKafkaReady(managedKafka)) {
+            return isKafkaUpgradeIncomplete(managedKafka);
+        }
         return this.isKafkaAnnotationUpdating(managedKafka, "strimzi.io/kafka-version", kafka -> kafka.getSpec().getKafka().getVersion());
     }
 
@@ -137,6 +146,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         return kafkaUpgradeStartTimestampAnnotation.isPresent() && kafkaUpgradeEndTimestampAnnotation.isPresent();
     }
 
+    boolean isKafkaReady(ManagedKafka managedKafka) {
+        return hasKafkaCondition(managedKafka, c -> "Ready".equals(c.getType()) && "True".equals(c.getStatus()));
+    }
+
+    boolean isKafkaUpgradeIncomplete(ManagedKafka managedKafka) {
+        return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
+                && managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
+    }
+
     public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
         OperandReadiness readiness = getReadiness(managedKafka);
         return Status.True.equals(readiness.getStatus()) && !Reason.StrimziUpdating.equals(readiness.getReason());
@@ -159,15 +177,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         if (isStrimziUpdating(managedKafka)) {
             // the status here is actually unknown
-            return new OperandReadiness(Status.True, Reason.StrimziUpdating, null);
+            return new OperandReadiness(Status.True, Reason.StrimziUpdating, "Updating Strimzi version");
         }
 
         if (isKafkaUpdating(managedKafka) || isKafkaUpgradeStabilityChecking(managedKafka)) {
-            return new OperandReadiness(Status.True, Reason.KafkaUpdating, null);
+            return new OperandReadiness(Status.True, Reason.KafkaUpdating, "Updating Kafka version");
         }
 
         if (isKafkaIbpUpdating(managedKafka)) {
-            return new OperandReadiness(Status.True, Reason.KafkaIbpUpdating, null);
+            return new OperandReadiness(Status.True, Reason.KafkaIbpUpdating, "Updating Kafka IBP version");
         }
 
         Optional<Condition> ready = kafkaCondition(kafka, c -> "Ready".equals(c.getType()));
@@ -177,6 +195,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         }
 
         if (isReconciliationPaused(managedKafka)) {
+            if (managedKafka.isSuspended()) {
+                return new OperandReadiness(Status.False, Reason.Suspended, null);
+            }
             // strimzi may in the future report the status even when paused, but for now we don't know
             return new OperandReadiness(Status.Unknown, Reason.Paused, String.format("Kafka %s is paused for an unknown reason", kafkaClusterName(managedKafka)));
         }
@@ -186,7 +207,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public boolean isReconciliationPaused(ManagedKafka managedKafka) {
         Kafka kafka = cachedKafka(managedKafka);
-        boolean isReconciliationPaused = kafka != null && kafka.getStatus() != null
+        boolean isReconciliationPaused = kafka != null
+                && hasAnnotationValue(kafka, StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
+                && kafka.getStatus() != null
                 && hasKafkaCondition(kafka, c -> c.getType() != null && "ReconciliationPaused".equals(c.getType())
                 && "True".equals(c.getStatus()));
         log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
@@ -198,6 +221,18 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         boolean isDeleted = cachedKafka(managedKafka) == null;
         log.tracef("KafkaCluster isDeleted = %s", isDeleted);
         return isDeleted;
+    }
+
+    protected boolean hasAnnotationValue(Kafka kafka, String annotationName, String value) {
+        return Optional.ofNullable(kafka.getMetadata().getAnnotations())
+                .map(annotations -> annotations.get(annotationName))
+                .map(value::equals)
+                .orElse(false);
+    }
+
+    protected boolean hasKafkaCondition(ManagedKafka managedKafka, Predicate<Condition> predicate) {
+        Kafka kafka = cachedKafka(managedKafka);
+        return kafka != null && hasKafkaCondition(kafka, predicate);
     }
 
     protected boolean hasKafkaCondition(Kafka kafka, Predicate<Condition> predicate) {
@@ -227,6 +262,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         Kafka current = cachedKafka(managedKafka);
         Kafka kafka = kafkaFrom(managedKafka, current);
         createOrUpdate(kafka);
+
+        boolean reconciliationPaused = isReconciliationPaused(managedKafka);
+
+        if (managedKafka.isSuspended() && reconciliationPaused && !updatesInProgress(managedKafka)) {
+            suspend(managedKafka);
+        }
     }
 
     public abstract Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current);
@@ -238,6 +279,53 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     protected void createOrUpdate(Kafka kafka) {
         kafkaResourceClient.createOrUpdate(kafka);
+    }
+
+    protected void suspend(ManagedKafka managedKafka) {
+        String namespace = kafkaClusterNamespace(managedKafka);
+        String instanceName = kafkaClusterName(managedKafka);
+
+        kubernetesClient.apps()
+            .deployments()
+            .inNamespace(namespace)
+            .withName(instanceName + "-kafka-exporter")
+            .delete();
+
+        // Remove when migration to StrimziPodSets complete
+        kubernetesClient.apps()
+            .statefulSets()
+            .inNamespace(namespace)
+            .withName(KafkaResources.kafkaStatefulSetName(instanceName))
+            .delete();
+
+        kubernetesClient.resources(StrimziPodSet.class)
+            .inNamespace(namespace)
+            .withName(KafkaResources.kafkaStatefulSetName(instanceName))
+            .delete();
+
+        // Remove when migration to StrimziPodSets complete
+        kubernetesClient.apps()
+            .statefulSets()
+            .inNamespace(namespace)
+            .withName(KafkaResources.zookeeperStatefulSetName(instanceName))
+            .delete();
+
+        kubernetesClient.resources(StrimziPodSet.class)
+            .inNamespace(namespace)
+            .withName(KafkaResources.zookeeperStatefulSetName(instanceName))
+            .delete();
+
+        Map<String, String> rateLimitAnnotations = OperandUtils.buildRateLimitAnnotations(5, 5);
+        Supplier<Map<String, String>> routeAnnotationFactory = () -> new HashMap<>(rateLimitAnnotations.size());
+
+        informerManager.getRoutesInNamespace(namespace)
+            .filter(r -> r.getMetadata().getName().startsWith(instanceName + "-kafka-"))
+            .forEach(r -> {
+                Map<String, String> routeAnnotations = Objects.requireNonNullElseGet(r.getMetadata().getAnnotations(), routeAnnotationFactory);
+                routeAnnotations.putAll(rateLimitAnnotations);
+                r.getMetadata().setAnnotations(routeAnnotations);
+                OperandUtils.createOrUpdate(kubernetesClient.resources(Route.class), r);
+            });
     }
 
     protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka, int replicas) {
@@ -422,4 +510,12 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
     public abstract int getReplicas(ManagedKafka managedKafka);
 
+    public boolean updatesInProgress(ManagedKafka managedKafka) {
+        boolean strimziUpdating = isStrimziUpdating(managedKafka);
+        boolean kafkaUpdating = isKafkaUpdating(managedKafka);
+        boolean kafkaIbpUpdating = isKafkaIbpUpdating(managedKafka);
+        boolean kafkaStabilityChecking = isKafkaUpgradeStabilityChecking(managedKafka);
+
+        return strimziUpdating || kafkaUpdating || kafkaIbpUpdating || kafkaStabilityChecking;
+    }
 }

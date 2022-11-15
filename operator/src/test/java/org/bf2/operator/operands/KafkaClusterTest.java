@@ -8,12 +8,18 @@ import io.fabric8.kubernetes.api.model.Affinity;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
+import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.apps.StatefulSet;
+import io.fabric8.kubernetes.api.model.apps.StatefulSetBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusMock;
@@ -23,6 +29,9 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.KafkaResources;
+import io.strimzi.api.kafka.model.StrimziPodSet;
+import io.strimzi.api.kafka.model.StrimziPodSetBuilder;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthenticationOAuth;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
@@ -32,6 +41,7 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverride;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageOverrideBuilder;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.managers.DrainCleanerManager;
@@ -39,11 +49,13 @@ import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
+import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Status;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,15 +65,18 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.bf2.operator.utils.ManagedKafkaUtils.dummyManagedKafka;
 import static org.bf2.operator.utils.ManagedKafkaUtils.exampleManagedKafka;
@@ -109,7 +124,9 @@ class KafkaClusterTest {
         QuarkusMock.installMockForType(controllerManager, IngressControllerManager.class);
 
         // clean out all deployments
+        client.resources(Kafka.class).inAnyNamespace().delete();
         client.apps().deployments().inAnyNamespace().delete();
+        client.pods().inAnyNamespace().delete();
     }
 
     @Test
@@ -665,25 +682,112 @@ class KafkaClusterTest {
         return overrides;
     }
 
-    @Test
-    void pausedUnknownStatus() throws InterruptedException {
+    @ParameterizedTest
+    @CsvSource({
+        "     , true, custom         ,  ,  , ReconciliationPaused, True ,          , 0,      ,    , Unknown   , Paused          , 'Kafka mk-1 is paused for an unknown reason'",
+        "     ,     ,                ,  ,  , NotReady            , True , Creating , 0,      ,    , False     , Installing      , ",
+        "     ,     ,                ,  ,  , NotReady            , True , Something, 0,      ,    , False     , Error           , ",
+        "     , true, strimziupdating,  ,  , ReconciliationPaused, True ,          , 0,      ,    , True      , StrimziUpdating , 'Updating Strimzi version'",
+        "true , true,                , 1,  , ReconciliationPaused, True ,          , 0,      ,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "true , true,                , 1, 2, ReconciliationPaused, True ,          , 0,      ,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "false,     ,                ,  ,  ,                     ,      ,          , 2, 3.2.0,    , True      , KafkaUpdating   , 'Updating Kafka version'",
+        "true , true,                ,  ,  , ReconciliationPaused, True ,          , 2,      , 3.2, True      , KafkaIbpUpdating, 'Updating Kafka IBP version'",
+        "true , true,                ,  ,  , ReconciliationPaused, True ,          , 0,      ,    , False     , Suspended       , ",
+        "false,     ,                ,  ,  ,                     ,      ,          , 0,      ,    , False     , Installing      , 'Kafka mk-1 is not providing status'",
+    })
+    void testReadiness(String suspendedValue,
+            String pauseValue,
+            String pauseReason,
+            Long kafkaUpgradeStart,
+            Long kafkaUpgradeEnd,
+            String conditionType,
+            String conditionStatus,
+            String conditionReason,
+            int kafkaPodCount,
+            String kafkaPodVersion,
+            String kafkaPodIbpVersion,
+            Status expStatus,
+            Reason expReason,
+            String expMessage) {
+
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getSpec().getVersions().setKafkaIbp(AbstractKafkaCluster.getKafkaIbpVersion(mk.getSpec().getVersions().getKafka()));
+        String ns = mk.getMetadata().getNamespace();
+        String name = mk.getMetadata().getName();
 
         InformerManager informer = Mockito.mock(InformerManager.class);
-        Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
-                .editMetadata().withAnnotations(Map.of(Annotations.STRIMZI_PAUSE_REASON, "custom")).endMetadata()
-                .withNewStatus()
-                .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
-                .endStatus().build();
+        KafkaBuilder kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null));
+
+        if (kafkaUpgradeStart != null) {
+            mk.getMetadata().getAnnotations().put(
+                    ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP,
+                    Instant.ofEpochMilli(kafkaUpgradeStart).toString());
+        }
+
+        if (kafkaUpgradeEnd != null) {
+            mk.getMetadata().getAnnotations().put(
+                    ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_END_TIMESTAMP,
+                    Instant.ofEpochMilli(kafkaUpgradeEnd).toString());
+        }
+
+        if (suspendedValue != null) {
+            mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, suspendedValue));
+        }
+
+        if (pauseValue != null) {
+            kafka.editOrNewMetadata()
+                .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, pauseValue)
+                .endMetadata();
+        }
+
+        if (pauseReason != null) {
+            kafka.editOrNewMetadata()
+                .addToAnnotations(Annotations.STRIMZI_PAUSE_REASON, pauseReason)
+                .endMetadata();
+        }
+
+        if (conditionType != null || conditionStatus != null || conditionReason != null) {
+            kafka.withNewStatus()
+                .withConditions(new ConditionBuilder()
+                        .withType(conditionType)
+                        .withStatus(conditionStatus)
+                        .withReason(conditionReason)
+                        .build())
+                .endStatus();
+        }
 
         Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
-                .thenReturn(kafka);
+                .thenReturn(kafka.build());
         QuarkusMock.installMockForType(informer, InformerManager.class);
 
+        for (int i = 0; i < kafkaPodCount; i++) {
+            PodBuilder pod = new PodBuilder()
+                    .withNewMetadata()
+                        .withName(name + "-kafka-" + i)
+                        .addToLabels("strimzi.io/name", name + "-kafka")
+                    .endMetadata()
+                    .withNewSpec()
+                    .endSpec();
+
+            if (kafkaPodVersion != null) {
+                pod.editMetadata()
+                    .addToAnnotations("strimzi.io/kafka-version", kafkaPodVersion)
+                    .endMetadata();
+            }
+
+            if (kafkaPodIbpVersion != null) {
+                pod.editMetadata()
+                    .addToAnnotations("strimzi.io/inter-broker-protocol-version", kafkaPodIbpVersion)
+                    .endMetadata();
+            }
+
+            client.pods().inNamespace(ns).create(pod.build());
+        }
+
         OperandReadiness readiness = this.kafkaCluster.getReadiness(mk);
-        assertEquals(Status.Unknown, readiness.getStatus());
-        assertEquals(Reason.Paused, readiness.getReason());
-        assertEquals("Kafka mk-1 is paused for an unknown reason", readiness.getMessage());
+        assertEquals(expStatus, readiness.getStatus());
+        assertEquals(expReason, readiness.getReason());
+        assertEquals(expMessage, readiness.getMessage());
     }
 
     @Test
@@ -726,6 +830,37 @@ class KafkaClusterTest {
         when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "true , ReconciliationPaused, True , true",
+        "true , ReconciliationPaused, False, false",
+        "false, ReconciliationPaused, True , false",
+        "true , Ready               , True , false",
+        "true ,                     ,      , false",
+        "true ,                     , True , false",
+    })
+    void testIsReconciliationPaused(String pauseValue, String conditionType, String conditionValue, boolean expected) {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        InformerManager informer = Mockito.mock(InformerManager.class);
+
+        KafkaBuilder kafka = new KafkaBuilder(kafkaCluster.kafkaFrom(mk, null))
+                .editMetadata()
+                    .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, pauseValue)
+                .endMetadata();
+
+        if (conditionType != null || conditionValue != null) {
+            kafka.withNewStatus()
+                    .withConditions(new ConditionBuilder().withType(conditionType).withStatus(conditionValue).build())
+                .endStatus();
+        }
+
+        Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(kafka.build());
+        QuarkusMock.installMockForType(informer, InformerManager.class);
+
+        assertEquals(expected, kafkaCluster.isReconciliationPaused(mk));
+    }
+
     @Test
     void testHasClusterId() {
         assertTrue(KafkaCluster.hasClusterId(new KafkaBuilder().withNewStatus().withClusterId("all-good").endStatus().build()));
@@ -733,4 +868,115 @@ class KafkaClusterTest {
         assertFalse(KafkaCluster.hasClusterId(null));
     }
 
+    @Test
+    void testClusterSuspendsWithAnnotationPresentAndNoUpdatesInProgress() {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        String ns = mk.getMetadata().getNamespace();
+        String name = mk.getMetadata().getName();
+
+        InformerManager informer = Mockito.mock(InformerManager.class);
+        Kafka kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null))
+                .editMetadata()
+                    .addToAnnotations(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
+                .endMetadata()
+                .withNewStatus()
+                    .withConditions(new ConditionBuilder().withType("ReconciliationPaused").withStatus("True").build())
+                .endStatus()
+                .build();
+
+        Mockito.when(informer.getLocalKafka(Mockito.anyString(), Mockito.anyString()))
+                .thenReturn(kafka);
+        QuarkusMock.installMockForType(informer, InformerManager.class);
+
+        Resource<Deployment> kafkaExporterDeployment = client.apps().deployments().inNamespace(ns).withName(name + "-kafka-exporter");
+        Resource<StatefulSet> kafkaStatefulSet = client.apps().statefulSets().inNamespace(ns).withName(KafkaResources.kafkaStatefulSetName(name));
+        Resource<StrimziPodSet> kafkaPodSet = client.resources(StrimziPodSet.class).inNamespace(ns).withName(KafkaResources.kafkaStatefulSetName(name));
+        Resource<StatefulSet> zkStatefulSet = client.apps().statefulSets().inNamespace(ns).withName(KafkaResources.zookeeperStatefulSetName(name));
+        Resource<StrimziPodSet> zkPodSet = client.resources(StrimziPodSet.class).inNamespace(ns).withName(KafkaResources.zookeeperStatefulSetName(name));
+        Resource<Route> bootstrapRoute = client.resources(Route.class).inNamespace(ns).withName(name + "-kafka-bootstrap");
+        Resource<Route> broker0Route = client.resources(Route.class).inNamespace(ns).withName(name + "-kafka-0");
+
+        Mockito.when(informer.getRoutesInNamespace(ns))
+            .thenReturn(Stream.of(bootstrapRoute, broker0Route).map(Resource::get));
+
+        kafkaExporterDeployment.create(new DeploymentBuilder()
+                .withNewMetadata()
+                    .withName(name + "-kafka-exporter")
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .build());
+
+        kafkaStatefulSet.create(createStatefulSet(KafkaResources.kafkaStatefulSetName(name)));
+        kafkaPodSet.create(createStrimziPodSet(KafkaResources.kafkaStatefulSetName(name)));
+        zkStatefulSet.create(createStatefulSet(KafkaResources.zookeeperStatefulSetName(name)));
+        zkPodSet.create(createStrimziPodSet(KafkaResources.zookeeperStatefulSetName(name)));
+        bootstrapRoute.create(new RouteBuilder()
+                .withNewMetadata()
+                    .withName(name + "-kafka-bootstrap")
+                    .withLabels(Map.of(OperandUtils.MANAGED_BY_LABEL, OperandUtils.STRIMZI_OPERATOR_NAME))
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .build());
+        broker0Route.create(new RouteBuilder()
+                .withNewMetadata()
+                    .withName(name + "-kafka-0")
+                    .withLabels(Map.of(OperandUtils.MANAGED_BY_LABEL, OperandUtils.STRIMZI_OPERATOR_NAME))
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .build());
+
+        mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
+
+        Stream.of(kafkaExporterDeployment, kafkaStatefulSet, kafkaPodSet, zkStatefulSet, zkPodSet)
+            .map(Resource::get)
+            .forEach(Assertions::assertNotNull);
+
+        Stream.of(bootstrapRoute, broker0Route)
+            .map(Resource::get)
+            .forEach(route -> {
+                assertNotNull(route);
+                assertTrue(route.getMetadata().getAnnotations() == null || route.getMetadata().getAnnotations().isEmpty());
+            });
+
+        kafkaCluster.createOrUpdate(mk);
+
+        Stream.of(kafkaExporterDeployment, kafkaStatefulSet, kafkaPodSet, zkStatefulSet, zkPodSet)
+            .map(Resource::get)
+            .forEach(Assertions::assertNull);
+
+        Map<String, String> rateLimitAnnotations = OperandUtils.buildRateLimitAnnotations(5, 5);
+
+        Stream.of(bootstrapRoute, broker0Route)
+            .map(Resource::get)
+            .forEach(route -> {
+                assertNotNull(route);
+                assertNotNull(route.getMetadata().getAnnotations());
+                assertTrue(rateLimitAnnotations.entrySet()
+                        .stream()
+                        .allMatch(a -> Objects.equals(a.getValue(), route.getMetadata().getAnnotations().get(a.getKey()))));
+            });
+    }
+
+    StatefulSet createStatefulSet(String name) {
+        return new StatefulSetBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .build();
+    }
+
+    StrimziPodSet createStrimziPodSet(String name) {
+        return new StrimziPodSetBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .build();
+    }
 }
