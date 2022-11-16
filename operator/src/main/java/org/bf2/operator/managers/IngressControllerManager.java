@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
@@ -526,7 +527,10 @@ public class IngressControllerManager {
             builder
                 .editSpec()
                     .editOrNewNodePlacement()
-                        .addNewToleration("NoSchedule", "kas-fleetshard-ingress", "Exists", null, null)
+                    .withTolerations(new TolerationBuilder().withEffect("NoSchedule")
+                            .withKey("kas-fleetshard-ingress")
+                            .withOperator("Exists")
+                            .build())
                     .endNodePlacement()
                 .endSpec();
         }

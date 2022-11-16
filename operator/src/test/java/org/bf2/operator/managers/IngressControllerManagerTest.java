@@ -11,7 +11,6 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
@@ -25,16 +24,14 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
-import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
-import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @QuarkusTest
 class IngressControllerManagerTest {
 
-    private static final double ZONE_PERCENTAGE = 1d/3;
+    static final double ZONE_PERCENTAGE = 1d/3;
 
     @Inject
     IngressControllerManager ingressControllerManager;
@@ -88,22 +85,6 @@ class IngressControllerManagerTest {
         assertEquals(1, ingressControllers.size(), "Expected only one IngressController");
         assertEquals("kas", ingressControllers.get(0).getMetadata().getName(), "Expected the IngressController to be named kas");
         checkDefaultReplicaCount(0, "Expected 0 replicas because there are 0 nodes");
-    }
-
-    @Test
-    void testIngressControllerNodePlacement() {
-        useProfileLabels();
-
-        ingressControllerManager.reconcileIngressControllers();
-
-        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
-        String tolerations = Serialization.asYaml(ingressControllers.get(0).getSpec().getNodePlacement().getTolerations());
-
-        // the additional toleration will cause the deployment to roll
-        assertEquals("---\n"
-                + "- effect: \"NoSchedule\"\n"
-                + "  key: \"kas-fleetshard-ingress\"\n"
-                + "  operator: \"Exists\"\n", tolerations);
     }
 
     @Test
@@ -278,29 +259,6 @@ class IngressControllerManagerTest {
     void testIngressControllerReplicaCountsMultiUnit() {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000*24));
         assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
-    }
-
-    @Test
-    void testIngressControllerReplicaCountsWithoutCollocation() {
-        useProfileLabels();
-
-        // should only be 2 replicas for 60 standard instances
-        long ingress = 50000000;
-        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, ZONE_PERCENTAGE));
-    }
-
-    private void useProfileLabels() {
-        InformerManager mockInformerManager = Mockito.mock(InformerManager.class);
-        QuarkusMock.installMockForType(mockInformerManager, InformerManager.class);
-        // enable the profile
-        Mockito.when(mockInformerManager.getLocalAgent()).thenReturn(new ManagedKafkaAgentBuilder()
-                .withNewMetadata()
-                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
-                .endMetadata()
-                .withNewSpec()
-                .addToCapacity("standard", new ProfileBuilder().withMaxNodes(6).build())
-                .endSpec()
-                .build());
     }
 
     private List<Node> buildNodes(int nodeCount) {
@@ -501,6 +459,8 @@ class IngressControllerManagerTest {
         ingressControllerManager.getRouteMatchLabels().clear();
         openShiftClient.resources(Node.class).delete();
         openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
+        openShiftClient.resources(ManagedKafka.class).inAnyNamespace().delete();
+        openShiftClient.resources(ManagedKafkaAgent.class).inAnyNamespace().delete();
         openShiftClient.resources(IngressController.class).inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).delete();
     }
 }
