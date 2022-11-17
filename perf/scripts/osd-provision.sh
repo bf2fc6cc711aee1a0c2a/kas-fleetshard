@@ -44,7 +44,7 @@ function usage() {
         --aws-account-id ID                         id of aws account
         -n|--name CLUSER_NAME                       name fo cluster
         -r|--region REGION                          region in aws (i.e. us-west-1)
-        --flavor FLAVOR                             aws flavor (i.e. m5.xlarge)
+        --flavor FLAVOR                             aws flavor (i.e. r5.xlarge)
         --multi-az                                  aws multi availablility (true | false) (default ${MULTI_AZ})
         --count COUNT                               number of nodes (i.e. 4)
         --wait                                      wait for cluster installation complete
@@ -62,12 +62,12 @@ function usage() {
 
         Install cluster:
         AWS:
-        ./osd-provision.sh --create --cloud-provider aws --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor m5.xlarge --count 4 --wait
+        ./osd-provision.sh --create --cloud-provider aws --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --aws-account-id 4545454545454 --name test-cluster --region us-east-1 --flavor r5.xlarge --count 4 --wait
 
         ./osd-provision.sh --create --cloud-provider aws --cloud-token-file ~/cloud-token.txt --aws-sec-credentials-file ~/aws-admin.csv --cluster-conf-file ~/cluster-config.json --aws-account-id 4545454545454 --wait
 
         GCP:
-        ./osd-provision.sh --create --cloud-provider gcp --gcp-service-account-file ~/gcp-service-account.json --name test-cluster --region us-central1 --flavor custom-4-16384 --count 3 --wait
+        ./osd-provision.sh --create --cloud-provider gcp --gcp-service-account-file ~/gcp-service-account.json --name test-cluster --region us-central1 --flavor custom-4-32768-ext --count 3 --wait
 
         ./osd-provision.sh --create --cloud-provider gcp --cloud-token-file ~/cloud-token.txt --cluster-conf-file ~/cluster-config.json --wait
 
