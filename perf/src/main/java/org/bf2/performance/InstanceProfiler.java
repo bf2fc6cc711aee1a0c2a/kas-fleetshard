@@ -176,7 +176,7 @@ public class InstanceProfiler {
 
         // defines the number and shape of a unit
         public int units = 1;
-        public int maxConnectionsPerUnit = 3000;
+        public int maxConnectionsPerUnit = 9000;
         public int maxPartitionsPerUnit = 1500;
         public Quantity ingressPerUnit = Quantity.parse("50Mi");
         public int egressMultiple = 2;
