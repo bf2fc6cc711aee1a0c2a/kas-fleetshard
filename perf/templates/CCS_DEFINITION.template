@@ -13,7 +13,10 @@
         "compute_machine_type": {
             "id":"##MACHINE_FLAVOR##"
         },
-        "compute":##COMPUTE_NODES##
+        "autoscale_compute": {
+            "min_replicas": ##MIN_COMPUTE_NODES##,
+            "max_replicas": ##MAX_COMPUTE_NODES##
+        }
     },
     "cloud_provider": {
         "id":"##CLOUD_PROVIDER##"

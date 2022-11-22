@@ -31,7 +31,8 @@ function usage() {
         --set-display-name DISPLAY_NAME             change display name of the cluster (it does not change name or id of cluster)
         --infra-pod-rebalance                       infra pod rebalace (workaround for OHSS-2174)
         --get credentials|api_url|kubeconfig|kube_admin_login  get data from cluster
-        --scale-count NUM                           scales the worker count
+        --scale-count-min NUM                       scales the worker minumun count
+        --scale-count-max|--scale-count NUM         scales the worker maximum count
         --extend-expiration NUM                     extends the cluster expiration by NUM days
         --o|output  FILE                            output for kubeconfig
         --create                                    create cluster
@@ -46,7 +47,9 @@ function usage() {
         -r|--region REGION                          region in aws (i.e. us-west-1)
         --flavor FLAVOR                             aws flavor (i.e. r5.xlarge)
         --multi-az                                  aws multi availablility (true | false) (default ${MULTI_AZ})
-        --count COUNT                               number of nodes (i.e. 4)
+        --count COUNT                               number of minimum and maximum nodes (i.e. 3)
+        --count-min COUNT                           number of minimum nodes (i.e. 3)
+        --count-max COUNT                           number of maximum nodes (i.e. 15)
         --wait                                      wait for cluster installation complete
         --version                                   version of OSD cluster (default latest released)
         --aws-access-key AWS_ACCESS_KEY             aws credentials access key
@@ -163,9 +166,15 @@ while [[ $# -gt 0 ]]; do
         OPERATION="infra-pod-rebalance"
         shift # past argument
         ;;
-    --scale-count)
-        OPERATION="scale-count"
-        NODE_COUNT="$2"
+    --scale-count-min)
+        OPERATION="scale-count-min"
+        MIN_NODE_COUNT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --scale-count-max | --scale-count)
+        OPERATION="scale-count-max"
+        MAX_NODE_COUNT="$2"
         shift # past argument
         shift # past value
         ;;
@@ -240,7 +249,18 @@ while [[ $# -gt 0 ]]; do
         shift # past value
         ;;
     --count)
-        NODE_COUNT="$2"
+        MIN_NODE_COUNT="$2"
+        MAX_NODE_COUNT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --count-min)
+        MIN_NODE_COUNT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --count-max)
+        MAX_NODE_COUNT="$2"
         shift # past argument
         shift # past value
         ;;
@@ -285,15 +305,17 @@ function print_vars() {
         TOKEN=$(cat ${TOKEN_FILE})
     fi
     echo "TOKEN: ${TOKEN}"
-    echo "CLOUD_PROVIDER: ${CLOUD_PROVIDER}"
-    echo "CLUSTER_NAME: ${CLUSTER_NAME}"
-    echo "VERSION ${VERSION}"
-    echo "REGION: ${REGION}"
-    echo "FLAVOR: ${FLAVOR}"
-    echo "MULTI_AZ: ${MULTI_AZ}"
-    echo "ADDON_ID: ${ADDON_ID}"
-    echo "ADDON_JSON_CONFIG: ${ADDON_JSON_CONFIG}"
-    echo "DISPLAY_NAME: ${DISPLAY_NAME}"
+    echo "CLOUD_PROVIDER:     ${CLOUD_PROVIDER}"
+    echo "CLUSTER_NAME:       ${CLUSTER_NAME}"
+    echo "VERSION:            ${VERSION}"
+    echo "REGION:             ${REGION}"
+    echo "FLAVOR:             ${FLAVOR}"
+    echo "MIN_NODE_COUNT:     ${MIN_NODE_COUNT}"
+    echo "MAX_NODE_COUNT:     ${MAX_NODE_COUNT}"
+    echo "MULTI_AZ:           ${MULTI_AZ}"
+    echo "ADDON_ID:           ${ADDON_ID}"
+    echo "ADDON_JSON_CONFIG:  ${ADDON_JSON_CONFIG}"
+    echo "DISPLAY_NAME:       ${DISPLAY_NAME}"
 
     if [ "${CLOUD_PROVIDER}" == "aws" ]; then
         echo "AWS_CSV_PATH: ${AWS_CSV_PATH}"
@@ -430,7 +452,8 @@ function build_config_json() {
 	cp -n "${template_file}" "${config_file}"
 	$SED -i -e "s@##CLUSTER_NAME##@${CLUSTER_NAME}@g" "${config_file}"
 	$SED -i -e "s@##REGION##@${REGION}@g" "${config_file}"
-	$SED -i -e "s@##COMPUTE_NODES##@${NODE_COUNT}@g" "${config_file}"
+	$SED -i -e "s@##MIN_COMPUTE_NODES##@${MIN_NODE_COUNT}@g" "${config_file}"
+	$SED -i -e "s@##MAX_COMPUTE_NODES##@${MAX_NODE_COUNT}@g" "${config_file}"
 	$SED -i -e "s@##MACHINE_FLAVOR##@${FLAVOR}@g" "${config_file}"
 	$SED -i -e "s@##VERSION##@${VERSION}@g" "${config_file}"
 	$SED -i -e "s@##MULTI_AZ##@${MULTI_AZ}@g" "${config_file}"
@@ -624,12 +647,21 @@ if [[ "${OPERATION}" == "infra-pod-rebalance" ]]; then
     exit
 fi
 
-if [[ "${OPERATION}" == "scale-count" ]]; then
+if [[ "${OPERATION}" == "scale-min-count" ]]; then
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
     id=$(get_cluster_id $CLUSTER_NAME)
-    echo '{"nodes": { "compute": '${NODE_COUNT}'} }' | $OCM patch /api/clusters_mgmt/v1/clusters/$id
+    echo '{"nodes": { "autoscale_compute": { "min_replicas": '${MIN_NODE_COUNT}' }}}' | $OCM patch /api/clusters_mgmt/v1/clusters/$id
+    exit
+fi
+
+if [[ "${OPERATION}" == "scale-max-count" ]]; then
+    if [[ ${CLUSTER_NAME} == "" ]]; then
+        CLUSTER_NAME=$(get_cluster_name_from_config)
+    fi
+    id=$(get_cluster_id $CLUSTER_NAME)
+    echo '{"nodes": { "autoscale_compute": { "max_replicas": '${MAX_NODE_COUNT}' }}}' | $OCM patch /api/clusters_mgmt/v1/clusters/$id
     exit
 fi
 
@@ -695,7 +727,7 @@ if [[ "${OPERATION}" == "create" ]]; then
     		build_gcp_cloud_provider_spec
     	fi
 
-   if [[ "${CLUSTER_JSON}" == "" ]]; then
+    if [[ "${CLUSTER_JSON}" == "" ]]; then
    		echo "Cluster json is not provided -> going to build own with provided arguments"
    		build_config_json
    	fi
