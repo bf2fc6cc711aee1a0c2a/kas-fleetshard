@@ -388,6 +388,13 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withMaxConnections(totalMaxConnections)
                 .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
 
+        GenericKafkaListenerConfigurationBuilder internalListenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
+                .withBrokerCertChainAndKey(new CertAndKeySecretSourceBuilder()
+                        .withSecretName(managedKafka.getMetadata().getName() + "-kafka-brokers-local")
+                        .withCertificate("tls.crt")
+                        .withKey("tls.key")
+                        .build());
+
         return Arrays.asList(
                         new GenericKafkaListenerBuilder()
                                 .withName(EXTERNAL_LISTENER_NAME)
@@ -413,6 +420,14 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withPort(9096)
                                 .withType(KafkaListenerType.INTERNAL)
                                 .withTls(false)
+                                .build(),
+                        new GenericKafkaListenerBuilder()
+                                .withName("internal")
+                                .withPort(9097)
+                                .withType(KafkaListenerType.INTERNAL)
+                                .withTls(true)
+                                .withAuth(plainOverOauthAuthenticationListener)
+                                .withConfiguration(internalListenerConfigBuilder.build())
                                 .build()
                 );
     }

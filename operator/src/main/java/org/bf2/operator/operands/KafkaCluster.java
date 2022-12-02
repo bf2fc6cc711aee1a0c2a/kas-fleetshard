@@ -52,6 +52,7 @@ import io.strimzi.api.kafka.model.storage.PersistentClaimStorage;
 import io.strimzi.api.kafka.model.storage.PersistentClaimStorageBuilder;
 import io.strimzi.api.kafka.model.storage.SingleVolumeStorage;
 import io.strimzi.api.kafka.model.storage.Storage;
+import io.strimzi.api.kafka.model.template.InternalServiceTemplateBuilder;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplate;
 import io.strimzi.api.kafka.model.template.KafkaClusterTemplateBuilder;
 import io.strimzi.api.kafka.model.template.PodDisruptionBudgetTemplateBuilder;
@@ -525,8 +526,14 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .endMetadata();
         }
 
+        InternalServiceTemplateBuilder brokersTemplateBuilder = new InternalServiceTemplateBuilder()
+            .editOrNewMetadata()
+            .addToAnnotations("service.beta.openshift.io/serving-cert-secret-name", managedKafka.getMetadata().getName() + "-kafka-brokers-local")
+            .endMetadata();
+
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
-                .withPod(podTemplateBuilder.build());
+                .withPod(podTemplateBuilder.build())
+                .withBrokersService(brokersTemplateBuilder.build());
 
         if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
