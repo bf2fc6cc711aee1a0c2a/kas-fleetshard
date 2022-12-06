@@ -45,7 +45,10 @@ import org.bf2.operator.ManagedKafkaKeys.Labels;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpec;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
+import org.bf2.operator.resources.v1alpha1.NetworkConfiguration;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -463,7 +466,7 @@ public class IngressControllerManager {
             LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
             routeMatchLabels.putAll(routeMatchLabel);
 
-            buildIngressController(kasZone, domain, e.getValue(), replicas, routeSelector, zone);
+            createOrEditIngressController(kasZone, domain, e.getValue(), replicas, routeSelector, zone);
         });
     }
 
@@ -476,11 +479,16 @@ public class IngressControllerManager {
         LabelSelector routeSelector = new LabelSelector(null, routeMatchLabel);
         routeMatchLabels.putAll(routeMatchLabel);
 
-        buildIngressController("kas", "kas." + clusterDomain, existing, replicas, routeSelector, null);
+        createOrEditIngressController("kas", "kas." + clusterDomain, existing, replicas, routeSelector, null);
     }
 
-    private void buildIngressController(String name, String domain,
+    private void createOrEditIngressController(String name, String domain,
             IngressController existing, int replicas, LabelSelector routeSelector, String topologyValue) {
+        createOrEdit(buildIngressController(name, domain, existing, replicas, routeSelector, topologyValue, informerManager.getLocalAgent()), existing);
+    }
+
+    IngressController buildIngressController(String name, String domain,
+            IngressController existing, int replicas, LabelSelector routeSelector, String topologyValue, ManagedKafkaAgent agent) {
 
         Optional<IngressController> optionalExisting = Optional.ofNullable(existing);
         IngressControllerBuilder builder = optionalExisting.map(IngressControllerBuilder::new).orElseGet(IngressControllerBuilder::new);
@@ -498,7 +506,12 @@ public class IngressControllerManager {
                 .withNewEndpointPublishingStrategy()
                      .withType("LoadBalancerService")
                      .withNewLoadBalancer()
-                         .withScope("External")
+                         .withScope(Optional.ofNullable(agent)
+                             .map(ManagedKafkaAgent::getSpec)
+                             .map(ManagedKafkaAgentSpec::getNet)
+                             .filter(NetworkConfiguration::isPrivate)
+                             .map(a -> "Internal")
+                             .orElse("External"))
                          .withNewProviderParameters()
                              .withType("AWS")
                              .withNewAws()
@@ -566,7 +579,7 @@ public class IngressControllerManager {
                                 .orElse(null))
                 .endSpec();
 
-        createOrEdit(builder.build(), existing);
+        return builder.build();
     }
 
     private void setSpecProperty(GenericKubernetesResource spec, String property, String key, Object value) {
