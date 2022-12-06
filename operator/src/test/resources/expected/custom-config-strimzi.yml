@@ -95,6 +95,8 @@ spec:
       port: 9096
       type: "internal"
       tls: false
+      networkPolicyPeers:
+        - podSelector: { }
     config:
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"

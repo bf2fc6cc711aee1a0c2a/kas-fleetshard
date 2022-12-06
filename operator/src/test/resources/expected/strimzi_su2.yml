@@ -95,6 +95,8 @@ spec:
         port: 9096
         type: "internal"
         tls: false
+        networkPolicyPeers:
+          - podSelector: { }
     config:
       auto.create.topics.enable: "false"
       min.insync.replicas: 2

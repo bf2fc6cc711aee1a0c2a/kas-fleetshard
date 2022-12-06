@@ -87,8 +87,7 @@ spec:
       type: "internal"
       tls: false
       networkPolicyPeers:
-        - podSelector:
-            - labelSelector:
+        - podSelector: { }
     config:
       auto.create.topics.enable: "false"
       min.insync.replicas: 1
