@@ -1,5 +1,6 @@
 package org.bf2.operator.operands;
 
+import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
@@ -412,6 +413,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withName("sre")
                                 .withPort(9096)
                                 .withType(KafkaListenerType.INTERNAL)
+                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                        .withPodSelector(new LabelSelector())
+                                        .build())
                                 .withTls(false)
                                 .build()
                 );
