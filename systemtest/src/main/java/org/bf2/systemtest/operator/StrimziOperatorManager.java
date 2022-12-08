@@ -6,12 +6,14 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Namespaced;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -169,10 +171,20 @@ public class StrimziOperatorManager {
     }
 
     private static String getStrimziSubNamespace() {
-        return KubeClient.getInstance().client().adapt(OpenShiftClient.class)
-                .operatorHub().subscriptions().inAnyNamespace()
-                .list().getItems().stream().filter(s ->
-                        s.getMetadata().getLabels().containsValue("strimzi-bundle")).findFirst().get().getMetadata().getNamespace();
+        return KubeClient.getInstance()
+            .client()
+            .resources(Subscription.class)
+            .inAnyNamespace()
+            .withLabels(Map.of(
+                    "app.kubernetes.io/part-of", "managed-kafka",
+                    "app.kubernetes.io/component", "strimzi-bundle"))
+            .list()
+            .getItems()
+            .stream()
+            .findFirst()
+            .map(Subscription::getMetadata)
+            .map(ObjectMeta::getNamespace)
+            .orElseThrow(() -> new IllegalStateException("Strimzi Subscription not found"));
     }
 
     public static List<Pod> getStrimziOperatorPods() {

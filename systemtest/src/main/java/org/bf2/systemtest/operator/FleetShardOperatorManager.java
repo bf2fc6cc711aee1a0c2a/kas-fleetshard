@@ -14,6 +14,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentStatus;
 import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.test.TestUtils;
 import org.bf2.test.executor.ExecBuilder;
@@ -22,9 +23,12 @@ import org.bf2.test.k8s.KubeClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -87,7 +91,8 @@ public class FleetShardOperatorManager {
         }
 
         LOGGER.info("Operator is deployed");
-        return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS, () -> isOperatorInstalled(kubeClient));
+        return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS,
+                () -> isOperatorInstalled(kubeClient) && agentStatusHasStrimziVersions(kubeClient));
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
@@ -108,6 +113,24 @@ public class FleetShardOperatorManager {
 
     public static boolean isOperatorInstalled(KubeClient kubeClient) {
         return TestUtils.isReady(kubeClient.client().apps().deployments().inNamespace(OPERATOR_NS).withName(OPERATOR_NAME));
+    }
+
+    public static boolean agentStatusHasStrimziVersions(KubeClient kubeClient) {
+        return kubeClient.client()
+            .resources(ManagedKafkaAgent.class)
+            .inNamespace(OPERATOR_NS)
+            .list()
+            .getItems()
+            .stream()
+            .filter(agent -> "managed-agent".equals(agent.getMetadata().getName()))
+            .findFirst()
+            .map(agent ->
+                Optional.ofNullable(agent.getStatus())
+                    .map(ManagedKafkaAgentStatus::getStrimzi)
+                    .filter(Predicate.not(Collection::isEmpty))
+                    .map(versions -> true)
+                    .orElse(false))
+            .orElse(false);
     }
 
     public static boolean isSyncInstalled(KubeClient kubeClient) {
