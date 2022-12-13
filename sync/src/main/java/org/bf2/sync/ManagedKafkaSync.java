@@ -9,6 +9,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
 import io.micrometer.core.annotation.Counted;
@@ -18,6 +19,7 @@ import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.common.OperandUtils;
+import org.bf2.common.health.SystemTerminator;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition.Reason;
@@ -35,6 +37,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.net.HttpURLConnection;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -74,6 +77,9 @@ public class ManagedKafkaSync {
     @Inject
     protected SecretManager secretManager;
 
+    @Inject
+    SystemTerminator systemTerminator;
+
     /**
      * Update the local state based upon the remote ManagedKafkas
      * The strategy here is to take a pass over the list and find any deferred work
@@ -105,7 +111,8 @@ public class ManagedKafkaSync {
             if (existing == null) {
                 if (!remoteSpec.isDeleted()) {
                     reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
-                } else {
+                } else if (isConsistent(remoteManagedKafka)) {
+                    log.warnf("ManagedKafka %s no longer exists, sending the control plane a dummy deleted status", Cache.metaNamespaceKeyFunc(remoteManagedKafka));
                     // we've successfully removed locally, but control plane is not aware
                     // we need to send another status update to let them know
 
@@ -333,8 +340,33 @@ public class ManagedKafkaSync {
            if (e.getStatus().getCode() != HttpURLConnection.HTTP_CONFLICT) {
                throw e;
            }
-           log.infof("ManagedKafka %s already exists", Cache.metaNamespaceKeyFunc(remote));
+           // it's possible, but unlikely, that we'll see two reconciliations close enough together
+           // such that we'll naturally see a conflict - that is the second completes before the cache
+           // is updated.  It's more likely that the cache state is not up-to-date, so we'll just
+           // let an exception happen in that case
+           isConsistent(remote);
        }
+    }
+
+    /**
+     * Check if the cache state is consistent with the expectation that the entry does not exist in cache
+     * @return true if consistent
+     */
+    private boolean isConsistent(ManagedKafka remote) {
+        ManagedKafka existing = kubeClient.resources(ManagedKafka.class)
+                .inNamespace(remote.getMetadata().getNamespace())
+                .withName(remote.getMetadata().getName()).get();
+        if (existing != null) {
+            checkCreationTimestamp(existing, Duration.ofMinutes(1));
+            throw new RuntimeException(String.format("ManagedKafka %s exists, but not in the informer cache.  The sync may not be in a healthy state", Cache.metaNamespaceKeyFunc(remote)));
+        }
+        return true;
+    }
+
+    void checkCreationTimestamp(ManagedKafka existing, Duration duration) {
+        if (KubernetesResourceUtil.getAge(existing).compareTo(duration) > 0) {
+            systemTerminator.notifyUnhealthy();
+        }
     }
 
     @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
