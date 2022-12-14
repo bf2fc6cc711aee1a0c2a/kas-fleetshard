@@ -26,6 +26,7 @@ import javax.inject.Inject;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -101,6 +102,16 @@ class KafkaInstanceConfigurationsTest {
                 standardClassPresent ? configuredStandardClass : platformDefaultStorageClass;
         assertEquals(expectedStandardStorageClass,
                 target.getConfig(InstanceType.STANDARD).getKafka().getStorageClass());
+
+        // standard-dynamic profile extends from standard
+        OperandOverrideManager overrideManager = Mockito.mock(OperandOverrideManager.class);
+        QuarkusMock.installMockForType(overrideManager, OperandOverrideManager.class);
+        Mockito.when(overrideManager.useDynamicScalingScheduling(Mockito.anyString()))
+            .thenReturn(true);
+        ManagedKafka dynamicMk = ManagedKafka.getDummyInstance(1);
+        dynamicMk.getMetadata().setLabels(Map.of(ManagedKafka.PROFILE_TYPE, InstanceType.STANDARD.lowerName));
+        assertEquals(expectedStandardStorageClass,
+                target.getConfig(dynamicMk).getKafka().getStorageClass());
     }
 
     @Test
