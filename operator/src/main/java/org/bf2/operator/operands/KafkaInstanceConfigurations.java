@@ -114,11 +114,16 @@ public class KafkaInstanceConfigurations {
             .map(applicationConfig::getConfigValue)
             .map(ConfigValue::getValue)
             .filter(Predicate.not(String::isBlank))
-            .ifPresent(storageClass ->
+            .ifPresent(storageClass -> {
                 configs.values()
                     .stream()
                     .filter(Predicate.not(this::storageClassSet))
-                    .forEach(config -> config.getKafka().setStorageClass(storageClass)));
+                    .forEach(config -> config.getKafka().setStorageClass(storageClass));
+
+                if (!storageClassSet(standardDynamic)) {
+                    standardDynamic.getKafka().setStorageClass(storageClass);
+                }
+            });
     }
 
     boolean storageClassSet(KafkaInstanceConfiguration config) {
