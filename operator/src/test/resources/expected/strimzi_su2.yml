@@ -96,7 +96,8 @@ spec:
         type: "internal"
         tls: false
         networkPolicyPeers:
-          - podSelector: { }
+          - ipBlock:
+              cidr: "0.0.0.0/32"
     config:
       auto.create.topics.enable: "false"
       min.insync.replicas: 2

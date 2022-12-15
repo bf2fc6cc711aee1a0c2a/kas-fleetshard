@@ -96,7 +96,8 @@ spec:
       type: "internal"
       tls: false
       networkPolicyPeers:
-        - podSelector: { }
+        - ipBlock:
+            cidr: "0.0.0.0/32"
     config:
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"
