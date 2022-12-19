@@ -6,6 +6,7 @@ import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.WithKubernetesTestServer;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.common.health.SystemTerminator;
 import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -21,6 +22,10 @@ import org.mockito.Mockito;
 
 import javax.inject.Inject;
 
+import java.time.Duration;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -30,7 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.never;
 
 @WithKubernetesTestServer
 @QuarkusTest
@@ -58,6 +65,9 @@ public class PollerTest {
 
     @Inject
     ManagedKafkaResourceClient managedKafkaClient;
+
+    @InjectMock
+    SystemTerminator terminator;
 
     @AfterEach
     public void afterEach() {
@@ -167,6 +177,24 @@ public class PollerTest {
         Map<String, ManagedKafkaStatus> status = statusCaptor.getValue();
         assertEquals(1, status.size());
         assertEquals(1, status.get(ID).getConditions().size());
+    }
+
+    @Test
+    void testUnhealthy() {
+        ManagedKafka managedKafka = exampleManagedKafka();
+        managedKafka.getMetadata()
+                .setCreationTimestamp(
+                        ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(2).format(DateTimeFormatter.ISO_INSTANT));
+        // if it already exists, that could be a problem
+        managedKafkaClient.create(managedKafka);
+        assertThrows(Exception.class, () -> managedKafkaSync.create(managedKafka));
+
+        managedKafkaSync.checkCreationTimestamp(managedKafka, Duration.ofHours(1));
+        Mockito.verify(terminator, never()).notifyUnhealthy();
+
+        // some time will have elapsed, so this should now be unhealthy
+        managedKafkaSync.checkCreationTimestamp(managedKafka, Duration.ZERO);
+        Mockito.verify(terminator).notifyUnhealthy();
     }
 
     static ManagedKafka exampleManagedKafka() {
