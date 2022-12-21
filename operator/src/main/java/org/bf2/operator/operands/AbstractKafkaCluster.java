@@ -93,7 +93,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
             return false;
         }
         Map<String, String> annotations = Objects.requireNonNullElse(kafka.getMetadata().getAnnotations(), Collections.emptyMap());
-        return StrimziManager.isPauseReasonStrimziUpdate(annotations) && isReconciliationPaused(managedKafka);
+        return StrimziManager.isPauseReasonStrimziUpdate(annotations) && isConditionReconciliationPausedTrue(cachedKafka(managedKafka));
     }
 
     public boolean isKafkaUpdating(ManagedKafka managedKafka) {
@@ -209,10 +209,17 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         Kafka kafka = cachedKafka(managedKafka);
         boolean isReconciliationPaused = kafka != null
                 && hasAnnotationValue(kafka, StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true")
+                && isConditionReconciliationPausedTrue(kafka);
+        log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
+        return isReconciliationPaused;
+    }
+
+    boolean isConditionReconciliationPausedTrue(Kafka kafka) {
+        boolean isReconciliationPaused = kafka != null
                 && kafka.getStatus() != null
                 && hasKafkaCondition(kafka, c -> c.getType() != null && "ReconciliationPaused".equals(c.getType())
                 && "True".equals(c.getStatus()));
-        log.tracef("KafkaCluster isReconciliationPaused = %s", isReconciliationPaused);
+        log.tracef("KafkaCluster isConditionReconciliationPausedTrue = %s", isReconciliationPaused);
         return isReconciliationPaused;
     }
 
