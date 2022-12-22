@@ -2,6 +2,7 @@ package org.bf2.operator.operands;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.networking.v1.IPBlockBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.openshift.api.model.Route;
@@ -419,6 +420,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withName("sre")
                                 .withPort(9096)
                                 .withType(KafkaListenerType.INTERNAL)
+                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                        .withIpBlock(new IPBlockBuilder()
+                                                .withCidr("0.0.0.0/32")
+                                                .build())
+                                        .build())
                                 .withTls(false)
                                 .build()
                 );

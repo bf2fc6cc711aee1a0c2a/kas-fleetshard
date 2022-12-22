@@ -95,6 +95,9 @@ spec:
         port: 9096
         type: "internal"
         tls: false
+        networkPolicyPeers:
+          - ipBlock:
+              cidr: "0.0.0.0/32"
     config:
       auto.create.topics.enable: "false"
       min.insync.replicas: 2
