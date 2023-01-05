@@ -6,6 +6,8 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.LabelSelector;
+import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
+import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -14,6 +16,7 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
@@ -111,12 +114,6 @@ public class IngressControllerManager {
     protected static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
 
     protected static final String WORKER_NODE_LABEL = "node-role.kubernetes.io/worker";
-
-    /**
-     * Domain part prefixed to domain reported on IngressController status. The CNAME DNS records
-     * need to point to a sub-domain on the IngressController domain, so we just add this.
-     */
-    private static final String ROUTER_SUBDOMAIN = "ingresscontroller.";
 
     /**
      * Predicate that will return true if the input string looks like a broker resource name.
@@ -669,11 +666,13 @@ public class IngressControllerManager {
     }
 
     private String getIngressControllerDomain(String ingressControllerName) {
-        return ingressControllerInformer.getList().stream()
-                .filter(ic -> ic.getMetadata().getName().equals(ingressControllerName))
-                .map(ic -> ROUTER_SUBDOMAIN + (ic.getStatus() != null ? ic.getStatus().getDomain() : ic.getSpec().getDomain()))
-                .findFirst()
-                .orElse("");
+        return Optional.ofNullable(informerManager.getLocalService(INGRESS_ROUTER_NAMESPACE, "router-" + ingressControllerName))
+                .map(Service::getStatus)
+                .map(ServiceStatus::getLoadBalancer)
+                .map(LoadBalancerStatus::getIngress)
+                .flatMap(l -> l.stream().findFirst())
+                .map(LoadBalancerIngress::getHostname)
+                .orElse(null);
     }
 
     private Stream<Route> routesFor(ManagedKafka managedKafka) {
