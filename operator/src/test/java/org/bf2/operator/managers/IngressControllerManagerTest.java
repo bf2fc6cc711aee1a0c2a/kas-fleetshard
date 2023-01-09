@@ -24,11 +24,13 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import io.strimzi.api.kafka.model.Kafka;
+import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
+import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
@@ -451,6 +453,20 @@ class IngressControllerManagerTest {
         // and the expected options are present too.
         assertEquals("5s", updated.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
         assertEquals(60, updatedConfig.getAdditionalProperties().get("reloadInterval"));
+    }
+
+    @Test
+    void testIngressControllerInternal() {
+        ManagedKafkaAgent agent = new ManagedKafkaAgentBuilder()
+                .withNewMetadata()
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .editOrNewNet().withPrivate(true).endNet()
+                .endSpec()
+                .build();
+        IngressController controller = ingressControllerManager.buildIngressController("kas", "kas", null, 1, null, null, agent);
+        assertEquals("Internal", controller.getSpec().getEndpointPublishingStrategy().getLoadBalancer().getScope());
     }
 
     @BeforeEach
