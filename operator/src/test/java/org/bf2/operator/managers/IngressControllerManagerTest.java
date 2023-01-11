@@ -389,6 +389,22 @@ class IngressControllerManagerTest {
         assertEquals("broker-2", managedKafkaRoutes.get(4).getName());
         assertEquals("broker-2", managedKafkaRoutes.get(4).getPrefix());
         assertEquals("kas-zone-broker-2-loadbalancer.provider.com", managedKafkaRoutes.get(4).getRouter());
+
+        // once more, but with public dns
+        // we cannot add a dns to the mock server in fabric8 5.12 as it cannot be looked back up due to a plural error
+        managedKafkaRoutes = ingressControllerManager.getManagedKafkaRoutesFor(mk, true);
+        assertEquals(5, managedKafkaRoutes.size());
+
+        assertEquals(
+                managedKafkaRoutes.stream().sorted(Comparator.comparing(ManagedKafkaRoute::getName)).collect(Collectors.toList()),
+                managedKafkaRoutes,
+                "Expected list of ManagedKafkaRoutes to be sorted by name");
+
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(0).getRouter());
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(1).getRouter());
+        assertEquals("ingresscontroller.kas-zone-broker-0.testing.domain.tld", managedKafkaRoutes.get(2).getRouter());
+        assertEquals("ingresscontroller.kas-zone-broker-1.testing.domain.tld", managedKafkaRoutes.get(3).getRouter());
+        assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
     }
 
     @Test

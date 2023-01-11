@@ -26,6 +26,8 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.openshift.api.model.DNS;
+import io.fabric8.openshift.api.model.DNSSpec;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.operator.v1.ConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
@@ -93,6 +95,7 @@ import java.util.stream.Stream;
 @UnlessBuildProperty(name = "kafka", stringValue = "dev", enableIfMissing = true)
 public class IngressControllerManager {
 
+    static final String DNS_NAME = "cluster";
     private static final String MAX_CONNECTIONS = "maxConnections";
     private static final String RELOAD_INTERVAL = "reloadInterval";
     private static final String UNSUPPORTED_CONFIG_OVERRIDES = "unsupportedConfigOverrides";
@@ -114,6 +117,12 @@ public class IngressControllerManager {
     protected static final String INFRA_NODE_LABEL = "node-role.kubernetes.io/infra";
 
     protected static final String WORKER_NODE_LABEL = "node-role.kubernetes.io/worker";
+
+    /**
+     * Domain part prefixed to domain reported on IngressController status. The CNAME DNS records
+     * need to point to a sub-domain on the IngressController domain, so we just add this.
+     */
+    private static final String ROUTER_SUBDOMAIN = "ingresscontroller.";
 
     /**
      * Predicate that will return true if the input string looks like a broker resource name.
@@ -178,6 +187,7 @@ public class IngressControllerManager {
     private Set<String> deploymentsToReconcile = new HashSet<>();
     private ResourceRequirements azDeploymentResourceRequirements;
     private ResourceRequirements defaultDeploymentResourceRequirements;
+    private ResourceInformer<DNS> dnses;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -188,7 +198,13 @@ public class IngressControllerManager {
     }
 
     public List<ManagedKafkaRoute> getManagedKafkaRoutesFor(ManagedKafka mk) {
-        String multiZoneRoute = getIngressControllerDomain("kas");
+        boolean hasPublicDns = Optional.ofNullable(dnses.getByKey(Cache.namespaceKeyFunc(null, DNS_NAME))).map(DNS::getSpec).map(DNSSpec::getPublicZone).isPresent();
+
+        return getManagedKafkaRoutesFor(mk, hasPublicDns);
+    }
+
+    List<ManagedKafkaRoute> getManagedKafkaRoutesFor(ManagedKafka mk, boolean hasPublicDns) {
+        String multiZoneRoute = getIngressControllerDomain("kas", hasPublicDns);
         String bootstrapDomain = mk.getSpec().getEndpoint().getBootstrapServerHost();
 
         return Stream.concat(
@@ -198,7 +214,7 @@ public class IngressControllerManager {
                 routesFor(mk)
                     .filter(IS_BROKER_ROUTE)
                     .map(r -> {
-                        String router = getIngressControllerDomain("kas-" + getZoneForBrokerRoute(r));
+                        String router = getIngressControllerDomain("kas-" + getZoneForBrokerRoute(r), hasPublicDns);
                         String routePrefix = r.getSpec().getHost().replaceFirst("-" + bootstrapDomain, "");
 
                         return new ManagedKafkaRoute(routePrefix, routePrefix, router);
@@ -314,6 +330,25 @@ public class IngressControllerManager {
                         }
             });
         }
+
+        dnses = this.resourceInformerFactory.create(DNS.class,
+                this.openShiftClient.resources(DNS.class).withName(DNS_NAME),
+                new ResourceEventHandler<DNS>() {
+
+                    @Override
+                    public void onAdd(DNS obj) {
+                        reconcileIngressControllers();
+                    }
+
+                    @Override
+                    public void onUpdate(DNS oldObj, DNS newObj) {
+                        reconcileIngressControllers();
+                    }
+
+                    @Override
+                    public void onDelete(DNS obj, boolean deletedFinalStateUnknown) {
+                        // do nothing - not expected, just assume we're keeping the current desired state
+                    }});
 
         ready = true;
         reconcileIngressControllers();
@@ -503,12 +538,7 @@ public class IngressControllerManager {
                 .withNewEndpointPublishingStrategy()
                      .withType("LoadBalancerService")
                      .withNewLoadBalancer()
-                         .withScope(Optional.ofNullable(agent)
-                             .map(ManagedKafkaAgent::getSpec)
-                             .map(ManagedKafkaAgentSpec::getNet)
-                             .filter(NetworkConfiguration::isPrivate)
-                             .map(a -> "Internal")
-                             .orElse("External"))
+                         .withScope(isPrivateNetwork(agent)?"Internal":"External")
                          .withNewProviderParameters()
                              .withType("AWS")
                              .withNewAws()
@@ -665,14 +695,31 @@ public class IngressControllerManager {
         return (int)Math.ceil(connectionDemand * (peakConnectionPercentage / 100D) / maxIngressConnections);
     }
 
-    private String getIngressControllerDomain(String ingressControllerName) {
-        return Optional.ofNullable(informerManager.getLocalService(INGRESS_ROUTER_NAMESPACE, "router-" + ingressControllerName))
-                .map(Service::getStatus)
-                .map(ServiceStatus::getLoadBalancer)
-                .map(LoadBalancerStatus::getIngress)
-                .flatMap(l -> l.stream().findFirst())
-                .map(LoadBalancerIngress::getHostname)
-                .orElse(null);
+    private String getIngressControllerDomain(String ingressControllerName, boolean hasPublicDns) {
+      if (!isPrivateNetwork(informerManager.getLocalAgent()) && !hasPublicDns) {
+          // special case - nothing is creating the dns entries for the ingress controller, so we map to the load balancer
+          return Optional.ofNullable(informerManager.getLocalService(INGRESS_ROUTER_NAMESPACE, "router-" + ingressControllerName))
+              .map(Service::getStatus)
+              .map(ServiceStatus::getLoadBalancer)
+              .map(LoadBalancerStatus::getIngress)
+              .flatMap(l -> l.stream().findFirst())
+              .map(LoadBalancerIngress::getHostname)
+              .filter(Objects::nonNull)
+              .orElse("");
+      }
+      return ingressControllerInformer.getList().stream()
+          .filter(ic -> ic.getMetadata().getName().equals(ingressControllerName))
+          .map(ic -> ROUTER_SUBDOMAIN + (ic.getStatus() != null ? ic.getStatus().getDomain() : ic.getSpec().getDomain()))
+          .findFirst()
+          .orElse("");
+    }
+
+    private boolean isPrivateNetwork(ManagedKafkaAgent agent) {
+        return Optional.ofNullable(agent)
+                .map(ManagedKafkaAgent::getSpec)
+                .map(ManagedKafkaAgentSpec::getNet)
+                .filter(NetworkConfiguration::isPrivate)
+                .isPresent();
     }
 
     private Stream<Route> routesFor(ManagedKafka managedKafka) {
