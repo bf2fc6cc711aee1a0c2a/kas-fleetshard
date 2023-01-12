@@ -696,7 +696,7 @@ public class IngressControllerManager {
     }
 
     private String getIngressControllerDomain(String ingressControllerName, boolean hasPublicDns) {
-      if (!isPrivateNetwork(informerManager.getLocalAgent()) && !hasPublicDns) {
+      if (!hasPublicDns && !isPrivateNetwork(informerManager.getLocalAgent())) {
           // special case - nothing is creating the dns entries for the ingress controller, so we map to the load balancer
           return Optional.ofNullable(informerManager.getLocalService(INGRESS_ROUTER_NAMESPACE, "router-" + ingressControllerName))
               .map(Service::getStatus)
