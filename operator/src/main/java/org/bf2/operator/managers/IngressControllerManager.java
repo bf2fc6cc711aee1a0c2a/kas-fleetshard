@@ -92,6 +92,7 @@ public class IngressControllerManager {
 
     private static final String MAX_CONNECTIONS = "maxConnections";
     private static final String RELOAD_INTERVAL = "reloadInterval";
+    private static final String DYNAMIC_CONFIG_MANAGER = "dynamicConfigManager";
     private static final String UNSUPPORTED_CONFIG_OVERRIDES = "unsupportedConfigOverrides";
     private static final String TUNING_OPTIONS = "tuningOptions";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
@@ -170,6 +171,9 @@ public class IngressControllerManager {
     List<String> ingressContainerCommand;
     @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
     Integer ingressReloadIntervalSeconds;
+
+    @ConfigProperty(name = "ingresscontroller.dynamic-config-manager")
+    Boolean dynamicConfigManager;
 
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakThroughputPercentage;
@@ -563,11 +567,12 @@ public class IngressControllerManager {
         } else {
             removeSpecProperty(spec, RELOAD_INTERVAL);
         }
+        setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, DYNAMIC_CONFIG_MANAGER, dynamicConfigManager != null ? dynamicConfigManager.toString() : Boolean.FALSE.toString());
         setSpecProperty(spec, TUNING_OPTIONS, MAX_CONNECTIONS, maxIngressConnections);
         setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, MAX_CONNECTIONS, maxIngressConnections);
 
         // on fabric8 6.1 we can convert back from the generic to the actual spec, on earlier versions we cannot
-        // because the unsupportOptions won't be preserved
+        // because the unsupportedOptions won't be preserved
         builder.editSpec()
                 .withTuningOptions(Serialization.jsonMapper()
                         .convertValue(spec.get(TUNING_OPTIONS), IngressControllerTuningOptions.class))
