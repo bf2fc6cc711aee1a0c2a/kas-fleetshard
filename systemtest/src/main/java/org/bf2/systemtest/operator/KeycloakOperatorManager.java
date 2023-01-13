@@ -80,7 +80,8 @@ public class KeycloakOperatorManager {
             return TestUtils.asyncWaitFor("Keycloak instance ready", 1_000, 600_000, () ->
                     TestUtils.isPodReady(KubeClient.getInstance().client().pods().inNamespace(OPERATOR_NS)
                             .list().getItems().stream().filter(pod ->
-                                    pod.getMetadata().getName().contains("keycloak-0")).findFirst().orElse(null)));
+                                    pod.getMetadata().getName().contains("keycloak-0")).findFirst().orElse(null)))
+                    .thenRun(() -> LOGGER.info("Keycloak instance is ready"));
         } else {
             LOGGER.info("Keycloak is not installed suite will use values from env vars for oauth");
             return CompletableFuture.completedFuture(null);

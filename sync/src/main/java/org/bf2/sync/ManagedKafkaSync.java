@@ -369,7 +369,7 @@ public class ManagedKafkaSync {
         }
     }
 
-    @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
+    @Scheduled(every = "{poll.interval}", delayed = "{poll.delay}", concurrentExecution = ConcurrentExecution.SKIP)
     void pollKafkaClusters() {
         log.debug("Polling for control plane managed kafkas");
         // TODO: this is based upon a full poll - eventually this could be
