@@ -29,6 +29,7 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteSpec;
 import io.fabric8.openshift.api.model.TLSConfig;
+import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.ConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -450,17 +451,16 @@ public class IngressControllerManager {
 
     public void ensureBlueprintRouteMatching(Route route, String blueprintBaseName) {
         var annotations = Optional.ofNullable(route.getMetadata()).map(ObjectMeta::getAnnotations);
-        var termination = Optional.ofNullable(route.getSpec()).map(RouteSpec::getTls).map(TLSConfig::getTermination);
+        var tslConfig = Optional.ofNullable(route.getSpec()).map(RouteSpec::getTls);
 
-        ensureBlueprintRouteMatching(annotations, termination, blueprintBaseName);
+        ensureBlueprintRouteMatching(annotations, tslConfig, blueprintBaseName);
     }
 
-    public void ensureBlueprintRouteMatching(Optional<Map<String, String>> annotations, Optional<String> termination, String blueprintBaseName) {
+    public void ensureBlueprintRouteMatching(Optional<Map<String, String>> annotations, Optional<TLSConfig> tlsConfig, String blueprintBaseName) {
+        // see findMatchingBlueprint https://github.com/openshift/router/blob/master/pkg/router/template/configmanager/haproxy/manager.go#L817
         if (!Boolean.TRUE.equals(dynamicConfigManager) || blueprintRouteNamespace == null) {
             return;
         }
-
-        // Build a stable resource name based on the ordered annotations and termination.
 
         var orderedAnnotations = annotations.map(TreeMap::new);
         MessageDigest instance;
@@ -473,7 +473,10 @@ public class IngressControllerManager {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        termination.map(String::getBytes).ifPresent(instance::update);
+        tlsConfig.map(TLSConfig::getTermination).map(String::getBytes).ifPresent(instance::update);
+        tlsConfig.map(TLSConfig::getCertificate).map(String::getBytes).ifPresent(instance::update);
+        tlsConfig.map(TLSConfig::getKey).map(String::getBytes).ifPresent(instance::update);
+        tlsConfig.map(TLSConfig::getCaCertificate).map(String::getBytes).ifPresent(instance::update);
 
         var stable = new Base32().encodeToString(instance.digest()).toLowerCase().replaceFirst("=$", "");
         var stableResourceName = String.format("%s-%s-blueprint", blueprintBaseName, stable);
@@ -482,6 +485,8 @@ public class IngressControllerManager {
         blueprintRouteLabels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
         blueprintRouteLabels.putAll(getRouteMatchLabels());
 
+        // strip InsecureEdgeTerminationPolicy from the placeholder, the operator doesn't consider it.
+       var config = new TLSConfigBuilder(tlsConfig.orElse(new TLSConfig())).withInsecureEdgeTerminationPolicy(null).build();
         var blueprintRoute = new RouteBuilder()
                 .withNewMetadata()
                 .withName(stableResourceName)
@@ -493,9 +498,7 @@ public class IngressControllerManager {
                 .withNewPort()
                 .withTargetPort(new IntOrString("unused"))
                 .endPort()
-                .withNewTls()
-                .withTermination(termination.orElse(null))
-                .endTls()
+                .withTls(config)
                 .withNewTo()
                 .withKind("Service")
                 .withName("dummy")

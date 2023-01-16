@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
 import io.strimzi.api.kafka.model.CruiseControlSpec;
@@ -208,7 +209,9 @@ public class KafkaCluster extends AbstractKafkaCluster {
         createOrUpdateIfNecessary(currentCruiseControlLoggingConfigMap, cruiseControlLoggingConfigMap);
 
         if (ingressControllerManagerInstance.isResolvable()) {
-            ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(Optional.ofNullable(buildExternalListenerAnnotations(managedKafka)),Optional.of("passthrough"), "kafka-bootstrap");
+            ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(Optional.ofNullable(buildExternalListenerAnnotations(managedKafka)),
+                    Optional.of(new TLSConfigBuilder().withTermination("passthrough").build()),
+                    "kafka-bootstrap");
         }
 
         super.createOrUpdate(managedKafka);
