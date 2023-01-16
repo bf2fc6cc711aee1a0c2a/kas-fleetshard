@@ -5,9 +5,11 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -24,6 +26,9 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.api.model.RouteSpec;
+import io.fabric8.openshift.api.model.TLSConfig;
 import io.fabric8.openshift.api.model.operator.v1.ConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -37,6 +42,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaClusterSpec;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
+import org.apache.commons.codec.binary.Base32;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
@@ -57,6 +63,8 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -68,6 +76,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -174,6 +183,9 @@ public class IngressControllerManager {
 
     @ConfigProperty(name = "ingresscontroller.dynamic-config-manager")
     Boolean dynamicConfigManager;
+
+    @ConfigProperty(name = "ingresscontroller.blueprint-namespace")
+    String blueprintRouteNamespace;
 
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakThroughputPercentage;
@@ -434,6 +446,64 @@ public class IngressControllerManager {
         if (deployments != null) {
             deployments.getList().stream().filter(this::shouldReconcile).forEach(this::doIngressPatch);
         }
+    }
+
+    public void ensureBlueprintRouteMatching(Route route, String blueprintBaseName) {
+        var annotations = Optional.ofNullable(route.getMetadata()).map(ObjectMeta::getAnnotations);
+        var termination = Optional.ofNullable(route.getSpec()).map(RouteSpec::getTls).map(TLSConfig::getTermination);
+
+        ensureBlueprintRouteMatching(annotations, termination, blueprintBaseName);
+    }
+
+    public void ensureBlueprintRouteMatching(Optional<Map<String, String>> annotations, Optional<String> termination, String blueprintBaseName) {
+        if (!Boolean.TRUE.equals(dynamicConfigManager) || blueprintRouteNamespace == null) {
+            return;
+        }
+
+        // Build a stable resource name based on the ordered annotations and termination.
+
+        var orderedAnnotations = annotations.map(TreeMap::new);
+        MessageDigest instance;
+        try {
+            instance = MessageDigest.getInstance("SHA-1");
+            orderedAnnotations.ifPresent(m -> m.forEach((k, v) -> {
+                instance.update(String.valueOf(k).getBytes());
+                instance.update(String.valueOf(v).getBytes());
+            }));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        termination.map(String::getBytes).ifPresent(instance::update);
+
+        var stable = new Base32().encodeToString(instance.digest()).toLowerCase().replaceFirst("=$", "");
+        var stableResourceName = String.format("%s-%s-blueprint", blueprintBaseName, stable);
+
+        var blueprintRouteLabels = OperandUtils.getDefaultLabels();
+        blueprintRouteLabels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
+        blueprintRouteLabels.putAll(getRouteMatchLabels());
+
+        var blueprintRoute = new RouteBuilder()
+                .withNewMetadata()
+                .withName(stableResourceName)
+                .withLabels(blueprintRouteLabels)
+                .withAnnotations(orderedAnnotations.orElse(null))
+                .endMetadata()
+                .withNewSpec()
+                .withHost(stableResourceName)
+                .withNewPort()
+                .withTargetPort(new IntOrString("unused"))
+                .endPort()
+                .withNewTls()
+                .withTermination(termination.orElse(null))
+                .endTls()
+                .withNewTo()
+                .withKind("Service")
+                .withName("dummy")
+                .endTo()
+                .endSpec()
+                .build();
+
+        openShiftClient.routes().inNamespace(blueprintRouteNamespace).createOrReplace(blueprintRoute);
     }
 
     private void createOrEdit(IngressController expected, IngressController existing) {

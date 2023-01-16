@@ -207,6 +207,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
         createOrUpdateIfNecessary(currentCruiseControlLoggingConfigMap, cruiseControlLoggingConfigMap);
 
+        if (ingressControllerManagerInstance.isResolvable()) {
+            ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(Optional.ofNullable(buildExternalListenerAnnotations(managedKafka)),Optional.of("passthrough"), "kafka-bootstrap");
+        }
+
         super.createOrUpdate(managedKafka);
     }
 
@@ -1134,7 +1138,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
-        labels.put("ingressType", "sharded");
+        labels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
 
         if (ingressControllerManagerInstance.isResolvable()) {
@@ -1256,6 +1260,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return KafkaInstance.combineReadiness(readiness);
         }
         return super.getReadiness(managedKafka);
+    }
+
+    protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
+        return Map.of(OperandUtils.OPENSHIFT_INGRESS_BALANCE, OperandUtils.OPENSHIFT_INGRESS_BALANCE_LEASTCONN);
     }
 
 }
