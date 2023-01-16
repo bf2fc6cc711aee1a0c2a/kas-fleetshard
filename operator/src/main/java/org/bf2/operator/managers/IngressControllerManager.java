@@ -463,22 +463,22 @@ public class IngressControllerManager {
         }
 
         var orderedAnnotations = annotations.map(TreeMap::new);
-        MessageDigest instance;
+        MessageDigest stableIdDigest;
         try {
-            instance = MessageDigest.getInstance("SHA-1");
+            stableIdDigest = MessageDigest.getInstance("SHA-1");
             orderedAnnotations.ifPresent(m -> m.forEach((k, v) -> {
-                instance.update(String.valueOf(k).getBytes());
-                instance.update(String.valueOf(v).getBytes());
+                stableIdDigest.update(String.valueOf(k).getBytes());
+                stableIdDigest.update(String.valueOf(v).getBytes());
             }));
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        tlsConfig.map(TLSConfig::getTermination).map(String::getBytes).ifPresent(instance::update);
-        tlsConfig.map(TLSConfig::getCertificate).map(String::getBytes).ifPresent(instance::update);
-        tlsConfig.map(TLSConfig::getKey).map(String::getBytes).ifPresent(instance::update);
-        tlsConfig.map(TLSConfig::getCaCertificate).map(String::getBytes).ifPresent(instance::update);
+        tlsConfig.map(TLSConfig::getTermination).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getCertificate).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getKey).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getCaCertificate).map(String::getBytes).ifPresent(stableIdDigest::update);
 
-        var stable = new Base32().encodeToString(instance.digest()).toLowerCase().replaceFirst("=$", "");
+        var stable = new Base32().encodeToString(stableIdDigest.digest()).toLowerCase().replaceFirst("=$", "");
         var stableResourceName = String.format("%s-%s-blueprint", blueprintBaseName, stable);
 
         var blueprintRouteLabels = OperandUtils.getDefaultLabels();
