@@ -431,7 +431,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
-        return null;
+        return Map.of();
     }
 
     protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka, int replicas) {
