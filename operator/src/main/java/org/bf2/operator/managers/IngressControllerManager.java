@@ -483,6 +483,7 @@ public class IngressControllerManager {
 
         var blueprintRouteLabels = OperandUtils.getDefaultLabels();
         blueprintRouteLabels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
+        blueprintRouteLabels.put("bf2.org/blueprint", "true");
         blueprintRouteLabels.putAll(getRouteMatchLabels());
 
         // strip InsecureEdgeTerminationPolicy from the placeholder, the operator doesn't consider it.
