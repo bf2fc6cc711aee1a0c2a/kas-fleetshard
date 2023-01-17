@@ -5,9 +5,11 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodList;
 import io.fabric8.kubernetes.api.model.Quantity;
@@ -24,6 +26,10 @@ import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.CachedSingleThreadScheduler;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteBuilder;
+import io.fabric8.openshift.api.model.RouteSpec;
+import io.fabric8.openshift.api.model.TLSConfig;
+import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.ConfigBuilder;
 import io.fabric8.openshift.api.model.operator.v1.IngressController;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerBuilder;
@@ -37,6 +43,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaClusterSpec;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.listener.arraylistener.GenericKafkaListenerConfiguration;
+import org.apache.commons.codec.binary.Base32;
 import org.bf2.common.OperandUtils;
 import org.bf2.common.ResourceInformer;
 import org.bf2.common.ResourceInformerFactory;
@@ -54,6 +61,9 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -65,6 +75,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -89,6 +100,7 @@ public class IngressControllerManager {
 
     private static final String MAX_CONNECTIONS = "maxConnections";
     private static final String RELOAD_INTERVAL = "reloadInterval";
+    private static final String DYNAMIC_CONFIG_MANAGER = "dynamicConfigManager";
     private static final String UNSUPPORTED_CONFIG_OVERRIDES = "unsupportedConfigOverrides";
     private static final String TUNING_OPTIONS = "tuningOptions";
     protected static final String INGRESSCONTROLLER_LABEL = "ingresscontroller.operator.openshift.io/owning-ingresscontroller";
@@ -167,6 +179,12 @@ public class IngressControllerManager {
     List<String> ingressContainerCommand;
     @ConfigProperty(name = "ingresscontroller.reload-interval-seconds")
     Integer ingressReloadIntervalSeconds;
+
+    @ConfigProperty(name = "ingresscontroller.dynamic-config-manager")
+    Boolean dynamicConfigManager;
+
+    @ConfigProperty(name = "ingresscontroller.blueprint-namespace")
+    String blueprintRouteNamespace;
 
     @ConfigProperty(name = "ingresscontroller.peak-throughput-percentage")
     int peakThroughputPercentage;
@@ -429,6 +447,66 @@ public class IngressControllerManager {
         }
     }
 
+    public void ensureBlueprintRouteMatching(Route route, String blueprintBaseName) {
+        var annotations = Optional.ofNullable(route.getMetadata()).map(ObjectMeta::getAnnotations);
+        var tslConfig = Optional.ofNullable(route.getSpec()).map(RouteSpec::getTls);
+
+        ensureBlueprintRouteMatching(annotations, tslConfig, blueprintBaseName);
+    }
+
+    public void ensureBlueprintRouteMatching(Optional<Map<String, String>> annotations, Optional<TLSConfig> tlsConfig, String blueprintBaseName) {
+        // see findMatchingBlueprint https://github.com/openshift/router/blob/master/pkg/router/template/configmanager/haproxy/manager.go#L817
+        if (!Boolean.TRUE.equals(dynamicConfigManager) || blueprintRouteNamespace == null) {
+            return;
+        }
+
+        var orderedAnnotations = annotations.map(TreeMap::new);
+        MessageDigest stableIdDigest;
+        try {
+            stableIdDigest = MessageDigest.getInstance("SHA-1");
+            orderedAnnotations.ifPresent(m -> m.forEach((k, v) -> {
+                stableIdDigest.update(String.valueOf(k).getBytes(StandardCharsets.UTF_8));
+                stableIdDigest.update(String.valueOf(v).getBytes(StandardCharsets.UTF_8));
+            }));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+        tlsConfig.map(TLSConfig::getTermination).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getCertificate).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getKey).map(String::getBytes).ifPresent(stableIdDigest::update);
+        tlsConfig.map(TLSConfig::getCaCertificate).map(String::getBytes).ifPresent(stableIdDigest::update);
+
+        var stable = new Base32().encodeToString(stableIdDigest.digest()).toLowerCase().replaceFirst("=$", "");
+        var stableResourceName = String.format("%s-%s-blueprint", blueprintBaseName, stable);
+
+        var blueprintRouteLabels = new HashMap<>(getRouteMatchLabels());
+        blueprintRouteLabels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
+        blueprintRouteLabels.put("bf2.org/blueprint", "true");
+
+        // strip InsecureEdgeTerminationPolicy from the placeholder, the operator doesn't consider it.
+       var config = new TLSConfigBuilder(tlsConfig.orElse(new TLSConfig())).withInsecureEdgeTerminationPolicy(null).build();
+        var blueprintRoute = new RouteBuilder()
+                .withNewMetadata()
+                .withName(stableResourceName)
+                .withLabels(blueprintRouteLabels)
+                .withAnnotations(orderedAnnotations.orElse(null))
+                .endMetadata()
+                .withNewSpec()
+                .withHost(stableResourceName)
+                .withNewPort()
+                .withTargetPort(new IntOrString("unused"))
+                .endPort()
+                .withTls(config)
+                .withNewTo()
+                .withKind("Service")
+                .withName("dummy")
+                .endTo()
+                .endSpec()
+                .build();
+
+        openShiftClient.routes().inNamespace(blueprintRouteNamespace).createOrReplace(blueprintRoute);
+    }
+
     private void createOrEdit(IngressController expected, IngressController existing) {
         String name = expected.getMetadata().getName();
 
@@ -550,11 +628,12 @@ public class IngressControllerManager {
         } else {
             removeSpecProperty(spec, RELOAD_INTERVAL);
         }
+        setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, DYNAMIC_CONFIG_MANAGER, dynamicConfigManager != null ? dynamicConfigManager.toString() : Boolean.FALSE.toString());
         setSpecProperty(spec, TUNING_OPTIONS, MAX_CONNECTIONS, maxIngressConnections);
         setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, MAX_CONNECTIONS, maxIngressConnections);
 
         // on fabric8 6.1 we can convert back from the generic to the actual spec, on earlier versions we cannot
-        // because the unsupportOptions won't be preserved
+        // because the unsupportedOptions won't be preserved
         builder.editSpec()
                 .withTuningOptions(Serialization.jsonMapper()
                         .convertValue(spec.get(TUNING_OPTIONS), IngressControllerTuningOptions.class))
@@ -704,4 +783,9 @@ public class IngressControllerManager {
     Optional<Quantity> getRequestMemory() {
         return requestMemory;
     }
+
+    /* testing */ String getBlueprintRouteNamespace() {
+        return blueprintRouteNamespace;
+    }
+
 }

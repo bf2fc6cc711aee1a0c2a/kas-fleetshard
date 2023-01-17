@@ -120,6 +120,9 @@ public class AdminServer extends AbstractAdminServer {
         if (openShiftClient != null) {
             Route currentRoute = cachedRoute(managedKafka);
             Route route = routeFrom(managedKafka, currentRoute);
+            if (ingressControllerManagerInstance.isResolvable()) {
+                ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(route, "kafka-admin");
+            }
 
             OperandUtils.createOrUpdate(openShiftClient.routes(), route);
         }
@@ -385,7 +388,7 @@ public class AdminServer extends AbstractAdminServer {
 
     private Map<String, String> buildRouteLabels() {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
-        labels.put("ingressType", "sharded");
+        labels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
 
         if (ingressControllerManagerInstance.isResolvable()) {
             labels.putAll(ingressControllerManagerInstance.get().getRouteMatchLabels());
