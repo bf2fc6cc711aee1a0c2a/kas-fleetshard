@@ -388,7 +388,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         GenericKafkaListenerConfigurationBuilder listenerConfigBuilder = new GenericKafkaListenerConfigurationBuilder()
                 .withBootstrap(new GenericKafkaListenerConfigurationBootstrapBuilder()
                         .withHost(managedKafka.getSpec().getEndpoint().getBootstrapServerHost())
-                        .withAnnotations(Map.of("haproxy.router.openshift.io/balance", "leastconn"))
+                        .withAnnotations(buildExternalListenerAnnotations(managedKafka))
                         .build()
                 )
                 .withBrokers(buildBrokerOverrides(managedKafka, replicas))
@@ -428,6 +428,10 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                                 .withTls(false)
                                 .build()
                 );
+    }
+
+    protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
+        return Map.of();
     }
 
     protected List<GenericKafkaListenerConfigurationBroker> buildBrokerOverrides(ManagedKafka managedKafka, int replicas) {

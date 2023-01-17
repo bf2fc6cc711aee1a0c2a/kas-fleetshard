@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
 import io.strimzi.api.kafka.model.CruiseControlSpec;
@@ -206,6 +207,12 @@ public class KafkaCluster extends AbstractKafkaCluster {
         ConfigMap cruiseControlLoggingConfigMap = configMapFrom(managedKafka, cruiseControlLoggingConfigMapName(managedKafka));
 
         createOrUpdateIfNecessary(currentCruiseControlLoggingConfigMap, cruiseControlLoggingConfigMap);
+
+        if (ingressControllerManagerInstance.isResolvable()) {
+            ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(Optional.ofNullable(buildExternalListenerAnnotations(managedKafka)),
+                    Optional.of(new TLSConfigBuilder().withTermination("passthrough").build()),
+                    "kafka-bootstrap");
+        }
 
         super.createOrUpdate(managedKafka);
     }
@@ -1134,7 +1141,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         Map<String, String> labels = OperandUtils.getDefaultLabels();
         //this.strimziManager.changeStrimziVersion(managedKafka, this, labels);
         Optional.ofNullable(managedKafka.getMetadata().getLabels()).ifPresent(labels::putAll);
-        labels.put("ingressType", "sharded");
+        labels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
         labels.put(this.strimziManager.getVersionLabel(), this.strimziManager.currentStrimziVersion(managedKafka));
 
         if (ingressControllerManagerInstance.isResolvable()) {
@@ -1256,6 +1263,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return KafkaInstance.combineReadiness(readiness);
         }
         return super.getReadiness(managedKafka);
+    }
+
+    protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
+        return Map.of(OperandUtils.OPENSHIFT_INGRESS_BALANCE, OperandUtils.OPENSHIFT_INGRESS_BALANCE_LEASTCONN);
     }
 
 }

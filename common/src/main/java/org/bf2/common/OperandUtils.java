@@ -36,10 +36,14 @@ public class OperandUtils {
     public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION = "haproxy.router.openshift.io/rate-limit-connections";
     public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION_CONCURRENT_TCP = OPENSHIFT_RATE_LIMIT_ANNOTATION + ".concurrent-tcp";
     public static final String OPENSHIFT_RATE_LIMIT_ANNOTATION_TCP_RATE = OPENSHIFT_RATE_LIMIT_ANNOTATION + ".rate-tcp";
+    public static final String OPENSHIFT_INGRESS_BALANCE = "haproxy.router.openshift.io/balance";
+    public static final String OPENSHIFT_INGRESS_BALANCE_LEASTCONN = "leastconn";
 
     public static final String STRIMZI_OPERATOR_NAME = "strimzi-cluster-operator";
     public static final String FLEETSHARD_OPERATOR_NAME = "kas-fleetshard-operator";
     public static final String MASTER_SECRET_NAME = "master-secret";
+    public static final String INGRESS_TYPE = "ingressType";
+    public static final String SHARDED = "sharded";
 
     /**
      * Set the provided resource as owner of the resource
