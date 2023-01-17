@@ -467,8 +467,8 @@ public class IngressControllerManager {
         try {
             stableIdDigest = MessageDigest.getInstance("SHA-1");
             orderedAnnotations.ifPresent(m -> m.forEach((k, v) -> {
-                stableIdDigest.update(String.valueOf(k).getBytes());
-                stableIdDigest.update(String.valueOf(v).getBytes());
+                stableIdDigest.update(String.valueOf(k).getBytes(StandardCharsets.UTF_8));
+                stableIdDigest.update(String.valueOf(v).getBytes(StandardCharsets.UTF_8));
             }));
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
