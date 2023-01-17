@@ -1,5 +1,6 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.api.model.LoadBalancerIngressBuilder;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -338,7 +339,28 @@ class IngressControllerManagerTest {
         suffixes.stream().map(suffixToPod).forEach(pod -> openShiftClient.pods().inNamespace(mkName).createOrReplace(pod));
         suffixes.stream().map(suffixToNode).forEach(node -> openShiftClient.nodes().createOrReplace(node));
 
+        final Function<? super String, ? extends Service> suffixToRouterService = suffix -> new ServiceBuilder()
+                .withNewMetadata()
+                .withName("router-" + suffix)
+                .endMetadata()
+                .withNewStatus()
+                .withNewLoadBalancer()
+                .withIngress(new LoadBalancerIngressBuilder()
+                        .withHostname(suffix + "-loadbalancer.provider.com")
+                        .build())
+                .endLoadBalancer()
+                .endStatus()
+                .build();
+
+        List.of("kas", "kas-zone-broker-0", "kas-zone-broker-1", "kas-zone-broker-2")
+                .stream()
+                .map(suffixToRouterService)
+                .forEach(svc -> openShiftClient.services()
+                        .inNamespace(IngressControllerManager.INGRESS_ROUTER_NAMESPACE)
+                        .createOrReplace(svc));
+
         ingressControllerManager.reconcileIngressControllers();
+
         List<ManagedKafkaRoute> managedKafkaRoutes = ingressControllerManager.getManagedKafkaRoutesFor(mk);
 
         assertEquals(5, managedKafkaRoutes.size());
@@ -350,22 +372,38 @@ class IngressControllerManagerTest {
 
         assertEquals("admin-server", managedKafkaRoutes.get(0).getName());
         assertEquals("admin-server", managedKafkaRoutes.get(0).getPrefix());
-        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(0).getRouter());
+        assertEquals("kas-loadbalancer.provider.com", managedKafkaRoutes.get(0).getRouter());
 
         assertEquals("bootstrap", managedKafkaRoutes.get(1).getName());
         assertEquals("", managedKafkaRoutes.get(1).getPrefix());
-        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(1).getRouter());
+        assertEquals("kas-loadbalancer.provider.com", managedKafkaRoutes.get(1).getRouter());
 
         assertEquals("broker-0", managedKafkaRoutes.get(2).getName());
         assertEquals("broker-0", managedKafkaRoutes.get(2).getPrefix());
-        assertEquals("ingresscontroller.kas-zone-broker-0.testing.domain.tld", managedKafkaRoutes.get(2).getRouter());
+        assertEquals("kas-zone-broker-0-loadbalancer.provider.com", managedKafkaRoutes.get(2).getRouter());
 
         assertEquals("broker-1", managedKafkaRoutes.get(3).getName());
         assertEquals("broker-1", managedKafkaRoutes.get(3).getPrefix());
-        assertEquals("ingresscontroller.kas-zone-broker-1.testing.domain.tld", managedKafkaRoutes.get(3).getRouter());
+        assertEquals("kas-zone-broker-1-loadbalancer.provider.com", managedKafkaRoutes.get(3).getRouter());
 
         assertEquals("broker-2", managedKafkaRoutes.get(4).getName());
         assertEquals("broker-2", managedKafkaRoutes.get(4).getPrefix());
+        assertEquals("kas-zone-broker-2-loadbalancer.provider.com", managedKafkaRoutes.get(4).getRouter());
+
+        // once more, but with public dns
+        // we cannot add a dns to the mock server in fabric8 5.12 as it cannot be looked back up due to a plural error
+        managedKafkaRoutes = ingressControllerManager.getManagedKafkaRoutesFor(mk, true);
+        assertEquals(5, managedKafkaRoutes.size());
+
+        assertEquals(
+                managedKafkaRoutes.stream().sorted(Comparator.comparing(ManagedKafkaRoute::getName)).collect(Collectors.toList()),
+                managedKafkaRoutes,
+                "Expected list of ManagedKafkaRoutes to be sorted by name");
+
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(0).getRouter());
+        assertEquals("ingresscontroller.kas.testing.domain.tld", managedKafkaRoutes.get(1).getRouter());
+        assertEquals("ingresscontroller.kas-zone-broker-0.testing.domain.tld", managedKafkaRoutes.get(2).getRouter());
+        assertEquals("ingresscontroller.kas-zone-broker-1.testing.domain.tld", managedKafkaRoutes.get(3).getRouter());
         assertEquals("ingresscontroller.kas-zone-broker-2.testing.domain.tld", managedKafkaRoutes.get(4).getRouter());
     }
 
