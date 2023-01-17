@@ -4,6 +4,9 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.coordination.v1.Lease;
+import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -27,6 +30,9 @@ import org.junit.jupiter.api.Test;
 
 import javax.inject.Inject;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,6 +41,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -58,10 +66,11 @@ public class StrimziManagerTest {
 
     @BeforeEach
     public void beforeEach() {
-        // before each test clean Kubernetes server (no Deployments from other runs)
-        this.server.before();
+        try (NamespacedKubernetesClient client = this.server.getClient().inAnyNamespace()) {
+            client.apps().deployments().delete();
+            client.leases().delete();
+        }
         this.strimziManager.clearStrimziVersions();
-
         this.informerManager.createKafkaInformer();
     }
 
@@ -206,6 +215,39 @@ public class StrimziManagerTest {
     }
 
     @Test
+    void testStrimziLeadershipLeaseCleanedOnDelete() {
+        final Lease lease = new LeaseBuilder()
+                .withNewMetadata()
+                    .withName("strimzi-cluster-operator.v1-leadership-token")
+                    .withNamespace("ns-1")
+                .endMetadata()
+                .withNewSpec()
+                    .withHolderIdentity("me")
+                    .withLeaseDurationSeconds(1000)
+                    .withAcquireTime(ZonedDateTime.ofInstant(Instant.now(), ZoneId.of("UTC")))
+                .endSpec().build();
+        server.getClient().leases().inNamespace("ns-1").create(lease);
+        final Deployment deployment = installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        final Resource<Lease> leaseResource = server.getClient().leases().inNamespace("ns-1").withName("strimzi-cluster-operator.v1-leadership-token");
+        Lease actual = leaseResource.get();
+        assertNotNull(actual);
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        strimziManager.deleteLeadershipLeaseIfPresent(deployment);
+        actual = leaseResource.get();
+        assertNull(actual);
+    }
+
+    @Test
+    void testStrimziLeadershipLeaseCleanedOnDeleteToleratesMissingLease() {
+        final Deployment deployment = installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
+        List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
+        assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
+        strimziManager.deleteLeadershipLeaseIfPresent(deployment);
+        // expect no exceptions
+    }
+
+    @Test
     public void testStrimziVersionChange() {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         mk.getSpec().getVersions().setStrimzi("strimzi-cluster-operator.v1");
@@ -246,8 +288,8 @@ public class StrimziManagerTest {
         assertEquals(kafka.getMetadata().getLabels().get(this.strimziManager.getVersionLabel()), "strimzi-cluster-operator.v2");
     }
 
-    private void installStrimziOperator(String name, String namespace, String kafkaImages, boolean ready, boolean discoverable) {
-        installStrimziOperator(name, namespace, kafkaImages, Collections.emptyMap(), ready, discoverable, false);
+    private Deployment installStrimziOperator(String name, String namespace, String kafkaImages, boolean ready, boolean discoverable) {
+        return installStrimziOperator(name, namespace, kafkaImages, Collections.emptyMap(), ready, discoverable, false);
     }
 
     /**
@@ -260,7 +302,7 @@ public class StrimziManagerTest {
      * @param ready if the Strimzi operator has to be ready
      * @param discoverable if the Strimzi operator should be discoverable by the Strimzi manager
      */
-    private void installStrimziOperator(String name, String namespace, String kafkaImages, Map<String, String> relatedImages, boolean ready, boolean discoverable, boolean versionsAnnotations) {
+    private Deployment installStrimziOperator(String name, String namespace, String kafkaImages, Map<String, String> relatedImages, boolean ready, boolean discoverable, boolean versionsAnnotations) {
         Map<String, String> labels = new HashMap<>(+2);
         labels.put("name", name);
         if (discoverable) {
@@ -319,6 +361,8 @@ public class StrimziManagerTest {
         if (discoverable) {
             this.strimziManager.updateStrimziVersion(deployment);
         }
+
+        return deployment;
     }
 
     /**

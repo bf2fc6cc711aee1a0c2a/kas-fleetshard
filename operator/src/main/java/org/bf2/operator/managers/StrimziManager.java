@@ -5,8 +5,10 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.api.model.coordination.v1.Lease;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.FilterWatchListDeletable;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -128,10 +130,29 @@ public class StrimziManager {
                             log.debugf("Delete event received for Deployment %s/%s",
                                     deployment.getMetadata().getNamespace(), deployment.getMetadata().getName());
                             deleteStrimziVersion(deployment);
+                            deleteLeadershipLeaseIfPresent(deployment);
                             updateStatus();
                         }
                     }
                 });
+    }
+
+    void deleteLeadershipLeaseIfPresent(final Deployment deployment) {
+        final String leaseName = deployment.getMetadata().getName() + "-leadership-token";
+        final String namespace = deployment.getMetadata().getNamespace();
+        try {
+            log.debugf("Deleting lease %s in namespace %s", leaseName, namespace);
+            final Resource<Lease> lease = kubernetesClient.leases().inNamespace(namespace)
+                                                          .withName(leaseName);
+            final Boolean success = lease.delete();
+            if(success == null || !success){
+                log.warnf("Strimzi cluster-operator leadership lease %s was not found in namespace %s when attempting deletion", leaseName, namespace);
+            } else {
+                log.debugf("Strimzi cluster-operator leadership lease %s successfully deleted from namespace %s", leaseName, namespace);
+            }
+        } catch (Exception e){
+            log.errorf("Failed to delete Strimzi cluster-operator leadership lease %s in namespace %s", e, leaseName, namespace);
+        }
     }
 
     private boolean isStrimziDeployment(Deployment deployment) {
