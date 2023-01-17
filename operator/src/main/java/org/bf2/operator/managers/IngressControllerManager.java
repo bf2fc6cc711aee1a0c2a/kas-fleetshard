@@ -797,4 +797,9 @@ public class IngressControllerManager {
     Optional<Quantity> getRequestMemory() {
         return requestMemory;
     }
+
+    /* testing */ String getBlueprintRouteNamespace() {
+        return blueprintRouteNamespace;
+    }
+
 }

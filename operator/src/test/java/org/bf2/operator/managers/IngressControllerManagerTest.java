@@ -37,6 +37,9 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
 import javax.inject.Inject;
@@ -50,6 +53,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -261,6 +265,67 @@ class IngressControllerManagerTest {
     void testIngressControllerReplicaCountsMultiUnit() {
         assertEquals(1, ingressControllerManager.numReplicasForDefault(3000*24));
         assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("50Mi")).longValue()*24), new LongSummaryStatistics(1, 0, Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue(), Quantity.getAmountInBytes(Quantity.parse("100Mi")).longValue()*24), 0, ZONE_PERCENTAGE));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("routeData")
+    void testBlueprintGeneration(String name, Route route, Route different) {
+        String basename = "basename";
+        var routeOperation = openShiftClient.routes().inNamespace(ingressControllerManager.getBlueprintRouteNamespace());
+
+        ingressControllerManager.ensureBlueprintRouteMatching(route, basename);
+
+        var list = routeOperation.list();
+        assertEquals(1, list.getItems().size(), "unexpected number of blueprint routes");
+
+        // adding the same route with the same properties should have no effect
+        ingressControllerManager.ensureBlueprintRouteMatching(new RouteBuilder(route).editOrNewMetadata().withName("newname").endMetadata().build(), basename);
+        list = routeOperation.list();
+        assertEquals(1, list.getItems().size(), "unexpected number of blueprint routes after adding route with same properties");
+
+        ingressControllerManager.ensureBlueprintRouteMatching(different, basename);
+
+        list = routeOperation.list();
+        assertEquals(2, list.getItems().size(), "unexpected number of blueprint routes after addition of route with distinct properties");
+
+        routeOperation.delete(list.getItems());
+    }
+
+    public static Stream<Arguments> routeData() {
+
+        Route oneAnnotation = new RouteBuilder()
+                .withNewMetadata()
+                .withAnnotations(Map.of("dummy.haproxy", "1"))
+                .endMetadata()
+                .withNewSpec()
+                .withNewTls()
+                .withTermination("passthrough")
+                .endTls()
+                .endSpec().build();
+
+        Route termination = new RouteBuilder()
+                .withNewMetadata()
+                .endMetadata()
+                .withNewSpec()
+                .withNewTls()
+                .withTermination("edge")
+                .endTls()
+                .endSpec().build();
+
+        Route keyMaterial = new RouteBuilder(termination)
+                .editOrNewSpec()
+                .withNewTls()
+                .withTermination("edge")
+                .withKey("mykey1")
+                .withCertificate("mycert11")
+                .endTls()
+                .endSpec().build();
+
+        return Stream.of(Arguments.of(
+                "annotations", oneAnnotation, new RouteBuilder(oneAnnotation).editOrNewMetadata().withAnnotations(Map.of("dummy.haproxy", "2")).endMetadata().build()),
+                Arguments.of("termination", termination, new RouteBuilder(termination).editOrNewSpec().editTls().withTermination("passthrough").endTls().endSpec().build()),
+                Arguments.of("key material", keyMaterial, new RouteBuilder(keyMaterial).editOrNewSpec().editTls().withKey("mykey2").endTls().endSpec().build())
+        );
     }
 
     private List<Node> buildNodes(int nodeCount) {
