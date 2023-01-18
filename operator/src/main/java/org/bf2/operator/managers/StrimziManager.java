@@ -137,6 +137,15 @@ public class StrimziManager {
                 });
     }
 
+
+    /**
+     * Deletes the leadership-token lease associated with this deployment if it is present.
+     * <p>
+     * The Strimzi cluster operator manages a lease for leader election, but it is currently not able to
+     * be associated with an owner, so it is left dangling when the Strimzi cluster operator is removed.
+     * <p>
+     * See <a href="https://github.com/fabric8io/kubernetes-client/issues/4638">fabric8 kubernetes-client issue #4638</a>
+     */
     void deleteLeadershipLeaseIfPresent(final Deployment deployment) {
         final String leaseName = deployment.getMetadata().getName() + "-leadership-token";
         final String namespace = deployment.getMetadata().getNamespace();
