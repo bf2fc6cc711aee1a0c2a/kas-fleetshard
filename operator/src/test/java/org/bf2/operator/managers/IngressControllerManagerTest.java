@@ -463,7 +463,7 @@ class IngressControllerManagerTest {
 
         assertEquals("5s", ingressController.getMetadata().getAnnotations().get(IngressControllerManager.HARD_STOP_AFTER_ANNOTATION));
         assertEquals(60, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("reloadInterval"));
-        assertEquals(60, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("reloadInterval"));
+        assertEquals("60s", ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("reloadInterval"));
         assertEquals(108000, ((Config) ingressController.getSpec().getUnsupportedConfigOverrides()).getAdditionalProperties().get("maxConnections"));
         assertEquals(108000, ingressController.getSpec().getTuningOptions().getAdditionalProperties().get("maxConnections"));
     }
