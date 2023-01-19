@@ -483,8 +483,8 @@ public class IngressControllerManager {
         blueprintRouteLabels.put(OperandUtils.INGRESS_TYPE, OperandUtils.SHARDED);
         blueprintRouteLabels.put("bf2.org/blueprint", "true");
 
-        // strip InsecureEdgeTerminationPolicy from the placeholder, the operator doesn't consider it.
-       var config = new TLSConfigBuilder(tlsConfig.orElse(new TLSConfig())).withInsecureEdgeTerminationPolicy(null).build();
+        // strip InsecureEdgeTerminationPolicy from the blueprint, the operator doesn't consider it.
+       var config = tlsConfig.isEmpty() ? null : new TLSConfigBuilder(tlsConfig.get()).withInsecureEdgeTerminationPolicy(null).build();
         var blueprintRoute = new RouteBuilder()
                 .withNewMetadata()
                 .withName(stableResourceName)
