@@ -58,6 +58,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
@@ -283,12 +284,22 @@ class IngressControllerManagerTest {
         list = routeOperation.list();
         assertEquals(1, list.getItems().size(), "unexpected number of blueprint routes after adding route with same properties");
 
+        var blueprint = list.getItems().get(0);
+        if (route.getSpec().getTls() != null) {
+            assertNotNull(blueprint.getSpec().getTls(),"blueprint for route with tls must have tls");
+            assertEquals(route.getSpec().getTls().getTermination(), blueprint.getSpec().getTls().getTermination());
+            assertEquals(route.getSpec().getTls().getCertificate(), blueprint.getSpec().getTls().getCertificate());
+            assertEquals(route.getSpec().getTls().getKey(), blueprint.getSpec().getTls().getKey());
+            assertEquals(route.getSpec().getTls().getCaCertificate(), blueprint.getSpec().getTls().getCaCertificate());
+            assertNull(blueprint.getSpec().getTls().getInsecureEdgeTerminationPolicy());
+        } else {
+            assertNull(blueprint.getSpec().getTls(), "blueprint for route without tls should not have tls");
+        }
+
         ingressControllerManager.ensureBlueprintRouteMatching(different, basename);
 
         list = routeOperation.list();
         assertEquals(2, list.getItems().size(), "unexpected number of blueprint routes after addition of route with distinct properties");
-
-        routeOperation.delete(list.getItems());
     }
 
     public static Stream<Arguments> routeData() {
@@ -301,6 +312,12 @@ class IngressControllerManagerTest {
                 .withNewTls()
                 .withTermination("passthrough")
                 .endTls()
+                .endSpec().build();
+
+        Route http = new RouteBuilder()
+                .withNewMetadata()
+                .endMetadata()
+                .withNewSpec()
                 .endSpec().build();
 
         Route termination = new RouteBuilder()
@@ -323,6 +340,7 @@ class IngressControllerManagerTest {
 
         return Stream.of(Arguments.of(
                 "annotations", oneAnnotation, new RouteBuilder(oneAnnotation).editOrNewMetadata().withAnnotations(Map.of("dummy.haproxy", "2")).endMetadata().build()),
+                Arguments.of("http", http, new RouteBuilder(http).editOrNewMetadata().withAnnotations(Map.of("dummy.haproxy", "1")).endMetadata().build()),
                 Arguments.of("termination", termination, new RouteBuilder(termination).editOrNewSpec().editTls().withTermination("passthrough").endTls().endSpec().build()),
                 Arguments.of("key material", keyMaterial, new RouteBuilder(keyMaterial).editOrNewSpec().editTls().withKey("mykey2").endTls().endSpec().build())
         );
@@ -543,5 +561,6 @@ class IngressControllerManagerTest {
         openShiftClient.resources(ManagedKafka.class).inAnyNamespace().delete();
         openShiftClient.resources(ManagedKafkaAgent.class).inAnyNamespace().delete();
         openShiftClient.resources(IngressController.class).inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).delete();
+        openShiftClient.routes().inAnyNamespace().delete();
     }
 }
