@@ -115,6 +115,7 @@ spec:
       inter.broker.protocol.version: "2.6"
       client.quota.callback.static.produce: "2097152"
       ssl.protocol: "TLS"
+      sasl.server.max.receive.size: 16384
       client.quota.callback.class: "io.strimzi.kafka.quotas.StaticQuotaCallback"
       ssl.enabled.protocols: "TLSv1.3,TLSv1.2"
       client.quota.callback.static.storage.hard: "64424509440"

@@ -736,6 +736,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         config.put("inter.broker.protocol.version", this.kafkaManager.currentKafkaIbpVersion(managedKafka));
         config.put("ssl.enabled.protocols", "TLSv1.3,TLSv1.2");
         config.put("ssl.protocol", "TLS");
+        config.put("sasl.server.max.receive.size", kafkaConfigs.getSaslServerMaxReceiveSize());
         config.put("kas.policy.create-topic.partition-limit-enforced",
                 kafkaConfigs.isPartitionLimitEnforced());
 
