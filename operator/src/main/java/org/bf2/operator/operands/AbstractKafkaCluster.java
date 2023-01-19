@@ -325,7 +325,11 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 routeAnnotations.putAll(rateLimitAnnotations);
                 r.getMetadata().setAnnotations(routeAnnotations);
                 OperandUtils.createOrUpdate(kubernetesClient.resources(Route.class), r);
+                ensureBlueprintRouteForSuspendedRoute(r);
             });
+    }
+
+    protected void ensureBlueprintRouteForSuspendedRoute(Route r) {
     }
 
     protected List<GenericKafkaListener> buildListeners(ManagedKafka managedKafka, int replicas) {
