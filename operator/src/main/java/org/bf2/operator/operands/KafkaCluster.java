@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.TopologySpreadConstraint;
 import io.fabric8.kubernetes.api.model.TopologySpreadConstraintBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
@@ -1267,6 +1268,13 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
         return Map.of(OperandUtils.OPENSHIFT_INGRESS_BALANCE, OperandUtils.OPENSHIFT_INGRESS_BALANCE_LEASTCONN);
+    }
+
+    @Override
+    protected void ensureBlueprintRouteForSuspendedRoute(Route r) {
+        if (ingressControllerManagerInstance.isResolvable()) {
+            ingressControllerManagerInstance.get().ensureBlueprintRouteMatching(r, "kafka-suspension");
+        }
     }
 
 }
