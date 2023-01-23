@@ -636,7 +636,7 @@ public class IngressControllerManager {
         GenericKubernetesResource spec = Serialization.jsonMapper().convertValue(builder.buildSpec(), GenericKubernetesResource.class);
 
         if (ingressReloadIntervalSeconds > 0) {
-            setSpecProperty(spec, TUNING_OPTIONS, RELOAD_INTERVAL, ingressReloadIntervalSeconds);
+            setSpecProperty(spec, TUNING_OPTIONS, RELOAD_INTERVAL, ingressReloadIntervalSeconds + "s");
             setSpecProperty(spec, UNSUPPORTED_CONFIG_OVERRIDES, RELOAD_INTERVAL, ingressReloadIntervalSeconds);
         } else {
             removeSpecProperty(spec, RELOAD_INTERVAL);
