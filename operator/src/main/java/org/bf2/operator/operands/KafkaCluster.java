@@ -399,6 +399,10 @@ public class KafkaCluster extends AbstractKafkaCluster {
      * @return true if suspension should be blocked, otherwise false
      */
     private boolean blockSuspension(ManagedKafka managedKafka) {
+        if (isStrimziUpdating(managedKafka)) {
+            return true;
+        }
+
         if (kafkaManager.hasKafkaVersionChanged(managedKafka)) {
             return true;
         }

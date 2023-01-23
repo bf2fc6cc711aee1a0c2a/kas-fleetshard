@@ -32,7 +32,7 @@ public class ManagedKafkaAgentSync {
 
     @Timed(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The time spent processing polling calls")
     @Counted(value = "sync.poll", extraTags = {"resource", "ManagedKafkaAgent"}, description = "The number of polling calls")
-    @Scheduled(every = "{poll.interval}", concurrentExecution = ConcurrentExecution.SKIP)
+    @Scheduled(every = "{poll.interval}", delayed = "{poll.delay}", concurrentExecution = ConcurrentExecution.SKIP)
     void loop() {
         ManagedKafkaAgent managedKafkaAgent = controlPlane.getManagedKafkaAgent();
         Objects.requireNonNull(managedKafkaAgent);

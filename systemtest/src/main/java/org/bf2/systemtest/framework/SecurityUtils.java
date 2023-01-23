@@ -6,6 +6,8 @@ import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.CertIOException;
@@ -125,6 +127,10 @@ public class SecurityUtils {
         certificateBuilder.addExtension(Extension.subjectKeyIdentifier, false, subject);
         certificateBuilder.addExtension(Extension.authorityKeyIdentifier, false, authority);
         certificateBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
+
+        // Add SAN (required by some clients)
+        GeneralNames subjectAltName = new GeneralNames(new GeneralName(GeneralName.dNSName, "*." + domain));
+        certificateBuilder.addExtension(Extension.subjectAlternativeName, false, subjectAltName);
 
         final ContentSigner contentSigner = new JcaContentSignerBuilder(hashAlgorithm).build(keyPair.getPrivate());
 

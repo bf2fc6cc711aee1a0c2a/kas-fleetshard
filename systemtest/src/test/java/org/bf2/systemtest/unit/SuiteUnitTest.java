@@ -14,16 +14,23 @@ import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import io.quarkus.test.kubernetes.client.KubernetesTestServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bf2.systemtest.framework.ExtensionContextParameterResolver;
+import org.bf2.systemtest.framework.IndicativeSentences;
 import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.ParallelTest;
 import org.bf2.systemtest.framework.SecurityUtils;
 import org.bf2.systemtest.framework.SequentialTest;
-import org.bf2.systemtest.integration.AbstractST;
+import org.bf2.systemtest.framework.TestCallbackListener;
+import org.bf2.systemtest.framework.TestExceptionCallbackListener;
 import org.bf2.test.executor.Exec;
 import org.bf2.test.executor.ExecBuilder;
 import org.bf2.test.executor.ExecResult;
+import org.bf2.test.k8s.KubeClient;
 import org.bf2.test.k8s.KubeClusterException;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -42,9 +49,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @QuarkusTest
 @QuarkusTestResource(KubernetesServerTestResource.class)
-public class SuiteUnitTest extends AbstractST {
+@ExtendWith(TestCallbackListener.class)
+@ExtendWith(ExtensionContextParameterResolver.class)
+@ExtendWith(TestExceptionCallbackListener.class)
+@DisplayNameGeneration(IndicativeSentences.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class SuiteUnitTest {
+
     private static final Logger LOGGER = LogManager.getLogger(SuiteUnitTest.class);
     private static final String TEST_NS = "default";
+    private final KubeClient kube = KubeClient.getInstance();
 
     @KubernetesTestServer
     KubernetesServer mockServer;

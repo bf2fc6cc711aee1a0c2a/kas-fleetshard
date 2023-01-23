@@ -179,6 +179,14 @@ public class MockControlPlane implements ControlPlaneApi {
         markForDeletion(clusterId);
     }
 
+    @DELETE
+    @Path("/{id}/kafkas")
+    @Produces(MediaType.APPLICATION_JSON)
+    public void deleteAllClusters() {
+        log.infof("control plane:: received request to delete all ManagedKafkas");
+        this.kafkas.keySet().forEach(this::markForDeletion);
+    }
+
     @PUT
     @Path("/{id}")
     @Produces(MediaType.APPLICATION_JSON)

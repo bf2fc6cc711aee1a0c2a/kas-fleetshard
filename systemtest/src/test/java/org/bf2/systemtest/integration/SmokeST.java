@@ -10,16 +10,10 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaCondition;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaStatus;
 import org.bf2.systemtest.api.sync.SyncApiClient;
 import org.bf2.systemtest.framework.AssertUtils;
-import org.bf2.systemtest.framework.KeycloakInstance;
 import org.bf2.systemtest.framework.SequentialTest;
-import org.bf2.systemtest.framework.SystemTestEnvironment;
 import org.bf2.systemtest.framework.TestTags;
 import org.bf2.systemtest.framework.resource.ManagedKafkaResourceType;
-import org.bf2.systemtest.operator.FleetShardOperatorManager;
-import org.bf2.systemtest.operator.KeycloakOperatorManager;
-import org.bf2.systemtest.operator.StrimziOperatorManager;
 import org.bf2.test.TestUtils;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -27,56 +21,20 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Tag(TestTags.SMOKE)
 public class SmokeST extends AbstractST {
     private static final Logger LOGGER = LogManager.getLogger(SmokeST.class);
-    private String syncEndpoint;
-    private final StrimziOperatorManager strimziOperatorManager = new StrimziOperatorManager(SystemTestEnvironment.STRIMZI_VERSION);
-    private KeycloakInstance keycloak;
+
     private String latestStrimziVersion;
     private String latestKafkaVersion;
 
     @BeforeAll
     void deploy() throws Exception {
-        CompletableFuture.allOf(
-                KeycloakOperatorManager.installKeycloak(kube),
-                strimziOperatorManager.installStrimzi(kube),
-                FleetShardOperatorManager.deployFleetShardOperator(kube),
-                FleetShardOperatorManager.deployFleetShardSync(kube)).join();
-
-        keycloak = SystemTestEnvironment.INSTALL_KEYCLOAK ? new KeycloakInstance(KeycloakOperatorManager.OPERATOR_NS) : null;
-        syncEndpoint = FleetShardOperatorManager.createEndpoint(kube);
         latestStrimziVersion = SyncApiClient.getLatestStrimziVersion(syncEndpoint);
         latestKafkaVersion = SyncApiClient.getLatestKafkaVersion(syncEndpoint, latestStrimziVersion);
-        LOGGER.info("Endpoint address {}", syncEndpoint);
-    }
-
-    @AfterAll
-    void clean() {
-        var fleetshardFuture = FleetShardOperatorManager.deleteFleetShard(kube);
-        var keycloakFuture = KeycloakOperatorManager.uninstallKeycloak(kube);
-        var strimziFuture = strimziOperatorManager.uninstallStrimziClusterWideResources(kube);
-
-        fleetshardFuture.join();
-
-        checkUninstall(keycloakFuture, "Keycloak");
-        checkUninstall(strimziFuture, "Strimzi");
-    }
-
-    private void checkUninstall(CompletableFuture<Void> pendingUninstall, String name) {
-        if (!pendingUninstall.isDone()) {
-            LOGGER.warn("{} did not finish uninstalling", name);
-            return;
-        }
-        try {
-            pendingUninstall.getNow(null);
-        } catch (Exception e) {
-            LOGGER.error("Error uninstalling", e);
-        }
     }
 
     @SequentialTest

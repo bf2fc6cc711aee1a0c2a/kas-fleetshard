@@ -92,7 +92,8 @@ public class FleetShardOperatorManager {
 
         LOGGER.info("Operator is deployed");
         return TestUtils.asyncWaitFor("Operator ready", 1_000, INSTALL_TIMEOUT_MS,
-                () -> isOperatorInstalled(kubeClient) && agentStatusHasStrimziVersions(kubeClient));
+                () -> isOperatorInstalled(kubeClient) && agentStatusHasStrimziVersions(kubeClient))
+                .thenRun(() -> LOGGER.info("kas-fleetshard operator is ready"));
     }
 
     public static CompletableFuture<Void> deployFleetShardSync(KubeClient kubeClient) throws Exception {
@@ -103,7 +104,8 @@ public class FleetShardOperatorManager {
         LOGGER.info("Installing {}", SYNC_NAME);
         kubeClient.apply(OPERATOR_NS, SystemTestEnvironment.YAML_SYNC_BUNDLE_PATH);
         LOGGER.info("Sync is deployed");
-        return TestUtils.asyncWaitFor("Sync ready", 1_000, INSTALL_TIMEOUT_MS, () -> isSyncInstalled(kubeClient));
+        return TestUtils.asyncWaitFor("Sync ready", 1_000, INSTALL_TIMEOUT_MS, () -> isSyncInstalled(kubeClient))
+                .thenRun(() -> LOGGER.info("kas-fleetshard sync is ready"));
     }
 
     static void deployPullSecrets(KubeClient kubeClient) throws Exception {

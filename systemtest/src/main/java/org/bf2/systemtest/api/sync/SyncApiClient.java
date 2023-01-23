@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,6 +57,19 @@ public class SyncApiClient {
                 .DELETE()
                 .timeout(Duration.ofMinutes(2))
                 .build();
+        return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
+    }
+
+    public static HttpResponse<String> deleteManagedKafkas(String endpoint) throws Exception {
+        LOGGER.info("Deleting all managed kafkas");
+        HttpClient client = HttpClient.newHttpClient();
+        URI uri = URI.create(endpoint + BASE_PATH + "pepa/kafkas");
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(uri)
+                .DELETE()
+                .timeout(Duration.ofMinutes(2))
+                .build();
+        LOGGER.info("Sending DELETE request to {} with port {} and path {}", uri.getHost(), uri.getPort(), uri.getPath());
         return retry(() -> client.send(request, HttpResponse.BodyHandlers.ofString()));
     }
 
@@ -116,26 +130,41 @@ public class SyncApiClient {
     }
 
     public static Stream<String> getSortedAvailableStrimziVersions(Supplier<ManagedKafkaAgentStatus> statusSupplier) {
+        AtomicReference<ManagedKafkaAgentStatus> agentStatus = new AtomicReference<>();
+
         TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
             try {
-                return statusSupplier.get().getStrimzi().size() > 0;
+                ManagedKafkaAgentStatus status = statusSupplier.get();
+                agentStatus.set(status);
+                return !status.getStrimzi().isEmpty();
             } catch (Exception e) {
                 return false;
             }
         });
 
-        return sortedStrimziVersion(statusSupplier.get().getStrimzi().stream().map(StrimziVersionStatus::getVersion));
+        return sortedStrimziVersion(agentStatus.get().getStrimzi().stream().map(StrimziVersionStatus::getVersion));
     }
 
     public static Stream<String> getKafkaVersions(Supplier<ManagedKafkaAgentStatus> statusSupplier, String strimziVersion) {
+        AtomicReference<ManagedKafkaAgentStatus> agentStatus = new AtomicReference<>();
+
         TestUtils.waitFor("Strimzi version is reported", 1_000, 60_000, () -> {
             try {
-                return statusSupplier.get().getStrimzi().size() > 0;
+                ManagedKafkaAgentStatus status = statusSupplier.get();
+                agentStatus.set(status);
+                return !status.getStrimzi().isEmpty();
             } catch (Exception e) {
                 return false;
             }
         });
-        return statusSupplier.get().getStrimzi().stream().filter(item -> item.getVersion().equals(strimziVersion)).findFirst().get().getKafkaVersions().stream();
+
+        return agentStatus.get()
+                .getStrimzi()
+                .stream()
+                .filter(item -> item.getVersion().equals(strimziVersion))
+                .findFirst()
+                .map(selectedVersion -> selectedVersion.getKafkaVersions().stream())
+                .orElseGet(Stream::empty);
     }
 
     public static String getLatestAvailableKafkaVersion(Supplier<ManagedKafkaAgentStatus> statusSupplier, String strimziVersion) {

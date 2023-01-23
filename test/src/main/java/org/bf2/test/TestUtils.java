@@ -3,6 +3,7 @@ package org.bf2.test;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.internal.readiness.Readiness;
@@ -165,16 +166,29 @@ public class TestUtils {
      * Restart kubeapi
      */
     public static void restartKubeApi() {
-        final String apiNamespace = KubeClient.getInstance().isGenericKubernetes() ? "kube-system" : "openshift-kube-apiserver";
+        final boolean openshift = !KubeClient.getInstance().isGenericKubernetes();
+        final KubernetesClient client = KubeClient.getInstance().client();
+        final String apiNamespace = !openshift ? "kube-system" : "openshift-kube-apiserver";
 
         LOGGER.info("Restarting kubeapi");
-        for (int i = 0; i < 60; i++) {
-            if (!KubeClient.getInstance().isGenericKubernetes()) {
-                KubeClient.getInstance().client().pods().inNamespace("openshift-apiserver").delete();
+
+        for (int i = 0; i < 60 && !Thread.interrupted(); i++) {
+            try {
+                if (openshift) {
+                    client.pods().inNamespace("openshift-apiserver").delete();
+                }
+
+                client.pods()
+                    .inNamespace(apiNamespace)
+                    .list()
+                    .getItems()
+                    .stream()
+                    .filter(pod -> pod.getMetadata().getName().contains("kube-apiserver-"))
+                    .forEach(pod -> client.resource(pod).withGracePeriod(1000).delete());
+            } catch (KubernetesClientException kce) {
+                // Expected
+                LOGGER.info("KubernetesClientException: {}", kce.getMessage());
             }
-            KubeClient.getInstance().client().pods().inNamespace(apiNamespace).list().getItems().stream().filter(pod ->
-                    pod.getMetadata().getName().contains("kube-apiserver-")).forEach(pod ->
-                    KubeClient.getInstance().client().pods().inNamespace(apiNamespace).withName(pod.getMetadata().getName()).withGracePeriod(1000).delete());
         }
     }
 }
