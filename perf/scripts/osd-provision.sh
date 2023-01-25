@@ -647,7 +647,7 @@ if [[ "${OPERATION}" == "infra-pod-rebalance" ]]; then
     exit
 fi
 
-if [[ "${OPERATION}" == "scale-min-count" ]]; then
+if [[ "${OPERATION}" == "scale-count-min" ]]; then
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
@@ -656,7 +656,7 @@ if [[ "${OPERATION}" == "scale-min-count" ]]; then
     exit
 fi
 
-if [[ "${OPERATION}" == "scale-max-count" ]]; then
+if [[ "${OPERATION}" == "scale-count-max" ]]; then
     if [[ ${CLUSTER_NAME} == "" ]]; then
         CLUSTER_NAME=$(get_cluster_name_from_config)
     fi
