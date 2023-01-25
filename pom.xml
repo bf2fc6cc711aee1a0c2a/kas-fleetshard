@@ -17,7 +17,7 @@
     <groupId>org.bf2</groupId>
     <artifactId>kas-fleetshard</artifactId>
     <packaging>pom</packaging>
-    <version>0.32.2-SNAPSHOT</version>
+    <version>0.33.0-SNAPSHOT</version>
 
     <properties>
         <!-- things we don't need from basepom -->
@@ -262,6 +262,19 @@
             </releases>
         </repository>
     </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard</url>
+        </snapshotRepository>
+    </distributionManagement>
 
     <build>
         <plugins>
