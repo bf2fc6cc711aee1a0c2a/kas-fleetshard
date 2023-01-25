@@ -205,6 +205,8 @@ public class KafkaInstanceConfiguration {
         private int quotaCallbackQuotaPolicyCheckInterval;
         @JsonProperty("quota-callback-quota-kafka-clientid-prefix")
         private String quotaCallbackQuotaKafkaClientidPrefix;
+        @JsonProperty("sasl-server-max-receive-size")
+        private int saslServerMaxReceiveSize;
 
         public String getStorageClass() {
             return storageClass;
@@ -419,6 +421,14 @@ public class KafkaInstanceConfiguration {
 
         public void setQuotaCallbackQuotaKafkaClientidPrefix(String quotaCallbackQuotaKafkaClientidPrefix) {
             this.quotaCallbackQuotaKafkaClientidPrefix = quotaCallbackQuotaKafkaClientidPrefix;
+        }
+
+        public int getSaslServerMaxReceiveSize() {
+            return saslServerMaxReceiveSize;
+        }
+
+        public void setSaslServerMaxReceiveSize(int saslServerMaxReceiveSize) {
+            this.saslServerMaxReceiveSize = saslServerMaxReceiveSize;
         }
     }
 
