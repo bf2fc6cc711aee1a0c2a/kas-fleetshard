@@ -84,9 +84,6 @@
         <!-- CVE-2021-44228 Log4Shell, CVE-2021-4104, CVE-2021-45105, CVE-2021-44832 -->
         <log4j.version>2.19.0</log4j.version>
 
-        <!-- CVE-2022-25857, CVE-2022-38752 => should be removed once Quarkus uses it out of the box -->
-        <!-- https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/803 covers the removal of this override -->
-
         <!-- Sonar Setting -->
         <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <sonar.organization>bf2fc6cc711aee1a0c2a</sonar.organization>
@@ -238,8 +235,6 @@
                 <artifactId>jakarta.validation-api</artifactId>
                 <version>${jakarta.validation.version}</version>
             </dependency>
-            <!-- CVE-2022-25857, CVE-2022-38752 => should be removed once Quarkus uses it out of the box -->
-            <!-- https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard/issues/803 covers the removal of this override -->
             <dependency>
                 <groupId>org.yaml</groupId>
                 <artifactId>snakeyaml</artifactId>
