@@ -16,8 +16,11 @@ import org.mockito.stubbing.Answer;
 
 import javax.enterprise.context.ApplicationScoped;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -27,9 +30,12 @@ import java.util.stream.Collectors;
 @UnlessBuildProfile("prod")
 public class MockResourceInformerFactory extends ResourceInformerFactory {
 
+    private final Map<Class<?>, List<ResourceEventHandler<?>>> lastHandlerAddedPerType = new HashMap<>();
+
     @Override
     public <T extends HasMetadata> ResourceInformer<T> create(Class<T> type, Informable<T> informable,
             ResourceEventHandler<? super T> eventHandler) {
+        lastHandlerAddedPerType.computeIfAbsent(type, aClass -> new ArrayList<>()).add(eventHandler);
         ResourceInformer<T> mock = Mockito.mock(ResourceInformer.class);
         Supplier<List<T>> lister = () -> {
             if (informable instanceof Listable) {
@@ -86,6 +92,14 @@ public class MockResourceInformerFactory extends ResourceInformerFactory {
     @Override
     public boolean allInformersWatching() {
         return true;
+    }
+
+    public <T> List<ResourceEventHandler<T>> getEventHandlersCreatedFor(Class<T> clazz){
+        final ArrayList<ResourceEventHandler<T>> result = new ArrayList<>();
+        final List<ResourceEventHandler<?>> resourceEventHandlers = lastHandlerAddedPerType.get(clazz);
+        //noinspection unchecked
+        resourceEventHandlers.forEach(resourceEventHandler -> result.add((ResourceEventHandler<T>) resourceEventHandler));
+        return result;
     }
 
 }

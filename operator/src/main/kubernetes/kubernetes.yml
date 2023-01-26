@@ -143,6 +143,13 @@ rules:
       - list
       - watch
   - apiGroups:
+      - coordination.k8s.io
+    resources:
+      # the operator deletes the Strimzi cluster operator leadership lease when a cluster-operator deployment is deleted
+      - leases
+    verbs:
+      - delete
+  - apiGroups:
       - events.k8s.io
     resources:
       - events
