@@ -146,7 +146,7 @@ public class StrimziManager {
      * <p>
      * See <a href="https://github.com/fabric8io/kubernetes-client/issues/4638">fabric8 kubernetes-client issue #4638</a>
      */
-    void deleteLeadershipLeaseIfPresent(final Deployment deployment) {
+    private void deleteLeadershipLeaseIfPresent(final Deployment deployment) {
         final String leaseName = deployment.getMetadata().getName() + "-leadership-token";
         final String namespace = deployment.getMetadata().getNamespace();
         try {

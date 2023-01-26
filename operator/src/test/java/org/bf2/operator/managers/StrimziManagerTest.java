@@ -8,6 +8,7 @@ import io.fabric8.kubernetes.api.model.coordination.v1.Lease;
 import io.fabric8.kubernetes.api.model.coordination.v1.LeaseBuilder;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.quarkus.test.common.QuarkusTestResource;
@@ -18,6 +19,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.status.ConditionBuilder;
 import io.strimzi.api.kafka.model.status.KafkaStatusBuilder;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
+import org.bf2.operator.MockResourceInformerFactory;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -57,6 +59,9 @@ public class StrimziManagerTest {
 
     @Inject
     StrimziManager strimziManager;
+
+    @Inject
+    MockResourceInformerFactory mockResourceInformerFactory;
 
     @Inject
     KafkaCluster kafkaCluster;
@@ -233,7 +238,8 @@ public class StrimziManagerTest {
         assertNotNull(actual);
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
-        strimziManager.deleteLeadershipLeaseIfPresent(deployment);
+        final List<ResourceEventHandler<Deployment>> eventHandlersCreatedFor = mockResourceInformerFactory.getEventHandlersCreatedFor(Deployment.class);
+        eventHandlersCreatedFor.forEach(handler->handler.onDelete(deployment, true));
         actual = leaseResource.get();
         assertNull(actual);
     }
@@ -243,7 +249,8 @@ public class StrimziManagerTest {
         final Deployment deployment = installStrimziOperator("strimzi-cluster-operator.v1", "ns-1", "2.7.0=kafka-2.7.0", true, true);
         List<StrimziVersionStatus> strimziVersions = this.strimziManager.getStrimziVersions();
         assertTrue(checkStrimziVersion(strimziVersions, "strimzi-cluster-operator.v1", true));
-        strimziManager.deleteLeadershipLeaseIfPresent(deployment);
+        final List<ResourceEventHandler<Deployment>> eventHandlersCreatedFor = mockResourceInformerFactory.getEventHandlersCreatedFor(Deployment.class);
+        eventHandlersCreatedFor.forEach(handler->handler.onDelete(deployment, true));
         // expect no exceptions
     }
 
