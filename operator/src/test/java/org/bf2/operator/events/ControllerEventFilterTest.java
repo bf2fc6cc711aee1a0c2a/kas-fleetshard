@@ -27,7 +27,7 @@ class ControllerEventFilterTest {
 
     @Test
     void testAddResourceAccepted() {
-        assertTrue(target.acceptChange(mockConfiguration, null, new ManagedKafka()));
+        assertTrue(target.accept(null, new ManagedKafka()));
     }
 
     @Test
@@ -43,7 +43,7 @@ class ControllerEventFilterTest {
                 .endMetadata()
                 .build();
 
-        assertTrue(target.acceptChange(mockConfiguration, oldMk, newMk));
+        assertTrue(target.accept(oldMk, newMk));
     }
 
     @Test
@@ -59,7 +59,7 @@ class ControllerEventFilterTest {
                 .endMetadata()
                 .build();
 
-        assertTrue(target.acceptChange(mockConfiguration, oldMk, newMk));
+        assertTrue(target.accept(oldMk, newMk));
     }
 
     @Test
@@ -75,7 +75,7 @@ class ControllerEventFilterTest {
                 .endMetadata()
                 .build();
 
-        assertTrue(target.acceptChange(mockConfiguration, oldMk, newMk));
+        assertTrue(target.accept(oldMk, newMk));
     }
 
     @Test
@@ -95,6 +95,6 @@ class ControllerEventFilterTest {
                 .endMetadata()
                 .build();
 
-        assertFalse(target.acceptChange(mockConfiguration, oldMk, newMk));
+        assertFalse(target.accept(oldMk, newMk));
     }
 }

@@ -1,20 +1,14 @@
 package org.bf2.operator.controllers;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.javaoperatorsdk.operator.api.reconciler.Constants;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
-import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
-import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -41,17 +35,14 @@ import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 @ControllerConfiguration(
-        finalizerName = Constants.NO_FINALIZER,
-        generationAwareEventProcessing = false,
-        eventFilters = { ControllerEventFilter.class })
-public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSourceInitializer<HasMetadata> {
+        generationAwareEventProcessing = false)
+public class ManagedKafkaController implements Reconciler<ManagedKafka> {
 
     // 1 for bootstrap URL + 1 for Admin API server
     private static final int NUM_NON_BROKER_ROUTES = 2;
@@ -128,10 +119,6 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
         }
     }
 
-    @Override
-    public List<EventSource> prepareEventSources(EventSourceContext<HasMetadata> context) {
-        return Arrays.asList(eventSource);
-    }
 
     /**
      * Extract from the current KafkaInstance overall status (Kafka, Canary and AdminServer)
