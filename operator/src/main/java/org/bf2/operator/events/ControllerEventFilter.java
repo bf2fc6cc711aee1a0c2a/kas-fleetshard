@@ -40,7 +40,6 @@ public class ControllerEventFilter implements OnUpdateFilter<HasMetadata> {
         Optional<ObjectMeta> newMeta = meta(newResource);
 
         boolean resourceChanged =
-                oldResource == null || // Always accept an "add" change
                 changed(oldMeta, newMeta, this::generation) ||
                 changed(oldMeta, newMeta, this::annotations) ||
                 changed(oldMeta, newMeta, this::labels);

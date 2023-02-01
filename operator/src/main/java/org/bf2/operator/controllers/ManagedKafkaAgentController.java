@@ -10,6 +10,7 @@ import io.quarkus.scheduler.Scheduled;
 import io.quarkus.scheduler.Scheduled.ConcurrentExecution;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
+import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.ObservabilityManager;
@@ -42,7 +43,8 @@ import java.util.Map;
  */
 @ApplicationScoped
 @ControllerConfiguration(
-        generationAwareEventProcessing = false)
+        generationAwareEventProcessing = false,
+        onUpdateFilter = ControllerEventFilter.class)
 public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent> {
 
     @Inject

@@ -9,6 +9,7 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.CapacityManager;
 import org.bf2.operator.managers.IngressControllerManager;
@@ -41,7 +42,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 @ControllerConfiguration(
-        generationAwareEventProcessing = false)
+        generationAwareEventProcessing = false,
+        onUpdateFilter = ControllerEventFilter.class)
 public class ManagedKafkaController implements Reconciler<ManagedKafka> {
 
     // 1 for bootstrap URL + 1 for Admin API server

@@ -1,12 +1,9 @@
 package org.bf2.operator.events;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.javaoperatorsdk.operator.api.config.ControllerConfiguration;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import java.util.Map;
 
@@ -16,18 +13,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ControllerEventFilterTest {
 
     ControllerEventFilter target;
-    ControllerConfiguration<HasMetadata> mockConfiguration;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setup() {
         target = new ControllerEventFilter();
-        mockConfiguration = Mockito.mock(ControllerConfiguration.class);
-    }
-
-    @Test
-    void testAddResourceAccepted() {
-        assertTrue(target.accept(null, new ManagedKafka()));
     }
 
     @Test

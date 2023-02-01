@@ -45,13 +45,13 @@ public class ResourceEventSource extends AbstractEventSource implements Resource
         // the operator may not have inited yet
         if (getEventHandler() != null) {
             ResourceID.fromFirstOwnerReference(resource).ifPresentOrElse(
-                    ownerId -> getEventHandler().handleEvent(new ResourceEvent(action, ownerId )),
+                    ownerId -> getEventHandler().handleEvent(new ResourceEvent(action, ownerId, null )),
                     () -> log.warnf("%s %s/%s does not have OwnerReference", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
         }
     }
     public void handleEvent(CustomResource resource) {
         if (getEventHandler() != null) {
-            getEventHandler().handleEvent(new ResourceEvent(ResourceAction.UPDATED, ResourceID.fromResource(resource)));
+            getEventHandler().handleEvent(new ResourceEvent(ResourceAction.UPDATED, ResourceID.fromResource(resource), null));
         }
     }
 }
