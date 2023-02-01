@@ -1,10 +1,14 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
@@ -38,13 +42,14 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 @ControllerConfiguration(
         generationAwareEventProcessing = false,
         onUpdateFilter = ControllerEventFilter.class)
-public class ManagedKafkaController implements Reconciler<ManagedKafka> {
+public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSourceInitializer<HasMetadata> {
 
     // 1 for bootstrap URL + 1 for Admin API server
     private static final int NUM_NON_BROKER_ROUTES = 2;
@@ -120,8 +125,10 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka> {
             }
         }
     }
-
-
+    @Override
+    public Map<String, EventSource> prepareEventSources(EventSourceContext<HasMetadata> context) {
+        return Map.of("ownedResources", eventSource);
+    }
     /**
      * Extract from the current KafkaInstance overall status (Kafka, Canary and AdminServer)
      * a corresponding list of ManagedKafkaCondition(s) to set on the ManagedKafka status
@@ -129,6 +136,7 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka> {
      * @param managedKafka ManagedKafka instance
      * @param invalid
      */
+
     private void updateManagedKafkaStatus(ManagedKafka managedKafka, Optional<OperandReadiness> invalid) {
         ManagedKafkaStatus originalStatus = null;
         if (managedKafka.getStatus() != null) {
