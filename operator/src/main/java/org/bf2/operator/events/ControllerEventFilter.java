@@ -6,8 +6,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.zjsonpatch.JsonDiff;
-import io.javaoperatorsdk.operator.api.config.ControllerConfiguration;
-import io.javaoperatorsdk.operator.processing.event.source.controller.ResourceEventFilter;
+import io.javaoperatorsdk.operator.processing.event.source.filter.OnUpdateFilter;
 import org.jboss.logging.Logger;
 
 import java.util.Collections;
@@ -29,20 +28,18 @@ import java.util.function.Function;
  * </ul>
  *
  */
-public class ControllerEventFilter implements ResourceEventFilter<HasMetadata> {
+public class ControllerEventFilter implements OnUpdateFilter<HasMetadata> {
 
     private static Logger log = Logger.getLogger(ControllerEventFilter.class);
 
     @Override
-    public boolean acceptChange(ControllerConfiguration<HasMetadata> configuration,
-            HasMetadata oldResource,
-            HasMetadata newResource) {
+    public boolean accept(HasMetadata oldResource,
+                          HasMetadata newResource) {
 
         Optional<ObjectMeta> oldMeta = meta(oldResource);
         Optional<ObjectMeta> newMeta = meta(newResource);
 
         boolean resourceChanged =
-                oldResource == null || // Always accept an "add" change
                 changed(oldMeta, newMeta, this::generation) ||
                 changed(oldMeta, newMeta, this::annotations) ||
                 changed(oldMeta, newMeta, this::labels);

@@ -1,6 +1,5 @@
 package org.bf2.operator.controllers;
 
-import io.javaoperatorsdk.operator.api.reconciler.Constants;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
@@ -44,9 +43,8 @@ import java.util.Map;
  */
 @ApplicationScoped
 @ControllerConfiguration(
-        finalizerName = Constants.NO_FINALIZER,
         generationAwareEventProcessing = false,
-        eventFilters = { ControllerEventFilter.class })
+        onUpdateFilter = ControllerEventFilter.class)
 public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent> {
 
     @Inject
