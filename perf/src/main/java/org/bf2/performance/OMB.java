@@ -58,6 +58,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Handles installation and running of OpenMessagingBenchmark
@@ -114,6 +115,19 @@ public class OMB {
     }
 
     public void install(String base64EncodedTrustStore) throws IOException {
+        install(() ->
+                ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
+                    .editOrNewMetadata()
+                    .withName("ext-listener-crt")
+                    .withNamespace(Constants.OMB_NAMESPACE)
+                    .endMetadata()
+                    .addToData("listener.jks", base64EncodedTrustStore)
+                    .build())
+            );
+
+    }
+
+    public void install(Runnable... runnables) {
         LOGGER.info("Installing OMB in namespace {}", Constants.OMB_NAMESPACE);
 
         pullAndHoldWorkerImageToAllNodesUsingDaemonSet();
@@ -124,13 +138,8 @@ public class OMB {
             nsAnnotations.put(Constants.ORG_BF2_KAFKA_PERFORMANCE_COLLECTPODLOG, "true");
         }
         ombCluster.createNamespace(Constants.OMB_NAMESPACE, nsAnnotations, Map.of());
-        ombCluster.kubeClient().client().secrets().inNamespace(Constants.OMB_NAMESPACE).create(new SecretBuilder()
-                .editOrNewMetadata()
-                .withName("ext-listener-crt")
-                .withNamespace(Constants.OMB_NAMESPACE)
-                .endMetadata()
-                .addToData("listener.jks", base64EncodedTrustStore)
-                .build());
+
+        Stream.of(runnables).forEachOrdered(Runnable::run);
 
         LOGGER.info("Done installing OMB in namespace {}", Constants.OMB_NAMESPACE);
     }
@@ -266,6 +275,7 @@ public class OMB {
                 .withName("ca")
                 .editOrNewSecret()
                 .withSecretName("ext-listener-crt")
+                .withOptional(true)
                 .endSecret()
                 .endVolume()
                 .endSpec()
