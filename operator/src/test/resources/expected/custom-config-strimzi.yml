@@ -96,8 +96,9 @@ spec:
       type: "internal"
       tls: false
       networkPolicyPeers:
-        - ipBlock:
-            cidr: "0.0.0.0/32"
+      - podSelector:
+          matchLabels:
+            strimzi.io/name: test-mk-kafka
     config:
       min.insync.replicas: 2
       create.topic.policy.class.name: "io.bf2.kafka.topic.ManagedKafkaCreateTopicPolicy"

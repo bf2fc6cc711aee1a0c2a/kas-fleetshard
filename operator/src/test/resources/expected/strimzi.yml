@@ -90,8 +90,9 @@ spec:
       type: "internal"
       tls: false
       networkPolicyPeers:
-        - ipBlock:
-            cidr: "0.0.0.0/32"
+      - podSelector:
+          matchLabels:
+            strimzi.io/name: test-mk-kafka
     config:
       auto.create.topics.enable: "false"
       min.insync.replicas: 2
