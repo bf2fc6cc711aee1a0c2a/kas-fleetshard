@@ -40,7 +40,6 @@ import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -114,10 +113,6 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
                 }
             }
             updateManagedKafkaStatus(managedKafka, invalid);
-            if (!managedKafka.getMetadata().getFinalizers().isEmpty()) {
-                managedKafka.getMetadata().setFinalizers(Collections.emptyList());
-                return UpdateControl.updateResourceAndStatus(managedKafka);
-            }
             return UpdateControl.updateStatus(managedKafka);
         } finally {
             if (managedKafka.getId() != null) {
@@ -125,6 +120,7 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
             }
         }
     }
+
     @Override
     public Map<String, EventSource> prepareEventSources(EventSourceContext<HasMetadata> context) {
         return Map.of("ownedResources", eventSource);
