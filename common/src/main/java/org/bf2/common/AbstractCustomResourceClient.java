@@ -14,6 +14,10 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+/**
+ * @deprecated to be removed after fabric8 6
+ */
+@Deprecated
 public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?>, L extends CustomResourceList<T>> {
 
     @Inject
