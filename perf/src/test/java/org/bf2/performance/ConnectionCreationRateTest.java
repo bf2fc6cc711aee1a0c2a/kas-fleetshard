@@ -48,9 +48,9 @@ public class ConnectionCreationRateTest extends TestBase {
         omb.deleteWorkers();
     }
 
-    @ParameterizedTest(name = "testConnectionCreationRate: [{index}] {0}, {1}, {3}")
+    @ParameterizedTest(name = "testConnectionCreationRate: [{index}] {0}, {1}, {3}, {7}")
     @CsvFileSource(resources = "/test-inputs/ConnectionCreationRateTestInput.csv", useHeadersInDisplayName = true)
-    void testConnectionCreationRate(int numProducers, int numConsumers, int replicationFactor, int numWorkers, String ombWorkerMem, String ombWorkerCpu, String bootstrapURL, String clientId, String clientSecret, String tokenEndpointURL, String trustStoreFileName, String trustStorePassword, TestInfo info) throws Exception {
+    void testConnectionCreationRate(int numProducers, int numConsumers, int replicationFactor, int numWorkers, String ombWorkerMem, String ombWorkerCpu, String bootstrapURL, String saslMechanism, String clientId, String clientSecret, String tokenEndpointURL, String trustStoreFileName, String trustStorePassword, int testDurationMinutes, TestInfo info) throws Exception {
         int messageSize = 1024;
         int targetRate = 100;
         String instanceName = bootstrapURL.split("\\.", 2)[0];
@@ -68,8 +68,8 @@ public class ConnectionCreationRateTest extends TestBase {
             File ombDir = new File(instanceDir, instanceName);
             Files.createDirectories(ombDir.toPath());
 
-            // OAuthBearer connection details
-            String driverCommonConfig = new StringBuilder("sasl.mechanism=OAUTHBEARER")
+            StringBuilder driverCommonConfig = new StringBuilder("sasl.mechanism=")
+                .append(saslMechanism.toUpperCase())
                 .append("\n")
                 .append("security.protocol=SASL_SSL")
                 .append("\n")
@@ -77,25 +77,37 @@ public class ConnectionCreationRateTest extends TestBase {
                 .append(tokenEndpointURL)
                 .append("\n")
                 .append("ssl.truststore.location=/cert/listener.jks\n")
-                .append("ssl.truststore.password=password\n")
-                .append("sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required scope=\"openid\" clientId=\"")
-                .append(clientId)
-                .append("\" ")
-                .append("clientSecret=\"")
-                .append(clientSecret)
-                .append("\" ;")
-                .append("\n")
-                .append("sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.secured.OAuthBearerLoginCallbackHandler")
+                .append("ssl.truststore.password=")
+                .append(trustStorePassword)
                 .append("\n")
                 .append("bootstrap.servers=")
                 .append(bootstrapURL)
-                .append("\n")
-                .toString();
+                .append("\n");
+
+            if ("OAUTHBEARER".equals(saslMechanism.toUpperCase())) {
+                driverCommonConfig.append("sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required scope=\"openid\" clientId=\"")
+                    .append(clientId)
+                    .append("\" ")
+                    .append("clientSecret=\"")
+                    .append(clientSecret)
+                    .append("\" ;")
+                    .append("\n")
+                    .append("sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.secured.OAuthBearerLoginCallbackHandler")
+                    .append("\n");
+            } else {
+                driverCommonConfig.append("sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"")
+                    .append(clientId)
+                    .append("\" ")
+                    .append("password=\"")
+                    .append(clientSecret)
+                    .append("\" ;")
+                    .append("\n");
+            }
 
             OMBDriver driver = new OMBDriver()
                 .setReplicationFactor(replicationFactor)
                 .setTopicConfig("")
-                .setCommonConfig(driverCommonConfig)
+                .setCommonConfig(driverCommonConfig.toString())
                 .setProducerConfig("acks=all\n")
                 .setConsumerConfig("auto.offset.reset=earliest\nenable.auto.commit=false\n");
 
@@ -104,7 +116,7 @@ public class ConnectionCreationRateTest extends TestBase {
                 .setTopics(1)
                 .setPartitionsPerTopic(1)
                 .setWarmupDurationMinutes(0)
-                .setTestDurationMinutes(1)
+                .setTestDurationMinutes(Math.max(testDurationMinutes, 1))
                 .setMessageSize(messageSize)
                 .setPayloadFile("src/test/resources/payload/payload-1Kb.data")
                 .setSubscriptionsPerTopic(numConsumers)
