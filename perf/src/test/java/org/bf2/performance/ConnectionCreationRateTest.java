@@ -55,7 +55,12 @@ public class ConnectionCreationRateTest extends TestBase {
         int targetRate = 100;
         String instanceName = bootstrapURL.split("\\.", 2)[0];
 
-        omb.install(Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(trustStoreFileName))));
+        if (trustStoreFileName != null) {
+            omb.install(Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(trustStoreFileName))));
+        } else {
+            omb.install();
+        }
+
         omb.setWorkerContainerMemory(Quantity.parse(ombWorkerMem));
         omb.setWorkerCpu(Quantity.parse(ombWorkerCpu));
         workers = omb.deployWorkers(numWorkers);
@@ -76,13 +81,18 @@ public class ConnectionCreationRateTest extends TestBase {
                 .append("sasl.oauthbearer.token.endpoint.url=")
                 .append(tokenEndpointURL)
                 .append("\n")
-                .append("ssl.truststore.location=/cert/listener.jks\n")
-                .append("ssl.truststore.password=")
-                .append(trustStorePassword)
-                .append("\n")
                 .append("bootstrap.servers=")
                 .append(bootstrapURL)
                 .append("\n");
+
+            LOGGER.info(trustStoreFileName);
+            LOGGER.info(trustStorePassword);
+            if (trustStoreFileName != null && trustStorePassword != null) {
+                driverCommonConfig.append("ssl.truststore.location=/cert/listener.jks\n")
+                    .append("ssl.truststore.password=")
+                    .append(trustStorePassword)
+                    .append("\n");
+            }
 
             if ("OAUTHBEARER".equals(saslMechanism.toUpperCase())) {
                 driverCommonConfig.append("sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required scope=\"openid\" clientId=\"")
