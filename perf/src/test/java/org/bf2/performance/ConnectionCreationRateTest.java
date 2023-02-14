@@ -48,6 +48,10 @@ public class ConnectionCreationRateTest extends TestBase {
         omb.deleteWorkers();
     }
 
+    /*
+     * This test expects a CSV file at src/test/resources/test-inputs/ConnectionCreationRateTestInput.csv
+     * See src/test/resources/test-inputs/ExampleConnectionCreationRateTestInput.csv for examples.
+     */
     @ParameterizedTest(name = "testConnectionCreationRate: [{index}] {0}, {1}, {3}, {7}")
     @CsvFileSource(resources = "/test-inputs/ConnectionCreationRateTestInput.csv", useHeadersInDisplayName = true)
     void testConnectionCreationRate(int numProducers, int numConsumers, int replicationFactor, int numWorkers, String ombWorkerMem, String ombWorkerCpu, String bootstrapURL, String saslMechanism, String clientId, String clientSecret, String tokenEndpointURL, String trustStoreFileName, String trustStorePassword, int testDurationMinutes, TestInfo info) throws Exception {
