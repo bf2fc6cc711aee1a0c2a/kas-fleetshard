@@ -151,8 +151,7 @@ public class OperandUtils {
     }
 
     public static boolean shouldProfileLabelsExist(ManagedKafkaAgent agent) {
-        return agent != null && !agent.getSpec().getCapacity().isEmpty() && (agent.getSpec().getCapacity().size() != 1
-                || agent.getSpec().getCapacity().values().iterator().next().getMaxNodes() != null);
+        return agent != null && !agent.getSpec().getCapacity().isEmpty();
     }
 
     /**

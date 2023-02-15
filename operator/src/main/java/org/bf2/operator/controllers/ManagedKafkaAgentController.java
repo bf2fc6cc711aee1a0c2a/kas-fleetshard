@@ -29,7 +29,6 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -74,10 +73,6 @@ public class ManagedKafkaAgentController implements Reconciler<ManagedKafkaAgent
         // since we don't know the prior state, we have to just reconcile everything
         // in case the spec profile information has changed
         informerManager.resyncManagedKafka();
-        if (!resource.getMetadata().getFinalizers().isEmpty()) {
-            resource.getMetadata().setFinalizers(Collections.emptyList());
-            return UpdateControl.updateResource(resource);
-        }
         return UpdateControl.noUpdate();
     }
 

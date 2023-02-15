@@ -9,9 +9,7 @@ import lombok.ToString;
 
 import javax.validation.constraints.NotNull;
 
-import java.util.Arrays;
 import java.util.Comparator;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -36,15 +34,6 @@ public class Versions {
     @NotNull
     private String strimzi;
     private String kafkaIbp;
-
-    public boolean isStrimziVersionIn(String... versions) {
-        Matcher m = strimziVersionPattern.matcher(getStrimzi());
-        if (m.matches()) {
-            String currentVersion = m.group(1);
-            return currentVersion != null && Arrays.stream(versions).anyMatch(currentVersion::startsWith);
-        }
-        return false;
-    }
 
     public int compareStrimziVersionTo(String version) {
         return strimziComparator.compare(getStrimzi(), version);
