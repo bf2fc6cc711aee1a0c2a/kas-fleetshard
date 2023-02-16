@@ -1,13 +1,18 @@
 package org.bf2.operator.controllers;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusMock;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.strimzi.api.kafka.model.Kafka;
 import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.operator.ManagedKafkaKeys;
+import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
@@ -23,8 +28,11 @@ import javax.inject.Inject;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
@@ -35,6 +43,18 @@ class ManagedKafkaControllerTest {
 
     @Inject
     ManagedKafkaAgentResourceClient managedKafkaAgent;
+
+    @InjectMock
+    SecuritySecretManager secretManager;
+
+    @InjectMock
+    StrimziManager strimziManager;
+
+    @Inject
+    KubernetesClient client;
+
+    @Inject
+    KafkaCluster kafkaCluster;
 
     @Test
     void shouldCreateStatus() throws InterruptedException {
@@ -48,7 +68,6 @@ class ManagedKafkaControllerTest {
         // create
         Context context = Mockito.mock(Context.class);
 
-        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
         Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
                 .thenReturn(new StrimziVersionStatusBuilder()
                                 .withVersion(mk.getSpec().getVersions().getStrimzi())
@@ -56,8 +75,6 @@ class ManagedKafkaControllerTest {
                         .build());
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
-
-        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
         mkController.reconcile(mk, context);
         ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
@@ -86,11 +103,8 @@ class ManagedKafkaControllerTest {
         // create
         Context context = Mockito.mock(Context.class);
 
-        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
-
-        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
         mkController.reconcile(mk, context);
         ManagedKafkaCondition condition = mk.getStatus().getConditions().get(0);
@@ -127,7 +141,6 @@ class ManagedKafkaControllerTest {
 
         Context context = Mockito.mock(Context.class);
 
-        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn("managedkafka.bf2.org/strimziVersion");
         Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
@@ -135,8 +148,6 @@ class ManagedKafkaControllerTest {
                         .withVersion(mk.getSpec().getVersions().getStrimzi())
                         .withKafkaVersions(mk.getSpec().getVersions().getKafka())
                         .build());
-
-        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
 
         // the first one should default to size one and be fine to place
         mkController.reconcile(mk, context);
@@ -179,7 +190,6 @@ class ManagedKafkaControllerTest {
         // create
         Context context = Mockito.mock(Context.class);
 
-        StrimziManager strimziManager = Mockito.mock(StrimziManager.class);
         Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
             .thenReturn(new StrimziVersionStatusBuilder()
                             .withVersion(mk.getSpec().getVersions().getStrimzi())
@@ -188,7 +198,6 @@ class ManagedKafkaControllerTest {
         Mockito.when(strimziManager.getVersionLabel())
                 .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
 
-        QuarkusMock.installMockForType(strimziManager, StrimziManager.class);
         mk.getMetadata().setLabels(Map.of(ManagedKafka.SUSPENDED_INSTANCE, "true"));
 
         mkController.reconcile(mk, context);
@@ -204,9 +213,56 @@ class ManagedKafkaControllerTest {
         assertNotNull(mk.getStatus().getVersions());
     }
 
+    @Test
+    void testMoveAnnotations() throws InterruptedException {
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk.getMetadata().setUid(UUID.randomUUID().toString());
+        mk.getMetadata().setGeneration(1l);
+        mk.getMetadata().setResourceVersion("1");
+        mk.getMetadata().getAnnotations().put(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP, "now");
+        Mockito.when(secretManager.masterSecretExists(mk)).thenReturn(true);
+
+        // create
+        Context context = Mockito.mock(Context.class);
+
+        Mockito.when(strimziManager.getStrimziVersion("strimzi-cluster-operator.v0.23.0"))
+                .thenReturn(new StrimziVersionStatusBuilder()
+                                .withVersion(mk.getSpec().getVersions().getStrimzi())
+                        .withKafkaVersions(mk.getSpec().getVersions().getKafka())
+                        .build());
+        Mockito.when(strimziManager.getVersionLabel())
+                .thenReturn(ManagedKafkaKeys.Labels.STRIMZI_VERSION);
+
+        // with no Kafka to target we'll just remove the annotations
+        UpdateControl<ManagedKafka> updateControl = mkController.reconcile(mk, context);
+
+        // no change / unset
+        assertNull(mk.getStatus());
+        // removed
+        assertTrue(mk.getAnnotation(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isEmpty());
+
+        assertTrue(updateControl.isUpdateResource());
+        assertFalse(updateControl.isUpdateStatus());
+
+        mk.getMetadata().getAnnotations().put(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP, "now");
+        var kafkaResource = client.resource(kafkaCluster.kafkaFrom(mk, null));
+        kafkaResource.createOrReplace();
+
+        // with a Kafka the annotations will be moved
+        updateControl = mkController.reconcile(mk, context);
+
+        assertTrue(mk.getAnnotation(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isEmpty());
+
+        assertTrue(updateControl.isUpdateResource());
+        assertFalse(updateControl.isUpdateStatus());
+        Kafka kafka = kafkaResource.fromServer().get();
+        assertNotNull(kafka.getMetadata().getAnnotations().get(ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
+    }
+
     @AfterEach
     void cleanup() {
         managedKafkaAgent.delete();
+        client.resources(Kafka.class).inAnyNamespace().delete();
     }
 
 }

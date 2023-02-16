@@ -14,6 +14,8 @@ import io.strimzi.api.kafka.model.CertSecretSourceBuilder;
 import io.strimzi.api.kafka.model.GenericSecretSource;
 import io.strimzi.api.kafka.model.GenericSecretSourceBuilder;
 import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaBuilder;
+import io.strimzi.api.kafka.model.KafkaFluent.MetadataNested;
 import io.strimzi.api.kafka.model.KafkaResources;
 import io.strimzi.api.kafka.model.StrimziPodSet;
 import io.strimzi.api.kafka.model.listener.KafkaListenerAuthentication;
@@ -140,8 +142,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     public boolean isKafkaUpgradeStabilityChecking(ManagedKafka managedKafka) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
-        Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
+        Kafka kafka = cachedKafka(managedKafka);
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = OperandUtils.getAnnotation(kafka, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
+        Optional<String> kafkaUpgradeEndTimestampAnnotation = OperandUtils.getAnnotation(kafka, Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
 
         return kafkaUpgradeStartTimestampAnnotation.isPresent() && kafkaUpgradeEndTimestampAnnotation.isPresent();
     }
@@ -151,8 +154,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     }
 
     boolean isKafkaUpgradeIncomplete(ManagedKafka managedKafka) {
-        return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
-                && managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
+        Kafka kafka = cachedKafka(managedKafka);
+        return OperandUtils.getAnnotation(kafka, Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
+                && OperandUtils.getAnnotation(kafka, Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isEmpty();
     }
 
     public boolean isReadyNotUpdating(ManagedKafka managedKafka) {
@@ -267,6 +271,15 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
     @Override
     public void createOrUpdate(ManagedKafka managedKafka) {
         Kafka current = cachedKafka(managedKafka);
+
+        MetadataNested<KafkaBuilder> editMetadata = moveAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_START_TIMESTAMP, current, null);
+        editMetadata = moveAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_END_TIMESTAMP, current, editMetadata);
+
+        if (editMetadata != null) {
+            createOrUpdate(editMetadata.endMetadata().build());
+            return; // just move the annotations - don't do any further reasoning.  We'll wait for the kafka event.
+        }
+
         Kafka kafka = kafkaFrom(managedKafka, current);
         createOrUpdate(kafka);
 
@@ -275,6 +288,20 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
         if (managedKafka.isSuspended() && reconciliationPaused && !updatesInProgress(managedKafka)) {
             suspend(managedKafka);
         }
+    }
+
+    private MetadataNested<KafkaBuilder> moveAnnotation(ManagedKafka managedKafka, String annotation,
+            Kafka current, MetadataNested<KafkaBuilder> editMetadata) {
+        if (managedKafka.getAnnotation(annotation).isPresent()) {
+            String value = managedKafka.getMetadata().getAnnotations().remove(annotation);
+            if (current != null) {
+                if (editMetadata == null) {
+                    editMetadata = new KafkaBuilder(current).editMetadata();
+                }
+                editMetadata.addToAnnotations(annotation, value);
+            }
+        }
+        return editMetadata;
     }
 
     public abstract Kafka kafkaFrom(ManagedKafka managedKafka, Kafka current);

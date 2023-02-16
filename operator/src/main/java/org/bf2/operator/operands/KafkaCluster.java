@@ -326,7 +326,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
                     .withCruiseControl(cruiseControlEnabled ? buildCruiseControl(managedKafka) : null)
                 .endSpec();
 
-        Kafka kafka = this.upgrade(managedKafka, kafkaBuilder);
+        if (current != null) {
+            this.upgrade(managedKafka, current, kafkaBuilder);
+        }
+
+        Kafka kafka = kafkaBuilder.build();
 
         // setting the ManagedKafka as owner of the Kafka resource is needed
         // by the operator sdk to handle events on the Kafka resource properly
@@ -365,30 +369,29 @@ public class KafkaCluster extends AbstractKafkaCluster {
 
     /**
      * Update the Kafka custom resource if any kind of upgrade has to run
-     * If no upgrade has to be done, it just builds and return the current Kafka custom resource
+     * If no upgrade has to be done, it does nothing
      *
      * @param managedKafka ManagedKafka instance
+     * @param current the current kafka, never null
      * @param kafkaBuilder Kafka builder to update the corresponding Kafka custom resource
-     * @return the updated Kafka custom resource with changes related to upgrade
      */
-    private Kafka upgrade(ManagedKafka managedKafka, KafkaBuilder kafkaBuilder) {
+    private void upgrade(ManagedKafka managedKafka, Kafka current, KafkaBuilder kafkaBuilder) {
         if (this.strimziManager.hasStrimziChanged(managedKafka)
                 || StrimziManager.isPauseReasonStrimziUpdate(kafkaBuilder.buildMetadata().getAnnotations())) {
             log.infof("Strimzi version upgrade ...");
             this.strimziManager.upgradeStrimziVersion(managedKafka, this, kafkaBuilder);
         } else if (this.kafkaManager.hasKafkaVersionChanged(managedKafka)) {
             log.infof("Kafka version upgrade ...");
-            this.kafkaManager.upgradeKafkaVersion(managedKafka, kafkaBuilder);
+            this.kafkaManager.upgradeKafkaVersion(managedKafka, current, kafkaBuilder);
         } else if (!this.kafkaManager.isKafkaUpgradeInProgress(managedKafka, this)) {
-            if (this.kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, this)) {
+            if (this.kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, current)) {
                 log.infof("Kafka version upgrade stability check ...");
-                this.kafkaManager.checkKafkaUpgradeIsStable(managedKafka);
+                this.kafkaManager.checkKafkaUpgradeIsStable(managedKafka, current, kafkaBuilder);
             } else if (!this.kafkaManager.isKafkaUpgradeStabilityCheckInProgress(managedKafka, this) && this.kafkaManager.hasKafkaIbpVersionChanged(managedKafka)) {
                 log.infof("Kafka IBP version upgrade ...");
                 this.kafkaManager.upgradeKafkaIbpVersion(managedKafka, kafkaBuilder);
             }
         }
-        return kafkaBuilder.build();
     }
 
     /**
@@ -398,7 +401,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
      * @param managedKafka ManagedKafka instance
      * @return true if suspension should be blocked, otherwise false
      */
-    private boolean blockSuspension(ManagedKafka managedKafka) {
+    private boolean blockSuspension(ManagedKafka managedKafka, Kafka current) {
         if (isStrimziUpdating(managedKafka)) {
             return true;
         }
@@ -411,7 +414,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             return true;
         }
 
-        if (kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, this)) {
+        if (kafkaManager.isKafkaUpgradeStabilityCheckToRun(managedKafka, current)) {
             return true;
         }
 
@@ -1165,7 +1168,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
             annotations = new HashMap<>();
         }
 
-        if (managedKafka.isSuspended() && !blockSuspension(managedKafka)) {
+        if (managedKafka.isSuspended() && !blockSuspension(managedKafka, current)) {
             annotations.put(StrimziManager.STRIMZI_PAUSE_RECONCILE_ANNOTATION, "true");
             annotations.remove(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON);
         } else if (!annotations.containsKey(ManagedKafkaKeys.Annotations.STRIMZI_PAUSE_REASON)) {
@@ -1271,6 +1274,7 @@ public class KafkaCluster extends AbstractKafkaCluster {
         return super.getReadiness(managedKafka);
     }
 
+    @Override
     protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
         return Map.of(OperandUtils.OPENSHIFT_INGRESS_BALANCE, OperandUtils.OPENSHIFT_INGRESS_BALANCE_LEASTCONN);
     }

@@ -13,6 +13,7 @@ import io.micrometer.core.annotation.Counted;
 import io.micrometer.core.annotation.Timed;
 import org.bf2.common.ConditionUtils;
 import org.bf2.common.ManagedKafkaResourceClient;
+import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.events.ControllerEventFilter;
 import org.bf2.operator.events.ResourceEventSource;
 import org.bf2.operator.managers.CapacityManager;
@@ -108,8 +109,15 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
                 invalid = capacityManager.validateResources(managedKafka);
 
                 if (invalid.isEmpty()) {
+                    boolean hasAnnotationsToBeMoved = hasAnnotationsToBeMoved(managedKafka);
+
                     log.infof("Updating Kafka instance %s/%s %s", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), managedKafka.getMetadata().getResourceVersion());
                     kafkaInstance.createOrUpdate(managedKafka);
+
+                    if (hasAnnotationsToBeMoved && !hasAnnotationsToBeMoved(managedKafka)) {
+                        // don't update the status until after the annotations have been moved
+                        return UpdateControl.updateResource(managedKafka);
+                    }
                 }
             }
             updateManagedKafkaStatus(managedKafka, invalid);
@@ -119,6 +127,11 @@ public class ManagedKafkaController implements Reconciler<ManagedKafka>, EventSo
                 NDC.pop();
             }
         }
+    }
+
+    private boolean hasAnnotationsToBeMoved(ManagedKafka managedKafka) {
+        return managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP).isPresent()
+                || managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP).isPresent();
     }
 
     @Override
