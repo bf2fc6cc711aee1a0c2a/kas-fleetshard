@@ -1,6 +1,10 @@
 package org.bf2.operator;
 
 import io.javaoperatorsdk.operator.Operator;
+import io.quarkiverse.operatorsdk.bundle.runtime.CSVMetadata;
+import io.quarkiverse.operatorsdk.bundle.runtime.CSVMetadata.InstallMode;
+import io.quarkiverse.operatorsdk.bundle.runtime.CSVMetadata.Provider;
+import io.quarkiverse.operatorsdk.bundle.runtime.SharedCSVMetadata;
 import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import org.eclipse.microprofile.config.ConfigProvider;
@@ -13,7 +17,23 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public class KasFleetShardOperator implements QuarkusApplication {
+@CSVMetadata(
+        description = "Operator That Manages Kafka Instances",
+        displayName = "KaaS Fleetshard Operator",
+        provider = @Provider(
+                name = "bf2 community",
+                url = "https://github.com/bf2fc6cc711aee1a0c2a/kas-fleetshard"),
+        minKubeVersion = "1.21.0",
+        keywords = { "managed", "kafka" },
+        maturity = "alpha",
+        installModes = {
+                @InstallMode(type = "OwnNamespace", supported = false),
+                @InstallMode(type = "SingleNamespace", supported = false),
+                @InstallMode(type = "MultiNamespace", supported = false),
+                @InstallMode(type = "AllNamespaces", supported = true)
+        }
+)
+public class KasFleetShardOperator implements QuarkusApplication, SharedCSVMetadata {
 
     @Inject
     Logger log;

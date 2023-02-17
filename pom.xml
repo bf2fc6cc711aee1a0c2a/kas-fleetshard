@@ -92,6 +92,7 @@
 
     <modules>
         <module>api</module>
+        <module>bundle</module>
         <module>common</module>
         <module>operator</module>
         <module>sync</module>
@@ -139,6 +140,11 @@
             <dependency>
                 <groupId>io.quarkiverse.operatorsdk</groupId>
                 <artifactId>quarkus-operator-sdk</artifactId>
+                <version>${quarkus.operator.extension}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.quarkiverse.operatorsdk</groupId>
+                <artifactId>quarkus-operator-sdk-bundle-generator</artifactId>
                 <version>${quarkus.operator.extension}</version>
             </dependency>
             <dependency>
