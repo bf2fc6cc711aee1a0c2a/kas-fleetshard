@@ -5,6 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import com.google.cloud.tools.jib.api.CacheDirectoryCreationException;
+import com.google.cloud.tools.jib.api.Containerizer;
+import com.google.cloud.tools.jib.api.Credential;
+import com.google.cloud.tools.jib.api.CredentialRetriever;
+import com.google.cloud.tools.jib.api.ImageReference;
+import com.google.cloud.tools.jib.api.InvalidImageReferenceException;
+import com.google.cloud.tools.jib.api.Jib;
+import com.google.cloud.tools.jib.api.RegistryException;
+import com.google.cloud.tools.jib.api.RegistryImage;
+import com.google.cloud.tools.jib.frontend.CredentialRetrieverFactory;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
@@ -41,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -53,6 +64,8 @@ import java.util.zip.ZipFile;
 
 public class BundleAssembler {
 
+    static final String ANNOTATIONS_PATH = "metadata/annotations.yaml";
+
     static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     static final ObjectMapper YAML_MAPPER = new ObjectMapper(
@@ -61,19 +74,21 @@ public class BundleAssembler {
                 .enable(YAMLGenerator.Feature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
                 .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID));
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
         BundleAssembler assembler = new BundleAssembler(ConfigProvider.getConfig());
 
         try {
             assembler.initialize();
             assembler.copyResources();
             assembler.mergeClusterServiceVersions();
+            assembler.buildAndPushImage();
         } finally {
             assembler.complete();
         }
     }
 
     final Config config;
+    final String version;
     Path bundleDir;
     ZipFile operatorBundle;
     ZipFile syncBundle;
@@ -81,6 +96,7 @@ public class BundleAssembler {
 
     public BundleAssembler(Config config) {
         this.config = config;
+        version = config.getOptionalValue("kas.bundle.version", String.class).orElse("999.999.999").toLowerCase();
     }
 
     void initialize() throws IOException {
@@ -104,7 +120,7 @@ public class BundleAssembler {
         copyCustomResourceDefinitions();
         copyPriorityClasses();
         write(bundleDir.resolve("bundle.Dockerfile"), readString(operatorBundle, "bundle.Dockerfile"));
-        write(bundleDir.resolve("metadata/annotations.yaml"), readString(operatorBundle, "metadata/annotations.yaml"));
+        write(bundleDir.resolve(ANNOTATIONS_PATH), readString(operatorBundle, ANNOTATIONS_PATH));
     }
 
     void copyCustomResourceDefinitions() {
@@ -139,8 +155,6 @@ public class BundleAssembler {
     }
 
     void mergeClusterServiceVersions() throws IOException {
-        String version = config.getOptionalValue("kas.bundle.version", String.class).orElse("999.999.999").toLowerCase();
-
         ClusterServiceVersion operatorCsv = readResource(operatorBundle, "manifests/kas-fleetshard-operator.clusterserviceversion.yaml");
 
         operatorCsv.getMetadata().setName("kas-fleetshard-operator.v" + version);
@@ -190,6 +204,43 @@ public class BundleAssembler {
         write(bundleDir.resolve("manifests/kas-fleetshard-operator.clusterserviceversion.yaml"), finalCsv);
     }
 
+    void buildAndPushImage() throws InvalidImageReferenceException, InterruptedException, RegistryException, IOException, CacheDirectoryCreationException, ExecutionException {
+        ImageReference bundleImageName = ImageReference.parse(config.getValue("kas.bundle.image", String.class));
+        CredentialRetrieverFactory retrieverFactory = CredentialRetrieverFactory.forImage(bundleImageName, logger -> {});
+
+        CredentialRetriever credentialRetriever =
+                config.getOptionalValue("kas.bundle.credential.username", String.class)
+                    .filter(Predicate.not(String::isBlank))
+                    .map(username -> {
+                        String password = config.getValue("kas.bundle.credential.password", String.class);
+                        return retrieverFactory.known(Credential.from(username, password),
+                                "configuration properties");
+                    })
+                .or(() -> config.getOptionalValue("kas.bundle.credential.docker-config-path", String.class)
+                        .filter(Predicate.not(String::isBlank))
+                        .map(Path::of)
+                        .map(retrieverFactory::dockerConfig))
+                .orElseGet(retrieverFactory::dockerConfig);
+
+        Map<String, String> bundleAnnotations = new HashMap<>();
+
+        YAML_MAPPER.readTree(getStream(operatorBundle, ANNOTATIONS_PATH))
+            .get("annotations")
+            .fields()
+            .forEachRemaining(annotation -> bundleAnnotations.put(annotation.getKey(), annotation.getValue().asText()));
+
+        RegistryImage bundleImage = RegistryImage.named(bundleImageName)
+                .addCredentialRetriever(credentialRetriever);
+
+        var container = Jib.fromScratch()
+            .addLayer(List.of(bundleDir.resolve("manifests"), bundleDir.resolve("metadata")), "/")
+            .setLabels(bundleAnnotations)
+            .containerize(Containerizer.to(bundleImage)
+                    .withAdditionalTag(version));
+
+        write(bundleDir.resolve("jib-image.digest"), "sha256:" + container.getDigest().getHash());
+    }
+
     void includeSyncResources(ClusterServiceVersion operatorCsv) {
         var syncResources = loadSyncResources();
         var syncServiceAccount = syncResources.get("ServiceAccount")
@@ -198,10 +249,11 @@ public class BundleAssembler {
                 .findFirst()
                 .orElseThrow();
 
-        var syncDeployments = syncResources.get("Deployment")
+        var syncDeployment = syncResources.get("Deployment")
                 .stream()
                 .map(Deployment.class::cast)
-                .collect(Collectors.toList());
+                .findFirst()
+                .orElseThrow();
 
         syncResources.get("ClusterRole")
                 .stream()
@@ -223,7 +275,7 @@ public class BundleAssembler {
 
         deployments(operatorCsv).add(new StrategyDeploymentSpecBuilder()
                 .withName("kas-fleetshard-sync")
-                .withSpec(syncDeployments.stream().findFirst().orElseThrow().getSpec())
+                .withSpec(syncDeployment.getSpec())
                 .build());
     }
 

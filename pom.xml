@@ -54,7 +54,7 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
 
-        <quarkus.jib.base-jvm-image>registry.access.redhat.com/ubi8/openjdk-11-runtime:1.11</quarkus.jib.base-jvm-image>
+        <quarkus.jib.base-jvm-image>registry.access.redhat.com/ubi8/openjdk-11-runtime:1.14-12.1675788327</quarkus.jib.base-jvm-image>
         <!-- Include quarkus.platform.test.version to allow different dependency build artifacts -->
         <quarkus.platform.version>2.13.7.Final</quarkus.platform.version>
         <quarkus.platform.test.version>2.13.7.Final</quarkus.platform.test.version>

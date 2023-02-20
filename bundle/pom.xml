@@ -15,6 +15,7 @@
         <kas.bundle.sync-archive>${org.bf2:kas-fleetshard-sync:zip:bundle}</kas.bundle.sync-archive>
         <kas.bundle.output-directory>${project.build.directory}/bundle</kas.bundle.output-directory>
         <kas.bundle.version>${project.version}</kas.bundle.version>
+        <kas.index.image-tag>${kas.bundle.version}</kas.index.image-tag>
     </properties>
 
     <dependencies>
@@ -31,7 +32,10 @@
             <groupId>io.fabric8</groupId>
             <artifactId>openshift-model-operatorhub</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.google.cloud.tools</groupId>
+            <artifactId>jib-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>kas-fleetshard-operator</artifactId>
@@ -48,58 +52,99 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>define-dependency-properties</id>
-                        <goals>
-                            <goal>properties</goal>
-                        </goals>
-                        <configuration>
-                            <skip>false</skip>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>package-bundle</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <mainClass>org.bf2.kas.fleetshard.bundle.BundleAssembler</mainClass>
-                    <systemProperties>
-                        <systemProperty>
-                            <key>kas.bundle.operator-archive</key>
-                            <value>${kas.bundle.operator-archive}</value>
-                        </systemProperty>
-                        <systemProperty>
-                            <key>kas.bundle.sync-archive</key>
-                            <value>${kas.bundle.sync-archive}</value>
-                        </systemProperty>
-                        <systemProperty>
-                            <key>kas.bundle.output-directory</key>
-                            <value>${kas.bundle.output-directory}</value>
-                        </systemProperty>
-                        <systemProperty>
-                            <key>kas.bundle.version</key>
-                            <value>${kas.bundle.version}</value>
-                        </systemProperty>
-                    </systemProperties>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <profiles>
+        <profile>
+            <id>generate-bundle</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <!--
+                                Set dependency paths as properties to make operator and sync bundle metadata artifacts
+                                available to bundle generator.
+                            -->
+                            <execution>
+                                <id>define-dependency-properties</id>
+                                <goals>
+                                    <goal>properties</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>false</skip>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>package-bundle</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>org.bf2.kas.fleetshard.bundle.BundleAssembler</mainClass>
+                                    <systemProperties>
+                                        <systemProperty>
+                                            <key>kas.bundle.operator-archive</key>
+                                            <value>${kas.bundle.operator-archive}</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>kas.bundle.sync-archive</key>
+                                            <value>${kas.bundle.sync-archive}</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>kas.bundle.output-directory</key>
+                                            <value>${kas.bundle.output-directory}</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>kas.bundle.version</key>
+                                            <value>${kas.bundle.version}</value>
+                                        </systemProperty>
+                                    </systemProperties>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>package-index</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>sh</executable>
+                                    <workingDirectory>${project.build.directory}</workingDirectory>
+                                    <arguments>
+                                        <argument>${project.basedir}/src/main/sh/build-push-index.sh</argument>
+                                        <!-- -->
+                                        <argument>--build-engine</argument>
+                                        <argument>${kas.index.build-engine}</argument>
+                                        <!-- -->
+                                        <argument>--bundle-image</argument>
+                                        <argument>${kas.bundle.image}</argument>
+                                        <!-- -->
+                                        <argument>--index-registry</argument>
+                                        <argument>${kas.index.image-registry}</argument>
+                                        <!-- -->
+                                        <argument>--index-group</argument>
+                                        <argument>${kas.index.image-group}</argument>
+                                        <!-- -->
+                                        <argument>--index-image</argument>
+                                        <argument>${kas.index.image}</argument>
+                                        <!-- -->
+                                        <argument>--index-tag</argument>
+                                        <argument>${kas.index.image-tag}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
