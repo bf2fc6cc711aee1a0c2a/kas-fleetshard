@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -319,7 +320,7 @@ public class BundleAssembler {
 
     static String readString(ZipFile archive, ZipEntry entry) {
         try (InputStream stream = archive.getInputStream(entry);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
+             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             return reader.lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
