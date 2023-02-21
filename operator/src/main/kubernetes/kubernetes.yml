@@ -269,7 +269,7 @@ spec:
           name: operator-logging-config-override
           optional: true
         name: logging-config-volume
-
+      priorityClassName: kas-fleetshard-high
   selector:
     matchLabels:
       app: kas-fleetshard-operator
@@ -289,4 +289,12 @@ metadata:
 value: 100
 globalDefault: false
 description: "Slightly elevated above the default, and well below the kas-fleetshard-high."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kas-fleetshard-high
+value: 1000000
+globalDefault: false
+description: "Priority Class for kas-fleetshard operator and sync"
 ---
