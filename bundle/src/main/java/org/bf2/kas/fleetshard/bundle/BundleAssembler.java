@@ -433,7 +433,7 @@ public class BundleAssembler {
         public Stream<String> entries() throws IOException {
             Path directoryPath = source.toPath();
             return Files.walk(directoryPath)
-                    .map(path -> directoryPath.relativize(path))
+                    .map(directoryPath::relativize)
                     .map(Path::toString);
         }
 
