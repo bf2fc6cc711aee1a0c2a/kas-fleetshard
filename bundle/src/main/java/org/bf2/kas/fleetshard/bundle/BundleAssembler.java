@@ -80,6 +80,87 @@ public class BundleAssembler {
                 .enable(YAMLGenerator.Feature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
                 .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID));
 
+    static class Configs {
+        /**
+         * The version of the generated OLM bundle. This will also be used as an
+         * additional tag for the bundle image.
+         */
+        public static final String BUNDLE_VERSION = "kas.bundle.version";
+        /**
+         * Output location where the generated resources will be placed.
+         */
+        public static final String BUNDLE_OUTPUT_DIR = "kas.bundle.output-directory";
+        /**
+         * Input directory or ZIP file containing the generated bundle content from the
+         * kas-fleetshard-operator module.
+         */
+        public static final String BUNDLE_OPERATOR_ARCHIVE = "kas.bundle.operator-archive";
+        /**
+         * Input directory or ZIP file containing the generated bundle content from the
+         * kas-fleetshard-sync module.
+         */
+        public static final String BUNDLE_SYNC_ARCHIVE = "kas.bundle.sync-archive";
+        /**
+         * Path to an icon file to be placed in the generated ClusterServiceVersion
+         */
+        public static final String BUNDLE_ICON_FILE = "kas.bundle.icon.file";
+        /**
+         * Base64-encoded icon file to be placed in the generated ClusterServiceVersion
+         */
+        public static final String BUNDLE_ICON_BASE64_DATA = "kas.bundle.icon.base64data";
+        /**
+         * Type of icon given by either {@link #BUNDLE_ICON_FILE} or
+         * {@link #BUNDLE_ICON_BASE64_DATA}. Required when either of those options are
+         * specified.
+         */
+        public static final String BUNDLE_ICON_MEDIATYPE = "kas.bundle.icon.mediatype";
+        /**
+         * JSON Patch array. The patch(es) will be applied to the ClusterServiceVersion
+         * as the final step of the process prior to building and pushing the bundle
+         * image. Patches in this option will be applied following any specified by
+         * {@link #BUNDLE_PATCH_FILE}.
+         *
+         * @see <a href="https://jsonpatch.com/">jsonpatch.com</a>
+         */
+        public static final String BUNDLE_PATCH = "kas.bundle.patch";
+        /**
+         * Path to a file containing a JSON Patch array. The patch(es) will be applied
+         * to the ClusterServiceVersion as the final step of the process prior to
+         * building and pushing the bundle image. Patches in this option will be applied
+         * before any specified by {@link #BUNDLE_PATCH}.
+         *
+         * @see <a href="https://jsonpatch.com/">jsonpatch.com</a>
+         */
+        public static final String BUNDLE_PATCH_FILE = "kas.bundle.patch-file";
+        /**
+         * Name of the bundle image to be built and pushed. This property should include
+         * the registry host, group, repository name, and default tag.
+         */
+        public static final String BUNDLE_IMAGE = "kas.bundle.image";
+        /**
+         * User name for the registry host specified in {@link #BUNDLE_IMAGE}.
+         */
+        public static final String BUNDLE_CREDENTIAL_USERNAME = "kas.bundle.credential.username";
+        /**
+         * Password for the registry host specified in {@link #BUNDLE_IMAGE}.
+         */
+        public static final String BUNDLE_CREDENTIAL_PASSWORD = "kas.bundle.credential.password";
+        /**
+         * Path to the Docker config file for the registry host specified in
+         * {@link #BUNDLE_IMAGE}.
+         */
+        public static final String BUNDLE_CREDENTIAL_DOCKER_CONFIG_PATH = "kas.bundle.credential.docker-config-path";
+        /**
+         * Path to a file where the bundle image TAR file should be written. If
+         * specified, no image will be pushed to the remote registry specified in
+         * {@link #BUNDLE_IMAGE}. This option is intended for testing only.
+         */
+        public static final String BUNDLE_TAR_IMAGE = "kas.bundle.tar-image";
+
+        private Configs() {
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         BundleAssembler assembler = new BundleAssembler(ConfigProvider.getConfig());
 
@@ -102,15 +183,15 @@ public class BundleAssembler {
 
     public BundleAssembler(Config config) {
         this.config = config;
-        version = config.getOptionalValue("kas.bundle.version", String.class).orElse("999.999.999").toLowerCase();
+        version = config.getOptionalValue(Configs.BUNDLE_VERSION, String.class).orElse("999.999.999").toLowerCase();
     }
 
     void initialize() throws IOException {
-        bundleDir = Files.createDirectories(Path.of(config.getValue("kas.bundle.output-directory", String.class)));
+        bundleDir = Files.createDirectories(Path.of(config.getValue(Configs.BUNDLE_OUTPUT_DIR, String.class)));
         Files.createDirectories(bundleDir.resolve("manifests"));
         Files.createDirectories(bundleDir.resolve(METADATA));
-        operatorBundle = loadSource(new File(config.getValue("kas.bundle.operator-archive", String.class)));
-        syncBundle = loadSource(new File(config.getValue("kas.bundle.sync-archive", String.class)));
+        operatorBundle = loadSource(new File(config.getValue(Configs.BUNDLE_OPERATOR_ARCHIVE, String.class)));
+        syncBundle = loadSource(new File(config.getValue(Configs.BUNDLE_SYNC_ARCHIVE, String.class)));
     }
 
     BundleSource loadSource(File sourceFile) throws IOException {
@@ -187,18 +268,18 @@ public class BundleAssembler {
                 deployment.getSpec().getTemplate().getMetadata().setLabels(Map.of("name", deployment.getName()));
             });
 
-        config.getOptionalValue("kas.bundle.icon.file", String.class)
+        config.getOptionalValue(Configs.BUNDLE_ICON_FILE, String.class)
             .map(Path::of)
             .map(uncheckedApply(Files::readAllBytes))
             .map(Base64.getEncoder()::encodeToString)
             .ifPresent(base64data -> setIcon(operatorCsv, base64data));
 
-        config.getOptionalValue("kas.bundle.icon.base64data", String.class)
+        config.getOptionalValue(Configs.BUNDLE_ICON_BASE64_DATA, String.class)
             .ifPresent(base64data -> setIcon(operatorCsv, base64data));
 
         final String processedCsv = YAML_MAPPER.writeValueAsString(operatorCsv);
 
-        String finalCsv = Stream.of(patchFile(), config.getOptionalValue("kas.bundle.patch", String.class))
+        String finalCsv = Stream.of(patchFile(), config.getOptionalValue(Configs.BUNDLE_PATCH, String.class))
             .filter(Optional::isPresent)
             .map(Optional::get)
             .map(uncheckedApply(JSON_MAPPER::readTree))
@@ -220,18 +301,18 @@ public class BundleAssembler {
     }
 
     void buildAndPushImage() throws InvalidImageReferenceException, InterruptedException, RegistryException, IOException, CacheDirectoryCreationException, ExecutionException {
-        ImageReference bundleImageName = ImageReference.parse(config.getValue("kas.bundle.image", String.class));
+        ImageReference bundleImageName = ImageReference.parse(config.getValue(Configs.BUNDLE_IMAGE, String.class));
         CredentialRetrieverFactory retrieverFactory = CredentialRetrieverFactory.forImage(bundleImageName, logger -> {});
 
         CredentialRetriever credentialRetriever =
-                config.getOptionalValue("kas.bundle.credential.username", String.class)
+                config.getOptionalValue(Configs.BUNDLE_CREDENTIAL_USERNAME, String.class)
                     .filter(Predicate.not(String::isBlank))
                     .map(username -> {
-                        String password = config.getValue("kas.bundle.credential.password", String.class);
+                        String password = config.getValue(Configs.BUNDLE_CREDENTIAL_PASSWORD, String.class);
                         return retrieverFactory.known(Credential.from(username, password),
                                 "configuration properties");
                     })
-                .or(() -> config.getOptionalValue("kas.bundle.credential.docker-config-path", String.class)
+                .or(() -> config.getOptionalValue(Configs.BUNDLE_CREDENTIAL_DOCKER_CONFIG_PATH, String.class)
                         .filter(Predicate.not(String::isBlank))
                         .map(Path::of)
                         .map(retrieverFactory::dockerConfig))
@@ -247,7 +328,7 @@ public class BundleAssembler {
         RegistryImage bundleImage = RegistryImage.named(bundleImageName)
                 .addCredentialRetriever(credentialRetriever);
 
-        var containerizer = config.getOptionalValue("kas.bundle.tar-image", String.class)
+        var containerizer = config.getOptionalValue(Configs.BUNDLE_TAR_IMAGE, String.class)
                 .filter(Predicate.not(String::isBlank))
                 .map(Path::of)
                 .map(tarImage -> Containerizer.to(TarImage.at(tarImage).named(bundleImageName)))
@@ -318,12 +399,12 @@ public class BundleAssembler {
         csv.getSpec().setIcon(List.of(new IconBuilder()
             .withBase64data(base64data)
             // Required when the icon is set
-            .withMediatype(config.getValue("kas.bundle.icon.mediatype", String.class))
+            .withMediatype(config.getValue(Configs.BUNDLE_ICON_MEDIATYPE, String.class))
             .build()));
     }
 
     Optional<String> patchFile() {
-        return config.getOptionalValue("kas.bundle.patch-file", String.class)
+        return config.getOptionalValue(Configs.BUNDLE_PATCH_FILE, String.class)
             .map(Path::of)
             .map(uncheckedApply(Files::readString));
     }
