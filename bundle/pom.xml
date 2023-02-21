@@ -16,6 +16,8 @@
         <kas.bundle.output-directory>${project.build.directory}/bundle</kas.bundle.output-directory>
         <kas.bundle.version>${project.version}</kas.bundle.version>
         <kas.index.image-tag>${kas.bundle.version}</kas.index.image-tag>
+        <kas.bundle.credential.username>${quarkus.container-image.username}</kas.bundle.credential.username>
+        <kas.bundle.credential.password>${quarkus.container-image.password}</kas.bundle.credential.password>
     </properties>
 
     <dependencies>
@@ -37,6 +39,12 @@
             <artifactId>jib-core</artifactId>
         </dependency>
         <dependency>
+            <!-- Used by jib-core and also JUnit test -->
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.bf2</groupId>
             <artifactId>kas-fleetshard-operator</artifactId>
             <version>${project.version}</version>
@@ -49,6 +57,12 @@
             <version>${project.version}</version>
             <type>zip</type>
             <classifier>bundle</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -106,6 +120,14 @@
                                             <key>kas.bundle.version</key>
                                             <value>${kas.bundle.version}</value>
                                         </systemProperty>
+                                        <systemProperty>
+                                            <key>kas.bundle.credential.username</key>
+                                            <value>${kas.bundle.credential.username}</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>kas.bundle.credential.password</key>
+                                            <value>${kas.bundle.credential.password}</value>
+                                        </systemProperty>
                                     </systemProperties>
                                 </configuration>
                             </execution>
@@ -118,6 +140,10 @@
                                 <configuration>
                                     <executable>sh</executable>
                                     <workingDirectory>${project.build.directory}</workingDirectory>
+                                    <environmentVariables>
+                                        <KAS_INDEX_CREDENTIAL_USERNAME>${kas.bundle.credential.username}</KAS_INDEX_CREDENTIAL_USERNAME>
+                                        <KAS_INDEX_CREDENTIAL_PASSWORD>${kas.bundle.credential.password}</KAS_INDEX_CREDENTIAL_PASSWORD>
+                                    </environmentVariables>
                                     <arguments>
                                         <argument>${project.basedir}/src/main/sh/build-push-index.sh</argument>
                                         <!-- -->

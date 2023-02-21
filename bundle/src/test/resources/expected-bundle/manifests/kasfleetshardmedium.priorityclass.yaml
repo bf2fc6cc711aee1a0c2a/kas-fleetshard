@@ -1,0 +1,8 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kas-fleetshard-medium
+description: "Slightly elevated above the default, and well below the kas-fleetshard-high."
+globalDefault: false
+value: 100

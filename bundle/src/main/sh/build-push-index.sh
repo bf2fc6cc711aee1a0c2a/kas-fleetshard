@@ -48,6 +48,11 @@ done
 
 opm index add --bundles "${BUNDLE_IMAGE}" --generate -d $(pwd)/index.Dockerfile
 
+# set docker env variable to force it build images for linux/amd64 platform
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+
 IDX="${INDEX_REGISTRY}/${INDEX_GROUP}/${INDEX_IMAGE}:${INDEX_TAG}"
 ${BUILD_ENGINE} build -f $(pwd)/index.Dockerfile -t "${IDX}" $(pwd)
+
+${BUILD_ENGINE} login -u ${KAS_INDEX_CREDENTIAL_USERNAME} -p ${KAS_INDEX_CREDENTIAL_PASSWORD} ${INDEX_REGISTRY}
 ${BUILD_ENGINE} push "${IDX}"

@@ -14,6 +14,7 @@ import com.google.cloud.tools.jib.api.InvalidImageReferenceException;
 import com.google.cloud.tools.jib.api.Jib;
 import com.google.cloud.tools.jib.api.RegistryException;
 import com.google.cloud.tools.jib.api.RegistryImage;
+import com.google.cloud.tools.jib.api.TarImage;
 import com.google.cloud.tools.jib.frontend.CredentialRetrieverFactory;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ServiceAccount;
@@ -34,6 +35,7 @@ import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,12 +48,14 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -65,7 +69,8 @@ import java.util.zip.ZipFile;
 
 public class BundleAssembler {
 
-    static final String ANNOTATIONS_PATH = "metadata/annotations.yaml";
+    static final String METADATA = "metadata";
+    static final String ANNOTATIONS_PATH = METADATA + "/annotations.yaml";
 
     static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
@@ -91,8 +96,8 @@ public class BundleAssembler {
     final Config config;
     final String version;
     Path bundleDir;
-    ZipFile operatorBundle;
-    ZipFile syncBundle;
+    BundleSource operatorBundle;
+    BundleSource syncBundle;
     List<Map<String, ?>> almExamples;
 
     public BundleAssembler(Config config) {
@@ -103,9 +108,16 @@ public class BundleAssembler {
     void initialize() throws IOException {
         bundleDir = Files.createDirectories(Path.of(config.getValue("kas.bundle.output-directory", String.class)));
         Files.createDirectories(bundleDir.resolve("manifests"));
-        Files.createDirectories(bundleDir.resolve("metadata"));
-        operatorBundle = new ZipFile(new File(config.getValue("kas.bundle.operator-archive", String.class)));
-        syncBundle = new ZipFile(new File(config.getValue("kas.bundle.sync-archive", String.class)));
+        Files.createDirectories(bundleDir.resolve(METADATA));
+        operatorBundle = loadSource(new File(config.getValue("kas.bundle.operator-archive", String.class)));
+        syncBundle = loadSource(new File(config.getValue("kas.bundle.sync-archive", String.class)));
+    }
+
+    BundleSource loadSource(File sourceFile) throws IOException {
+        if (sourceFile.isDirectory()) {
+            return new DirectorySource(sourceFile);
+        }
+        return new ZipFileSource(new ZipFile(sourceFile));
     }
 
     void complete() throws IOException {
@@ -117,36 +129,38 @@ public class BundleAssembler {
         }
     }
 
-    void copyResources() {
+    void copyResources() throws IOException {
         copyCustomResourceDefinitions();
         copyPriorityClasses();
-        write(bundleDir.resolve("bundle.Dockerfile"), readString(operatorBundle, "bundle.Dockerfile"));
-        write(bundleDir.resolve(ANNOTATIONS_PATH), readString(operatorBundle, ANNOTATIONS_PATH));
+        write(bundleDir.resolve(ANNOTATIONS_PATH), operatorBundle.readString(ANNOTATIONS_PATH));
     }
 
-    void copyCustomResourceDefinitions() {
-        almExamples = new ArrayList<>();
-
-        operatorBundle.stream()
-            .filter(entry -> entry.getName().endsWith(".crd.yml"))
-            .forEach(crdEntry -> {
-                String crdData = readString(operatorBundle, crdEntry);
-                write(bundleDir.resolve(crdEntry.getName()), crdData);
+    void copyCustomResourceDefinitions() throws IOException {
+        almExamples = operatorBundle.entries()
+            .filter(entryName -> entryName.endsWith(".crd.yml"))
+            .flatMap(entryName -> {
+                String crdData = operatorBundle.readString(entryName);
+                write(bundleDir.resolve(entryName), crdData);
 
                 CustomResourceDefinition crd = Serialization.unmarshal(crdData);
 
-                crd.getSpec().getVersions().forEach(v ->
-                    almExamples.add(Map.of(
+                return crd.getSpec().getVersions().stream().map(v ->
+                    // Use a TreeMap to ensure consistent key order for testing/comparison
+                    new TreeMap<>(Map.of(
                             "kind", crd.getSpec().getNames().getKind(),
                             "apiVersion", String.format("%s/%s", crd.getSpec().getGroup(), v.getName()),
-                            "metadata", Map.of("name", crd.getMetadata().getName()),
+                            METADATA, Map.of("name", crd.getMetadata().getName()),
                             "spec", Collections.emptyMap())));
-            });
+            })
+            // Sorted to ensure CRDs are in the same order for testing/comparison
+            .sorted(Comparator.<Map<?, ?>, String>comparing(crdExample -> crdExample.get("kind").toString())
+                    .thenComparing(crdExample -> crdExample.get("apiVersion").toString()))
+            .collect(Collectors.toList());
     }
 
-    void copyPriorityClasses() {
+    void copyPriorityClasses() throws IOException {
         try (KubernetesClient client = new DefaultKubernetesClient()) {
-            client.load(getStream(operatorBundle, "kubernetes.yml")).get().stream()
+            client.load(operatorBundle.getEntry("kubernetes.yml")).get().stream()
                 .filter(resource -> "PriorityClass".equals(resource.getKind()))
                 .forEach(uncheckedAccept(priorityClass -> {
                     String name = priorityClass.getMetadata().getName().replace("-", "");
@@ -156,7 +170,7 @@ public class BundleAssembler {
     }
 
     void mergeClusterServiceVersions() throws IOException {
-        ClusterServiceVersion operatorCsv = readResource(operatorBundle, "manifests/kas-fleetshard-operator.clusterserviceversion.yaml");
+        ClusterServiceVersion operatorCsv = operatorBundle.readResource("manifests/kas-fleetshard-operator.clusterserviceversion.yaml");
 
         operatorCsv.getMetadata().setName("kas-fleetshard-operator.v" + version);
         operatorCsv.getMetadata().setAnnotations(new HashMap<>());
@@ -225,7 +239,7 @@ public class BundleAssembler {
 
         Map<String, String> bundleAnnotations = new HashMap<>();
 
-        YAML_MAPPER.readTree(getStream(operatorBundle, ANNOTATIONS_PATH))
+        YAML_MAPPER.readTree(operatorBundle.getEntry(ANNOTATIONS_PATH))
             .get("annotations")
             .fields()
             .forEachRemaining(annotation -> bundleAnnotations.put(annotation.getKey(), annotation.getValue().asText()));
@@ -233,16 +247,22 @@ public class BundleAssembler {
         RegistryImage bundleImage = RegistryImage.named(bundleImageName)
                 .addCredentialRetriever(credentialRetriever);
 
+        var containerizer = config.getOptionalValue("kas.bundle.tar-image", String.class)
+                .filter(Predicate.not(String::isBlank))
+                .map(Path::of)
+                .map(tarImage -> Containerizer.to(TarImage.at(tarImage).named(bundleImageName)))
+                .orElseGet(() -> Containerizer.to(bundleImage).withAdditionalTag(version));
+
         var container = Jib.fromScratch()
-            .addLayer(List.of(bundleDir.resolve("manifests"), bundleDir.resolve("metadata")), "/")
+            .addPlatform("amd64", "linux")
+            .addLayer(List.of(bundleDir.resolve("manifests"), bundleDir.resolve(METADATA)), "/")
             .setLabels(bundleAnnotations)
-            .containerize(Containerizer.to(bundleImage)
-                    .withAdditionalTag(version));
+            .containerize(containerizer);
 
         write(bundleDir.resolve("jib-image.digest"), "sha256:" + container.getDigest().getHash());
     }
 
-    void includeSyncResources(ClusterServiceVersion operatorCsv) {
+    void includeSyncResources(ClusterServiceVersion operatorCsv) throws IOException {
         var syncResources = loadSyncResources();
         var syncServiceAccount = syncResources.get("ServiceAccount")
                 .stream()
@@ -280,11 +300,11 @@ public class BundleAssembler {
                 .build());
     }
 
-    Map<String, List<HasMetadata>> loadSyncResources() {
+    Map<String, List<HasMetadata>> loadSyncResources() throws IOException {
         Map<String, List<HasMetadata>> resources = new HashMap<>();
 
         try (KubernetesClient client = new DefaultKubernetesClient()) {
-            client.load(getStream(syncBundle, "kubernetes.yml")).get().forEach(resource ->
+            client.load(syncBundle.getEntry("kubernetes.yml")).get().forEach(resource ->
                 resources.computeIfAbsent(
                         resource.getKind(),
                         key -> new ArrayList<>())
@@ -308,25 +328,6 @@ public class BundleAssembler {
             .map(uncheckedApply(Files::readString));
     }
 
-    static <T extends HasMetadata> T readResource(ZipFile archive, String path) throws IOException {
-        try (InputStream stream = getStream(archive, path)) {
-            return Serialization.unmarshal(stream);
-        }
-    }
-
-    static String readString(ZipFile archive, String path) {
-        return readString(archive, archive.getEntry(path));
-    }
-
-    static String readString(ZipFile archive, ZipEntry entry) {
-        try (InputStream stream = archive.getInputStream(entry);
-             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            return reader.lines().collect(Collectors.joining("\n"));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     static void write(Path location, String data) {
         try {
             Files.writeString(location,
@@ -339,30 +340,16 @@ public class BundleAssembler {
         }
     }
 
-    static InputStream getStream(ZipFile archive, String path) {
-        try {
-            ZipEntry entry = archive.getEntry(path);
-            return archive.getInputStream(entry);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     static List<StrategyDeploymentSpec> deployments(ClusterServiceVersion csv) {
         return csv.getSpec().getInstall().getSpec().getDeployments();
     }
 
-    <I, O, E extends IOException> Function<I, O> uncheckedApply(ThrowingFunction<I, O, E> task) {
-        return input -> {
-            try {
-                return task.apply(input);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        };
+    @FunctionalInterface
+    public interface ThrowingConsumer<I, E extends IOException> {
+        void accept(I input) throws E;
     }
 
-    <I, E extends IOException> Consumer<I> uncheckedAccept(ThrowingConsumer<I, E> task) {
+    static <I, E extends IOException> Consumer<I> uncheckedAccept(ThrowingConsumer<I, E> task) {
         return input -> {
             try {
                 task.accept(input);
@@ -373,12 +360,86 @@ public class BundleAssembler {
     }
 
     @FunctionalInterface
-    public interface ThrowingConsumer<I, E extends IOException> {
-        void accept(I input) throws E;
-    }
-
-    @FunctionalInterface
     public interface ThrowingFunction<I, O, E extends IOException> {
         O apply (I input) throws E;
+    }
+
+    static <I, O, E extends IOException> Function<I, O> uncheckedApply(ThrowingFunction<I, O, E> task) {
+        return input -> {
+            try {
+                return task.apply(input);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        };
+    }
+
+    interface BundleSource extends Closeable {
+        InputStream getEntry(String path) throws IOException;
+
+        Stream<String> entries() throws IOException;
+
+        default String readString(String path) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(getEntry(path), StandardCharsets.UTF_8))) {
+                return reader.lines().collect(Collectors.joining("\n"));
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
+        default <T extends HasMetadata> T readResource(String path) throws IOException {
+            try (InputStream stream = getEntry(path)) {
+                return Serialization.unmarshal(stream);
+            }
+        }
+    }
+
+    static class ZipFileSource implements BundleSource {
+        final ZipFile source;
+
+        public ZipFileSource(ZipFile source) {
+            this.source = source;
+        }
+
+        @Override
+        public void close() throws IOException {
+            source.close();
+        }
+
+        @Override
+        public Stream<String> entries() throws IOException {
+            return source.stream().map(ZipEntry::getName);
+        }
+
+        @Override
+        public InputStream getEntry(String path) throws IOException {
+            return source.getInputStream(source.getEntry(path));
+        }
+    }
+
+    static class DirectorySource implements BundleSource {
+        final File source;
+
+        public DirectorySource(File source) {
+            this.source = source;
+        }
+
+        @Override
+        public void close() throws IOException {
+            // No-op
+        }
+
+        @Override
+        public Stream<String> entries() throws IOException {
+            Path directoryPath = source.toPath();
+            return Files.walk(directoryPath)
+                    .map(path -> directoryPath.relativize(path))
+                    .map(Path::toString);
+        }
+
+        @Override
+        public InputStream getEntry(String path) throws IOException {
+            return Files.newInputStream(source.toPath().resolve(path));
+        }
     }
 }
