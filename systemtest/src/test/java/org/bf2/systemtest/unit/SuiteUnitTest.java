@@ -94,12 +94,12 @@ public class SuiteUnitTest {
         mockServer.getClient().secrets().inNamespace("keycloak").createOrReplace(
                 new SecretBuilder()
                         .withNewMetadata()
-                        .withName("credential-example-keycloak")
+                            .withName(KeycloakInstance.ADMIN_SECRET)
                         .endMetadata()
                         .withData(
                                 Map.of(
-                                        "ADMIN_USERNAME", "YWRtaW4=",
-                                        "ADMIN_PASSWORD", "YWRtaW4="))
+                                        "username", "YWRtaW4=",
+                                        "password", "YWRtaW4="))
                         .build());
     }
 
@@ -140,7 +140,7 @@ public class SuiteUnitTest {
     @ParallelTest
     void testKeycloakInstance() {
         KeycloakInstance k = new KeycloakInstance("keycloak");
-        assertEquals("https://keycloak.keycloak.svc:8443/auth/realms/demo/protocol/openid-connect/certs", k.getJwksEndpointUri());
+        assertEquals("https://keycloak-service.keycloak.svc:8443/auth/realms/demo/protocol/openid-connect/certs", k.getJwksEndpointUri());
         assertEquals("admin", k.getUsername());
         assertEquals("admin", k.getPassword());
         assertNotNull(k.getKeycloakCert());
