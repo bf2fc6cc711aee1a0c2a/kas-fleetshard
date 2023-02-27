@@ -50,6 +50,10 @@ mvn -pl operator quarkus:dev -Dkafka=dev
 
 Read [Testing guide](TESTING.md)
 
+## OLM Bundle Generation
+
+See the [bundle module README](bundle/README.md)
+
 ## Releasing
 
 ### Milestones

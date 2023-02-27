@@ -1,0 +1,233 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    app.quarkus.io/commit-id: a8016e1d987086638b074b289380ded47f598dd6
+    app.quarkus.io/build-timestamp: 2023-02-20 - 22:42:30 +0000
+  labels:
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  name: kas-fleetshard-sync
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    app.quarkus.io/commit-id: a8016e1d987086638b074b289380ded47f598dd6
+    app.quarkus.io/build-timestamp: 2023-02-20 - 22:42:30 +0000
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /q/metrics
+    prometheus.io/port: "8080"
+    prometheus.io/scheme: http
+  labels:
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  name: kas-fleetshard-sync
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  type: ClusterIP
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: view-secrets
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kas-fleetshard-sync-view
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: kas-fleetshard-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kas-fleetshard-sync-view-secrets
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: view-secrets
+subjects:
+  - kind: ServiceAccount
+    name: kas-fleetshard-sync
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    app.quarkus.io/commit-id: a8016e1d987086638b074b289380ded47f598dd6
+    app.quarkus.io/build-timestamp: 2023-02-20 - 22:42:30 +0000
+  labels:
+    app: kas-fleetshard-sync
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  name: kas-fleetshard-sync
+rules:
+  - apiGroups:
+      - managedkafka.bf2.org
+    resources:
+      - managedkafkas
+      - managedkafkas/status
+      - managedkafkaagents
+      - managedkafkaagents/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
+      - list
+      - create
+      - delete
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - create
+      - delete
+      - update
+      - patch
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    app.quarkus.io/commit-id: a8016e1d987086638b074b289380ded47f598dd6
+    app.quarkus.io/build-timestamp: 2023-02-20 - 22:42:30 +0000
+  labels:
+    app: kas-fleetshard-sync
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  name: kas-fleetshard-sync
+roleRef:
+  kind: ClusterRole
+  apiGroup: rbac.authorization.k8s.io
+  name: kas-fleetshard-sync
+subjects:
+  - kind: ServiceAccount
+    name: kas-fleetshard-sync
+    namespace: kas-fleetshard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    app.quarkus.io/commit-id: a8016e1d987086638b074b289380ded47f598dd6
+    app.quarkus.io/build-timestamp: 2023-02-20 - 22:42:30 +0000
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /q/metrics
+    prometheus.io/port: "8080"
+    prometheus.io/scheme: http
+  labels:
+    app.kubernetes.io/name: kas-fleetshard-sync
+    app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  name: kas-fleetshard-sync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kas-fleetshard-sync
+      app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kas-fleetshard-sync
+        app.kubernetes.io/version: 0.33.2-snapshot-20230220224053976
+    spec:
+      containers:
+        - env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: QUARKUS_PROFILE
+              value: prod
+            - name: QUARKUS_KUBERNETES_CONFIG_ENABLED
+              value: "true"
+          image: quay.io/bf2fc6cc711aee1a0c2a82e312df7f2e6b37baa12bd9b1f2fd752e260d93a6f8144ac730947f25caa2bfe6ad0f410da360940ee6d28d6c1688d3822c4055650e/kas-fleetshard-sync:latest
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /q/health/live
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 10
+          name: kas-fleetshard-sync
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 0
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 384Mi
+            requests:
+              cpu: 100m
+              memory: 192Mi
+          volumeMounts:
+            - mountPath: /config
+              name: logging-config-volume
+              readOnly: false
+            - mountPath: /config-sso-tls
+              name: tls-config-volume
+              readOnly: false
+      priorityClassName: kas-fleetshard-high
+      serviceAccountName: kas-fleetshard-sync
+      volumes:
+        - name: tls-config-volume
+          secret:
+            defaultMode: 384
+            optional: true
+            secretName: sync-sso-tls-config
+        - configMap:
+            defaultMode: 384
+            name: sync-logging-config-override
+            optional: true
+          name: logging-config-volume
