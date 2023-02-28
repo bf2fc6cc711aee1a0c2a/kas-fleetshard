@@ -2,5 +2,16 @@
     {
         "op": "remove",
         "path": "/spec/install/spec/deployments/0/spec/template/metadata/annotations"
+    },
+    {
+        "op": "replace",
+        "path": "/spec/install/spec/deployments/0/spec/template/spec/containers/0/image",
+        "value": "kas-fleetshard-operator"
+    },
+    {
+        "op": "replace",
+        "path": "/spec/install/spec/deployments/1/spec/template/spec/containers/0/image",
+        "value": "kas-fleetshard-sync"
     }
+    
 ]

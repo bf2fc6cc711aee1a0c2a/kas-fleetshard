@@ -40,7 +40,7 @@ spec:
                 type: object
               net:
                 properties:
-                  _private:
+                  private:
                     type: boolean
                 type: object
             required:

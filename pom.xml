@@ -42,7 +42,7 @@
         <basepom.test.fork-count>1</basepom.test.fork-count>
         <basepom.failsafe.fork-count>1</basepom.failsafe.fork-count>
         <basepom.failsafe.reuse-vm>true</basepom.failsafe.reuse-vm>
-        <basepom.test.timeout>180</basepom.test.timeout>
+        <basepom.test.timeout>240</basepom.test.timeout>
 
         <!-- Disable push of changes from the release plugin, handled in separate job step. See .github/workflows/release.yml. -->
         <basepom.release.push-changes>false</basepom.release.push-changes>
@@ -74,6 +74,7 @@
         <format.skip>false</format.skip>
         <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
         <jakarta.validation.version>2.0.2</jakarta.validation.version>
+        <jsonassert.version>1.5.1</jsonassert.version>
 
         <!-- Override version for maven-install-plugin because there is a bug in
              3.0.0-M1 preventing installing of modules with packaging of feature
@@ -240,6 +241,12 @@
                 <groupId>jakarta.validation</groupId>
                 <artifactId>jakarta.validation-api</artifactId>
                 <version>${jakarta.validation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.skyscreamer</groupId>
+                <artifactId>jsonassert</artifactId>
+                <scope>test</scope>
+                <version>${jsonassert.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

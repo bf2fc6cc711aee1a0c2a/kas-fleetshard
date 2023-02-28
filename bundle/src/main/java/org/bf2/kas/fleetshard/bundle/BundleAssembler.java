@@ -50,6 +50,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -254,7 +255,7 @@ public class BundleAssembler {
         ClusterServiceVersion operatorCsv = operatorBundle.readResource("manifests/kas-fleetshard-operator.clusterserviceversion.yaml");
 
         operatorCsv.getMetadata().setName("kas-fleetshard-operator.v" + version);
-        operatorCsv.getMetadata().setAnnotations(new HashMap<>());
+        operatorCsv.getMetadata().setAnnotations(new LinkedHashMap<>());
         operatorCsv.getMetadata().getAnnotations().put("olm.skipRange", ">=0.0.1 <" + version);
         operatorCsv.getMetadata().getAnnotations().put("alm-examples", JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(almExamples));
 
@@ -318,7 +319,7 @@ public class BundleAssembler {
                         .map(retrieverFactory::dockerConfig))
                 .orElseGet(retrieverFactory::dockerConfig);
 
-        Map<String, String> bundleAnnotations = new HashMap<>();
+        Map<String, String> bundleAnnotations = new LinkedHashMap<>();
 
         YAML_MAPPER.readTree(operatorBundle.getEntry(ANNOTATIONS_PATH))
             .get("annotations")
