@@ -1,6 +1,7 @@
 #!/bin/sh
 
 BUNDLE_IMAGE=
+BUNDLE_IMAGE_DIGEST_FILE=''
 INDEX_REGISTRY=
 INDEX_GROUP=
 INDEX_IMAGE=
@@ -11,6 +12,11 @@ while [[ ${#} -gt 0 ]]; do
     case ${key} in
     "--bundle-image" )
         BUNDLE_IMAGE="${2:?${key} requires a valid bundle image reference}"
+        shift
+        shift
+        ;;
+    "--bundle-image-digest-file" )
+        BUNDLE_IMAGE_DIGEST_FILE="${2:?${key} requires a valid bundle image digest file reference}"
         shift
         shift
         ;;
@@ -45,6 +51,11 @@ while [[ ${#} -gt 0 ]]; do
         ;;
     esac
 done
+
+if [ -f "${BUNDLE_IMAGE_DIGEST_FILE}" ] ; then
+    BUNDLE_IMAGE_BASE=$(echo "${BUNDLE_IMAGE}" | cut -d ':' -f 1)
+    BUNDLE_IMAGE="${BUNDLE_IMAGE_BASE}@$(cat "${BUNDLE_IMAGE_DIGEST_FILE}")"
+fi
 
 opm index add --bundles "${BUNDLE_IMAGE}" --generate -d $(pwd)/index.Dockerfile
 
