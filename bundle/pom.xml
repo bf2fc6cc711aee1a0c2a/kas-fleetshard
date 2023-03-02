@@ -153,6 +153,9 @@
                                         <argument>--bundle-image</argument>
                                         <argument>${kas.bundle.image}</argument>
                                         <!-- -->
+                                        <argument>--bundle-image-digest-file</argument>
+                                        <argument>${project.build.directory}/bundle/jib-image.digest</argument>
+                                        <!-- -->
                                         <argument>--index-registry</argument>
                                         <argument>${kas.index.image-registry}</argument>
                                         <!-- -->
