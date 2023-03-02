@@ -3,19 +3,22 @@ package org.bf2.kas.fleetshard.bundle;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.fabric8.kubernetes.client.utils.IOHelpers;
 import org.apache.commons.compress.archivers.ArchiveException;
 import org.apache.commons.compress.archivers.ArchiveStreamFactory;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.utils.IOUtils;
+import org.json.JSONException;
 import org.junit.jupiter.api.Test;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,8 +43,6 @@ class BundleAssemblerTest {
         Path bundleTar = testBundle.resolve("bundle.tar");
 
         System.setProperty("kas.bundle.output-directory", testBundle.toAbsolutePath().toString());
-        System.setProperty("kas.bundle.operator-archive", targetPath.resolve("test-classes/operator-archive").toString());
-        System.setProperty("kas.bundle.sync-archive", targetPath.resolve("test-classes/sync-archive").toString());
         System.setProperty("kas.bundle.version", "1.2.3");
         System.setProperty("kas.bundle.image", "bf2/kas-fleetshard-operator-bundle:1.2.3");
         System.setProperty("kas.bundle.tar-image", bundleTar.toString());
@@ -78,9 +79,10 @@ class BundleAssemblerTest {
                 try {
                     String expected = Files.readString(file);
                     String actual = new String(layerEntries.get(expectedBundle.relativize(file).toString()), StandardCharsets.UTF_8);
-                    assertEquals(expected, actual);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
+
+                    JSONAssert.assertEquals(IOHelpers.convertYamlToJson(expected), IOHelpers.convertYamlToJson(actual), JSONCompareMode.NON_EXTENSIBLE);
+                } catch (IOException | JSONException e) {
+                    throw new RuntimeException(e);
                 }
             });
     }
