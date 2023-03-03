@@ -1,0 +1,26 @@
+---
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  name: keycloak
+spec:
+  instances: 1
+  db:
+    vendor: postgres
+    host: postgresql-db
+    usernameSecret:
+      name: keycloak-db-secret
+      key: username
+    passwordSecret:
+      name: keycloak-db-secret
+      key: password
+  http:
+    httpEnabled: false
+    tlsSecret: sso-x509-https-secret
+  hostname:
+    hostname: keycloak
+  ingress:
+    enabled: false
+  additionalOptions:
+    - name: http-relative-path
+      value: '/auth'

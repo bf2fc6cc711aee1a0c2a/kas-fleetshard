@@ -1,0 +1,54 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: keycloak-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: keycloak-postgres
+spec:
+  serviceName: postgresql-db-service
+  selector:
+    matchLabels:
+      app: postgresql-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgresql-db
+    spec:
+      volumes:
+        - name: keycloak-postgres
+          persistentVolumeClaim:
+            claimName: keycloak-postgres
+      containers:
+        - name: postgresql-db
+          image: postgres:15
+          env:
+            - name: POSTGRES_PASSWORD
+              value: postgrespass
+            - name: POSTGRES_DB
+              value: keycloak
+          volumeMounts:
+            - name: keycloak-postgres
+              mountPath: /var/lib/postgresql
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: postgresql-db
+spec:
+  selector:
+    app: postgresql-db
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432

@@ -1,6 +1,7 @@
 package org.bf2.systemtest.framework;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bf2.systemtest.operator.FleetShardOperatorManager;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 public class LogCollector {
     private static final Logger LOGGER = LogManager.getLogger(LogCollector.class);
@@ -27,7 +29,7 @@ public class LogCollector {
                 LOGGER.info("Pod: {} in ns: {} with phase: {}",
                         p.getMetadata().getName(),
                         p.getMetadata().getNamespace(),
-                        p.getStatus().getPhase()));
+                        Optional.ofNullable(p.getStatus()).map(PodStatus::getPhase).orElse("null")));
 
         Path logPath = TestUtils.getLogPath(Environment.LOG_DIR.resolve("failedTest").toString(), extensionContext);
         Files.createDirectories(logPath);
