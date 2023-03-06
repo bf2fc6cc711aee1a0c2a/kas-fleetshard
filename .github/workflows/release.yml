@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{secrets.BF2ROBOT_TOKEN}}
 
@@ -29,10 +29,10 @@ jobs:
           local-file: true
 
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         with:
           java-version: '11'
-          distribution: 'adopt'
+          distribution: 'temurin'
 
       - name: Perform Maven Release
         run: |
