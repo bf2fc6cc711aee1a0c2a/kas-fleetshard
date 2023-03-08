@@ -107,6 +107,7 @@ import static io.fabric8.kubernetes.api.model.Quantity.getAmountInBytes;
  */
 @ApplicationScoped
 @DefaultBean
+@SuppressWarnings("java:S4790") // ignore weak hashing
 public class KafkaCluster extends AbstractKafkaCluster {
 
     static final String KAS_FLEETSHARD_MEDIUM_PRIORITY = "kas-fleetshard-medium";

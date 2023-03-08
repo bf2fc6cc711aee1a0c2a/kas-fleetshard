@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 @Startup
 @ApplicationScoped
 public class SecretRestartHandler {
+    @SuppressWarnings("java:S5852")
     private static final Pattern SECRET_PATTERN = Pattern.compile(".*\\[secret=[^/]*/[^/]*/([^/]*)/([^/]*)\\]");
 
     @Inject
