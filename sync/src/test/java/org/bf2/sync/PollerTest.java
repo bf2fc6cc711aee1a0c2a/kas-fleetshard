@@ -197,6 +197,44 @@ public class PollerTest {
         Mockito.verify(terminator).notifyUnhealthy();
     }
 
+    @Test
+    public void testPaused() {
+        ManagedKafka managedKafka = exampleManagedKafka();
+        managedKafka.getMetadata().getAnnotations().put(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, Boolean.TRUE.toString());
+
+        List<ManagedKafka> items = lookup.getLocalManagedKafkas();
+        assertEquals(0, items.size());
+
+        Mockito.when(controlPlaneRestClient.getKafkaClusters(CLUSTER_ID)).thenReturn(new ManagedKafkaList(Collections.singletonList(managedKafka)));
+        managedKafkaSync.syncKafkaClusters();
+
+        // don't copy over if paused
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(0, items.size());
+
+        // unpaused will copy
+        managedKafka.getMetadata().getAnnotations().put(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, Boolean.FALSE.toString());
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(1, items.size());
+
+        // paused should not change the local, even if something else changes
+        managedKafka.getMetadata().getAnnotations().put(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION, Boolean.TRUE.toString());
+        managedKafka.getMetadata().getAnnotations().put("something", "new");
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(1, items.size());
+        assertNull(items.get(0).getMetadata().getAnnotations().get("something"));
+
+        // except for the deleted flag, that applies
+        managedKafka.getSpec().setDeleted(true);
+        managedKafkaSync.syncKafkaClusters();
+        items = lookup.getLocalManagedKafkas();
+        assertEquals(1, items.size());
+        assertNull(items.get(0).getMetadata().getAnnotations().get("something"));
+        assertTrue(items.get(0).getSpec().isDeleted());
+    }
+
     static ManagedKafka exampleManagedKafka() {
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
         mk.setId(ID);
