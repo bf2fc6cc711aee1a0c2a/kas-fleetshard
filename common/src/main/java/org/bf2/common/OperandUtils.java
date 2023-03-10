@@ -7,6 +7,7 @@ import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
 import io.fabric8.kubernetes.api.model.NodeAffinity;
 import io.fabric8.kubernetes.api.model.NodeAffinityBuilder;
 import io.fabric8.kubernetes.api.model.NodeSelectorRequirementBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PodAffinity;
@@ -26,6 +27,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class OperandUtils {
 
@@ -220,4 +222,9 @@ public class OperandUtils {
         }
         return map.getOrDefault(key, defaultValue);
     }
+
+    public static Optional<String> getAnnotation(HasMetadata hasMeta, String key) {
+        return Optional.ofNullable(hasMeta).map(HasMetadata::getMetadata).map(ObjectMeta::getAnnotations).map(a -> a.get(key));
+    }
+
 }

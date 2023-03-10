@@ -1,17 +1,14 @@
 package org.bf2.operator.managers;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.strimzi.api.kafka.model.Kafka;
 import io.strimzi.api.kafka.model.KafkaBuilder;
+import org.bf2.common.OperandUtils;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.canary.CanaryStatusService;
 import org.bf2.operator.clients.canary.Status;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
-import org.bf2.operator.resources.v1alpha1.ManagedKafkaList;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.quartz.Job;
@@ -63,11 +60,8 @@ public class KafkaManager {
     @ConfigProperty(name = "managedkafka.upgrade.consuming-percentage-threshold")
     Integer consumingPercentageThreshold;
 
-    private MixedOperation<ManagedKafka, ManagedKafkaList, Resource<ManagedKafka>> managedKafkaClient;
-
     @PostConstruct
     protected void onStart() {
-        managedKafkaClient = kubernetesClient.resources(ManagedKafka.class, ManagedKafkaList.class);
         checkStabilityTimeMs = statusTimeWindowMs + (statusTimeWindowMs * STATUS_TIME_WINDOW_PERCENTAGE_CORRECTION) / 100;
     }
 
@@ -77,7 +71,7 @@ public class KafkaManager {
      * @param managedKafka ManagedKafka instance to get the Kafka version
      * @param kafkaBuilder KafkaBuilder instance to upgrade the Kafka version on the cluster
      */
-    public void upgradeKafkaVersion(ManagedKafka managedKafka, KafkaBuilder kafkaBuilder) {
+    public void upgradeKafkaVersion(ManagedKafka managedKafka, Kafka current, KafkaBuilder kafkaBuilder) {
         log.infof("[%s/%s] Kafka change from %s to %s",
                 managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
                 kafkaBuilder.buildSpec().getKafka().getVersion(), managedKafka.getSpec().getVersions().getKafka());
@@ -89,7 +83,7 @@ public class KafkaManager {
                 .endSpec();
 
         // stamp the ManagedKafka resource with starting time of Kafka upgrade
-        addUpgradeTimeStampAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
+        addUpgradeTimeStampAnnotation(current, kafkaBuilder, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
     }
 
     /**
@@ -263,11 +257,10 @@ public class KafkaManager {
      * Returns if a Kafka stability check has to run/scheduled after a Kafka version upgrade
      *
      * @param managedKafka ManagedKafka instance
-     * @param kafkaCluster Kafka cluster operand
      * @return if a Kafka stability check has to run/scheduled after a Kafka version upgrade
      */
-    public boolean isKafkaUpgradeStabilityCheckToRun(ManagedKafka managedKafka, AbstractKafkaCluster kafkaCluster) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
+    public boolean isKafkaUpgradeStabilityCheckToRun(ManagedKafka managedKafka, Kafka current) {
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = OperandUtils.getAnnotation(current, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
 
         // taking into account that the stability check job was scheduled
         // NOTE: it's useful when operator crashes after Kafka upgrade ends but stability check not started yet.
@@ -282,13 +275,13 @@ public class KafkaManager {
      *
      * @param managedKafka ManagedKafka instance
      */
-    public void checkKafkaUpgradeIsStable(ManagedKafka managedKafka) {
-        Optional<String> kafkaUpgradeStartTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
+    public void checkKafkaUpgradeIsStable(ManagedKafka managedKafka, Kafka current, KafkaBuilder kafkaBuilder) {
+        Optional<String> kafkaUpgradeStartTimestampAnnotation = OperandUtils.getAnnotation(current, Annotations.KAFKA_UPGRADE_START_TIMESTAMP);
 
         // the stability check starts only if a Kafka upgrade was in place
         if (kafkaUpgradeStartTimestampAnnotation.isPresent()) {
             Duration d;
-            Optional<String> kafkaUpgradeEndTimestampAnnotation = managedKafka.getAnnotation(Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
+            Optional<String> kafkaUpgradeEndTimestampAnnotation = OperandUtils.getAnnotation(current, Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
 
             // Kafka upgrade just finished
             if (kafkaUpgradeEndTimestampAnnotation.isEmpty()) {
@@ -299,7 +292,7 @@ public class KafkaManager {
                         Annotations.KAFKA_UPGRADE_END_TIMESTAMP, d.toString());
 
                 // stamp the ManagedKafka resource with ending time of Kafka upgrade and starting stability check
-                addUpgradeTimeStampAnnotation(managedKafka, Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
+                addUpgradeTimeStampAnnotation(current, kafkaBuilder, Annotations.KAFKA_UPGRADE_END_TIMESTAMP);
             // Kafka upgrade already finished, but operator could have crashed not ending the stability check (and removing annotations)
             } else {
                 ZonedDateTime endTimestamp = ZonedDateTime.parse(kafkaUpgradeEndTimestampAnnotation.get());
@@ -351,6 +344,10 @@ public class KafkaManager {
     void doKafkaUpgradeStabilityCheck(ManagedKafka managedKafka) {
         log.infof("[%s/%s] Kafka upgrade stability check", managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
         Status status;
+        Kafka kafka = cachedKafka(managedKafka);
+        if (kafka == null) {
+            return;
+        }
 
         try {
             status = canaryStatus.get(managedKafka);
@@ -359,7 +356,7 @@ public class KafkaManager {
                     "[%s/%s] Error while checking Kafka upgrade stability",
                     managedKafka.getMetadata().getNamespace(),
                     managedKafka.getMetadata().getName());
-            removeEndTimestamp(managedKafka);
+            removeEndTimestamp(kafka);
             return;
         }
 
@@ -370,10 +367,7 @@ public class KafkaManager {
         if (status.getConsuming().getPercentage() > consumingPercentageThreshold) {
             log.debugf("[%s/%s] Remove Kafka upgrade start/end annotations",
                     managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName());
-            managedKafkaClient
-                    .inNamespace(managedKafka.getMetadata().getNamespace())
-                    .withName(managedKafka.getMetadata().getName())
-                    .edit(mk -> new ManagedKafkaBuilder(mk)
+            kubernetesClient.resource(kafka).edit(k -> new KafkaBuilder(k)
                             .editMetadata()
                                 .removeFromAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP)
                                 .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
@@ -383,22 +377,19 @@ public class KafkaManager {
             log.warnf("[%s/%s] Reported consuming percentage %d less than %d threshold",
                     managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(),
                     status.getConsuming().getPercentage(), consumingPercentageThreshold);
-            removeEndTimestamp(managedKafka);
+            removeEndTimestamp(kafka);
         }
         // trigger a reconcile on the ManagedKafka instance to push checking if next step
         // Kafka IBP upgrade is needed or another stability check
         informerManager.resyncManagedKafka(managedKafka);
     }
 
-    void removeEndTimestamp(ManagedKafka managedKafka) {
-        managedKafkaClient
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(managedKafka.getMetadata().getName())
-                .edit(mk -> new ManagedKafkaBuilder(mk)
-                        .editMetadata()
-                            .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
-                        .endMetadata()
-                        .build());
+    void removeEndTimestamp(Kafka kafka) {
+        kubernetesClient.resource(kafka).edit(k -> new KafkaBuilder(k)
+                .editMetadata()
+                    .removeFromAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP)
+                .endMetadata()
+                .build());
     }
 
     /**
@@ -421,26 +412,17 @@ public class KafkaManager {
     }
 
     /**
-     * Add a Kafka upgrade related timestamp (current UTC time) to the ManagedKafka instance
+     * Add a Kafka upgrade related timestamp (current UTC time) to the Kafka instance
      *
-     * @param managedKafka ManagedKafka instance
+     * @param kafka ManagedKafka instance
      * @param annotation annotation to add, start or end of Kafka upgrade
      */
-    private void addUpgradeTimeStampAnnotation(ManagedKafka managedKafka, String annotation) {
+    private void addUpgradeTimeStampAnnotation(Kafka kafka, KafkaBuilder kafkaBuilder, String annotation) {
         log.debugf("[%s/%s] Adding Kafka upgrade %s timestamp annotation",
-                managedKafka.getMetadata().getNamespace(), managedKafka.getMetadata().getName(), annotation);
+                kafka.getMetadata().getNamespace(), kafka.getMetadata().getName(), annotation);
 
         String timestampValue = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
-        managedKafka.getMetadata().getAnnotations().put(annotation, timestampValue);
-
-        managedKafkaClient
-                .inNamespace(managedKafka.getMetadata().getNamespace())
-                .withName(managedKafka.getMetadata().getName())
-                .edit(mk -> new ManagedKafkaBuilder(mk)
-                        .editMetadata()
-                            .addToAnnotations(annotation, timestampValue)
-                        .endMetadata()
-                        .build());
+        kafkaBuilder.editMetadata().addToAnnotations(annotation, timestampValue).endMetadata();
     }
 
     public static class CheckKafkaUpgradeIsStableJob implements Job {

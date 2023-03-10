@@ -1,14 +1,18 @@
 package org.bf2.operator.managers;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.mockito.InjectMock;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
+import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.KafkaBuilder;
 import org.bf2.common.ManagedKafkaResourceClient;
 import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.canary.CanaryStatusService;
 import org.bf2.operator.clients.canary.Status;
 import org.bf2.operator.clients.canary.Status.Consuming;
+import org.bf2.operator.operands.KafkaCluster;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +21,7 @@ import org.mockito.Mockito;
 import javax.inject.Inject;
 
 import java.time.Instant;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -29,14 +34,25 @@ class KafkaManagerTest {
     ManagedKafkaResourceClient mkClient;
 
     @Inject
+    KubernetesClient client;
+
+    @Inject
+    InformerManager informerManager;
+
+    @Inject
     KafkaManager kafkaManager;
 
     @InjectMock
     CanaryStatusService canaryStatus;
 
+    @Inject
+    KafkaCluster kafkaCluster;
+
     @BeforeEach
     void setup() {
-        mkClient.delete();
+        informerManager.createKafkaInformer();
+        client.resources(Kafka.class).inAnyNamespace().delete();
+        client.resources(ManagedKafka.class).inAnyNamespace().delete();
     }
 
     @Test
@@ -48,20 +64,10 @@ class KafkaManagerTest {
         Mockito.when(canaryStatus.get(Mockito.any())).thenReturn(status);
 
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_START_TIMESTAMP, Instant.ofEpochMilli(1).toString());
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_END_TIMESTAMP, Instant.ofEpochMilli(2).toString());
+        Kafka kafka = upgradeStabilityCheck(mk, b -> {});
 
-        String ns = mk.getMetadata().getNamespace();
-        String name = mk.getMetadata().getName();
-
-        mkClient.create(mk);
-
-        kafkaManager.doKafkaUpgradeStabilityCheck(mk);
-
-        mk = mkClient.getByName(ns, name);
-
-        assertNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
-        assertNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
+        assertNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
+        assertNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
     }
 
     @Test
@@ -73,20 +79,31 @@ class KafkaManagerTest {
         Mockito.when(canaryStatus.get(Mockito.any())).thenReturn(status);
 
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_START_TIMESTAMP, Instant.ofEpochMilli(1).toString());
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_END_TIMESTAMP, Instant.ofEpochMilli(2).toString());
 
-        String ns = mk.getMetadata().getNamespace();
-        String name = mk.getMetadata().getName();
+        Kafka kafka = upgradeStabilityCheck(mk, b -> {});
+
+        assertNotNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
+        assertNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
+    }
+
+    private Kafka upgradeStabilityCheck(ManagedKafka mk, Consumer<KafkaBuilder> consumer) {
+        Kafka kafka = kafkaCluster.kafkaFrom(mk, null);
+
+        KafkaBuilder builder = new KafkaBuilder(kafka);
+        builder.editMetadata()
+                .addToAnnotations(Annotations.KAFKA_UPGRADE_START_TIMESTAMP, Instant.ofEpochMilli(1).toString())
+                .addToAnnotations(Annotations.KAFKA_UPGRADE_END_TIMESTAMP, Instant.ofEpochMilli(2).toString())
+                .endMetadata();
+        consumer.accept(builder);
+        kafka = builder.build();
+
+        client.resource(kafka).createOrReplace();
 
         mkClient.create(mk);
 
         kafkaManager.doKafkaUpgradeStabilityCheck(mk);
 
-        mk = mkClient.getByName(ns, name);
-
-        assertNotNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
-        assertNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
+        return client.resource(kafka).fromServer().get();
     }
 
     @Test
@@ -94,19 +111,9 @@ class KafkaManagerTest {
         Mockito.when(canaryStatus.get(Mockito.any())).thenThrow(RuntimeException.class);
 
         ManagedKafka mk = ManagedKafka.getDummyInstance(1);
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_START_TIMESTAMP, Instant.ofEpochMilli(1).toString());
-        mk.getMetadata().getAnnotations().put(Annotations.KAFKA_UPGRADE_END_TIMESTAMP, Instant.ofEpochMilli(2).toString());
+        Kafka kafka = upgradeStabilityCheck(mk, b -> {});
 
-        String ns = mk.getMetadata().getNamespace();
-        String name = mk.getMetadata().getName();
-
-        mkClient.create(mk);
-
-        kafkaManager.doKafkaUpgradeStabilityCheck(mk);
-
-        mk = mkClient.getByName(ns, name);
-
-        assertNotNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
-        assertNull(mk.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
+        assertNotNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_START_TIMESTAMP));
+        assertNull(kafka.getMetadata().getAnnotations().get(Annotations.KAFKA_UPGRADE_END_TIMESTAMP));
     }
 }

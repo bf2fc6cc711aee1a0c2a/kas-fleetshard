@@ -719,15 +719,15 @@ class KafkaClusterTest {
         KafkaBuilder kafka = new KafkaBuilder(this.kafkaCluster.kafkaFrom(mk, null));
 
         if (kafkaUpgradeStart != null) {
-            mk.getMetadata().getAnnotations().put(
+            kafka.editMetadata().addToAnnotations(
                     ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_START_TIMESTAMP,
-                    Instant.ofEpochMilli(kafkaUpgradeStart).toString());
+                    Instant.ofEpochMilli(kafkaUpgradeStart).toString()).endMetadata();
         }
 
         if (kafkaUpgradeEnd != null) {
-            mk.getMetadata().getAnnotations().put(
+            kafka.editMetadata().addToAnnotations(
                     ManagedKafkaKeys.Annotations.KAFKA_UPGRADE_END_TIMESTAMP,
-                    Instant.ofEpochMilli(kafkaUpgradeEnd).toString());
+                    Instant.ofEpochMilli(kafkaUpgradeEnd).toString()).endMetadata();
         }
 
         if (suspendedValue != null) {
