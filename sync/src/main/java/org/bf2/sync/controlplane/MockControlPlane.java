@@ -67,6 +67,7 @@ public class MockControlPlane implements ControlPlaneApi {
             return;
         }
 
+        @SuppressWarnings("java:S2245")
         Random random = new Random(System.currentTimeMillis());
         log.info("control plane:: Running Simulation");
 

@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @ApplicationScoped
+@SuppressWarnings("java:S4790") // ignore weak hashing
 public class SecuritySecretManager {
 
     public static final String SASL_PRINCIPAL ="sasl.principal";

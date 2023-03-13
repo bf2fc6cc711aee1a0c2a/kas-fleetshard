@@ -255,16 +255,14 @@ public class StrimziBundleManager {
                 .withName(subscription.getSpec().getName())
                 .get();
 
-        List<String> strimziVersions = this.strimziVersionsFromPackageManifest(packageManifest);
-        return strimziVersions;
-    }
-
-    private List<String> strimziVersionsFromPackageManifest(PackageManifest packageManifest) {
+        if (packageManifest == null) {
+            return Collections.emptyList();
+        }
         // avoiding the nullability of one of the status fields along the chain due to Kubernetes not updating
         // the PackageManifest on time when the fleetshard operator starts to take care of the approval
         // This way avoid a race condition raising an NPE
         String strimziVersionsJson =
-                Optional.ofNullable(packageManifest)
+                Optional.of(packageManifest)
                         .map(PackageManifest::getStatus)
                         .map(PackageManifestStatus::getChannels)
                         .map(packageChannels -> !packageChannels.isEmpty() ? packageChannels.get(0) : null)

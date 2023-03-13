@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@SuppressWarnings("java:S4790") // ignore weak hashing
 public class SecretManager {
 
     private static final String ENDPOINT_TLS_CRT = "endpoint.tls.crt";

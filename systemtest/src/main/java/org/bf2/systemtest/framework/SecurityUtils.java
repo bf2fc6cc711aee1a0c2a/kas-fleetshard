@@ -68,6 +68,7 @@ public class SecurityUtils {
 
     }
 
+    @SuppressWarnings({"java:S2068", "java:S6437"})
     public static final String TRUSTSTORE_PASSWORD = "changeit";
 
     public static void main(String[] args) throws Exception {

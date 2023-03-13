@@ -172,10 +172,11 @@ public class SyncApiClient {
             ComparableVersion aVersion = new ComparableVersion(a);
             ComparableVersion bVersion = new ComparableVersion(b);
             return aVersion.compareTo(bVersion);
-        }).reduce((first, second) -> second).get();
+        }).reduce((first, second) -> second).orElseThrow();
     }
 
     public static Stream<String> sortedStrimziVersion(Stream<String> versions) {
+        @SuppressWarnings("java:S5852")
         Pattern pattern = Pattern.compile("^.*\\.v(?<version>[0-9]+\\.[0-9]+\\.[0-9]+[-0-9]*)$");
         return Objects.requireNonNull(versions.sorted((a, b) -> {
             Matcher aMatcher = pattern.matcher(a);

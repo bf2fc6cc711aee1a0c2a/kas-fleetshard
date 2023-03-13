@@ -37,6 +37,7 @@ public class MockManagedKafkaFactory {
     @Scheduled(every = "{mock.factory.interval}")
     void loop() {
 
+        @SuppressWarnings("java:S2245")
         Random random = new Random(System.currentTimeMillis());
         log.info("Mock ManagedKafka Factory:: Running Simulation");
 
