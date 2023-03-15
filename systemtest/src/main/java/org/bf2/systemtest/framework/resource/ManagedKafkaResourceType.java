@@ -94,7 +94,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     public static Pod getCanaryPod(ManagedKafka mk) {
         return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
-                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "canary"))).findFirst().get();
+                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "canary"))).findFirst().orElseThrow();
     }
 
     public static List<Pod> getKafkaPods(ManagedKafka mk) {
@@ -115,7 +115,7 @@ public class ManagedKafkaResourceType implements ResourceType<ManagedKafka> {
 
     public static Pod getAdminApiPod(ManagedKafka mk) {
         return KubeClient.getInstance().client().pods().inNamespace(mk.getMetadata().getNamespace()).list().getItems().stream().filter(pod ->
-                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "admin-server"))).findFirst().get();
+                pod.getMetadata().getName().contains(String.format("%s-%s", mk.getMetadata().getName(), "admin-server"))).findFirst().orElseThrow();
     }
 
     /**

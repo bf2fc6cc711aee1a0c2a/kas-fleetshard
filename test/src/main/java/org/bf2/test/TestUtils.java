@@ -41,7 +41,7 @@ public class TestUtils {
         try {
             asyncWaitFor(description, pollIntervalMs, timeoutMs, ready).get();
         } catch (InterruptedException e) {
-            Thread.interrupted();
+            Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof RuntimeException) {
