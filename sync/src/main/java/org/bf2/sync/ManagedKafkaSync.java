@@ -2,12 +2,13 @@ package org.bf2.sync;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.base.PatchContext;
+import io.fabric8.kubernetes.client.dsl.base.PatchType;
 import io.fabric8.kubernetes.client.informers.cache.Cache;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.fabric8.kubernetes.client.utils.Serialization;
@@ -41,7 +42,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -103,6 +103,25 @@ public class ManagedKafkaSync {
             String localKey = Cache.namespaceKeyFunc(remoteManagedKafka.getMetadata().getNamespace(), remoteManagedKafka.getMetadata().getName());
             ManagedKafka existing = lookup.getLocalManagedKafka(localKey);
 
+            // special handling if the control plane indicates paused
+            if (remoteManagedKafka.getAnnotation(ManagedKafkaKeys.Annotations.PAUSE_RECONCILIATION).map(Boolean::valueOf).orElse(false)) {
+                if (!remoteManagedKafka.getSpec().isDeleted()) {
+                    log.debugf("Taking no action on ManagedKafka %s as the control plane has paused it", Cache.metaNamespaceKeyFunc(remoteManagedKafka));
+                    continue;
+                }
+                if (existing != null) {
+                    if (!existing.getSpec().isDeleted()) {
+                        log.debugf("Passing just the delete flag to the ManagedKafka %s", Cache.metaNamespaceKeyFunc(remoteManagedKafka));
+                        kubeClient.resources(ManagedKafka.class)
+                                .inNamespace(existing.getMetadata().getNamespace())
+                                .withName(existing.getMetadata().getName())
+                                .patch(PatchContext.of(PatchType.JSON),
+                                        "[{\"op\": \"replace\", \"path\":\"/spec/deleted\", \"value\":true}]");
+                    }
+                    continue;
+                }
+            }
+
             // take action based upon differences
             // this is really just seeing if an instance needs created and the delete flag
             // there are no other fields to reconcile - but you could envision updating
@@ -121,24 +140,8 @@ public class ManagedKafkaSync {
                     // fire and forget the async call - if it fails, we'll retry on the next poll
                     controlPlane.updateKafkaClusterStatus(()->{return Map.of(remoteManagedKafka.getId(), statusBuilder.build());});
                 }
-            } else {
-                final String localNamespace = existing.getMetadata().getNamespace();
-                final String managedKafkaId = existing.getMetadata().getAnnotations() == null ? null : existing.getMetadata().getAnnotations().get(MANAGEDKAFKA_ID_LABEL);
-                Namespace n = kubeClient.namespaces().withName(localNamespace).get();
-                if (n != null) {
-                    String namespaceLabel = Optional.ofNullable(n.getMetadata().getLabels()).map(m -> m.get(MANAGEDKAFKA_ID_NAMESPACE_LABEL)).orElse("");
-                    if (managedKafkaId != null && !namespaceLabel.equals(managedKafkaId)) {
-                        kubeClient.namespaces().withName(localNamespace).edit(namespace -> new NamespaceBuilder(namespace)
-                                .editMetadata()
-                                .addToLabels(MANAGEDKAFKA_ID_NAMESPACE_LABEL, managedKafkaId)
-                                .endMetadata()
-                                .build());
-                    }
-                }
-
-                if (changed(remoteManagedKafka, existing)) {
-                    reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
-                }
+            } else if (changed(remoteManagedKafka, existing)) {
+                reconcileAsync(ControlPlane.managedKafkaKey(remoteManagedKafka), localKey);
             }
         }
 
