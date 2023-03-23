@@ -202,7 +202,7 @@ public class StrimziBundleManager {
 
         final String subNamespace = subscription.getMetadata().getNamespace();
         final String subName = subscription.getMetadata().getName();
-        boolean approveImmediately;
+        boolean approveImmediately = false;
 
         if (subscription.getStatus().getInstalledCSV() == null) {
             log.infof("Subscription %s/%s has no linked CSV; InstallPlan will be approved immediately", subNamespace, subName);
@@ -210,8 +210,6 @@ public class StrimziBundleManager {
         } else if (!this.isKafkaCrdsInstalled()) {
             log.infof("Subscription %s/%s has missing Strimzi CRDs; InstallPlan will be approved immediately", subNamespace, subName);
             approveImmediately = true;
-        } else {
-            approveImmediately = false;
         }
 
         // CSV or CRDs are not installed, nothing we can do more ... just approving installation
