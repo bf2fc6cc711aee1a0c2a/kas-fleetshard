@@ -132,7 +132,7 @@ public class StrimziBundleManager {
             final String ns = subscription.getMetadata().getNamespace();
             final String name = subscription.getMetadata().getName();
 
-            log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Changing to 'Manual'.",ns, name);
+            log.warnf("Subscription %s/%s has InstallPlan approval on 'Automatic'. Changing to 'Manual'.", ns, name);
 
             this.openShiftClient.operatorHub()
                 .subscriptions()
@@ -200,10 +200,23 @@ public class StrimziBundleManager {
             return Approval.UNKNOWN;
         }
 
-        // CRDs are not installed, nothing we can do more ... just approving installation
-        if (!this.isKafkaCrdsInstalled()) {
+        final String subNamespace = subscription.getMetadata().getNamespace();
+        final String subName = subscription.getMetadata().getName();
+        boolean approveImmediately;
+
+        if (subscription.getStatus().getInstalledCSV() == null) {
+            log.infof("Subscription %s/%s has no linked CSV; InstallPlan will be approved immediately", subNamespace, subName);
+            approveImmediately = true;
+        } else if (!this.isKafkaCrdsInstalled()) {
+            log.infof("Subscription %s/%s has missing Strimzi CRDs; InstallPlan will be approved immediately", subNamespace, subName);
+            approveImmediately = true;
+        } else {
+            approveImmediately = false;
+        }
+
+        // CSV or CRDs are not installed, nothing we can do more ... just approving installation
+        if (approveImmediately) {
             this.clearMetrics();
-            log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
             return Approval.APPROVED;
         } else {
             List<Kafka> kafkas = this.kafkaClient.list();
@@ -225,18 +238,18 @@ public class StrimziBundleManager {
                     lastPendingInstationCheck = currentTimeMillis;
                 }
                 if (currentTimeMillis - lastPendingInstationCheck < approvalDelay.toMillis()) {
-                    log.infof("Subscription %s/%s will be approved after a delay", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
+                    log.infof("Subscription %s/%s will be approved after a delay", subNamespace, subName);
                     return Approval.WAITING;
                 }
 
                 this.clearMetrics();
-                log.infof("Subscription %s/%s will be approved", subscription.getMetadata().getNamespace(), subscription.getMetadata().getName());
+                log.infof("Subscription %s/%s will be approved", subNamespace, subName);
                 return Approval.APPROVED;
             } else {
                 lastPendingInstationCheck = Long.MAX_VALUE; // reset the timestamp next time we go through above
                 // covered Kafkas should be less, so if this bundle is installed, some Kafkas would be orphaned
                 log.infof("Subscription %s/%s will not be approved. Covered Kafka %d/%d.",
-                        subscription.getMetadata().getNamespace(), subscription.getMetadata().getName(), coveredKafkas, kafkas.size());
+                        subNamespace, subName, coveredKafkas, kafkas.size());
                 log.infof("Kafka instances not covered per Strimzi version:");
                 for (Map.Entry<String, List<Kafka>> e : orphanedKafkas.entrySet()) {
                     meterRegistry.gaugeCollectionSize(STRIMZI_ORPHANED_KAFKAS_METRIC, Tags.of("strimzi", e.getKey()), e.getValue());
