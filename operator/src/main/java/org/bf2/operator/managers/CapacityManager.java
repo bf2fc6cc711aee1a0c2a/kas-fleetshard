@@ -216,6 +216,13 @@ public class CapacityManager {
         // ensure we have the latest
         ConfigMap resourceConfigMap = client.configMaps().withName(FLEETSHARD_RESOURCES).get();
 
+        String managedKafkaKey = getManagedKafkaKey(managedKafka);
+
+        if (resourceConfigMap.getData().get(managedKafkaKey) != null) {
+            // a competing operator has already claimed resources for this managedkafka - will be removed as a possibility when leader election is supported
+            return Optional.empty();
+        }
+
         Resources resources = createResources(managedKafka, profile);
 
         int total = Integer.parseInt(resourceConfigMap.getData().getOrDefault(profile, "0"));
@@ -230,7 +237,7 @@ public class CapacityManager {
 
         // update the configmap in a locked manner - this may fail, but we'll retry
         resourceConfigMap.getData().put(profile, String.valueOf(newTotal));
-        resourceConfigMap.getData().put(getManagedKafkaKey(managedKafka), Serialization.asJson(resources));
+        resourceConfigMap.getData().put(managedKafkaKey, Serialization.asJson(resources));
         client.configMaps()
                 .withName(FLEETSHARD_RESOURCES)
                 .lockResourceVersion(resourceConfigMap.getMetadata().getResourceVersion())
