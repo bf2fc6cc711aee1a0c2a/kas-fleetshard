@@ -85,6 +85,17 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
+    public void testInstallationWithCRDsPresent() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.createKafkaCRDs();
+        subscription.getStatus().setInstalledCSV(null);
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was approved
+        this.checkInstallPlan(subscription, true);
+    }
+
+    @Test
     public void testInstallationWithEmptyStrimzi() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual", null);
         this.strimziBundleManager.handleSubscription(subscription);
@@ -376,6 +387,7 @@ public class StrimziBundleManagerTest {
                 .withNewStatus()
                     .withConditions(new SubscriptionConditionBuilder().withType("InstallPlanPending").withReason("RequiresApproval").build())
                     .withInstallPlanRef(new ObjectReferenceBuilder().withNamespace(namespace).withName(installPlan).build())
+                    .withInstalledCSV(bundleName + ".v0.0.1")
                 .endStatus()
                 .build();
 
