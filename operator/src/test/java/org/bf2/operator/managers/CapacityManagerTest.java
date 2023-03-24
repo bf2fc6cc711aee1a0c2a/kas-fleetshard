@@ -219,4 +219,33 @@ class CapacityManagerTest {
         assertEquals(Status.False, readiness.getStatus());
     }
 
+    @Test
+    void testCompletingClaims() {
+        ManagedKafkaAgent dummyInstance = ManagedKafkaAgentResourceClient.getDummyInstance();
+        dummyInstance.getMetadata().setNamespace(client.getNamespace());
+        dummyInstance.getSpec()
+                .setCapacity(Map.of("standard",
+                        new ProfileBuilder().withMaxNodes(30).build()));
+        client.resource(dummyInstance).createOrReplace();
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        mk = new ManagedKafkaBuilder().editMetadata()
+                .endMetadata()
+                .build();
+
+        // add a real instance, presumably by another operator before the claimResources call
+        client.configMaps()
+                .create(new ConfigMapBuilder().withNewMetadata()
+                        .withName(CapacityManager.FLEETSHARD_RESOURCES)
+                        .endMetadata()
+                        .withData(Map.of("standard", "1", CapacityManager.getManagedKafkaKey(mk),
+                                "{\"profile\":\"standard\",\"units\":1}"))
+                        .build());
+
+        Optional<OperandReadiness> result = capacityManager.claimResources(mk, "standard", dummyInstance);
+        assertTrue(result.isEmpty());
+        // should stay at 1, rather than incrementing again
+        assertEquals("1", capacityManager.getOrCreateResourceConfigMap(dummyInstance).getData().get("standard"));
+    }
+
 }
