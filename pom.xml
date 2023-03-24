@@ -142,6 +142,12 @@
                 <groupId>io.quarkiverse.operatorsdk</groupId>
                 <artifactId>quarkus-operator-sdk</artifactId>
                 <version>${quarkus.operator.extension}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>io.quarkus</groupId>
+                        <artifactId>quarkus-container-image-jib</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>io.quarkiverse.operatorsdk</groupId>
@@ -522,7 +528,7 @@
                     <plugin>
                         <artifactId>maven-release-plugin</artifactId>
                         <configuration>
-                            <releaseProfiles>release-perform,quickly</releaseProfiles>
+                            <releaseProfiles>release-perform,image-jib,quickly</releaseProfiles>
                             <arguments>${release.properties}</arguments>
                         </configuration>
                     </plugin>
