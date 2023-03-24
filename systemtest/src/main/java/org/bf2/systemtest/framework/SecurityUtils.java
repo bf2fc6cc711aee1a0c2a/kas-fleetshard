@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 
+@SuppressWarnings({"java:S2068", "java:S6437"})
 public class SecurityUtils {
 
     public static class TlsConfig {
@@ -68,7 +69,6 @@ public class SecurityUtils {
 
     }
 
-    @SuppressWarnings({"java:S2068", "java:S6437"})
     public static final String TRUSTSTORE_PASSWORD = "changeit";
 
     public static void main(String[] args) throws Exception {
