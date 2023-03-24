@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
-public class StrimziBundleManagerTest {
+class StrimziBundleManagerTest {
 
     @Inject
     StrimziBundleManager strimziBundleManager;
@@ -59,7 +59,7 @@ public class StrimziBundleManagerTest {
     MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         this.packageManifestClient = this.openShiftClient.operatorHub().packageManifests();
 
         // cleaning OpenShift cluster
@@ -71,12 +71,12 @@ public class StrimziBundleManagerTest {
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         strimziManager.clearStrimziPendingInstallationVersions();
     }
 
     @Test
-    public void testFirstInstallation() {
+    void testFirstInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
@@ -85,7 +85,18 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testInstallationWithEmptyStrimzi() {
+    void testInstallationWithCRDsPresent() {
+        Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
+                "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
+        this.createKafkaCRDs();
+        subscription.getStatus().setInstalledCSV(null);
+        this.strimziBundleManager.handleSubscription(subscription);
+        // check that InstallPlan was approved
+        this.checkInstallPlan(subscription, true);
+    }
+
+    @Test
+    void testInstallationWithEmptyStrimzi() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual", null);
         this.strimziBundleManager.handleSubscription(subscription);
         // check that InstallPlan was not approved due to empty Strimzi versions
@@ -93,7 +104,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testInstallationWithAutomaticApproval() {
+    void testInstallationWithAutomaticApproval() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Automatic",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
@@ -102,7 +113,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testUpdateInstallation() {
+    void testUpdateInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
@@ -119,7 +130,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testDelayUpdateInstallation() throws InterruptedException {
+    void testDelayUpdateInstallation() throws InterruptedException {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
@@ -151,7 +162,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testNotApprovedInstallation() {
+    void testNotApprovedInstallation() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
@@ -169,7 +180,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testApprovedInstallationAfterKafkaUpdate() {
+    void testApprovedInstallationAfterKafkaUpdate() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
         this.strimziBundleManager.handleSubscription(subscription);
@@ -196,7 +207,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testPackageManifestWithoutStatus() {
+    void testPackageManifestWithoutStatus() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
@@ -210,7 +221,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testPackageManifestWithoutChannels() {
+    void testPackageManifestWithoutChannels() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
@@ -224,7 +235,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testPackageManifestWithoutCurrentCSVDesc() {
+    void testPackageManifestWithoutCurrentCSVDesc() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
@@ -242,7 +253,7 @@ public class StrimziBundleManagerTest {
     }
 
     @Test
-    public void testPackageManifestWithoutCurrentCSVDescAnnotations() {
+    void testPackageManifestWithoutCurrentCSVDescAnnotations() {
         Subscription subscription = this.installOrUpdateBundle("kas-strimzi-operator", "kas-strimzi-bundle", "Manual",
                 "strimzi-cluster-operator.v1", "strimzi-cluster-operator.v2");
 
@@ -376,6 +387,7 @@ public class StrimziBundleManagerTest {
                 .withNewStatus()
                     .withConditions(new SubscriptionConditionBuilder().withType("InstallPlanPending").withReason("RequiresApproval").build())
                     .withInstallPlanRef(new ObjectReferenceBuilder().withNamespace(namespace).withName(installPlan).build())
+                    .withInstalledCSV(bundleName + ".v0.0.1")
                 .endStatus()
                 .build();
 
