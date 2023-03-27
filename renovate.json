@@ -1,3 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "labels": ["dependencies", "bot"]
+  "ignoreDeps": ["quarkus.platform.version", "quarkus.platform.test.version", "quarkus-plugin.version", "fabric8.client.version", "quarkus.operator.extension"] 
 }
