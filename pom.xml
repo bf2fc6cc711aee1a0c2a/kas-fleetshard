@@ -62,7 +62,7 @@
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
         <strimzi.version>0.29.0</strimzi.version>
         <fabric8.client.version>5.12.4</fabric8.client.version>
-        <quarkus.operator.extension>4.0.7</quarkus.operator.extension>
+        <quarkus.operator.extension>4.0.8</quarkus.operator.extension>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <junit.platform.version>1.7.2</junit.platform.version>
         <sundrio.version>0.50.4</sundrio.version>
