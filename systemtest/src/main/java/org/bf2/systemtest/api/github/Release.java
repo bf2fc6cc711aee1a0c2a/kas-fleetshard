@@ -1,7 +1,7 @@
 package org.bf2.systemtest.api.github;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import io.vertx.core.json.Json;
+import io.fabric8.kubernetes.client.utils.Serialization;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Release {
@@ -12,6 +12,6 @@ public class Release {
 
     @Override
     public String toString() {
-        return Json.encode(this);
+        return Serialization.asJson(this);
     }
 }

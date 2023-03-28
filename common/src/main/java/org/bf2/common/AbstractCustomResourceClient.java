@@ -1,8 +1,8 @@
 package org.bf2.common;
 
+import io.fabric8.kubernetes.api.model.DefaultKubernetesResourceList;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.client.CustomResource;
-import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -18,7 +18,7 @@ import java.util.function.UnaryOperator;
  * @deprecated to be removed after fabric8 6
  */
 @Deprecated
-public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?>, L extends CustomResourceList<T>> {
+public abstract class AbstractCustomResourceClient<T extends CustomResource<?, ?>, L extends DefaultKubernetesResourceList<T>> {
 
     @Inject
     Logger log;
