@@ -14,6 +14,7 @@ import org.bf2.operator.managers.OperandOverrideManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigValue;
+import org.jboss.logging.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
@@ -43,6 +44,11 @@ public class KafkaInstanceConfigurations {
 
     private static final String MANAGEDKAFKA = "managedkafka";
 
+    public enum Platform {
+        AWS,
+        GCP
+    }
+
     public enum InstanceType {
         STANDARD(3),
         DEVELOPER(.1);
@@ -69,6 +75,9 @@ public class KafkaInstanceConfigurations {
     }
 
     @Inject
+    Logger log;
+
+    @Inject
     Config applicationConfig;
 
     @Inject
@@ -84,6 +93,8 @@ public class KafkaInstanceConfigurations {
 
     KafkaInstanceConfiguration standardDynamic;
 
+    private Platform platform = Platform.AWS;
+
     @PostConstruct
     void init() throws IOException {
         // load the default using the managedkafka prefix
@@ -98,18 +109,26 @@ public class KafkaInstanceConfigurations {
         standardDynamic = loadConfiguration(standard.toMap(true), "standard-dynamic");
 
         if (openShiftSupport.isOpenShift(kubernetesClient)) {
-            setDefaultStorageClasses(configs, openShiftSupport.adapt(kubernetesClient));
+            OpenShiftClient client = openShiftSupport.adapt(kubernetesClient);
+            Resource<Infrastructure> infraResource = client.config().infrastructures().withName("cluster");
+
+            Optional<String> infraPlatform = Optional.ofNullable(infraResource.get())
+                .map(Infrastructure::getSpec)
+                .map(InfrastructureSpec::getPlatformSpec)
+                .map(PlatformSpec::getType);
+
+            try {
+                infraPlatform.map(Platform::valueOf).ifPresent(p -> this.platform = p);
+            } catch (IllegalArgumentException e) {
+                log.warn("Unknown platform type, defaulting to AWS", e);
+            }
+
+            setDefaultStorageClasses(configs, infraPlatform);
         }
     }
 
-    void setDefaultStorageClasses(Map<String, KafkaInstanceConfiguration> configs, OpenShiftClient client) {
-        Resource<Infrastructure> infraResource = client.config().infrastructures().withName("cluster");
-
-        Optional.ofNullable(infraResource.get())
-            .map(Infrastructure::getSpec)
-            .map(InfrastructureSpec::getPlatformSpec)
-            .map(PlatformSpec::getType)
-            .map(String::toLowerCase)
+    void setDefaultStorageClasses(Map<String, KafkaInstanceConfiguration> configs, Optional<String> platform) {
+        platform.map(String::toLowerCase)
             .map(platformType -> String.format("platform.%s.default-storage-class", platformType))
             .map(applicationConfig::getConfigValue)
             .map(ConfigValue::getValue)
@@ -124,6 +143,10 @@ public class KafkaInstanceConfigurations {
                     standardDynamic.getKafka().setStorageClass(storageClass);
                 }
             });
+    }
+
+    public Platform getPlatform() {
+        return platform;
     }
 
     boolean storageClassSet(KafkaInstanceConfiguration config) {
