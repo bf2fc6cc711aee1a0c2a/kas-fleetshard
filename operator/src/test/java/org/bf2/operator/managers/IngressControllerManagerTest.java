@@ -11,6 +11,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteBuilder;
 import io.fabric8.openshift.api.model.RouteTargetReferenceBuilder;
@@ -28,6 +29,8 @@ import org.bf2.common.ManagedKafkaAgentResourceClient;
 import org.bf2.common.OperandUtils;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.operands.KafkaInstanceConfigurations;
+import org.bf2.operator.operands.KafkaInstanceConfigurations.Platform;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
@@ -550,6 +553,29 @@ class IngressControllerManagerTest {
                 .build();
         IngressController controller = ingressControllerManager.buildIngressController("kas", "kas", null, 1, null, null, agent);
         assertEquals("Internal", controller.getSpec().getEndpointPublishingStrategy().getLoadBalancer().getScope());
+    }
+
+    @Test
+    void testIngressControllerGcp() {
+        KafkaInstanceConfigurations mock = Mockito.mock(KafkaInstanceConfigurations.class);
+        Mockito.when(mock.getPlatform()).thenReturn(Platform.GCP);
+        QuarkusMock.installMockForType(mock, KafkaInstanceConfigurations.class);
+
+        ManagedKafkaAgent agent = new ManagedKafkaAgentBuilder()
+                .withNewMetadata()
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .editOrNewNet().withPrivate(true).endNet()
+                .endSpec()
+                .build();
+        IngressController controller = ingressControllerManager.buildIngressController("kas", "kas", null, 1, null, null, agent);
+        assertEquals("---\n"
+                + "aws:\n"
+                + "  type: \"NLB\"\n"
+                + "gcp:\n"
+                + "  clientAccess: \"Global\"\n"
+                + "type: \"GCP\"\n", Serialization.asYaml(controller.getSpec().getEndpointPublishingStrategy().getLoadBalancer().getProviderParameters()));
     }
 
     @BeforeEach

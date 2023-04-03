@@ -51,6 +51,7 @@ import org.bf2.operator.ManagedKafkaKeys;
 import org.bf2.operator.ManagedKafkaKeys.Labels;
 import org.bf2.operator.operands.AbstractKafkaCluster;
 import org.bf2.operator.operands.KafkaCluster;
+import org.bf2.operator.operands.KafkaInstanceConfigurations;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgent;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentSpec;
@@ -150,6 +151,9 @@ public class IngressControllerManager {
 
     @Inject
     OperandOverrideManager overrideManager;
+
+    @Inject
+    KafkaInstanceConfigurations configs;
 
     private Map<String, String> routeMatchLabels = new ConcurrentHashMap<>();
 
@@ -591,10 +595,13 @@ public class IngressControllerManager {
                              .map(a -> "Internal")
                              .orElse("External"))
                          .withNewProviderParameters()
-                             .withType("AWS")
+                             .withType(configs.getPlatform().name())
                              .withNewAws()
                                  .withType("NLB")
                              .endAws()
+                             .withNewGcp()
+                                 .withClientAccess("Global")
+                             .endGcp()
                          .endProviderParameters()
                      .endLoadBalancer()
                 .endEndpointPublishingStrategy()
