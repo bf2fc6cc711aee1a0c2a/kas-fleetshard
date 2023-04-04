@@ -56,7 +56,7 @@
 
         <quarkus.jib.base-jvm-image>registry.access.redhat.com/ubi8/openjdk-11-runtime:1.14-12.1675788327</quarkus.jib.base-jvm-image>
         <!-- Include quarkus.platform.test.version to allow different dependency build artifacts -->
-        <quarkus.platform.version>2.13.7.Final</quarkus.platform.version>
+        <quarkus.platform.version>2.16.6.Final</quarkus.platform.version>
         <quarkus.platform.test.version>2.13.7.Final</quarkus.platform.test.version>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus-plugin.version>${quarkus.platform.version}</quarkus-plugin.version>
