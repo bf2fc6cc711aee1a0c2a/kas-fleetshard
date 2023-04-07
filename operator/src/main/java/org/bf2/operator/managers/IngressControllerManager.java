@@ -203,6 +203,7 @@ public class IngressControllerManager {
     private Set<String> deploymentsToReconcile = new HashSet<>();
     private ResourceRequirements azDeploymentResourceRequirements;
     private ResourceRequirements defaultDeploymentResourceRequirements;
+    private boolean delayCreate = true;
 
     public Map<String, String> getRouteMatchLabels() {
         return routeMatchLabels;
@@ -429,8 +430,12 @@ public class IngressControllerManager {
         Map<String, IngressController> zoneToIngressController = new HashMap<>();
         zones.stream().forEach(z -> zoneToIngressController.put(z, ingressControllerInformer.getByKey(Cache.namespaceKeyFunc(INGRESS_OPERATOR_NAMESPACE, "kas-" + z))));
 
-        // someday we might share access to the operator cache
         List<Kafka> kafkas = informerManager.getKafkas();
+
+        if (delayCreate && kafkas.isEmpty() && zoneToIngressController.values().stream().allMatch(Objects::isNull)) {
+            log.debug("Delaying the creation of ingresscontrollers until a kafka has been created");
+            return;
+        }
 
         long connectionDemand = kafkas.stream()
                 .map(m -> m.getSpec().getKafka())
@@ -806,6 +811,10 @@ public class IngressControllerManager {
 
     /* testing */ String getBlueprintRouteNamespace() {
         return blueprintRouteNamespace;
+    }
+
+    void setDelayCreate(boolean delayCreate) {
+        this.delayCreate = delayCreate;
     }
 
 }

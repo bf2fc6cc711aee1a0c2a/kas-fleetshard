@@ -37,9 +37,13 @@ import org.bf2.operator.resources.v1alpha1.ManagedKafkaAgentBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaBuilder;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaRoute;
 import org.bf2.operator.resources.v1alpha1.ManagedKafkaSpecBuilder;
+import org.bf2.operator.resources.v1alpha1.ProfileBuilder;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -64,6 +68,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@TestInstance(Lifecycle.PER_CLASS)
 @QuarkusTestResource(KubernetesServerTestResource.class)
 @QuarkusTest
 class IngressControllerManagerTest {
@@ -185,6 +190,29 @@ class IngressControllerManagerTest {
             }
             return c.getSpec().getNodePlacement() != null;
         }));
+    }
+
+    @Test
+    void testDelayedCreation() {
+        buildNodes(3).stream().forEach(n -> openShiftClient.nodes().create(n));
+
+        ingressControllerManager.setDelayCreate(true);
+
+        // no kafkas, should skip creation
+        ingressControllerManager.reconcileIngressControllers();
+
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        assertEquals(0, ingressControllers.size());
+
+        ManagedKafka mk = ManagedKafka.getDummyInstance(1);
+        Kafka kafka = this.kafkaCluster.kafkaFrom(mk, null);
+        informerManager.createKafkaInformer();
+        openShiftClient.resource(kafka).createOrReplace();
+
+        // now that a kafka exists, they should be created
+        ingressControllerManager.reconcileIngressControllers();
+        ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        assertEquals(4, ingressControllers.size(), "Expected 4 IngressControllers: one per zone, and one multi-zone");
     }
 
     @Test
@@ -578,15 +606,57 @@ class IngressControllerManagerTest {
                 + "type: \"GCP\"\n", Serialization.asYaml(controller.getSpec().getEndpointPublishingStrategy().getLoadBalancer().getProviderParameters()));
     }
 
+    @Test
+    void testIngressControllerNodePlacement() {
+        useProfileLabels();
+
+        ingressControllerManager.reconcileIngressControllers();
+
+        List<IngressController> ingressControllers = openShiftClient.operator().ingressControllers().inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).list().getItems();
+        String tolerations = Serialization.asYaml(ingressControllers.get(0).getSpec().getNodePlacement().getTolerations());
+
+        // the additional toleration will cause the deployment to roll
+        assertEquals("---\n"
+                + "- effect: \"NoSchedule\"\n"
+                + "  key: \"kas-fleetshard-ingress\"\n"
+                + "  operator: \"Exists\"\n", tolerations);
+    }
+
+    @Test
+    void testIngressControllerReplicaCountsWithoutCollocation() {
+        useProfileLabels();
+
+        // should only be 2 replicas for 60 standard instances
+        long ingress = 50000000;
+        assertEquals(2, ingressControllerManager.numReplicasForZone(new LongSummaryStatistics(1, 0, ingress, ingress*60), new LongSummaryStatistics(1, 0, ingress*2, ingress*120), 0, IngressControllerManagerTest.ZONE_PERCENTAGE));
+    }
+
+    void useProfileLabels() {
+        openShiftClient.resource(new ManagedKafkaAgentBuilder()
+                .withNewMetadata()
+                .withName(ManagedKafkaAgentResourceClient.RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .addToCapacity("standard", new ProfileBuilder().withMaxNodes(6).build())
+                .endSpec()
+                .build()).createOrReplace();
+    }
+
     @BeforeEach
     @AfterEach
     void cleanup() {
         ingressControllerManager.getRouteMatchLabels().clear();
+        ingressControllerManager.setDelayCreate(false);
         openShiftClient.resources(Node.class).delete();
         openShiftClient.resources(Kafka.class).inAnyNamespace().delete();
         openShiftClient.resources(ManagedKafka.class).inAnyNamespace().delete();
         openShiftClient.resources(ManagedKafkaAgent.class).inAnyNamespace().delete();
         openShiftClient.resources(IngressController.class).inNamespace(IngressControllerManager.INGRESS_OPERATOR_NAMESPACE).delete();
         openShiftClient.routes().inAnyNamespace().delete();
+    }
+
+    @AfterAll
+    void restore() {
+        ingressControllerManager.setDelayCreate(true);
     }
 }
