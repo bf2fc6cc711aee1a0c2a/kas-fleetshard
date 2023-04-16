@@ -465,8 +465,7 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         // Apply any override configuration to listeners
         var strimzi = managedKafka.getSpec().getVersions().getStrimzi();
-        if (overrideManager.getKafkaOverride(strimzi) != null
-        ) {
+        if (overrideManager.getKafkaOverride(strimzi) != null) {
             var objectMapper = new ObjectMapper();
             listeners.forEach(listener -> {
                 var listenerOverride = overrideManager.getKafkaOverride(strimzi).getListeners().getOrDefault(listener.getName(), new ListenerOverride());
