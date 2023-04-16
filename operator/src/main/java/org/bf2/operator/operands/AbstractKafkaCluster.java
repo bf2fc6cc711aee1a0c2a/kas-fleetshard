@@ -1,5 +1,7 @@
 package org.bf2.operator.operands;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.networking.v1.NetworkPolicyPeerBuilder;
@@ -34,6 +36,7 @@ import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
+import org.bf2.operator.managers.OperandOverrideManager.Kafka.ListenerOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -426,39 +429,58 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                 .withMaxConnections(totalMaxConnections)
                 .withMaxConnectionCreationRate(maxConnectionAttemptsPerSec);
 
-        return Arrays.asList(
-                        new GenericKafkaListenerBuilder()
-                                .withName(EXTERNAL_LISTENER_NAME)
-                                .withPort(9094)
-                                .withType(externalListenerType)
-                                .withTls(true)
-                                .withAuth(plainOverOauthAuthenticationListener)
-                                .withConfiguration(listenerConfigBuilder.build())
-                                .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName("oauth")
-                                .withPort(9095)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(true)
-                                .withAuth(oauthAuthenticationListener)
-                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
-                                        .withNewPodSelector()
-                                            .addToMatchLabels("app", AbstractAdminServer.adminServerName(managedKafka))
-                                        .endPodSelector()
-                                        .build())
-                                .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName("sre")
-                                .withPort(9096)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
-                                        .withNewPodSelector()
-                                            .addToMatchLabels("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka")
-                                        .endPodSelector()
-                                        .build())
-                                .withTls(false)
-                                .build()
-                );
+        List<GenericKafkaListener> listeners = Arrays.asList(
+                new GenericKafkaListenerBuilder()
+                        .withName(EXTERNAL_LISTENER_NAME)
+                        .withPort(9094)
+                        .withType(externalListenerType)
+                        .withTls(true)
+                        .withAuth(plainOverOauthAuthenticationListener)
+                        .withConfiguration(listenerConfigBuilder.build())
+                        .build(),
+                new GenericKafkaListenerBuilder()
+                        .withName("oauth")
+                        .withPort(9095)
+                        .withType(KafkaListenerType.INTERNAL)
+                        .withTls(true)
+                        .withAuth(oauthAuthenticationListener)
+                        .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                .withNewPodSelector()
+                                .addToMatchLabels("app", AbstractAdminServer.adminServerName(managedKafka))
+                                .endPodSelector()
+                                .build())
+                        .build(),
+                new GenericKafkaListenerBuilder()
+                        .withName("sre")
+                        .withPort(9096)
+                        .withType(KafkaListenerType.INTERNAL)
+                        .withNetworkPolicyPeers(new NetworkPolicyPeerBuilder()
+                                .withNewPodSelector()
+                                .addToMatchLabels("strimzi.io/name", managedKafka.getMetadata().getName() + "-kafka")
+                                .endPodSelector()
+                                .build())
+                        .withTls(false)
+                        .build()
+        );
+
+        // Apply any override configuration to listeners
+        var strimzi = managedKafka.getSpec().getVersions().getStrimzi();
+        if (overrideManager.getKafkaOverride(strimzi) != null
+        ) {
+            var objectMapper = new ObjectMapper();
+            listeners.forEach(listener -> {
+                var listenerOverride = overrideManager.getKafkaOverride(strimzi).getListeners().getOrDefault(listener.getName(), new ListenerOverride());
+                if (listener.getAuth() != null && listenerOverride.getAuth() != null) {
+                    try {
+                        objectMapper.updateValue(listener.getAuth(), listenerOverride.getAuth());
+                    } catch (JsonMappingException e) {
+                        log.warnf("Failed to apply listener auth override '%s' for listener name: '%s'.  Override ignored.",
+                                listenerOverride.getAuth(), e);
+                    }
+                }
+            });
+        }
+        return listeners;
     }
 
     protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {

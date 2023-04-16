@@ -49,6 +49,7 @@ import org.bf2.operator.managers.ImagePullSecretManager;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.IngressControllerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
+import org.bf2.operator.managers.OperandOverrideManager.Kafka.ListenerOverride;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.operands.KafkaInstanceConfigurations.InstanceType;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -430,10 +431,25 @@ class KafkaClusterTest {
     @Test
     void testManagedKafkaToKafkaWithCustomConfiguration() throws IOException {
         ManagedKafka mk = exampleManagedKafka("60Gi");
+
+        String strimzi = mk.getSpec().getVersions().getStrimzi();
         Map<String, Object> brokerConfig = new HashMap<>();
         brokerConfig.put("broker.foo", "bar");
         brokerConfig.put("auto.create.topics.enable", null);
-        configureMockOverrideManager(mk, brokerConfig);
+
+        var externalListenerOverride = new ListenerOverride();
+        externalListenerOverride.getAuth().setAdditionalProperty("jwksExpirySeconds", 3601);
+
+        var oauthListenerOverride = new ListenerOverride();
+        oauthListenerOverride.getAuth().setAdditionalProperty("jwksExpirySeconds", 3602);
+
+        OperandOverrideManager.Kafka kafkaOverride = new OperandOverrideManager.Kafka();
+        kafkaOverride.setBrokerConfig(brokerConfig);
+        kafkaOverride.setListeners(Map.of("external", externalListenerOverride, "oauth", oauthListenerOverride));
+
+        when(overrideManager.getKafkaOverride(strimzi)).thenReturn(kafkaOverride);
+        when(overrideManager.getCanaryImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
+        when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
 
         mk.getSpec().getCapacity().setMaxPartitions(2*configs.getConfig(InstanceType.STANDARD).getKafka().getPartitionCapacity());
 
@@ -819,15 +835,6 @@ class KafkaClusterTest {
         var oauthListener2 = getListener.apply(kafka, "oauth");
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientId());
         assertNull(((KafkaListenerAuthenticationOAuth) oauthListener2.getAuth()).getClientSecret());
-    }
-
-    private void configureMockOverrideManager(ManagedKafka mk, Map<String, Object> brokerConfigOverride) {
-        String strimzi = mk.getSpec().getVersions().getStrimzi();
-        OperandOverrideManager.Kafka canary = new OperandOverrideManager.Kafka();
-        canary.setBrokerConfig(brokerConfigOverride);
-        when(overrideManager.getKafkaOverride(strimzi)).thenReturn(canary);
-        when(overrideManager.getCanaryImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
-        when(overrideManager.getCanaryInitImage(strimzi)).thenReturn("quay.io/mk-ci-cd/strimzi-canary:0.2.0-220111183833");
     }
 
     @ParameterizedTest

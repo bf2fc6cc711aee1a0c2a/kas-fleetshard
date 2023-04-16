@@ -10,6 +10,8 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.TestProfile;
 import io.quarkus.test.kubernetes.client.KubernetesServerTestResource;
 import org.bf2.operator.MockProfile;
+import org.bf2.operator.managers.OperandOverrideManager.Kafka;
+import org.bf2.operator.managers.OperandOverrideManager.Kafka.ListenerOverride;
 import org.bf2.operator.managers.OperandOverrideManager.OperandOverride;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -81,7 +83,6 @@ public class OperandOverrideManagerTest {
         assertEquals(1, canaryOverride.env.size());
         assertEquals("FOO", canaryOverride.env.get(0).getName());
     }
-
     @Test
     void applyEnvironmentOverridesProvidesAdditionalEnvVar() {
         overrideManager.updateOverrides(new ConfigMapBuilder()
@@ -141,6 +142,41 @@ public class OperandOverrideManagerTest {
 
         assertEquals(1, envVars.size());
         assertEquals(containerEnv2, envVars.get(0));
+    }
+
+    @Test
+    void kafkaListenerOverride() {
+        overrideManager.updateOverrides(new ConfigMapBuilder()
+                .withMetadata(OVERRIDE_METADATA)
+                .withData(Collections.singletonMap(OperandOverrideManager.OPERANDS_YAML,
+                        "kafka: \n"
+                                + "  image: something\n"
+                                + "  env:\n"
+                                + "  - name: FOO\n"
+                                + "    value: bar\n"
+                                + "  brokerConfig:\n"
+                                + "    \"auto.create.topics.enable\": false\n"
+                                + "  listeners:\n"
+                                + "     external:\n"
+                                + "       auth:\n"
+                                + "        jwksExpirySeconds: 3600\n"
+                                + "        jwksRefreshSeconds: 900\n"
+                                + "        jwksMinRefreshPauseSeconds: 5\n"))
+                .build());
+
+        Kafka kafkaOverride = overrideManager.getKafkaOverride(STRIMZI_CLUSTER_OPERATOR_VER);
+        assertEquals(1, kafkaOverride.getEnv().size());
+        assertEquals("FOO", kafkaOverride.getEnv().get(0).getName());
+
+        assertEquals(1, kafkaOverride.getBrokerConfig().size());
+        assertEquals(false, kafkaOverride.getBrokerConfig().get("auto.create.topics.enable"));
+
+        assertEquals(1, kafkaOverride.getListeners().size());
+        ListenerOverride external = kafkaOverride.getListeners().get("external");
+        ListenerOverride.AuthOverride authentication = external.getAuth();
+        assertEquals(3, authentication.getAdditionalProperties().size());
+        assertEquals(3600, authentication.getAdditionalProperties().get("jwksExpirySeconds"));
+
     }
 
 }
