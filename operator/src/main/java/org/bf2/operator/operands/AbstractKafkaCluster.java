@@ -473,8 +473,9 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
                     try {
                         objectMapper.updateValue(listener.getAuth(), listenerOverride.getAuth());
                     } catch (JsonMappingException e) {
-                        log.warnf("Failed to apply listener auth override '%s' for listener name: '%s'.  Override ignored.",
-                                listenerOverride.getAuth(), e);
+                        log.errorf("Failed to apply listener auth override '%s' for listener '%s'.",
+                                listenerOverride.getAuth(), listener.getName(), e);
+                        throw new RuntimeException(String.format("Failed to apply listener auth override for listener '%s'", listener.getName()), e);
                     }
                 }
             });

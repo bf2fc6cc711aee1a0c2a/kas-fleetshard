@@ -134,6 +134,14 @@ public class OperandOverrideManager {
                 public void setAdditionalProperty(String name, Object value) {
                     this.additionalProperties.put(name, value);
                 }
+
+                @Override
+                public String toString() {
+                    final StringBuilder sb = new StringBuilder("AuthOverride{");
+                    sb.append("additionalProperties=").append(additionalProperties);
+                    sb.append('}');
+                    return sb.toString();
+                }
             }
         }
     }
