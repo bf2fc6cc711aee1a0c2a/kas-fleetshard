@@ -44,6 +44,7 @@ spec:
         enablePlain: true
         tokenEndpointUri: "https://tokenEndpointURI"
         enableOauthBearer: true
+        jwksExpirySeconds: 3601
         type: "oauth"
       configuration:
         bootstrap:
@@ -86,6 +87,7 @@ spec:
         - secretName: "test-mk-sso-cert"
           certificate: "keycloak.crt"
         enableOauthBearer: true
+        jwksExpirySeconds: 3602
         type: "oauth"
       networkPolicyPeers:
       - podSelector:

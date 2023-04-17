@@ -90,6 +90,7 @@ public class OperandOverrideManager {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Kafka extends OperandOverride {
         private Map<String, Object> brokerConfig = Map.of();
+        private Map<String, ListenerOverride> listeners = Map.of();
 
         public Map<String, Object> getBrokerConfig() {
             return brokerConfig;
@@ -97,6 +98,51 @@ public class OperandOverrideManager {
 
         public void setBrokerConfig(Map<String, Object> kafkaConfig) {
             this.brokerConfig = kafkaConfig;
+        }
+
+        public Map<String, ListenerOverride> getListeners() {
+            return listeners;
+        }
+
+        public void setListeners(Map<String, ListenerOverride> listeners) {
+            this.listeners = listeners == null ? Map.of() : listeners;
+        }
+
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class ListenerOverride {
+
+            private AuthOverride authOverride = new AuthOverride();
+
+            public AuthOverride getAuth() {
+                return authOverride;
+            }
+
+            public void setAuth(AuthOverride authentication) {
+                this.authOverride =  authentication;
+            }
+
+            public static class AuthOverride {
+                @JsonIgnore
+                private Map<String, Object> additionalProperties = new HashMap<>();
+
+                @JsonAnyGetter
+                public Map<String, Object> getAdditionalProperties() {
+                    return this.additionalProperties;
+                }
+
+                @JsonAnySetter
+                public void setAdditionalProperty(String name, Object value) {
+                    this.additionalProperties.put(name, value);
+                }
+
+                @Override
+                public String toString() {
+                    final StringBuilder sb = new StringBuilder("AuthOverride{");
+                    sb.append("additionalProperties=").append(additionalProperties);
+                    sb.append('}');
+                    return sb.toString();
+                }
+            }
         }
     }
 
