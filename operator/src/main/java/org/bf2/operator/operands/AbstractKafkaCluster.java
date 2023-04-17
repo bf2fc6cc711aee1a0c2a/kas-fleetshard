@@ -36,7 +36,6 @@ import org.bf2.operator.ManagedKafkaKeys.Annotations;
 import org.bf2.operator.clients.KafkaResourceClient;
 import org.bf2.operator.managers.InformerManager;
 import org.bf2.operator.managers.OperandOverrideManager;
-import org.bf2.operator.managers.OperandOverrideManager.Kafka.ListenerOverride;
 import org.bf2.operator.managers.SecuritySecretManager;
 import org.bf2.operator.managers.StrimziManager;
 import org.bf2.operator.resources.v1alpha1.ManagedKafka;
@@ -465,22 +464,29 @@ public abstract class AbstractKafkaCluster implements Operand<ManagedKafka> {
 
         // Apply any override configuration to listeners
         var strimzi = managedKafka.getSpec().getVersions().getStrimzi();
-        if (overrideManager.getKafkaOverride(strimzi) != null) {
+        var kafkaOverride = overrideManager.getKafkaOverride(strimzi);
+        if (kafkaOverride != null) {
             var objectMapper = new ObjectMapper();
-            listeners.forEach(listener -> {
-                var listenerOverride = overrideManager.getKafkaOverride(strimzi).getListeners().getOrDefault(listener.getName(), new ListenerOverride());
-                if (listener.getAuth() != null && listenerOverride.getAuth() != null) {
-                    try {
-                        objectMapper.updateValue(listener.getAuth(), listenerOverride.getAuth());
-                    } catch (JsonMappingException e) {
-                        log.errorf("Failed to apply listener auth override '%s' for listener '%s'.",
-                                listenerOverride.getAuth(), listener.getName(), e);
-                        throw new RuntimeException(String.format("Failed to apply listener auth override for listener '%s'", listener.getName()), e);
-                    }
-                }
+            listeners.stream()
+                    .filter(l -> Objects.nonNull(l.getAuth()))
+                    .filter(l -> hasAuthOverride(l.getName(), kafkaOverride))
+                    .forEach(listener -> {
+                        var listenerOverride = kafkaOverride.getListeners().get(listener.getName());
+                        try {
+                            objectMapper.updateValue(listener.getAuth(), listenerOverride.getAuth());
+                        } catch (JsonMappingException e) {
+                            log.errorf("Failed to apply listener auth override '%s' for listener '%s'.",
+                                    listenerOverride.getAuth(), listener.getName(), e);
+                            throw new RuntimeException(String.format("Failed to apply listener auth override for listener '%s'", listener.getName()), e);
+                        }
             });
         }
         return listeners;
+    }
+
+    private static boolean hasAuthOverride(String listenerName, OperandOverrideManager.Kafka override) {
+        var obj = override.getListeners().get(listenerName);
+        return Objects.nonNull(obj) && Objects.nonNull(obj.getAuth());
     }
 
     protected Map<String, String> buildExternalListenerAnnotations(ManagedKafka managedKafka) {
