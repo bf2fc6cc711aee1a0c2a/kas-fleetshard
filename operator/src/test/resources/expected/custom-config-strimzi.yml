@@ -234,6 +234,10 @@ spec:
           name: "test-mk-kafka-logging"
           optional: false
     template:
+      kafkaContainer:
+        env:
+          - name: FOO
+            value: BAR
       pod:
         tolerations:
         - effect: "NoExecute"
