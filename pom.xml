@@ -72,7 +72,6 @@
         <impsort-plugin.version>1.8.0</impsort-plugin.version>
         <buildhelper-plugin.version>3.3.0</buildhelper-plugin.version>
         <format.skip>false</format.skip>
-        <findbugs.annotations.version>3.0.0</findbugs.annotations.version>
         <jakarta.validation.version>2.0.2</jakarta.validation.version>
         <jsonassert.version>1.5.1</jsonassert.version>
 
@@ -210,11 +209,6 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
                 <scope>provided</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.google.code.findbugs</groupId>
-                <artifactId>annotations</artifactId>
-                <version>${findbugs.annotations.version}</version>
             </dependency>
             <!-- test -->
             <dependency>
