@@ -26,6 +26,8 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.TLSConfigBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.quarkus.arc.DefaultBean;
+import io.strimzi.api.kafka.model.ContainerEnvVar;
+import io.strimzi.api.kafka.model.ContainerEnvVarBuilder;
 import io.strimzi.api.kafka.model.CruiseControlSpec;
 import io.strimzi.api.kafka.model.CruiseControlSpecBuilder;
 import io.strimzi.api.kafka.model.ExternalConfigurationReferenceBuilder;
@@ -98,6 +100,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static io.fabric8.kubernetes.api.model.Quantity.getAmountInBytes;
 
@@ -544,6 +547,11 @@ public class KafkaCluster extends AbstractKafkaCluster {
         KafkaClusterTemplateBuilder templateBuilder = new KafkaClusterTemplateBuilder()
                 .withPod(podTemplateBuilder.build());
 
+        var kafkaContainerEnv = buildKafkaContainerEnvVars(managedKafka);
+        if (!kafkaContainerEnv.isEmpty()) {
+            templateBuilder.withNewKafkaContainer().withEnv(kafkaContainerEnv).endKafkaContainer();
+        }
+
         if (replicas > 1 && drainCleanerManager.isDrainCleanerWebhookFound()) {
             templateBuilder.withPodDisruptionBudget(
                 new PodDisruptionBudgetTemplateBuilder()
@@ -552,6 +560,15 @@ public class KafkaCluster extends AbstractKafkaCluster {
         }
 
         return templateBuilder.build();
+    }
+
+    private List<ContainerEnvVar> buildKafkaContainerEnvVars(ManagedKafka managedKafka) {
+        var kafkaOverride = this.overrideManager.getKafkaOverride(managedKafka.getSpec().getVersions().getStrimzi());
+        if (kafkaOverride == null) {
+            return List.of();
+        }
+        var envVars = kafkaOverride.applyEnvironmentTo(List.of());
+        return envVars.stream().filter(env -> Objects.isNull(env.getValueFrom())).map(env -> new ContainerEnvVarBuilder().withName(env.getName()).withValue(env.getValue()).build()).collect(Collectors.toList());
     }
 
     public static Toleration buildKafkaBrokerToleration() {

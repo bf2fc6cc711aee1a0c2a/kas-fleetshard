@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Affinity;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
@@ -445,6 +446,7 @@ class KafkaClusterTest {
 
         OperandOverrideManager.Kafka kafkaOverride = new OperandOverrideManager.Kafka();
         kafkaOverride.setBrokerConfig(brokerConfig);
+        kafkaOverride.setEnv(List.of(new EnvVar("FOO", "BAR", null)));
         kafkaOverride.setListeners(Map.of("external", externalListenerOverride, "oauth", oauthListenerOverride));
 
         when(overrideManager.getKafkaOverride(strimzi)).thenReturn(kafkaOverride);
