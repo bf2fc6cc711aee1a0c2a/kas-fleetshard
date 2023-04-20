@@ -22,7 +22,7 @@
             <name>shawkins</name>
             <url>https://raw.githubusercontent.com/shawkins/repo/master</url>
             <snapshots>
-                <enabled>false</enabled>
+                <enabled>true</enabled>
             </snapshots>
             <releases>
                 <enabled>true</enabled>
@@ -34,7 +34,7 @@
         <dependency>
             <groupId>io.openmessaging.benchmark</groupId>
             <artifactId>benchmark-framework</artifactId>
-            <version>0.0.1</version>
+            <version>0.0.2-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>ch.qos.logback</groupId>
@@ -42,8 +42,8 @@
                 </exclusion>
                 <exclusion>
                     <!-- introduces a bouncy castle conflict -->
-                	<groupId>io.openmessaging.benchmark</groupId>
-                	<artifactId>driver-pulsar</artifactId>
+                    <groupId>io.openmessaging.benchmark</groupId>
+                    <artifactId>driver-pulsar</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
