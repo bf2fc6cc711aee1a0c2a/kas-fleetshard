@@ -10,6 +10,9 @@ import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageCha
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifest;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestList;
 import io.fabric8.openshift.api.model.operatorhub.lifecyclemanager.v1.PackageManifestStatus;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.ClusterServiceVersion;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.ClusterServiceVersionBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.StrategyDeploymentSpec;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionCondition;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionSpec;
@@ -38,6 +41,7 @@ import javax.inject.Inject;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -81,9 +85,13 @@ public class StrimziBundleManager {
     @Inject
     MeterRegistry meterRegistry;
 
+    @Inject
+    InformerManager informerManager;
+
     MixedOperation<PackageManifest, PackageManifestList, Resource<PackageManifest>> packageManifestClient;
 
     ResourceInformer<Subscription> subscriptionInformer;
+    ResourceInformer<ClusterServiceVersion> csvInformer;
 
     private volatile long lastPendingInstationCheck;
 
@@ -115,7 +123,145 @@ public class StrimziBundleManager {
                                 // nothing to do
                             }
                         });
+
+        this.csvInformer =
+                this.resourceInformerFactory.create(ClusterServiceVersion.class,
+                        this.openShiftClient.operatorHub().clusterServiceVersions().inAnyNamespace()
+                                .withLabels(Map.of("operators.coreos.com/kas-strimzi-bundle.redhat-managed-kafka-operator", "")),
+                        new ResourceEventHandler<ClusterServiceVersion>() {
+                            @Override
+                            public void onAdd(ClusterServiceVersion subscription) {
+                                updateResources(null);
+                            }
+
+                            @Override
+                            public void onUpdate(ClusterServiceVersion oldSubscription, ClusterServiceVersion newSubscription) {
+                                if (!Objects.equals(oldSubscription.getMetadata().getGeneration(), newSubscription.getMetadata().getGeneration())) {
+                                    updateResources(null);
+                                }
+                            }
+
+                            @Override
+                            public void onDelete(ClusterServiceVersion subscription, boolean deletedFinalStateUnknown) {
+                                // nothing to do
+                            }
+                        });
+
+        this.informerManager.registerKafkaInformerHandler(new ResourceEventHandler<Kafka>() {
+            @Override
+            public void onAdd(Kafka obj) {
+                updateResources(obj);
+            }
+
+            @Override
+            public void onDelete(Kafka obj, boolean deletedFinalStateUnknown) {
+                updateResources(obj);
+            }
+
+            @Override
+            public void onUpdate(Kafka oldObj, Kafka newObj) {
+                // no action needed, until there's an ability to scale the broker count and the resource logic is dependent upon the broker count
+            }
+        });
     }
+
+    private void updateResources(Kafka kafka) {
+        ClusterServiceVersion csv = csvInformer.getList().stream().findFirst().orElse(null);
+
+        if (csv == null) {
+            return;
+        }
+
+        List<Kafka> kafkas = this.informerManager.getKafkas();
+
+        // copy of the updated deployments
+        List<StrategyDeploymentSpec> deployments = new ArrayList<>();
+        boolean update = false;
+
+        for (StrategyDeploymentSpec deployment : csv.getSpec().getInstall().getSpec().getDeployments()) {
+            deployments.add(deployment);
+
+            if (!deployment.getName().startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR)) {
+                continue;
+            }
+            if (kafka != null && !isStrimziDeploymentForKafka(deployment, kafka)) {
+                continue;
+            }
+
+            // could also produce a map of strimzi to count, or now that resource considerations were removed just a set of in use versions - which should share logic
+            // with the StrimziManager
+            int brokerCount = kafkas.stream().filter(k -> isStrimziDeploymentForKafka(deployment, k)).mapToInt(k -> k.getSpec().getKafka().getReplicas()).sum();
+
+            Map<String, String> annotations = new LinkedHashMap<>(Optional.ofNullable(deployment.getSpec().getTemplate().getMetadata().getAnnotations()).orElse(Map.of()));
+            String replicas = null;
+
+            if (brokerCount > 0) {
+                // TODO: use annotations constants class
+                replicas = annotations.remove("managedkafka.bf2.org/replicas");
+
+                if (replicas == null) {
+                    continue; // nothing to restore
+                }
+            } else {
+                annotations.putIfAbsent("managedkafka.bf2.org/replicas", String.valueOf(deployment.getSpec().getReplicas()));
+                replicas = "0";
+                if (Objects.equals(0, deployment.getSpec().getReplicas())) {
+                    continue;
+                }
+            }
+
+            update = true;
+            // a builder doesn't really work with StrategyDeploymentSpec because the buildable references do not include the nested content
+            StrategyDeploymentSpec newSpec = Serialization.clone(deployment);
+            newSpec.getSpec().getTemplate().getMetadata().setAnnotations(annotations);
+            newSpec.getSpec().setReplicas(Integer.valueOf(replicas));
+            deployments.set(deployments.size() - 1, newSpec);
+        }
+
+        if (update) {
+            ClusterServiceVersionBuilder builder = new ClusterServiceVersionBuilder(csv).editSpec()
+                    .editInstall()
+                    .editSpec()
+                    .withDeployments(deployments)
+                    .endSpec()
+                    .endInstall()
+                    .endSpec();
+            // the expectation is that nothing other than status updates are expected, so a replace should be safe
+            openShiftClient.operatorHub().clusterServiceVersions().replace(builder.build());
+        }
+    }
+
+    private boolean isStrimziDeploymentForKafka(StrategyDeploymentSpec deployment, Kafka k) {
+        return k.getMetadata().getLabels() != null &&
+                        (deployment.getName().equals(k.getMetadata().getLabels().get(strimziManager.getVersionLabel())));
+    }
+
+    /*Container operator = findOperatorContainer(deployment);
+    if (operator == null) {
+        continue;
+    }
+
+    ResourceRequirements resources = null;
+    resources = Optional.ofNullable(annotations.remove("managedkafka.bf2.org/resources")).map(s -> Serialization.unmarshal(s, ResourceRequirements.class)).orElse(null);
+    ResourceRequirementsBuilder requirementsBuilder = Optional.ofNullable(operator.getResources()).map(ResourceRequirementsBuilder::new).orElse(new ResourceRequirementsBuilder());
+    // baseline resources from the upstream, could be externalized either in the fleetshard config or on the Deployment
+    requirementsBuilder.addToRequests("cpu", Quantity.parse("200m"));
+    requirementsBuilder.addToRequests("memory", Quantity.parse("900Mi"));
+    requirementsBuilder.addToLimits("cpu", Quantity.parse("1000m"));
+    requirementsBuilder.addToLimits("memory", Quantity.parse("900Mi"));
+    resources = requirementsBuilder.build();
+    annotations.putIfAbsent("managedkafka.bf2.org/resources", Serialization.asJson(operator.getResources()));
+
+    private Container findOperatorContainer(StrategyDeploymentSpec deployment) {
+        return deployment.getSpec()
+                .getTemplate()
+                .getSpec()
+                .getContainers()
+                .stream()
+                .filter(container -> container.getName().startsWith(StrimziManager.STRIMZI_CLUSTER_OPERATOR))
+                .findFirst().orElse(null);
+    }
+    */
 
     @Scheduled(every = "{strimzi.bundle.interval}", delay = 1, concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void handleSubscriptionLoop() {
